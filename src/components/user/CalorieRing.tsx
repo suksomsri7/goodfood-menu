@@ -15,17 +15,17 @@ export function CalorieRing({ remaining, consumed, burnt, target }: CalorieRingP
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
   return (
-    <div className="flex items-center justify-between px-10 py-14">
-      {/* Eaten */}
-      <div className="flex flex-col items-center w-24">
-        <span className="text-3xl font-light text-gray-900 tabular-nums">
+    <div className="flex items-center justify-between px-6 pt-6 pb-2">
+      {/* Consumed */}
+      <div className="flex flex-col items-center flex-1">
+        <span className="text-2xl font-light text-gray-900 tabular-nums">
           {consumed.toLocaleString()}
         </span>
-        <span className="text-xs text-gray-400 mt-2 tracking-widest uppercase">eaten</span>
+        <span className="text-[10px] text-gray-400 mt-2 tracking-widest uppercase">Consumed</span>
       </div>
 
       {/* Ring */}
-      <div className="relative w-36 h-36">
+      <div className="relative w-36 h-36 mx-6">
         <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
           <circle
             cx="60"
@@ -54,16 +54,16 @@ export function CalorieRing({ remaining, consumed, burnt, target }: CalorieRingP
           <span className="text-4xl font-light text-gray-900 tabular-nums">
             {remaining.toLocaleString()}
           </span>
-          <span className="text-xs text-gray-400 mt-1 tracking-widest uppercase">left</span>
+          <span className="text-[10px] text-gray-400 mt-1 tracking-widest uppercase">Kcal</span>
         </div>
       </div>
 
       {/* Burned */}
-      <div className="flex flex-col items-center w-24">
-        <span className="text-3xl font-light text-gray-900 tabular-nums">
+      <div className="flex flex-col items-center flex-1">
+        <span className="text-2xl font-light text-gray-900 tabular-nums">
           {burnt}
         </span>
-        <span className="text-xs text-gray-400 mt-2 tracking-widest uppercase">burned</span>
+        <span className="text-[10px] text-gray-400 mt-2 tracking-widest uppercase">Burned</span>
       </div>
     </div>
   );

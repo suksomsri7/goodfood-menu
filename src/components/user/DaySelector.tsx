@@ -26,24 +26,26 @@ export function DaySelector({ selectedDate, onDateChange }: DaySelectorProps) {
   };
 
   return (
-    <div className="flex items-center justify-center py-6">
-      <button
-        onClick={goToPreviousDay}
-        className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-      >
-        <ChevronLeft className="w-5 h-5" strokeWidth={1.5} />
-      </button>
+    <div className="sticky top-0 z-50 bg-white border-b border-gray-100">
+      <div className="flex items-center justify-center gap-4 py-4">
+        <button
+          onClick={goToPreviousDay}
+          className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <ChevronLeft className="w-5 h-5" strokeWidth={1.5} />
+        </button>
 
-      <span className="mx-8 text-sm font-medium text-gray-800 tracking-wide">
-        {getDateLabel()}
-      </span>
+        <span className="text-sm font-medium text-gray-800 tracking-wide min-w-[80px] text-center">
+          {getDateLabel()}
+        </span>
 
-      <button
-        onClick={goToNextDay}
-        className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-      >
-        <ChevronRight className="w-5 h-5" strokeWidth={1.5} />
-      </button>
+        <button
+          onClick={goToNextDay}
+          className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <ChevronRight className="w-5 h-5" strokeWidth={1.5} />
+        </button>
+      </div>
     </div>
   );
 }

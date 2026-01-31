@@ -5,6 +5,7 @@ import { DaySelector } from "@/components/user/DaySelector";
 import { CalorieRing } from "@/components/user/CalorieRing";
 import { MacroProgressBar } from "@/components/user/MacroProgressBar";
 import { MealList } from "@/components/user/MealList";
+import { RecommendationCard } from "@/components/user/RecommendationCard";
 
 // Mock data
 const mockUser = {
@@ -74,11 +75,11 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-white pb-28">
-      {/* Header */}
+      {/* Header - Sticky */}
       <DaySelector selectedDate={selectedDate} onDateChange={setSelectedDate} />
 
       {/* Calories Card */}
-      <div className="mx-8 mb-10">
+      <div className="mx-6 mb-12">
         <CalorieRing
           remaining={remaining}
           consumed={mockDailyData.consumed}
@@ -86,8 +87,8 @@ export default function DashboardPage() {
           target={mockUser.targetCalories}
         />
 
-        {/* Macros */}
-        <div className="flex gap-8 px-4 pt-8 border-t border-gray-100">
+        {/* Macros - ชิดกับวงกลม */}
+        <div className="flex gap-6 px-2">
           <MacroProgressBar
             label="Carbohydrates"
             current={mockDailyData.carbs}
@@ -112,8 +113,15 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Recommendation */}
+      <div className="px-6 mb-6">
+        <RecommendationCard 
+          message={`คุณยังเหลือแคลอรี่อีก ${remaining} Kcal วันนี้ลองเพิ่มผักและโปรตีนเพื่อให้ครบโภชนาการ`}
+        />
+      </div>
+
       {/* Meals */}
-      <div className="px-8">
+      <div className="px-6">
         <MealList meals={mockMeals} />
       </div>
     </div>

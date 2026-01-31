@@ -27,7 +27,7 @@ export function MacroProgressBar({
       animate={{ opacity: 1 }}
       transition={{ delay, duration: 0.4 }}
     >
-      <span className="text-xs text-gray-400 mb-4 tracking-wide">{label}</span>
+      <span className="text-xs text-gray-400 mb-2">{label}</span>
       
       <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden">
         <motion.div
@@ -39,7 +39,7 @@ export function MacroProgressBar({
         />
       </div>
       
-      <span className={`text-xs mt-4 tabular-nums ${isOver ? 'text-red-400' : 'text-gray-500'}`}>
+      <span className={`text-xs mt-2 tabular-nums ${isOver ? 'text-red-400' : 'text-gray-500'}`}>
         {current} / {target} g
       </span>
     </motion.div>
