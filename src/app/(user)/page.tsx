@@ -1,92 +1,121 @@
 "use client";
 
-import { WeekCalendar } from "@/components/user/WeekCalendar";
-import { CalorieGauge } from "@/components/user/CalorieGauge";
-import { MacroCard } from "@/components/user/MacroCard";
+import { useState } from "react";
+import { DaySelector } from "@/components/user/DaySelector";
+import { CalorieRing } from "@/components/user/CalorieRing";
+import { MacroProgressBar } from "@/components/user/MacroProgressBar";
 import { MealList } from "@/components/user/MealList";
-import { Bell, User } from "lucide-react";
 
-// Mock user data
-const userData = {
-  name: "John",
-  targetCalories: 1840,
-  consumed: 705,
-  burnt: 0,
-  macros: {
-    protein: { current: 25, target: 138 },
-    carbs: { current: 85, target: 184 },
-    fat: { current: 15, target: 51 },
-  },
+// Mock data
+const mockUser = {
+  targetCalories: 2500,
+  targetProtein: 175,
+  targetCarbs: 280,
+  targetFat: 85,
 };
 
-export default function UserDashboard() {
+const mockDailyData = {
+  consumed: 2243,
+  burnt: 0,
+  protein: 164,
+  carbs: 182,
+  fat: 93,
+};
+
+const mockMeals = [
+  {
+    id: "1",
+    name: "Pasta Salad Bowl",
+    weight: 350,
+    multiplier: 1.7,
+    calories: 680,
+    protein: 20,
+    carbs: 94,
+    fat: 26,
+    time: "16:30",
+  },
+  {
+    id: "2",
+    name: "Grilled Salmon",
+    weight: 150,
+    multiplier: 2.0,
+    calories: 500,
+    protein: 46,
+    carbs: 0,
+    fat: 30,
+    time: "16:30",
+  },
+  {
+    id: "3",
+    name: "Colorful Salad Bowl",
+    weight: 400,
+    calories: 350,
+    protein: 10,
+    carbs: 40,
+    fat: 20,
+    time: "16:29",
+  },
+  {
+    id: "4",
+    name: "Yogurt Parfait",
+    weight: 150,
+    multiplier: 2.0,
+    calories: 300,
+    protein: 10,
+    carbs: 48,
+    fat: 8,
+    time: "16:28",
+  },
+];
+
+export default function DashboardPage() {
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const remaining = mockUser.targetCalories - mockDailyData.consumed + mockDailyData.burnt;
+
   return (
-    <div className="pb-24">
+    <div className="min-h-screen bg-white pb-28">
       {/* Header */}
-      <header className="p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center">
-            <User className="w-6 h-6 text-primary-600" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">สวัสดี 👋</p>
-            <h1 className="text-lg font-bold text-gray-800">{userData.name}</h1>
-          </div>
-        </div>
-        <button className="relative p-3 rounded-full bg-white shadow-sm hover:shadow-md transition-shadow">
-          <Bell className="w-5 h-5 text-gray-600" />
-          <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full" />
-        </button>
-      </header>
+      <DaySelector selectedDate={selectedDate} onDateChange={setSelectedDate} />
 
-      {/* Main Content */}
-      <main className="px-4 space-y-4">
-        {/* Week Calendar */}
-        <WeekCalendar />
-
-        {/* Calorie Gauge */}
-        <CalorieGauge
-          consumed={userData.consumed}
-          burnt={userData.burnt}
-          target={userData.targetCalories}
+      {/* Calories Card */}
+      <div className="mx-8 mb-10">
+        <CalorieRing
+          remaining={remaining}
+          consumed={mockDailyData.consumed}
+          burnt={mockDailyData.burnt}
+          target={mockUser.targetCalories}
         />
 
         {/* Macros */}
-        <div className="grid grid-cols-3 gap-3">
-          <MacroCard
+        <div className="flex gap-8 px-4 pt-8 border-t border-gray-100">
+          <MacroProgressBar
+            label="Carbohydrates"
+            current={mockDailyData.carbs}
+            target={mockUser.targetCarbs}
+            color="#fbbf24"
+            delay={0.1}
+          />
+          <MacroProgressBar
             label="Protein"
-            current={userData.macros.protein.current}
-            target={userData.macros.protein.target}
-            unit="g"
-            color="protein"
-            icon="🥩"
+            current={mockDailyData.protein}
+            target={mockUser.targetProtein}
+            color="#f87171"
+            delay={0.2}
           />
-          <MacroCard
-            label="Carbs"
-            current={userData.macros.carbs.current}
-            target={userData.macros.carbs.target}
-            unit="g"
-            color="carbs"
-            icon="🍞"
-          />
-          <MacroCard
+          <MacroProgressBar
             label="Fat"
-            current={userData.macros.fat.current}
-            target={userData.macros.fat.target}
-            unit="g"
-            color="fat"
-            icon="🧈"
+            current={mockDailyData.fat}
+            target={mockUser.targetFat}
+            color="#60a5fa"
+            delay={0.3}
           />
         </div>
+      </div>
 
-        {/* Meals Today */}
-        <div className="pt-4">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">
-            มื้ออาหารวันนี้
-          </h2>
-          <MealList />
-        </div>
-      </main>
+      {/* Meals */}
+      <div className="px-8">
+        <MealList meals={mockMeals} />
+      </div>
     </div>
   );
 }

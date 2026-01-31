@@ -1,99 +1,85 @@
 "use client";
 
-import { Bell, Search, ChevronDown } from "lucide-react";
+import { Bell, Search } from "lucide-react";
 import { useState } from "react";
 
-export function Header() {
+interface HeaderProps {
+  title: string;
+  subtitle?: string;
+}
+
+export function Header({ title, subtitle }: HeaderProps) {
   const [showNotifications, setShowNotifications] = useState(false);
 
   const notifications = [
-    { id: 1, title: "ข้อความใหม่", message: "คุณมีข้อความใหม่จากลูกค้า", time: "5 นาทีที่แล้ว", unread: true },
-    { id: 2, title: "ออเดอร์ใหม่", message: "ออเดอร์ #1234 รอดำเนินการ", time: "10 นาทีที่แล้ว", unread: true },
-    { id: 3, title: "สมาชิกใหม่", message: "มีสมาชิกใหม่ลงทะเบียน", time: "1 ชั่วโมงที่แล้ว", unread: false },
+    { id: 1, title: "ข้อความใหม่", message: "คุณมีข้อความใหม่ 5 ข้อความ", time: "5 นาที", unread: true },
+    { id: 2, title: "ออเดอร์ใหม่", message: "มีออเดอร์ใหม่รอดำเนินการ", time: "15 นาที", unread: true },
+    { id: 3, title: "สมาชิกใหม่", message: "มีผู้สมัครสมาชิกใหม่ 3 คน", time: "1 ชม.", unread: false },
   ];
 
+  const unreadCount = notifications.filter(n => n.unread).length;
+
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
-      {/* Search */}
-      <div className="flex items-center gap-4 flex-1 max-w-md">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="ค้นหา..."
-            className="w-full pl-10 pr-4 py-2 bg-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:bg-white transition-all"
-          />
-        </div>
+    <header className="h-16 bg-white border-b border-gray-200 px-6 flex items-center justify-between sticky top-0 z-20">
+      {/* Title */}
+      <div>
+        <h1 className="text-lg font-semibold text-gray-900">{title}</h1>
+        {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
+        {/* Search */}
+        <div className="hidden md:flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
+          <Search className="w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="ค้นหา..."
+            className="bg-transparent border-none outline-none text-sm w-40"
+          />
+        </div>
+
         {/* Notifications */}
         <div className="relative">
           <button
             onClick={() => setShowNotifications(!showNotifications)}
-            className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            className="relative p-2 rounded-lg hover:bg-gray-100"
           >
             <Bell className="w-5 h-5 text-gray-600" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-medium rounded-full flex items-center justify-center">
+                {unreadCount}
+              </span>
+            )}
           </button>
 
-          {/* Notification Dropdown */}
+          {/* Dropdown */}
           {showNotifications && (
-            <>
-              <div
-                className="fixed inset-0 z-40"
-                onClick={() => setShowNotifications(false)}
-              />
-              <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-200 z-50">
-                <div className="p-4 border-b border-gray-100">
-                  <h3 className="font-semibold text-gray-800">การแจ้งเตือน</h3>
-                </div>
-                <div className="max-h-80 overflow-y-auto">
-                  {notifications.map((notification) => (
-                    <div
-                      key={notification.id}
-                      className={`p-4 border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors ${
-                        notification.unread ? "bg-primary-50/30" : ""
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        {notification.unread && (
-                          <span className="w-2 h-2 mt-2 bg-primary-500 rounded-full flex-shrink-0" />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-800 text-sm">
-                            {notification.title}
-                          </p>
-                          <p className="text-gray-500 text-sm truncate">
-                            {notification.message}
-                          </p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            {notification.time}
-                          </p>
-                        </div>
+            <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+              <div className="p-3 border-b border-gray-100 flex items-center justify-between">
+                <span className="font-medium text-gray-900">การแจ้งเตือน</span>
+                <button className="text-xs text-[#4CAF50]">อ่านทั้งหมด</button>
+              </div>
+              <div className="max-h-64 overflow-y-auto">
+                {notifications.map((n) => (
+                  <div
+                    key={n.id}
+                    className={`p-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer ${n.unread ? "bg-green-50/50" : ""}`}
+                  >
+                    <div className="flex gap-2">
+                      <div className={`w-2 h-2 rounded-full mt-1.5 ${n.unread ? "bg-[#4CAF50]" : "bg-gray-300"}`} />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{n.title}</p>
+                        <p className="text-xs text-gray-500">{n.message}</p>
+                        <p className="text-xs text-gray-400 mt-1">{n.time}</p>
                       </div>
                     </div>
-                  ))}
-                </div>
-                <div className="p-3 border-t border-gray-100">
-                  <button className="w-full text-center text-sm text-primary-600 hover:text-primary-700 font-medium">
-                    ดูทั้งหมด
-                  </button>
-                </div>
+                  </div>
+                ))}
               </div>
-            </>
+            </div>
           )}
         </div>
-
-        {/* User Menu */}
-        <button className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors">
-          <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
-            <span className="text-sm font-medium text-primary-700">AD</span>
-          </div>
-          <span className="text-sm font-medium text-gray-700">Admin</span>
-          <ChevronDown className="w-4 h-4 text-gray-400" />
-        </button>
       </div>
     </header>
   );

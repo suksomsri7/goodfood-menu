@@ -6,7 +6,7 @@ export default function UserLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-primary-50/50 to-white">
+    <div className="min-h-screen bg-white">
       {children}
       <FloatingAddButton />
     </div>

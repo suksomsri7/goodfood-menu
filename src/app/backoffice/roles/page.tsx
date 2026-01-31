@@ -1,7 +1,9 @@
 "use client";
 
+import { Header } from "@/components/backoffice/Header";
+import { motion } from "framer-motion";
+import { Plus, Shield, Edit2, Trash2, Check, Users } from "lucide-react";
 import { useState } from "react";
-import { Plus, Shield, Users, Check, X, Pencil, Trash2 } from "lucide-react";
 
 // Mock data
 const roles = [
@@ -11,23 +13,26 @@ const roles = [
     description: "สิทธิ์เต็ม ทำได้ทุกอย่าง",
     staffCount: 1,
     isSystem: true,
+    color: "bg-purple-100 text-purple-700",
     permissions: ["all"],
   },
   {
     id: "2",
     name: "Admin",
-    description: "จัดการระบบทั่วไป ยกเว้นการจัดการ Role",
+    description: "จัดการระบบทั่วไป",
     staffCount: 2,
     isSystem: true,
-    permissions: ["foods", "members", "orders", "chat", "articles", "youtube", "schedule", "richmenu"],
+    color: "bg-blue-100 text-blue-700",
+    permissions: ["dashboard", "foods", "members", "orders", "chat", "articles", "youtube"],
   },
   {
     id: "3",
     name: "Staff",
-    description: "พนักงานทั่วไป ดูข้อมูลและอัพเดทออเดอร์",
+    description: "พนักงานทั่วไป",
     staffCount: 5,
     isSystem: false,
-    permissions: ["foods.view", "members.view", "orders", "chat"],
+    color: "bg-gray-100 text-gray-700",
+    permissions: ["dashboard", "foods.view", "orders", "chat"],
   },
   {
     id: "4",
@@ -35,259 +40,257 @@ const roles = [
     description: "จัดการเนื้อหา บทความ และวีดีโอ",
     staffCount: 2,
     isSystem: false,
-    permissions: ["articles", "youtube", "schedule"],
+    color: "bg-pink-100 text-pink-700",
+    permissions: ["dashboard", "articles", "youtube", "schedule"],
   },
 ];
 
 const permissionModules = [
   {
-    module: "Dashboard",
-    key: "dashboard",
+    module: "dashboard",
+    label: "Dashboard",
     permissions: [
-      { key: "dashboard.view", label: "ดู Dashboard" },
+      { code: "dashboard.view", label: "ดู Dashboard" },
     ],
   },
   {
-    module: "อาหาร",
-    key: "foods",
+    module: "foods",
+    label: "เมนูอาหาร",
     permissions: [
-      { key: "foods.view", label: "ดูรายการ" },
-      { key: "foods.create", label: "เพิ่ม" },
-      { key: "foods.update", label: "แก้ไข" },
-      { key: "foods.delete", label: "ลบ" },
+      { code: "foods.view", label: "ดูรายการ" },
+      { code: "foods.create", label: "เพิ่ม" },
+      { code: "foods.update", label: "แก้ไข" },
+      { code: "foods.delete", label: "ลบ" },
     ],
   },
   {
-    module: "สมาชิก",
-    key: "members",
+    module: "members",
+    label: "สมาชิก",
     permissions: [
-      { key: "members.view", label: "ดูรายการ" },
-      { key: "members.update", label: "แก้ไข" },
-      { key: "members.delete", label: "ลบ" },
+      { code: "members.view", label: "ดูรายการ" },
+      { code: "members.update", label: "แก้ไข" },
+      { code: "members.delete", label: "ลบ" },
     ],
   },
   {
-    module: "ออเดอร์",
-    key: "orders",
+    module: "orders",
+    label: "ออเดอร์",
     permissions: [
-      { key: "orders.view", label: "ดูรายการ" },
-      { key: "orders.update", label: "อัพเดทสถานะ" },
+      { code: "orders.view", label: "ดูรายการ" },
+      { code: "orders.update", label: "อัพเดทสถานะ" },
     ],
   },
   {
-    module: "Chat",
-    key: "chat",
+    module: "chat",
+    label: "แชท",
     permissions: [
-      { key: "chat.view", label: "ดูแชท" },
-      { key: "chat.reply", label: "ตอบแชท" },
+      { code: "chat.view", label: "ดูแชท" },
+      { code: "chat.reply", label: "ตอบแชท" },
     ],
   },
   {
-    module: "บทความ",
-    key: "articles",
+    module: "articles",
+    label: "บทความ",
     permissions: [
-      { key: "articles.view", label: "ดูบทความ" },
-      { key: "articles.create", label: "เพิ่ม" },
-      { key: "articles.update", label: "แก้ไข" },
-      { key: "articles.delete", label: "ลบ" },
+      { code: "articles.view", label: "ดูรายการ" },
+      { code: "articles.create", label: "เพิ่ม" },
+      { code: "articles.update", label: "แก้ไข" },
+      { code: "articles.delete", label: "ลบ" },
     ],
   },
   {
-    module: "พนักงาน",
-    key: "staff",
+    module: "staff",
+    label: "พนักงาน",
     permissions: [
-      { key: "staff.view", label: "ดูรายการ" },
-      { key: "staff.create", label: "เพิ่ม" },
-      { key: "staff.update", label: "แก้ไข" },
-      { key: "staff.delete", label: "ลบ" },
+      { code: "staff.view", label: "ดูรายการ" },
+      { code: "staff.create", label: "เพิ่ม" },
+      { code: "staff.update", label: "แก้ไข" },
+      { code: "staff.delete", label: "ลบ" },
     ],
   },
 ];
 
 export default function RolesPage() {
-  const [selectedRole, setSelectedRole] = useState<string | null>(null);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<typeof roles[0] | null>(null);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">จัดการสิทธิ์การใช้งาน</h1>
-          <p className="text-gray-500">กำหนด Role และสิทธิ์ต่างๆ ของพนักงาน</p>
-        </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          สร้าง Role ใหม่
-        </button>
-      </div>
+    <div>
+      <Header title="สิทธิ์การใช้งาน" subtitle="จัดการ Role และ Permission" />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Roles List */}
-        <div className="lg:col-span-1 space-y-4">
-          <h2 className="font-semibold text-gray-800">Roles ทั้งหมด</h2>
-          
-          {roles.map((role) => (
-            <div
+      <div className="p-8">
+        {/* Actions */}
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <p className="text-gray-600 leading-relaxed tracking-wide">
+              กำหนดสิทธิ์การเข้าถึงระบบให้กับพนักงานแต่ละกลุ่ม
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              setSelectedRole(null);
+              setShowModal(true);
+            }}
+            className="flex items-center gap-2 px-6 py-3.5 bg-primary-500 text-white rounded-xl font-semibold hover:bg-primary-600 transition-colors tracking-wide"
+          >
+            <Plus className="w-5 h-5" />
+            สร้าง Role ใหม่
+          </button>
+        </div>
+
+        {/* Roles Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {roles.map((role, index) => (
+            <motion.div
               key={role.id}
-              onClick={() => setSelectedRole(role.id)}
-              className={`bg-white rounded-xl p-4 shadow-sm border-2 cursor-pointer transition-all ${
-                selectedRole === role.id
-                  ? "border-primary-500"
-                  : "border-transparent hover:border-gray-200"
-              }`}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+              className="bg-white rounded-2xl p-7 border border-gray-100 shadow-sm"
             >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary-100 flex items-center justify-center">
-                    <Shield className="w-5 h-5 text-primary-600" />
+              <div className="flex items-start justify-between mb-5">
+                <div className="flex items-center gap-4">
+                  <div className={`p-3.5 rounded-xl ${role.color}`}>
+                    <Shield className="w-6 h-6" />
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-gray-800">{role.name}</h3>
+                    <div className="flex items-center gap-2.5">
+                      <h3 className="font-bold text-gray-900 tracking-tight">{role.name}</h3>
                       {role.isSystem && (
-                        <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-xs">
+                        <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs font-semibold rounded-full tracking-wide">
                           System
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-gray-500">{role.description}</p>
+                    <p className="text-sm text-gray-500 mt-1 tracking-wide">{role.description}</p>
                   </div>
                 </div>
               </div>
-              
-              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
-                <Users className="w-4 h-4 text-gray-400" />
-                <span className="text-sm text-gray-500">
-                  {role.staffCount} คน
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
 
-        {/* Permissions */}
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm p-6">
-          {selectedRole ? (
-            <>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="font-semibold text-gray-800">
-                  สิทธิ์ของ {roles.find((r) => r.id === selectedRole)?.name}
-                </h2>
-                <div className="flex gap-2">
-                  <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                    <Pencil className="w-4 h-4 text-gray-500" />
-                  </button>
-                  {!roles.find((r) => r.id === selectedRole)?.isSystem && (
-                    <button className="p-2 hover:bg-red-50 rounded-lg transition-colors">
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </button>
-                  )}
+              <div className="flex items-center gap-5 mb-5">
+                <div className="flex items-center gap-2 text-sm text-gray-500 tracking-wide">
+                  <Users className="w-4 h-4" />
+                  <span>{role.staffCount} คน</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-500 tracking-wide">
+                  <Check className="w-4 h-4" />
+                  <span>{role.permissions.length} สิทธิ์</span>
                 </div>
               </div>
 
-              <div className="space-y-6">
-                {permissionModules.map((module) => (
-                  <div key={module.key} className="border border-gray-100 rounded-lg p-4">
-                    <h3 className="font-medium text-gray-800 mb-3">{module.module}</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      {module.permissions.map((perm) => {
-                        const role = roles.find((r) => r.id === selectedRole);
-                        const hasPermission =
-                          role?.permissions.includes("all") ||
-                          role?.permissions.includes(module.key) ||
-                          role?.permissions.includes(perm.key);
+              <div className="flex flex-wrap gap-2 mb-5">
+                {role.permissions.slice(0, 4).map((perm) => (
+                  <span
+                    key={perm}
+                    className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-lg tracking-wide"
+                  >
+                    {perm}
+                  </span>
+                ))}
+                {role.permissions.length > 4 && (
+                  <span className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-lg tracking-wide">
+                    +{role.permissions.length - 4} more
+                  </span>
+                )}
+              </div>
 
-                        return (
-                          <label
-                            key={perm.key}
-                            className="flex items-center gap-2 cursor-pointer"
-                          >
-                            <div
-                              className={`w-5 h-5 rounded flex items-center justify-center ${
-                                hasPermission
-                                  ? "bg-primary-500 text-white"
-                                  : "bg-gray-100 text-gray-300"
-                              }`}
-                            >
-                              {hasPermission && <Check className="w-3 h-3" />}
-                            </div>
-                            <span className="text-sm text-gray-600">{perm.label}</span>
-                          </label>
-                        );
-                      })}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setSelectedRole(role);
+                    setShowModal(true);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-primary-50 text-primary-600 rounded-xl text-sm font-semibold hover:bg-primary-100 transition-colors tracking-wide"
+                >
+                  <Edit2 className="w-4 h-4" />
+                  แก้ไข
+                </button>
+                {!role.isSystem && (
+                  <button className="px-5 py-3 text-red-600 rounded-xl text-sm font-semibold hover:bg-red-50 transition-colors">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+
+      {/* Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
+          >
+            <div className="p-7 border-b border-gray-100">
+              <h2 className="text-xl font-bold text-gray-900 tracking-tight">
+                {selectedRole ? `แก้ไข Role: ${selectedRole.name}` : "สร้าง Role ใหม่"}
+              </h2>
+            </div>
+
+            <div className="p-7 overflow-y-auto flex-1">
+              <div className="space-y-5 mb-8">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">ชื่อ Role</label>
+                  <input
+                    type="text"
+                    defaultValue={selectedRole?.name}
+                    className="w-full px-4 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-[15px] tracking-wide"
+                    placeholder="เช่น Admin, Staff"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">คำอธิบาย</label>
+                  <input
+                    type="text"
+                    defaultValue={selectedRole?.description}
+                    className="w-full px-4 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-[15px] tracking-wide"
+                    placeholder="อธิบายหน้าที่ของ Role นี้"
+                  />
+                </div>
+              </div>
+
+              <h3 className="font-bold text-gray-900 mb-5 tracking-tight">กำหนดสิทธิ์</h3>
+              <div className="space-y-5">
+                {permissionModules.map((module) => (
+                  <div key={module.module} className="border border-gray-200 rounded-xl p-5">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="font-semibold text-gray-900 tracking-wide">{module.label}</h4>
+                      <button className="text-xs text-primary-600 font-semibold hover:underline tracking-wide">เลือกทั้งหมด</button>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {module.permissions.map((perm) => (
+                        <label
+                          key={perm.code}
+                          className="flex items-center gap-2.5 p-2.5 rounded-lg hover:bg-gray-50 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                          />
+                          <span className="text-sm text-gray-700 tracking-wide">{perm.label}</span>
+                        </label>
+                      ))}
                     </div>
                   </div>
                 ))}
               </div>
-
-              <div className="flex gap-3 mt-6 pt-6 border-t border-gray-100">
-                <button className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors">
-                  บันทึกการเปลี่ยนแปลง
-                </button>
-                <button className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                  ยกเลิก
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-64 text-gray-400">
-              <Shield className="w-12 h-12 mb-4" />
-              <p>เลือก Role เพื่อดูและแก้ไขสิทธิ์</p>
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* Add Role Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 m-4">
-            <h2 className="text-xl font-bold text-gray-800 mb-6">สร้าง Role ใหม่</h2>
-            
-            <form className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  ชื่อ Role
-                </label>
-                <input
-                  type="text"
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  placeholder="เช่น Editor, Viewer"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  คำอธิบาย
-                </label>
-                <textarea
-                  rows={3}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
-                  placeholder="อธิบายสิทธิ์ของ Role นี้"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  ยกเลิก
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
-                >
-                  สร้าง Role
-                </button>
-              </div>
-            </form>
-          </div>
+            <div className="p-7 border-t border-gray-100 flex gap-4">
+              <button
+                onClick={() => setShowModal(false)}
+                className="flex-1 py-3.5 border border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors tracking-wide"
+              >
+                ยกเลิก
+              </button>
+              <button className="flex-1 py-3.5 bg-primary-500 text-white rounded-xl font-semibold hover:bg-primary-600 transition-colors tracking-wide">
+                {selectedRole ? "บันทึก" : "สร้าง Role"}
+              </button>
+            </div>
+          </motion.div>
         </div>
       )}
     </div>

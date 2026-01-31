@@ -1,120 +1,86 @@
 "use client";
 
-import { Coffee, Sun, Moon, Cookie } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 
-interface MealItem {
+interface Meal {
   id: string;
   name: string;
+  weight?: number;
+  multiplier?: number;
   calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
   time: string;
   imageUrl?: string;
 }
 
-interface MealSection {
-  type: "breakfast" | "lunch" | "dinner" | "snack";
-  label: string;
-  icon: React.ReactNode;
-  items: MealItem[];
+interface MealListProps {
+  meals: Meal[];
 }
 
-const mealIcons = {
-  breakfast: <Coffee className="w-5 h-5" />,
-  lunch: <Sun className="w-5 h-5" />,
-  dinner: <Moon className="w-5 h-5" />,
-  snack: <Cookie className="w-5 h-5" />,
-};
-
-const mealColors = {
-  breakfast: "bg-orange-100 text-orange-600",
-  lunch: "bg-yellow-100 text-yellow-600",
-  dinner: "bg-indigo-100 text-indigo-600",
-  snack: "bg-pink-100 text-pink-600",
-};
-
-// Mock data
-const mockMeals: MealSection[] = [
-  {
-    type: "breakfast",
-    label: "มื้อเช้า",
-    icon: mealIcons.breakfast,
-    items: [
-      { id: "1", name: "ข้าวต้มหมู", calories: 250, time: "07:30" },
-      { id: "2", name: "กาแฟดำ", calories: 5, time: "07:45" },
-    ],
-  },
-  {
-    type: "lunch",
-    label: "มื้อกลางวัน",
-    icon: mealIcons.lunch,
-    items: [
-      { id: "3", name: "ผัดกะเพราไก่", calories: 450, time: "12:00" },
-    ],
-  },
-];
-
-export function MealList() {
-  const totalMeals = mockMeals.reduce(
-    (total, section) => total + section.items.length,
-    0
-  );
-
-  if (totalMeals === 0) {
+export function MealList({ meals }: MealListProps) {
+  if (meals.length === 0) {
     return (
-      <div className="bg-white rounded-2xl p-8 shadow-sm text-center">
-        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Coffee className="w-8 h-8 text-gray-400" />
+      <motion.div
+        className="flex flex-col items-center justify-center py-20"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+      >
+        <div className="w-16 h-16 rounded-full bg-gray-50 flex items-center justify-center mb-4">
+          <span className="text-2xl opacity-50">🍽️</span>
         </div>
-        <h3 className="text-lg font-semibold text-gray-700 mb-2">
-          ยังไม่มีรายการอาหารวันนี้
-        </h3>
-        <p className="text-gray-500 text-sm">
-          กดปุ่ม + เพื่อเพิ่มอาหารมื้อแรกของวัน
-        </p>
-      </div>
+        <p className="text-sm text-gray-400">No meals recorded</p>
+        <p className="text-xs text-gray-300 mt-1">Tap + to add food</p>
+      </motion.div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {mockMeals.map((section) => (
-        <div key={section.type} className="bg-white rounded-2xl p-4 shadow-sm">
-          {/* Section Header */}
-          <div className="flex items-center gap-3 mb-3">
-            <div className={cn("p-2 rounded-lg", mealColors[section.type])}>
-              {section.icon}
-            </div>
-            <div>
-              <h4 className="font-semibold text-gray-800">{section.label}</h4>
-              <p className="text-xs text-gray-500">
-                {section.items.reduce((sum, item) => sum + item.calories, 0)} kcal
-              </p>
-            </div>
+    <div className="space-y-6">
+      {meals.map((meal, index) => (
+        <motion.div
+          key={meal.id}
+          className="flex gap-5 py-5 border-b border-gray-100 last:border-b-0"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: index * 0.05 }}
+        >
+          {/* Icon */}
+          <div className="w-12 h-12 rounded-xl bg-gray-50 flex-shrink-0 flex items-center justify-center">
+            <span className="text-xl opacity-40">🍽️</span>
           </div>
 
-          {/* Items */}
-          <div className="space-y-2">
-            {section.items.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between py-2 px-3 rounded-xl bg-gray-50"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center text-lg">
-                    🍽️
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-800">{item.name}</p>
-                    <p className="text-xs text-gray-500">{item.time}</p>
-                  </div>
-                </div>
-                <span className="font-semibold text-gray-700">
-                  {item.calories} <span className="text-xs text-gray-400">kcal</span>
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            {/* Title row */}
+            <div className="flex items-start justify-between gap-4 mb-1">
+              <h3 className="text-sm font-medium text-gray-900">
+                {meal.name}
+                <span className="text-gray-400 font-normal">
+                  {meal.weight && ` (${meal.weight}g)`}
                 </span>
-              </div>
-            ))}
+                {meal.multiplier && meal.multiplier !== 1 && (
+                  <span className="text-red-400 font-medium"> ×{meal.multiplier}</span>
+                )}
+              </h3>
+              <span className="text-sm font-medium text-gray-900 tabular-nums flex-shrink-0">
+                {meal.calories}
+                <span className="text-gray-400 font-normal text-xs">kcal</span>
+              </span>
+            </div>
+
+            {/* Time */}
+            <p className="text-xs text-gray-400 mb-2">{meal.time}</p>
+
+            {/* Macros */}
+            <div className="flex gap-6 text-xs text-gray-400">
+              <span className="tabular-nums">P {meal.protein}g</span>
+              <span className="tabular-nums">C {meal.carbs}g</span>
+              <span className="tabular-nums">F {meal.fat}g</span>
+            </div>
           </div>
-        </div>
+        </motion.div>
       ))}
     </div>
   );

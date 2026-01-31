@@ -1,270 +1,262 @@
 "use client";
 
+import { Header } from "@/components/backoffice/Header";
+import { motion } from "framer-motion";
+import { Plus, Search, Edit2, Shield, MoreVertical } from "lucide-react";
 import { useState } from "react";
-import { Plus, Search, MoreVertical, Shield, Mail, Phone, Pencil, Trash2, UserCheck, UserX } from "lucide-react";
 
 // Mock data
 const staffMembers = [
-  { 
-    id: "1", 
-    name: "สมชาย Admin", 
-    email: "admin@goodfood.menu", 
-    phone: "081-234-5678",
-    role: "Super Admin", 
+  {
+    id: "1",
+    name: "อรุณ ศรีสว่าง",
+    email: "arun@goodfood.menu",
+    role: "Super Admin",
+    roleColor: "bg-purple-100 text-purple-700",
     status: "active",
-    lastLogin: "2026-01-31 14:30"
+    lastLogin: "วันนี้ 10:30",
+    avatar: "อ",
   },
-  { 
-    id: "2", 
-    name: "สมหญิง Manager", 
-    email: "manager@goodfood.menu",
-    phone: "089-876-5432", 
-    role: "Admin", 
+  {
+    id: "2",
+    name: "สมหญิง รักดี",
+    email: "somying@goodfood.menu",
+    role: "Admin",
+    roleColor: "bg-blue-100 text-blue-700",
     status: "active",
-    lastLogin: "2026-01-31 10:15"
+    lastLogin: "เมื่อวาน 15:45",
+    avatar: "ส",
   },
-  { 
-    id: "3", 
-    name: "วิชัย Staff", 
-    email: "staff1@goodfood.menu",
-    phone: "086-555-1234", 
-    role: "Staff", 
+  {
+    id: "3",
+    name: "ประยุทธ์ ทำงาน",
+    email: "prayut@goodfood.menu",
+    role: "Staff",
+    roleColor: "bg-gray-100 text-gray-700",
     status: "active",
-    lastLogin: "2026-01-30 16:45"
+    lastLogin: "3 วันที่แล้ว",
+    avatar: "ป",
   },
-  { 
-    id: "4", 
-    name: "นภา Content", 
-    email: "content@goodfood.menu",
-    phone: "082-111-2222", 
-    role: "Content Creator", 
+  {
+    id: "4",
+    name: "กานดา เขียนดี",
+    email: "kanda@goodfood.menu",
+    role: "Content Creator",
+    roleColor: "bg-pink-100 text-pink-700",
     status: "inactive",
-    lastLogin: "2026-01-25 09:00"
+    lastLogin: "1 สัปดาห์ที่แล้ว",
+    avatar: "ก",
   },
 ];
 
-const roleColors: Record<string, string> = {
-  "Super Admin": "bg-purple-100 text-purple-700",
-  "Admin": "bg-blue-100 text-blue-700",
-  "Staff": "bg-green-100 text-green-700",
-  "Content Creator": "bg-orange-100 text-orange-700",
-};
+const roles = ["Super Admin", "Admin", "Staff", "Content Creator"];
 
 export default function StaffPage() {
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
 
-  const filteredStaff = staffMembers.filter(
-    (staff) =>
-      staff.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      staff.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredStaff = staffMembers.filter((staff) =>
+    staff.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    staff.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">จัดการพนักงาน</h1>
-          <p className="text-gray-500">เพิ่ม แก้ไข และกำหนดสิทธิ์การเข้าถึงของพนักงาน</p>
-        </div>
-        <button 
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          เพิ่มพนักงาน
-        </button>
-      </div>
+    <div>
+      <Header title="จัดการพนักงาน" subtitle="เพิ่ม แก้ไข และกำหนดสิทธิ์พนักงาน" />
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <p className="text-sm text-gray-500">พนักงานทั้งหมด</p>
-          <p className="text-2xl font-bold text-gray-800">{staffMembers.length}</p>
-        </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <p className="text-sm text-gray-500">ใช้งานอยู่</p>
-          <p className="text-2xl font-bold text-green-600">
-            {staffMembers.filter((s) => s.status === "active").length}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <p className="text-sm text-gray-500">ไม่ได้ใช้งาน</p>
-          <p className="text-2xl font-bold text-red-600">
-            {staffMembers.filter((s) => s.status === "inactive").length}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <p className="text-sm text-gray-500">Role ทั้งหมด</p>
-          <p className="text-2xl font-bold text-gray-800">4</p>
-        </div>
-      </div>
-
-      {/* Search */}
-      <div className="flex items-center gap-4 bg-white p-4 rounded-xl shadow-sm">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="ค้นหาพนักงาน..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-          />
-        </div>
-      </div>
-
-      {/* Staff Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredStaff.map((staff) => (
-          <div
-            key={staff.id}
-            className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center">
-                  <span className="text-lg font-bold text-primary-700">
-                    {staff.name.charAt(0)}
-                  </span>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-800">{staff.name}</h3>
-                  <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${roleColors[staff.role]}`}>
-                    {staff.role}
-                  </span>
-                </div>
-              </div>
-              <div className="relative group">
-                <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                  <MoreVertical className="w-4 h-4 text-gray-500" />
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-2 mb-4">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Mail className="w-4 h-4" />
-                <span>{staff.email}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Phone className="w-4 h-4" />
-                <span>{staff.phone}</span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-              <div className="flex items-center gap-2">
-                {staff.status === "active" ? (
-                  <>
-                    <UserCheck className="w-4 h-4 text-green-500" />
-                    <span className="text-sm text-green-600">ใช้งานอยู่</span>
-                  </>
-                ) : (
-                  <>
-                    <UserX className="w-4 h-4 text-red-500" />
-                    <span className="text-sm text-red-600">ไม่ได้ใช้งาน</span>
-                  </>
-                )}
-              </div>
-              <div className="flex items-center gap-1">
-                <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                  <Pencil className="w-4 h-4 text-gray-500" />
-                </button>
-                <button className="p-2 hover:bg-red-50 rounded-lg transition-colors">
-                  <Trash2 className="w-4 h-4 text-red-500" />
-                </button>
-              </div>
-            </div>
-
-            <p className="text-xs text-gray-400 mt-3">
-              เข้าใช้งานล่าสุด: {staff.lastLogin}
-            </p>
+      <div className="p-8">
+        {/* Actions Bar */}
+        <div className="flex flex-col sm:flex-row gap-4 mb-8">
+          {/* Search */}
+          <div className="flex-1 relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="ค้นหาพนักงาน..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-12 pr-4 py-3.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all text-[15px] tracking-wide"
+            />
           </div>
-        ))}
+
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 px-6 py-3.5 bg-primary-500 text-white rounded-xl font-semibold hover:bg-primary-600 transition-colors tracking-wide"
+          >
+            <Plus className="w-5 h-5" />
+            <span>เพิ่มพนักงาน</span>
+          </button>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm"
+          >
+            <p className="text-2xl font-bold text-gray-900 tabular-nums">{staffMembers.length}</p>
+            <p className="text-sm text-gray-500 mt-1 tracking-wide">พนักงานทั้งหมด</p>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm"
+          >
+            <p className="text-2xl font-bold text-green-600 tabular-nums">
+              {staffMembers.filter((s) => s.status === "active").length}
+            </p>
+            <p className="text-sm text-gray-500 mt-1 tracking-wide">ใช้งานอยู่</p>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm"
+          >
+            <p className="text-2xl font-bold text-purple-600 tabular-nums">
+              {staffMembers.filter((s) => s.role === "Admin" || s.role === "Super Admin").length}
+            </p>
+            <p className="text-sm text-gray-500 mt-1 tracking-wide">Admin</p>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm"
+          >
+            <p className="text-2xl font-bold text-gray-400 tabular-nums">
+              {staffMembers.filter((s) => s.status === "inactive").length}
+            </p>
+            <p className="text-sm text-gray-500 mt-1 tracking-wide">ไม่ได้ใช้งาน</p>
+          </motion.div>
+        </div>
+
+        {/* Staff Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredStaff.map((staff, index) => (
+            <motion.div
+              key={staff.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+              className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-start justify-between mb-5">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-primary-500/20">
+                    {staff.avatar}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 tracking-wide">{staff.name}</h3>
+                    <p className="text-sm text-gray-500 mt-0.5 tracking-wide">{staff.email}</p>
+                  </div>
+                </div>
+                <button className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+                  <MoreVertical className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between mb-5">
+                <span className={`px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide ${staff.roleColor}`}>
+                  {staff.role}
+                </span>
+                <span
+                  className={`flex items-center gap-1.5 text-xs font-medium tracking-wide ${
+                    staff.status === "active" ? "text-green-600" : "text-gray-400"
+                  }`}
+                >
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      staff.status === "active" ? "bg-green-500" : "bg-gray-300"
+                    }`}
+                  />
+                  {staff.status === "active" ? "ใช้งานอยู่" : "ไม่ได้ใช้งาน"}
+                </span>
+              </div>
+
+              <div className="text-xs text-gray-400 mb-5 tracking-wide">
+                เข้าใช้งานล่าสุด: {staff.lastLogin}
+              </div>
+
+              <div className="flex gap-3">
+                <button className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-200 transition-colors tracking-wide">
+                  <Shield className="w-4 h-4" />
+                  สิทธิ์
+                </button>
+                <button className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-primary-50 text-primary-600 rounded-xl text-sm font-semibold hover:bg-primary-100 transition-colors tracking-wide">
+                  <Edit2 className="w-4 h-4" />
+                  แก้ไข
+                </button>
+              </div>
+            </motion.div>
+          ))}
+        </div>
       </div>
 
       {/* Add Staff Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 m-4">
-            <h2 className="text-xl font-bold text-gray-800 mb-6">เพิ่มพนักงานใหม่</h2>
-            
-            <form className="space-y-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl w-full max-w-md p-8"
+          >
+            <h2 className="text-xl font-bold text-gray-900 mb-8 tracking-tight">เพิ่มพนักงานใหม่</h2>
+
+            <div className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  ชื่อ-นามสกุล
-                </label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">ชื่อ-นามสกุล</label>
                 <input
                   type="text"
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full px-4 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-[15px] tracking-wide"
                   placeholder="กรอกชื่อ-นามสกุล"
                 />
               </div>
-              
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  อีเมล
-                </label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">อีเมล</label>
                 <input
                   type="email"
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  placeholder="email@example.com"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  เบอร์โทรศัพท์
-                </label>
-                <input
-                  type="tel"
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  placeholder="0xx-xxx-xxxx"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Role
-                </label>
-                <select className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
-                  <option value="">เลือก Role</option>
-                  <option value="admin">Admin</option>
-                  <option value="staff">Staff</option>
-                  <option value="content">Content Creator</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  รหัสผ่าน
-                </label>
-                <input
-                  type="password"
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  placeholder="กรอกรหัสผ่าน"
+                  className="w-full px-4 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-[15px] tracking-wide"
+                  placeholder="email@goodfood.menu"
                 />
               </div>
 
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  ยกเลิก
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
-                >
-                  เพิ่มพนักงาน
-                </button>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">รหัสผ่าน</label>
+                <input
+                  type="password"
+                  className="w-full px-4 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-[15px] tracking-wide"
+                  placeholder="••••••••"
+                />
               </div>
-            </form>
-          </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">Role</label>
+                <select className="w-full px-4 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-[15px] tracking-wide">
+                  {roles.map((role) => (
+                    <option key={role} value={role}>
+                      {role}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-4 mt-8">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="flex-1 py-3.5 border border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors tracking-wide"
+              >
+                ยกเลิก
+              </button>
+              <button className="flex-1 py-3.5 bg-primary-500 text-white rounded-xl font-semibold hover:bg-primary-600 transition-colors tracking-wide">
+                เพิ่มพนักงาน
+              </button>
+            </div>
+          </motion.div>
         </div>
       )}
     </div>

@@ -1,18 +1,24 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-inter",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
   title: "GoodFood Menu - นับแคลอรี่อย่างมืออาชีพ",
-  description: "แอปนับแคลอรี่ สั่งอาหาร และติดตามสุขภาพ",
-  icons: {
-    icon: "/favicon.ico",
-  },
+  description: "แอปนับแคลอรี่และสั่งอาหารเพื่อสุขภาพ",
+  manifest: "/manifest.json",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#4CAF50",
 };
 
 export default function RootLayout({
@@ -22,7 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="th">
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <body className={`${inter.className} antialiased`}>
         {children}
       </body>
     </html>

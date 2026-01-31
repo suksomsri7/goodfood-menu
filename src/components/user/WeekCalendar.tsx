@@ -1,58 +1,70 @@
 "use client";
 
 import { useState } from "react";
-import { format, addDays, startOfWeek, isSameDay } from "date-fns";
-import { th } from "date-fns/locale";
-import { cn } from "@/lib/utils";
+import { addDays, format, startOfWeek, isSameDay } from "date-fns";
+import { motion } from "framer-motion";
 import { Calendar } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-const DAYS_TH = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
-const DAYS_EN = ["S", "M", "T", "W", "T", "F", "S"];
+interface WeekCalendarProps {
+  selectedDate: Date;
+  onSelectDate: (date: Date) => void;
+}
 
-export function WeekCalendar() {
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const weekStart = startOfWeek(new Date(), { weekStartsOn: 0 });
+export function WeekCalendar({ selectedDate, onSelectDate }: WeekCalendarProps) {
+  const [showFullCalendar, setShowFullCalendar] = useState(false);
   
+  // Start from Sunday, show 7 days (Sun-Sat)
+  const weekStart = startOfWeek(selectedDate, { weekStartsOn: 0 });
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
+  const dayLabels = ["S", "M", "T", "W", "T", "F", "S"];
+
   return (
-    <div className="bg-white rounded-2xl p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-800">
-          {format(selectedDate, "MMMM yyyy", { locale: th })}
-        </h2>
-        <button className="p-2 rounded-full bg-primary-50 text-primary-600 hover:bg-primary-100 transition-colors">
-          <Calendar className="w-5 h-5" />
+    <div className="px-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex-1" />
+        <button
+          onClick={() => setShowFullCalendar(!showFullCalendar)}
+          className="w-10 h-10 rounded-2xl bg-[#E8F5E9] flex items-center justify-center"
+        >
+          <Calendar className="w-5 h-5 text-[#5C6B5C]" />
         </button>
       </div>
-      
-      <div className="flex gap-2">
+
+      <div className="flex justify-between gap-1.5">
         {days.map((day, index) => {
           const isSelected = isSameDay(day, selectedDate);
-          const isToday = isSameDay(day, new Date());
-          
+
           return (
-            <button
-              key={index}
-              onClick={() => setSelectedDate(day)}
+            <motion.button
+              key={day.toISOString()}
+              onClick={() => onSelectDate(day)}
               className={cn(
-                "flex-1 py-3 px-2 rounded-xl transition-all duration-200",
-                "flex flex-col items-center gap-1",
-                isSelected 
-                  ? "bg-primary-500 text-white shadow-lg shadow-primary-500/30" 
-                  : isToday 
-                    ? "bg-primary-100 text-primary-700"
-                    : "bg-primary-50 text-gray-600 hover:bg-primary-100"
+                "flex flex-col items-center py-3 px-1.5 rounded-2xl flex-1 min-w-[40px]",
+                isSelected
+                  ? "bg-[#4CAF50] text-white"
+                  : "bg-[#E8F5E9] text-gray-700"
               )}
+              whileTap={{ scale: 0.95 }}
             >
-              <span className="text-xs font-medium">{DAYS_EN[index]}</span>
-              <span className={cn(
-                "text-lg font-bold",
-                isSelected ? "text-white" : "text-gray-800"
-              )}>
+              <span
+                className={cn(
+                  "text-xs font-semibold mb-1",
+                  isSelected ? "text-white/80" : "text-[#8B9B8B]"
+                )}
+              >
+                {dayLabels[index]}
+              </span>
+              <span
+                className={cn(
+                  "text-lg font-bold",
+                  isSelected ? "text-white" : "text-[#3D4A3D]"
+                )}
+              >
                 {format(day, "d")}
               </span>
-            </button>
+            </motion.button>
           );
         })}
       </div>

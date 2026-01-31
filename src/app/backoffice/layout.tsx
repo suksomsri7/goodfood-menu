@@ -1,5 +1,4 @@
 import { Sidebar } from "@/components/backoffice/Sidebar";
-import { Header } from "@/components/backoffice/Header";
 
 export default function BackofficeLayout({
   children,
@@ -7,12 +6,11 @@ export default function BackofficeLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#F8F9FA]">
       <Sidebar />
-      <div className="ml-64 transition-all duration-300">
-        <Header />
-        <main className="p-6">{children}</main>
-      </div>
+      <main className="ml-60 transition-all duration-300">
+        {children}
+      </main>
     </div>
   );
 }
