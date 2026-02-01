@@ -1,17 +1,58 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Camera, Barcode, PenLine } from "lucide-react";
+import { Plus, Camera, Barcode, PenLine, Package } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ManualEntryModal } from "./ManualEntryModal";
+import { CameraModal } from "./CameraModal";
+import { StockModal } from "./StockModal";
 
-export function FloatingAddButton() {
+interface FloatingAddButtonProps {
+  onAddMeal?: (meal: {
+    name: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    sodium: number;
+    sugar: number;
+    weight?: number;
+    multiplier: number;
+    ingredients?: string;
+    imageUrl?: string;
+  }) => void;
+}
+
+export function FloatingAddButton({ onAddMeal }: FloatingAddButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [showManualEntry, setShowManualEntry] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+  const [showStock, setShowStock] = useState(false);
 
   const options = [
-    { icon: Barcode, label: "Scan barcode" },
-    { icon: Camera, label: "Take photo" },
-    { icon: PenLine, label: "Manual entry" },
+    { icon: Package, label: "Stock", action: () => setShowStock(true) },
+    { icon: Barcode, label: "Scan barcode", action: () => {} },
+    { icon: Camera, label: "Take photo", action: () => setShowCamera(true) },
+    { icon: PenLine, label: "Manual entry", action: () => setShowManualEntry(true) },
   ];
+
+  const handleSaveMeal = (meal: {
+    name: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    sodium: number;
+    sugar: number;
+    weight?: number;
+    multiplier: number;
+    ingredients?: string;
+    imageUrl?: string;
+  }) => {
+    onAddMeal?.(meal);
+    setShowManualEntry(false);
+    setShowCamera(false);
+  };
 
   return (
     <>
@@ -42,6 +83,7 @@ export function FloatingAddButton() {
                 transition={{ delay: (options.length - 1 - index) * 0.05 }}
                 onClick={() => {
                   setIsOpen(false);
+                  option.action();
                 }}
               >
                 <span className="text-sm text-gray-600 bg-white px-4 py-2 rounded-full shadow-sm">
@@ -66,6 +108,38 @@ export function FloatingAddButton() {
       >
         <Plus className="w-6 h-6 text-white" strokeWidth={1.5} />
       </motion.button>
+
+      {/* Manual Entry Modal */}
+      <ManualEntryModal
+        isOpen={showManualEntry}
+        onClose={() => setShowManualEntry(false)}
+        onSave={handleSaveMeal}
+      />
+
+      {/* Camera Modal */}
+      <CameraModal
+        isOpen={showCamera}
+        onClose={() => setShowCamera(false)}
+        onSave={handleSaveMeal}
+      />
+
+      {/* Stock Modal */}
+      <StockModal
+        isOpen={showStock}
+        onClose={() => setShowStock(false)}
+        onSelectItem={(item) => {
+          onAddMeal?.({
+            name: item.name,
+            calories: item.calories,
+            protein: item.protein,
+            carbs: item.carbs,
+            fat: item.fat,
+            sodium: 0,
+            sugar: 0,
+            multiplier: 1,
+          });
+        }}
+      />
     </>
   );
 }

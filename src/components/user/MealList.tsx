@@ -17,9 +17,10 @@ interface Meal {
 
 interface MealListProps {
   meals: Meal[];
+  onMealClick?: (meal: Meal) => void;
 }
 
-export function MealList({ meals }: MealListProps) {
+export function MealList({ meals, onMealClick }: MealListProps) {
   if (meals.length === 0) {
     return (
       <motion.div
@@ -41,10 +42,11 @@ export function MealList({ meals }: MealListProps) {
       {meals.map((meal, index) => (
         <motion.div
           key={meal.id}
-          className="flex gap-5 py-5 border-b border-gray-100 last:border-b-0"
+          className="flex gap-5 py-5 border-b border-gray-100 last:border-b-0 cursor-pointer active:bg-gray-50 rounded-xl -mx-2 px-2 transition-colors"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: index * 0.05 }}
+          onClick={() => onMealClick?.(meal)}
         >
           {/* Icon */}
           <div className="w-12 h-12 rounded-xl bg-gray-50 flex-shrink-0 flex items-center justify-center">

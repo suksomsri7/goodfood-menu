@@ -18,6 +18,11 @@ import {
   Shield,
   ChevronLeft,
   LogOut,
+  Layers,
+  Package,
+  BadgePercent,
+  Table2,
+  ScanBarcode,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -41,14 +46,6 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    title: "จัดการ",
-    items: [
-      { href: "/backoffice/foods", label: "เมนูอาหาร", icon: <UtensilsCrossed className="w-5 h-5" /> },
-      { href: "/backoffice/articles", label: "บทความ", icon: <FileText className="w-5 h-5" /> },
-      { href: "/backoffice/youtube", label: "วีดีโอ", icon: <Youtube className="w-5 h-5" /> },
-    ],
-  },
-  {
     title: "ลูกค้า",
     items: [
       { href: "/backoffice/members", label: "สมาชิก", icon: <Users className="w-5 h-5" /> },
@@ -57,12 +54,30 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    title: "จัดการ",
+    items: [
+      { href: "/backoffice/foods", label: "เมนูอาหาร", icon: <UtensilsCrossed className="w-5 h-5" /> },
+      { href: "/backoffice/packages", label: "แพ็คเกจอาหาร", icon: <Package className="w-5 h-5" /> },
+      { href: "/backoffice/promotions", label: "โปรโมชั่น", icon: <BadgePercent className="w-5 h-5" /> },
+      { href: "/backoffice/nutrition", label: "ตารางสารอาหาร", icon: <Table2 className="w-5 h-5" /> },
+      { href: "/backoffice/barcode", label: "ข้อมูลจาก Scan Barcode", icon: <ScanBarcode className="w-5 h-5" /> },
+      { href: "/backoffice/articles", label: "บทความ", icon: <FileText className="w-5 h-5" /> },
+      { href: "/backoffice/youtube", label: "วีดีโอ", icon: <Youtube className="w-5 h-5" /> },
+    ],
+  },
+  {
+    title: "ตั้งค่า",
+    items: [
+      { href: "/backoffice/categories", label: "หมวดอาหาร", icon: <Layers className="w-5 h-5" /> },
+      { href: "/backoffice/settings", label: "ตั้งค่าทั่วไป", icon: <Settings className="w-5 h-5" /> },
+    ],
+  },
+  {
     title: "ระบบ",
     items: [
       { href: "/backoffice/schedule", label: "ตั้งเวลา", icon: <Calendar className="w-5 h-5" /> },
       { href: "/backoffice/staff", label: "พนักงาน", icon: <UserCog className="w-5 h-5" /> },
       { href: "/backoffice/roles", label: "สิทธิ์", icon: <Shield className="w-5 h-5" /> },
-      { href: "/backoffice/settings", label: "ตั้งค่า", icon: <Settings className="w-5 h-5" /> },
     ],
   },
 ];
