@@ -5,9 +5,11 @@ import { motion } from "framer-motion";
 import { WeightChart } from "@/components/user/WeightChart";
 import { FoodStockCard } from "@/components/user/FoodStockCard";
 import { GoalSummary } from "@/components/user/GoalSummary";
-import { ArrowLeft } from "lucide-react";
+import { OnboardingModal } from "@/components/user/OnboardingModal";
+import { ArrowLeft, Settings2 } from "lucide-react";
 import Link from "next/link";
 import { useLiff } from "@/components/providers/LiffProvider";
+import type { Gender } from "@/lib/health-calculator";
 
 interface WeightData {
   date: string;
@@ -25,6 +27,10 @@ interface OrderedFood {
 }
 
 interface Member {
+  name?: string;
+  gender?: Gender;
+  birthDate?: string;
+  height?: number | null;
   weight: number | null;
   goalWeight: number | null;
   dailyCalories: number | null;
@@ -42,6 +48,7 @@ export default function GoalPage() {
   const [todayWater, setTodayWater] = useState(0);
   const [weeklyCalories, setWeeklyCalories] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [showResetGoal, setShowResetGoal] = useState(false);
 
   const lineUserId = profile?.userId;
 
@@ -238,6 +245,12 @@ export default function GoalPage() {
     }
   };
 
+  const handleResetGoalComplete = () => {
+    setShowResetGoal(false);
+    // Refresh the page to load new data
+    window.location.reload();
+  };
+
   // Calculate goals
   const targetWeight = member?.goalWeight || 70;
   const targetCalories = member?.dailyCalories || 2000;
@@ -337,6 +350,24 @@ export default function GoalPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-8">
+      {/* Reset Goal Modal */}
+      {showResetGoal && lineUserId && (
+        <OnboardingModal
+          isOpen={showResetGoal}
+          lineUserId={lineUserId}
+          displayName={profile?.displayName}
+          onComplete={handleResetGoalComplete}
+          skipPersonalInfo={true}
+          existingData={{
+            name: member?.name,
+            gender: member?.gender as Gender,
+            birthDate: member?.birthDate,
+            height: member?.height || undefined,
+            weight: member?.weight || undefined,
+          }}
+        />
+      )}
+
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white border-b border-slate-200">
         <div className="flex items-center justify-between px-4 py-3">
@@ -347,7 +378,13 @@ export default function GoalPage() {
             <ArrowLeft className="w-5 h-5 text-slate-600" />
           </Link>
           <h1 className="font-semibold text-slate-900">เป้าหมาย</h1>
-          <div className="w-10" />
+          <button
+            onClick={() => setShowResetGoal(true)}
+            className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors"
+            title="ตั้งเป้าหมายใหม่"
+          >
+            <Settings2 className="w-5 h-5 text-slate-600" />
+          </button>
         </div>
       </header>
 

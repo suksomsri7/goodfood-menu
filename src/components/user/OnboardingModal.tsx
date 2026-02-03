@@ -33,6 +33,14 @@ interface OnboardingModalProps {
   lineUserId: string;
   displayName?: string;
   onComplete: () => void;
+  skipPersonalInfo?: boolean; // ข้ามหน้าข้อมูลส่วนตัว (ชื่อ, อีเมล, เบอร์โทร)
+  existingData?: {
+    name?: string;
+    gender?: Gender;
+    birthDate?: string;
+    height?: number;
+    weight?: number;
+  };
 }
 
 interface FormData {
@@ -51,25 +59,29 @@ interface FormData {
   targetMonths: number;
 }
 
-const TOTAL_STEPS = 8;
-
 export function OnboardingModal({
   isOpen,
   lineUserId,
   displayName,
   onComplete,
+  skipPersonalInfo = false,
+  existingData,
 }: OnboardingModalProps) {
-  const [step, setStep] = useState(1);
+  // ถ้า skipPersonalInfo เริ่มจาก step 2, ไม่งั้นเริ่มจาก step 1
+  const FIRST_STEP = skipPersonalInfo ? 2 : 1;
+  const TOTAL_STEPS = 8;
+  
+  const [step, setStep] = useState(FIRST_STEP);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [healthProfile, setHealthProfile] = useState<HealthProfile | null>(null);
   const [formData, setFormData] = useState<FormData>({
-    name: displayName || "",
+    name: existingData?.name || displayName || "",
     email: "",
     phone: "",
-    gender: "",
-    birthDate: "",
-    height: "",
-    weight: "",
+    gender: existingData?.gender || "",
+    birthDate: existingData?.birthDate || "",
+    height: existingData?.height?.toString() || "",
+    weight: existingData?.weight?.toString() || "",
     activityLevel: "",
     goalType: "",
     goalWeight: "",
@@ -150,7 +162,7 @@ export function OnboardingModal({
   };
 
   const handleBack = () => {
-    if (step > 1) {
+    if (step > FIRST_STEP) {
       setStep(step - 1);
     }
   };
@@ -207,7 +219,7 @@ export function OnboardingModal({
       {/* Progress Bar */}
       <div className="sticky top-0 z-10 bg-white px-4 py-3 border-b border-gray-100">
         <div className="flex items-center gap-3">
-          {step > 1 && (
+          {step > FIRST_STEP && (
             <button
               onClick={handleBack}
               className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100"
@@ -220,13 +232,13 @@ export function OnboardingModal({
               <motion.div
                 className="h-full bg-primary-500 rounded-full"
                 initial={{ width: 0 }}
-                animate={{ width: `${(step / TOTAL_STEPS) * 100}%` }}
+                animate={{ width: `${((step - FIRST_STEP + 1) / (TOTAL_STEPS - FIRST_STEP + 1)) * 100}%` }}
                 transition={{ duration: 0.3 }}
               />
             </div>
           </div>
           <span className="text-sm text-gray-500 min-w-[40px] text-right">
-            {step}/{TOTAL_STEPS}
+            {step - FIRST_STEP + 1}/{TOTAL_STEPS - FIRST_STEP + 1}
           </span>
         </div>
       </div>
@@ -238,9 +250,9 @@ export function OnboardingModal({
           {step === 1 && (
             <StepContainer key="step1">
               <StepTitle
-                icon={<User className="w-8 h-8" />}
-                title="ข้อมูลส่วนตัว"
-                subtitle="กรอกข้อมูลเพื่อเริ่มต้นใช้งาน"
+                icon={<Target className="w-8 h-8" />}
+                title="ตั้งเป้าหมาย"
+                subtitle="เริ่มต้นใช้งานกับ GoodFood"
               />
               <div className="space-y-4">
                 <InputField
@@ -446,21 +458,6 @@ export function OnboardingModal({
                 subtitle="เลือกรูปแบบการกินที่เหมาะกับคุณ"
               />
               <div className="space-y-4">
-                {healthProfile && (
-                  <div className="p-4 bg-gradient-to-r from-primary-50 to-green-50 rounded-xl mb-6">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Sparkles className="w-4 h-4 text-primary-500" />
-                      <span className="text-sm font-medium text-primary-700">
-                        แนะนำสำหรับคุณ
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600">
-                      จากเป้าหมาย{GOAL_LABELS[formData.goalType as GoalType]} เราแนะนำ{" "}
-                      <strong>{DIET_LABELS[healthProfile.recommendedDiet].name}</strong>
-                    </p>
-                  </div>
-                )}
-
                 {(["balanced", "high_protein", "low_fat"] as DietType[]).map((diet) => (
                   <SelectButton
                     key={diet}
@@ -469,7 +466,6 @@ export function OnboardingModal({
                     label={DIET_LABELS[diet].name}
                     description={DIET_LABELS[diet].description}
                     fullWidth
-                    highlighted={healthProfile?.recommendedDiet === diet}
                   />
                 ))}
 
