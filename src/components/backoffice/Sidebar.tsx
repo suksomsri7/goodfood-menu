@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   UtensilsCrossed,
@@ -11,7 +12,6 @@ import {
   MessageSquare,
   FileText,
   Youtube,
-  Bell,
   Calendar,
   Settings,
   UserCog,
@@ -30,7 +30,7 @@ interface NavItem {
   href: string;
   label: string;
   icon: React.ReactNode;
-  badge?: number;
+  badgeKey?: string; // Key to look up dynamic badge count
 }
 
 interface NavGroup {
@@ -49,8 +49,8 @@ const navGroups: NavGroup[] = [
     title: "ลูกค้า",
     items: [
       { href: "/backoffice/members", label: "สมาชิก", icon: <Users className="w-5 h-5" /> },
-      { href: "/backoffice/orders", label: "ออเดอร์", icon: <ShoppingCart className="w-5 h-5" />, badge: 3 },
-      { href: "/backoffice/chat", label: "แชท", icon: <MessageSquare className="w-5 h-5" />, badge: 5 },
+      { href: "/backoffice/orders", label: "ออเดอร์", icon: <ShoppingCart className="w-5 h-5" />, badgeKey: "orders" },
+      { href: "/backoffice/chat", label: "แชท", icon: <MessageSquare className="w-5 h-5" />, badgeKey: "chat" },
     ],
   },
   {
@@ -85,6 +85,36 @@ const navGroups: NavGroup[] = [
 export function Sidebar() {
   const pathname = usePathname();
   const { collapsed, toggleCollapsed } = useSidebar();
+  const [badges, setBadges] = useState<Record<string, number>>({});
+
+  // Fetch badge counts
+  useEffect(() => {
+    const fetchBadges = async () => {
+      try {
+        // Fetch chat unread count
+        const chatRes = await fetch("/api/line/unread");
+        if (chatRes.ok) {
+          const chatData = await chatRes.json();
+          setBadges((prev) => ({ ...prev, chat: chatData.unreadCount || 0 }));
+        }
+
+        // Fetch pending orders count (if API exists)
+        // const ordersRes = await fetch("/api/orders/pending-count");
+        // if (ordersRes.ok) {
+        //   const ordersData = await ordersRes.json();
+        //   setBadges((prev) => ({ ...prev, orders: ordersData.count || 0 }));
+        // }
+      } catch (error) {
+        console.error("Error fetching badges:", error);
+      }
+    };
+
+    fetchBadges();
+
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchBadges, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <aside
@@ -123,6 +153,7 @@ export function Sidebar() {
             <div className="space-y-1">
               {group.items.map((item) => {
                 const isActive = pathname === item.href;
+                const badgeCount = item.badgeKey ? badges[item.badgeKey] : 0;
                 return (
                   <Link
                     key={item.href}
@@ -134,13 +165,20 @@ export function Sidebar() {
                         : "text-gray-600 hover:bg-gray-50"
                     )}
                   >
-                    {item.icon}
+                    <div className="relative">
+                      {item.icon}
+                      {collapsed && badgeCount > 0 && (
+                        <span className="absolute -top-1 -right-1 w-4 h-4 text-[10px] font-medium bg-red-500 text-white rounded-full flex items-center justify-center">
+                          {badgeCount > 9 ? "9+" : badgeCount}
+                        </span>
+                      )}
+                    </div>
                     {!collapsed && (
                       <>
                         <span className="flex-1 text-sm font-medium">{item.label}</span>
-                        {item.badge && (
-                          <span className="px-1.5 py-0.5 text-xs font-medium bg-red-500 text-white rounded-full">
-                            {item.badge}
+                        {badgeCount > 0 && (
+                          <span className="px-1.5 py-0.5 text-xs font-medium bg-red-500 text-white rounded-full min-w-[20px] text-center">
+                            {badgeCount > 99 ? "99+" : badgeCount}
                           </span>
                         )}
                       </>
