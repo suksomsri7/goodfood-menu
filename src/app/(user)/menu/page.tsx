@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLiff } from "@/components/providers/LiffProvider";
+import { closeWindow } from "@/lib/liff";
 
 interface Food {
   id: string;
@@ -77,6 +78,7 @@ export default function MenuPage() {
   const [modalQuantity, setModalQuantity] = useState(1);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showCart, setShowCart] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // Refs for scrolling
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
@@ -257,8 +259,9 @@ export default function MenuPage() {
       });
 
       if (res.ok) {
-        alert("สั่งซื้อสำเร็จ! ขอบคุณที่ใช้บริการ 🎉");
         clearCart();
+        setShowCart(false);
+        setShowSuccessModal(true);
       } else {
         alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
       }
@@ -268,6 +271,11 @@ export default function MenuPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSuccessOk = () => {
+    setShowSuccessModal(false);
+    closeWindow();
   };
 
   const getQuantity = (foodId: string) => {
@@ -1022,6 +1030,23 @@ export default function MenuPage() {
                 <span className="font-bold">฿{(selectedFood.price * modalQuantity).toFixed(2)}</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center animate-in fade-in zoom-in duration-200">
+            <div className="text-6xl mb-4">🎉</div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">สั่งซื้อสำเร็จ!</h2>
+            <p className="text-gray-500 mb-6">ขอบคุณที่ใช้บริการ Good Food</p>
+            <button
+              onClick={handleSuccessOk}
+              className="w-full py-3 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition-colors"
+            >
+              OK
+            </button>
           </div>
         </div>
       )}

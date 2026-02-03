@@ -67,8 +67,8 @@ export function OnboardingModal({
   skipPersonalInfo = false,
   existingData,
 }: OnboardingModalProps) {
-  // ถ้า skipPersonalInfo เริ่มจาก step 2, ไม่งั้นเริ่มจาก step 1
-  const FIRST_STEP = skipPersonalInfo ? 2 : 1;
+  // ถ้า skipPersonalInfo เริ่มจาก step 3 (ข้าม ข้อมูลส่วนตัว และ เพศ/วันเกิด)
+  const FIRST_STEP = skipPersonalInfo ? 3 : 1;
   const TOTAL_STEPS = 8;
   
   const [step, setStep] = useState(FIRST_STEP);

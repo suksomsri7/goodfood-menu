@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "GoodFood Menu - นับแคลอรี่อย่างมืออาชีพ",
+  title: "Good Food",
   description: "แอปนับแคลอรี่และสั่งอาหารเพื่อสุขภาพ",
   manifest: "/manifest.json",
 };
