@@ -6,7 +6,7 @@ import { WeightChart } from "@/components/user/WeightChart";
 import { FoodStockCard } from "@/components/user/FoodStockCard";
 import { GoalSummary } from "@/components/user/GoalSummary";
 import { OnboardingModal } from "@/components/user/OnboardingModal";
-import { ArrowLeft, Settings2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useLiff } from "@/components/providers/LiffProvider";
 import type { Gender } from "@/lib/health-calculator";
@@ -378,13 +378,7 @@ export default function GoalPage() {
             <ArrowLeft className="w-5 h-5 text-slate-600" />
           </Link>
           <h1 className="font-semibold text-slate-900">เป้าหมาย</h1>
-          <button
-            onClick={() => setShowResetGoal(true)}
-            className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors"
-            title="ตั้งเป้าหมายใหม่"
-          >
-            <Settings2 className="w-5 h-5 text-slate-600" />
-          </button>
+          <div className="w-10" />
         </div>
       </header>
 
@@ -420,6 +414,7 @@ export default function GoalPage() {
                 (g) => g.current >= g.target
               ).length
             }
+            onResetGoal={() => setShowResetGoal(true)}
           />
 
           {/* Ordered Food */}

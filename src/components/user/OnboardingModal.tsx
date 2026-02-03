@@ -135,7 +135,7 @@ export function OnboardingModal({
   const canProceed = (): boolean => {
     switch (step) {
       case 1:
-        return !!formData.name;
+        return !!formData.name && !!formData.email && !!formData.phone;
       case 2:
         return !!formData.gender && !!formData.birthDate;
       case 3:
@@ -270,6 +270,7 @@ export function OnboardingModal({
                   value={formData.email}
                   onChange={(v) => updateFormData("email", v)}
                   icon={<Mail className="w-5 h-5" />}
+                  required
                 />
                 <InputField
                   label="เบอร์โทร"
@@ -278,6 +279,7 @@ export function OnboardingModal({
                   value={formData.phone}
                   onChange={(v) => updateFormData("phone", v)}
                   icon={<Phone className="w-5 h-5" />}
+                  required
                 />
               </div>
             </StepContainer>

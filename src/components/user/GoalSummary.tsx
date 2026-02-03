@@ -24,6 +24,7 @@ interface GoalSummaryProps {
   goals: Goal[];
   daysToGoal?: number;
   achievements?: number;
+  onResetGoal?: () => void;
 }
 
 const iconMap = {
@@ -36,6 +37,7 @@ const iconMap = {
 export function GoalSummary({
   goals,
   daysToGoal = 45,
+  onResetGoal,
 }: GoalSummaryProps) {
   const completedGoals = goals.filter((g) => g.current >= g.target).length;
 
@@ -109,7 +111,10 @@ export function GoalSummary({
       </div>
 
       {/* CTA */}
-      <button className="w-full mt-5 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-1 transition-colors">
+      <button 
+        onClick={onResetGoal}
+        className="w-full mt-5 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-1 transition-colors"
+      >
         ตั้งเป้าหมายใหม่
         <ChevronRight className="w-4 h-4" />
       </button>
