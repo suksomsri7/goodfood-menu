@@ -8,6 +8,7 @@ import { MealList } from "@/components/user/MealList";
 import { RecommendationCard } from "@/components/user/RecommendationCard";
 import { MealDetailModal } from "@/components/user/MealDetailModal";
 import { FloatingAddButton } from "@/components/user/FloatingAddButton";
+import { WaterIntakeButton } from "@/components/user/WaterIntakeButton";
 import { useLiff } from "@/components/providers/LiffProvider";
 
 // Types
@@ -240,6 +241,28 @@ export default function CaloriePage() {
     }
   };
 
+  const handleAddWater = async (amount: number) => {
+    if (!lineUserId) return;
+
+    try {
+      const res = await fetch("/api/water", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lineUserId,
+          amount,
+          date: selectedDate.toISOString(),
+        }),
+      });
+
+      if (res.ok) {
+        setWaterIntake((prev) => prev + amount);
+      }
+    } catch (error) {
+      console.error("Failed to add water:", error);
+    }
+  };
+
   // Loading state
   if (!isReady || isLoading) {
     return (
@@ -325,13 +348,10 @@ export default function CaloriePage() {
             color="#f472b6"
             delay={0.5}
           />
-          <MacroProgressBar
-            label="Water"
+          <WaterIntakeButton
             current={waterIntake}
             target={goals.targetWater}
-            color="#22d3ee"
-            unit="ml"
-            delay={0.6}
+            onAddWater={handleAddWater}
           />
         </div>
       </div>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useLiff } from "@/components/providers/LiffProvider";
 
 interface Food {
   id: string;
@@ -59,6 +60,7 @@ interface CartItem {
 }
 
 export default function MenuPage() {
+  const { profile, isReady, isLoggedIn } = useLiff();
   const [foods, setFoods] = useState<Food[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [packages, setPackages] = useState<Package[]>([]);
@@ -68,6 +70,7 @@ export default function MenuPage() {
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Modal state
   const [selectedFood, setSelectedFood] = useState<Food | null>(null);
@@ -77,6 +80,28 @@ export default function MenuPage() {
 
   // Refs for scrolling
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
+  const lineUserId = profile?.userId;
+
+  // Fetch cart from API
+  const fetchCart = useCallback(async () => {
+    if (!lineUserId) return;
+
+    try {
+      const res = await fetch(`/api/cart?lineUserId=${lineUserId}`);
+      if (res.ok) {
+        const data = await res.json();
+        // Transform cart items to match local CartItem interface
+        const cartItems: CartItem[] = data.items.map((item: any) => ({
+          food: item.food,
+          quantity: item.quantity,
+        }));
+        setCart(cartItems);
+      }
+    } catch (error) {
+      console.error("Failed to fetch cart:", error);
+    }
+  }, [lineUserId]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -104,7 +129,15 @@ export default function MenuPage() {
     fetchData();
   }, []);
 
-  const addToCart = (food: Food, quantity: number = 1) => {
+  // Fetch cart when user is logged in
+  useEffect(() => {
+    if (isReady && lineUserId) {
+      fetchCart();
+    }
+  }, [isReady, lineUserId, fetchCart]);
+
+  const addToCart = async (food: Food, quantity: number = 1) => {
+    // Update local state immediately for responsiveness
     setCart(prev => {
       const existing = prev.find(item => item.food.id === food.id);
       if (existing) {
@@ -116,9 +149,26 @@ export default function MenuPage() {
       }
       return [...prev, { food, quantity }];
     });
+
+    // Sync with API if logged in
+    if (lineUserId) {
+      try {
+        await fetch("/api/cart", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lineUserId,
+            foodId: food.id,
+            quantity,
+          }),
+        });
+      } catch (error) {
+        console.error("Failed to add to cart:", error);
+      }
+    }
   };
 
-  const updateCartQuantity = (foodId: string, newQuantity: number) => {
+  const updateCartQuantity = async (foodId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
       setCart(prev => prev.filter(item => item.food.id !== foodId));
     } else {
@@ -126,15 +176,98 @@ export default function MenuPage() {
         item.food.id === foodId ? { ...item, quantity: newQuantity } : item
       ));
     }
+
+    // Sync with API if logged in
+    if (lineUserId) {
+      try {
+        await fetch("/api/cart", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lineUserId,
+            foodId,
+            quantity: newQuantity,
+          }),
+        });
+      } catch (error) {
+        console.error("Failed to update cart:", error);
+      }
+    }
   };
 
-  const removeFromCart = (foodId: string) => {
+  const removeFromCart = async (foodId: string) => {
     setCart(prev => prev.filter(item => item.food.id !== foodId));
+
+    // Sync with API if logged in
+    if (lineUserId) {
+      try {
+        await fetch("/api/cart", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lineUserId,
+            foodId,
+            quantity: 0,
+          }),
+        });
+      } catch (error) {
+        console.error("Failed to remove from cart:", error);
+      }
+    }
   };
 
-  const clearCart = () => {
+  const clearCart = async () => {
     setCart([]);
     setShowCart(false);
+
+    // Sync with API if logged in
+    if (lineUserId) {
+      try {
+        await fetch(`/api/cart?lineUserId=${lineUserId}`, {
+          method: "DELETE",
+        });
+      } catch (error) {
+        console.error("Failed to clear cart:", error);
+      }
+    }
+  };
+
+  const handleCheckout = async () => {
+    if (cart.length === 0) return;
+
+    setIsSubmitting(true);
+    try {
+      // Create order
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lineUserId,
+          coursePlan: "single",
+          totalDays: 1,
+          totalPrice,
+          items: cart.map(item => ({
+            foodId: item.food.id,
+            foodName: item.food.name,
+            quantity: item.quantity,
+            price: item.food.price,
+            calories: item.food.calories,
+          })),
+        }),
+      });
+
+      if (res.ok) {
+        alert("สั่งซื้อสำเร็จ! ขอบคุณที่ใช้บริการ 🎉");
+        clearCart();
+      } else {
+        alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
+      }
+    } catch (error) {
+      console.error("Checkout failed:", error);
+      alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const getQuantity = (foodId: string) => {
@@ -698,13 +831,11 @@ export default function MenuPage() {
                     ล้างตะกร้า
                   </button>
                   <button
-                    onClick={() => {
-                      alert("สั่งซื้อสำเร็จ! ขอบคุณที่ใช้บริการ 🎉");
-                      clearCart();
-                    }}
-                    className="flex-[2] py-3 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition-colors"
+                    onClick={handleCheckout}
+                    disabled={isSubmitting}
+                    className="flex-[2] py-3 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition-colors disabled:opacity-50"
                   >
-                    สั่งซื้อ ฿{totalPrice.toFixed(2)}
+                    {isSubmitting ? "กำลังสั่งซื้อ..." : `สั่งซื้อ ฿${totalPrice.toFixed(2)}`}
                   </button>
                 </div>
               </div>
