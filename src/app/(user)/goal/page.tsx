@@ -17,6 +17,8 @@ interface WeightData {
   label: string;
 }
 
+type OrderStatus = "pending" | "confirmed" | "preparing" | "ready" | "completed" | "cancelled";
+
 interface OrderedFood {
   id: string;
   name: string;
@@ -24,7 +26,7 @@ interface OrderedFood {
   calories: number;
   price: number;
   date: string;
-  status?: string;
+  status?: OrderStatus;
   orderNumber?: string;
 }
 
