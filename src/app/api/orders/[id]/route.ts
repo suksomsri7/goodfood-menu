@@ -1,6 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
-import { pushMessage, createOrderStatusFlexMessage } from "@/lib/line";
+import { 
+  pushMessage, 
+  createOrderStatusFlexMessage,
+  createOrderConfirmedFlexMessage,
+  createOrderPreparingFlexMessage,
+  createOrderDeliveredFlexMessage
+} from "@/lib/line";
 
 // GET - ดึงข้อมูล Order ตาม ID
 export async function GET(
@@ -44,7 +50,7 @@ export async function GET(
   }
 }
 
-// PATCH - อัพเดทข้อมูล Order (สถานะ, หมายเหตุ)
+// PATCH - อัพเดทข้อมูล Order (สถานะ, หมายเหตุ, เลขพัสดุ)
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -52,7 +58,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { status, note, sendNotification = true } = body;
+    const { status, note, trackingNumber, carrier, sendNotification = true } = body;
 
     // ดึงข้อมูล order เดิมก่อน
     const existingOrder = await prisma.order.findUnique({
@@ -74,6 +80,8 @@ export async function PATCH(
       data: {
         ...(status && { status }),
         ...(note !== undefined && { note }),
+        ...(trackingNumber !== undefined && { trackingNumber }),
+        ...(carrier !== undefined && { carrier }),
       },
       include: {
         items: true,
@@ -95,18 +103,52 @@ export async function PATCH(
       const lineUserId = existingOrder.member?.lineUserId;
       if (lineUserId) {
         try {
-          const statusMessages: Record<string, string> = {
-            confirmed: "ออเดอร์ของคุณได้รับการยืนยันแล้ว กำลังจัดเตรียมให้คุณ",
-            preparing: "กำลังเตรียมอาหารให้คุณ รอสักครู่นะคะ",
-            delivered: "อาหารถูกจัดส่งแล้ว ขอบคุณที่ใช้บริการ 💚",
-            cancelled: "ออเดอร์ถูกยกเลิก หากมีข้อสงสัยกรุณาติดต่อเรา",
-          };
+          let flexMessage;
 
-          const flexMessage = createOrderStatusFlexMessage(
-            order.orderNumber,
-            status,
-            statusMessages[status]
-          );
+          switch (status) {
+            case "confirmed":
+              // ดึงข้อมูลบัญชีรับชำระเงิน
+              const paymentAccount = await prisma.paymentAccount.findFirst({
+                where: { isActive: true, isDefault: true },
+              }) || await prisma.paymentAccount.findFirst({
+                where: { isActive: true },
+              });
+
+              flexMessage = createOrderConfirmedFlexMessage(
+                order.orderNumber,
+                order.totalPrice,
+                paymentAccount ? {
+                  bankName: paymentAccount.bankName,
+                  accountName: paymentAccount.accountName,
+                  accountNumber: paymentAccount.accountNumber,
+                  qrCodeUrl: paymentAccount.qrCodeUrl,
+                } : undefined
+              );
+              break;
+
+            case "preparing":
+              flexMessage = createOrderPreparingFlexMessage(order.orderNumber);
+              break;
+
+            case "delivered":
+              flexMessage = createOrderDeliveredFlexMessage(
+                order.orderNumber,
+                order.trackingNumber || undefined,
+                order.carrier || undefined
+              );
+              break;
+
+            case "cancelled":
+              flexMessage = createOrderStatusFlexMessage(
+                order.orderNumber,
+                status,
+                "ออเดอร์ถูกยกเลิก หากมีข้อสงสัยกรุณาติดต่อเรา"
+              );
+              break;
+
+            default:
+              flexMessage = createOrderStatusFlexMessage(order.orderNumber, status);
+          }
 
           await pushMessage(lineUserId, [flexMessage]);
           console.log(`Order status update sent to LINE user: ${lineUserId}`);

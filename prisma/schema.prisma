@@ -117,18 +117,20 @@ model CartItem {
 
 // ==================== คำสั่งซื้อ ====================
 model Order {
-  id          String      @id @default(cuid())
-  orderNumber String      @unique
-  memberId    String?
-  member      Member?     @relation(fields: [memberId], references: [id], onDelete: SetNull)
-  coursePlan  String? // แผนอาหาร
-  totalDays   Int? // จำนวนวัน
-  totalPrice  Float       @default(0)
-  status      String      @default("pending") // pending, confirmed, preparing, ready, completed, cancelled
-  note        String?
-  items       OrderItem[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id             String      @id @default(cuid())
+  orderNumber    String      @unique
+  memberId       String?
+  member         Member?     @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  coursePlan     String? // แผนอาหาร
+  totalDays      Int? // จำนวนวัน
+  totalPrice     Float       @default(0)
+  status         String      @default("pending") // pending, confirmed, preparing, delivered, cancelled
+  note           String?
+  trackingNumber String? // เลขพัสดุ
+  carrier        String? // ขนส่ง เช่น Kerry, Flash, Thailand Post
+  items          OrderItem[]
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
   @@index([memberId, createdAt])
   @@map("orders")
@@ -366,4 +368,19 @@ model LineMessage {
 
   @@index([conversationId, createdAt])
   @@map("line_messages")
+}
+
+// ==================== บัญชีรับชำระเงิน ====================
+model PaymentAccount {
+  id          String   @id @default(cuid())
+  bankName    String // ชื่อธนาคาร เช่น กสิกร, ไทยพาณิชย์
+  accountName String // ชื่อบัญชี
+  accountNumber String // เลขบัญชี
+  qrCodeUrl   String? // URL รูป QR Code
+  isActive    Boolean  @default(true)
+  isDefault   Boolean  @default(false) // บัญชีหลัก
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("payment_accounts")
 }

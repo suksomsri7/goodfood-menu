@@ -404,7 +404,7 @@ export function createOrderFlexMessage(order: {
   return createFlexMessage(`คำสั่งซื้อ #${order.orderNumber}`, flexContents);
 }
 
-// Create Order Status Update Flex Message
+// Create Order Status Update Flex Message (Generic)
 export function createOrderStatusFlexMessage(
   orderNumber: string,
   status: string,
@@ -412,7 +412,7 @@ export function createOrderStatusFlexMessage(
 ): LineFlexMessage {
   const statusLabels: Record<string, { text: string; emoji: string; color: string }> = {
     pending: { text: "รอดำเนินการ", emoji: "⏳", color: "#FFA000" },
-    confirmed: { text: "ยืนยันแล้ว", emoji: "✅", color: "#4CAF50" },
+    confirmed: { text: "ยืนยันคำสั่งซื้อ", emoji: "✅", color: "#4CAF50" },
     preparing: { text: "กำลังเตรียมอาหาร", emoji: "👨‍🍳", color: "#9C27B0" },
     delivered: { text: "จัดส่งแล้ว", emoji: "🚚", color: "#2196F3" },
     cancelled: { text: "ยกเลิก", emoji: "❌", color: "#F44336" },
@@ -469,4 +469,316 @@ export function createOrderStatusFlexMessage(
   };
 
   return createFlexMessage(`อัปเดตสถานะ: ${statusInfo.text}`, flexContents);
+}
+
+// Create Order Confirmed Flex Message with Payment Info
+export function createOrderConfirmedFlexMessage(
+  orderNumber: string,
+  totalPrice: number,
+  paymentAccount?: {
+    bankName: string;
+    accountName: string;
+    accountNumber: string;
+    qrCodeUrl?: string | null;
+  }
+): LineFlexMessage {
+  const bodyContents: unknown[] = [
+    {
+      type: "text",
+      text: "✅",
+      size: "3xl",
+      align: "center",
+    },
+    {
+      type: "text",
+      text: "ยืนยันคำสั่งซื้อ",
+      weight: "bold",
+      size: "xl",
+      align: "center",
+      margin: "md",
+      color: "#4CAF50",
+    },
+    {
+      type: "text",
+      text: `#${orderNumber}`,
+      size: "sm",
+      color: "#AAAAAA",
+      align: "center",
+      margin: "sm",
+    },
+    {
+      type: "text",
+      text: "คำสั่งซื้อได้รับการยืนยันแล้ว",
+      size: "sm",
+      color: "#555555",
+      align: "center",
+      margin: "lg",
+      wrap: true,
+    },
+    {
+      type: "separator",
+      margin: "lg",
+    },
+    {
+      type: "text",
+      text: "กรุณาชำระเงินได้ที่",
+      size: "sm",
+      color: "#555555",
+      align: "center",
+      margin: "lg",
+      weight: "bold",
+    },
+  ];
+
+  // Add payment account info if available
+  if (paymentAccount) {
+    bodyContents.push(
+      {
+        type: "box",
+        layout: "vertical",
+        margin: "md",
+        contents: [
+          {
+            type: "text",
+            text: paymentAccount.bankName,
+            size: "md",
+            color: "#111111",
+            align: "center",
+            weight: "bold",
+          },
+          {
+            type: "text",
+            text: paymentAccount.accountName,
+            size: "sm",
+            color: "#555555",
+            align: "center",
+            margin: "xs",
+          },
+          {
+            type: "text",
+            text: paymentAccount.accountNumber,
+            size: "lg",
+            color: "#4CAF50",
+            align: "center",
+            margin: "xs",
+            weight: "bold",
+          },
+        ],
+      }
+    );
+
+    // Add QR Code if available
+    if (paymentAccount.qrCodeUrl) {
+      bodyContents.push(
+        {
+          type: "box",
+          layout: "vertical",
+          margin: "lg",
+          alignItems: "center",
+          contents: [
+            {
+              type: "image",
+              url: paymentAccount.qrCodeUrl,
+              size: "lg",
+              aspectRatio: "1:1",
+              aspectMode: "fit",
+            },
+          ],
+        }
+      );
+    }
+  }
+
+  // Add total price
+  bodyContents.push(
+    {
+      type: "separator",
+      margin: "lg",
+    },
+    {
+      type: "box",
+      layout: "horizontal",
+      margin: "lg",
+      contents: [
+        {
+          type: "text",
+          text: "ยอดชำระ",
+          size: "md",
+          color: "#555555",
+          weight: "bold",
+        },
+        {
+          type: "text",
+          text: `฿${totalPrice.toLocaleString()}`,
+          size: "lg",
+          color: "#4CAF50",
+          weight: "bold",
+          align: "end",
+        },
+      ],
+    }
+  );
+
+  const flexContents: FlexContainer = {
+    type: "bubble",
+    body: {
+      type: "box",
+      layout: "vertical",
+      contents: bodyContents,
+      paddingAll: "20px",
+    },
+  };
+
+  return createFlexMessage(`ยืนยันคำสั่งซื้อ #${orderNumber}`, flexContents);
+}
+
+// Create Order Preparing Flex Message (Payment Received)
+export function createOrderPreparingFlexMessage(orderNumber: string): LineFlexMessage {
+  const flexContents: FlexContainer = {
+    type: "bubble",
+    size: "kilo",
+    body: {
+      type: "box",
+      layout: "vertical",
+      contents: [
+        {
+          type: "text",
+          text: "👨‍🍳",
+          size: "3xl",
+          align: "center",
+        },
+        {
+          type: "text",
+          text: "กำลังเตรียมอาหาร",
+          weight: "bold",
+          size: "xl",
+          align: "center",
+          margin: "md",
+          color: "#9C27B0",
+        },
+        {
+          type: "text",
+          text: `#${orderNumber}`,
+          size: "sm",
+          color: "#AAAAAA",
+          align: "center",
+          margin: "sm",
+        },
+        {
+          type: "text",
+          text: "รับชำระเงินเรียบร้อย\nเชฟกำลังจัดเตรียมอาหารสำหรับคุณ",
+          size: "sm",
+          color: "#555555",
+          align: "center",
+          margin: "lg",
+          wrap: true,
+        },
+      ],
+      paddingAll: "20px",
+    },
+  };
+
+  return createFlexMessage(`กำลังเตรียมอาหาร #${orderNumber}`, flexContents);
+}
+
+// Create Order Delivered Flex Message with Tracking Info
+export function createOrderDeliveredFlexMessage(
+  orderNumber: string,
+  trackingNumber?: string,
+  carrier?: string
+): LineFlexMessage {
+  const bodyContents: unknown[] = [
+    {
+      type: "text",
+      text: "🚚",
+      size: "3xl",
+      align: "center",
+    },
+    {
+      type: "text",
+      text: "จัดส่งแล้ว",
+      weight: "bold",
+      size: "xl",
+      align: "center",
+      margin: "md",
+      color: "#2196F3",
+    },
+    {
+      type: "text",
+      text: `#${orderNumber}`,
+      size: "sm",
+      color: "#AAAAAA",
+      align: "center",
+      margin: "sm",
+    },
+  ];
+
+  // Add tracking info if available
+  if (trackingNumber) {
+    bodyContents.push(
+      {
+        type: "separator",
+        margin: "lg",
+      },
+      {
+        type: "box",
+        layout: "vertical",
+        margin: "lg",
+        contents: [
+          {
+            type: "text",
+            text: "📦 เลขพัสดุ",
+            size: "sm",
+            color: "#555555",
+            align: "center",
+          },
+          {
+            type: "text",
+            text: trackingNumber,
+            size: "lg",
+            color: "#2196F3",
+            align: "center",
+            margin: "xs",
+            weight: "bold",
+          },
+          ...(carrier
+            ? [
+                {
+                  type: "text" as const,
+                  text: `ขนส่ง: ${carrier}`,
+                  size: "sm" as const,
+                  color: "#888888",
+                  align: "center" as const,
+                  margin: "xs" as const,
+                },
+              ]
+            : []),
+        ],
+      }
+    );
+  }
+
+  bodyContents.push(
+    {
+      type: "text",
+      text: "ขอบคุณที่ใช้บริการ GoodFood 💚",
+      size: "xs",
+      color: "#AAAAAA",
+      align: "center",
+      margin: "lg",
+    }
+  );
+
+  const flexContents: FlexContainer = {
+    type: "bubble",
+    size: "kilo",
+    body: {
+      type: "box",
+      layout: "vertical",
+      contents: bodyContents,
+      paddingAll: "20px",
+    },
+  };
+
+  return createFlexMessage(`จัดส่งแล้ว #${orderNumber}`, flexContents);
 }
