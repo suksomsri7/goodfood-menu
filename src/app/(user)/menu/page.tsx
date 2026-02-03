@@ -105,6 +105,11 @@ export default function MenuPage() {
     }
   }, [lineUserId]);
 
+  // Set page title
+  useEffect(() => {
+    document.title = "เมนูอาหาร";
+  }, []);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -409,15 +414,11 @@ export default function MenuPage() {
         )}
 
         <div className="flex items-center px-4 py-3 gap-3">
-          {/* Back Button */}
-          <a href="/cal" className="flex-shrink-0 p-1">
-            <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </a>
+          {/* Title */}
+          <h1 className="text-lg font-semibold text-gray-900 flex-shrink-0">เมนูอาหาร</h1>
 
           {/* Search Button */}
-          <button onClick={() => setShowSearch(!showSearch)} className="flex-shrink-0 p-1">
+          <button onClick={() => setShowSearch(!showSearch)} className="flex-shrink-0 p-1 ml-auto">
             <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>

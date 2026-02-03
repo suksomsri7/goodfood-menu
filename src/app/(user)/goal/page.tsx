@@ -6,8 +6,6 @@ import { WeightChart } from "@/components/user/WeightChart";
 import { FoodStockCard } from "@/components/user/FoodStockCard";
 import { GoalSummary } from "@/components/user/GoalSummary";
 import { OnboardingModal } from "@/components/user/OnboardingModal";
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 import { useLiff } from "@/components/providers/LiffProvider";
 import type { Gender } from "@/lib/health-calculator";
 
@@ -201,6 +199,11 @@ export default function GoalPage() {
     }
   }, [lineUserId]);
 
+  // Set page title
+  useEffect(() => {
+    document.title = "เป้าหมาย";
+  }, []);
+
   // Initial data fetch
   useEffect(() => {
     if (isReady && lineUserId) {
@@ -373,20 +376,6 @@ export default function GoalPage() {
           }}
         />
       )}
-
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-white border-b border-slate-200">
-        <div className="flex items-center justify-between px-4 py-3">
-          <Link
-            href="/cal"
-            className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5 text-slate-600" />
-          </Link>
-          <h1 className="font-semibold text-slate-900">เป้าหมาย</h1>
-          <div className="w-10" />
-        </div>
-      </header>
 
       {/* Main Content */}
       <div className="px-4 pt-4 space-y-4">

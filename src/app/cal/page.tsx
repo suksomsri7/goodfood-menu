@@ -188,6 +188,11 @@ export default function CaloriePage() {
     }
   }, [lineUserId]);
 
+  // Set page title
+  useEffect(() => {
+    document.title = "แคลอรี่";
+  }, []);
+
   // Initial data fetch
   useEffect(() => {
     if (isReady && lineUserId) {
