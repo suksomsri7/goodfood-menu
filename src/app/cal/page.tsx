@@ -9,6 +9,7 @@ import { RecommendationCard } from "@/components/user/RecommendationCard";
 import { MealDetailModal } from "@/components/user/MealDetailModal";
 import { FloatingAddButton } from "@/components/user/FloatingAddButton";
 import { WaterIntakeButton } from "@/components/user/WaterIntakeButton";
+import { FoodStockCard } from "@/components/user/FoodStockCard";
 import { useLiff } from "@/components/providers/LiffProvider";
 
 // Types
@@ -38,6 +39,17 @@ interface Member {
   dailyWater: number | null;
 }
 
+interface OrderedFood {
+  id: string;
+  name: string;
+  quantity: number;
+  calories: number;
+  price: number;
+  date: string;
+  status?: string;
+  orderNumber?: string;
+}
+
 // Default goals
 const defaultGoals = {
   targetCalories: 2000,
@@ -55,6 +67,7 @@ export default function CaloriePage() {
   const [meals, setMeals] = useState<Meal[]>([]);
   const [member, setMember] = useState<Member | null>(null);
   const [waterIntake, setWaterIntake] = useState(0);
+  const [orderedFood, setOrderedFood] = useState<OrderedFood[]>([]);
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [showMealDetail, setShowMealDetail] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -131,17 +144,59 @@ export default function CaloriePage() {
     }
   }, [lineUserId, selectedDate]);
 
+  // Fetch orders (Stock)
+  const fetchOrders = useCallback(async () => {
+    if (!lineUserId) return;
+
+    try {
+      const res = await fetch(`/api/orders?lineUserId=${lineUserId}&limit=5`);
+      if (res.ok) {
+        const data = await res.json();
+        const items: OrderedFood[] = [];
+        const today = new Date().toDateString();
+        const yesterday = new Date(Date.now() - 86400000).toDateString();
+
+        data.forEach((order: any) => {
+          const orderDate = new Date(order.createdAt).toDateString();
+          const dateLabel =
+            orderDate === today
+              ? "วันนี้"
+              : orderDate === yesterday
+              ? "เมื่อวาน"
+              : new Date(order.createdAt).toLocaleDateString("th-TH");
+
+          order.items?.forEach((item: any) => {
+            items.push({
+              id: item.id,
+              name: item.foodName,
+              quantity: item.quantity,
+              calories: item.calories || 0,
+              price: item.price,
+              date: dateLabel,
+              status: order.status,
+              orderNumber: order.orderNumber,
+            });
+          });
+        });
+
+        setOrderedFood(items);
+      }
+    } catch (error) {
+      console.error("Failed to fetch orders:", error);
+    }
+  }, [lineUserId]);
+
   // Initial data fetch
   useEffect(() => {
     if (isReady && lineUserId) {
       setIsLoading(true);
-      Promise.all([fetchMember(), fetchMeals(), fetchWater()]).finally(() => {
+      Promise.all([fetchMember(), fetchMeals(), fetchWater(), fetchOrders()]).finally(() => {
         setIsLoading(false);
       });
     } else if (isReady && !isLoggedIn) {
       setIsLoading(false);
     }
-  }, [isReady, lineUserId, isLoggedIn, fetchMember, fetchMeals, fetchWater]);
+  }, [isReady, lineUserId, isLoggedIn, fetchMember, fetchMeals, fetchWater, fetchOrders]);
 
   // Refetch meals when date changes
   useEffect(() => {
@@ -378,6 +433,11 @@ export default function CaloriePage() {
         ) : (
           <MealList meals={meals} onMealClick={handleMealClick} />
         )}
+      </div>
+
+      {/* Stock / Orders */}
+      <div className="px-6 mt-6">
+        <FoodStockCard items={orderedFood} />
       </div>
 
       {/* Meal Detail Modal */}

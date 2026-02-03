@@ -24,6 +24,8 @@ interface OrderedFood {
   calories: number;
   price: number;
   date: string;
+  status?: string;
+  orderNumber?: string;
 }
 
 interface Member {
@@ -122,6 +124,8 @@ export default function GoalPage() {
               calories: item.calories || 0,
               price: item.price,
               date: dateLabel,
+              status: order.status,
+              orderNumber: order.orderNumber,
             });
           });
         });

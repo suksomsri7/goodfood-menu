@@ -1,8 +1,10 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Plus, ShoppingBag } from "lucide-react";
+import { Plus, ShoppingBag, Clock, CheckCircle, Truck, Package, XCircle } from "lucide-react";
 import Link from "next/link";
+
+type OrderStatus = "pending" | "confirmed" | "preparing" | "ready" | "completed" | "cancelled";
 
 interface OrderedFood {
   id: string;
@@ -11,11 +13,22 @@ interface OrderedFood {
   calories: number;
   price: number;
   date: string;
+  status?: OrderStatus;
+  orderNumber?: string;
 }
 
 interface FoodStockCardProps {
   items: OrderedFood[];
 }
+
+const statusConfig: Record<OrderStatus, { label: string; color: string; bgColor: string; icon: React.ElementType }> = {
+  pending: { label: "รอยืนยัน", color: "text-yellow-600", bgColor: "bg-yellow-50", icon: Clock },
+  confirmed: { label: "ยืนยันแล้ว", color: "text-blue-600", bgColor: "bg-blue-50", icon: CheckCircle },
+  preparing: { label: "กำลังเตรียม", color: "text-orange-600", bgColor: "bg-orange-50", icon: Package },
+  ready: { label: "พร้อมส่ง", color: "text-green-600", bgColor: "bg-green-50", icon: Truck },
+  completed: { label: "เสร็จสิ้น", color: "text-emerald-600", bgColor: "bg-emerald-50", icon: CheckCircle },
+  cancelled: { label: "ยกเลิก", color: "text-red-600", bgColor: "bg-red-50", icon: XCircle },
+};
 
 export function FoodStockCard({ items }: FoodStockCardProps) {
   const totalCalories = items.reduce((sum, item) => sum + item.calories * item.quantity, 0);
@@ -45,24 +58,42 @@ export function FoodStockCard({ items }: FoodStockCardProps) {
       {/* Order List */}
       {items.length > 0 ? (
         <div className="space-y-3">
-          {items.map((item, index) => (
-            <motion.div
-              key={item.id}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: index * 0.03 }}
-              className="flex items-center justify-between py-3 border-b border-slate-100 last:border-0"
-            >
-              <div className="flex-1">
-                <p className="text-sm font-medium text-slate-700">{item.name}</p>
-                <p className="text-xs text-slate-400">{item.calories} kcal · {item.date}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-medium text-slate-900">×{item.quantity}</p>
-                <p className="text-xs text-slate-500">฿{item.price * item.quantity}</p>
-              </div>
-            </motion.div>
-          ))}
+          {items.map((item, index) => {
+            const status = item.status || "pending";
+            const config = statusConfig[status];
+            const StatusIcon = config.icon;
+            
+            return (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: index * 0.03 }}
+                className="py-3 border-b border-slate-100 last:border-0"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-slate-700">{item.name}</p>
+                    <p className="text-xs text-slate-400">{item.calories} kcal · {item.date}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-slate-900">×{item.quantity}</p>
+                    <p className="text-xs text-slate-500">฿{item.price * item.quantity}</p>
+                  </div>
+                </div>
+                {/* Status Badge */}
+                <div className="flex items-center justify-between mt-2">
+                  {item.orderNumber && (
+                    <span className="text-xs text-slate-400">#{item.orderNumber}</span>
+                  )}
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${config.bgColor} ${config.color}`}>
+                    <StatusIcon className="w-3 h-3" />
+                    {config.label}
+                  </span>
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
       ) : (
         <div className="py-8 text-center">
