@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { pushMessage, createOrderFlexMessage } from "@/lib/line";
 
 // สร้างเลข Order
 function generateOrderNumber() {
@@ -44,6 +45,16 @@ export async function GET(request: NextRequest) {
         items: {
           include: {
             food: true,
+          },
+        },
+        member: {
+          select: {
+            id: true,
+            lineUserId: true,
+            displayName: true,
+            pictureUrl: true,
+            phone: true,
+            email: true,
           },
         },
       },
@@ -113,8 +124,33 @@ export async function POST(request: NextRequest) {
       },
       include: {
         items: true,
+        member: true,
       },
     });
+
+    // ส่ง LINE Flex Message ยืนยัน Order ให้ลูกค้า
+    if (lineUserId) {
+      try {
+        const flexMessage = createOrderFlexMessage({
+          orderNumber: order.orderNumber,
+          totalPrice: order.totalPrice,
+          totalDays: order.totalDays || 1,
+          coursePlan: order.coursePlan || "single",
+          items: order.items.map((item) => ({
+            foodName: item.foodName,
+            quantity: item.quantity,
+            price: item.price,
+          })),
+          status: order.status,
+        });
+
+        await pushMessage(lineUserId, [flexMessage]);
+        console.log(`Order confirmation sent to LINE user: ${lineUserId}`);
+      } catch (error) {
+        console.error("Failed to send LINE order confirmation:", error);
+        // ไม่ให้ error นี้ทำให้ order creation fail
+      }
+    }
 
     return NextResponse.json(order, { status: 201 });
   } catch (error) {

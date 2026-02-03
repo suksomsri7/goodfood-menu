@@ -1,6 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Header } from "@/components/backoffice/Header";
+import { User, Phone, Mail, MessageCircle } from "lucide-react";
+
+interface Member {
+  id: string;
+  lineUserId: string;
+  displayName: string | null;
+  pictureUrl: string | null;
+  phone: string | null;
+  email: string | null;
+}
 
 interface OrderItem {
   id: string;
@@ -16,6 +27,7 @@ interface Order {
   id: string;
   orderNumber: string;
   memberId: string | null;
+  member: Member | null;
   coursePlan: string;
   totalDays: number;
   totalPrice: number;
@@ -39,6 +51,7 @@ const planLabels: Record<string, string> = {
   "15_DAYS": "15 วัน",
   "30_DAYS": "30 วัน",
   "CUSTOM": "กำหนดเอง",
+  "single": "สั่งทีละรายการ",
 };
 
 const mealLabels: Record<string, string> = {
@@ -80,7 +93,10 @@ export default function OrdersPage() {
       
       if (res.ok) {
         fetchOrders();
-        setSelectedOrder(null);
+        // Update selected order status locally
+        if (selectedOrder && selectedOrder.id === orderId) {
+          setSelectedOrder({ ...selectedOrder, status: newStatus });
+        }
       }
     } catch (error) {
       console.error("Error updating order:", error);
@@ -105,7 +121,7 @@ export default function OrdersPage() {
   // Group items by day
   const groupItemsByDay = (items: OrderItem[]) => {
     return items.reduce((acc, item) => {
-      const day = item.dayNumber;
+      const day = item.dayNumber || 1;
       if (!acc[day]) acc[day] = [];
       acc[day].push(item);
       return acc;
@@ -113,111 +129,126 @@ export default function OrdersPage() {
   };
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">📦 ออเดอร์</h1>
-          <p className="text-sm text-gray-500">จัดการรายการสั่งซื้อจากลูกค้า</p>
+    <div>
+      <Header title="ออเดอร์" subtitle="จัดการรายการสั่งซื้อจากลูกค้า" />
+      
+      <div className="p-6">
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+          {[
+            { status: "all", label: "ทั้งหมด", icon: "📋", count: orders.length },
+            { status: "pending", label: "รอดำเนินการ", icon: "⏳", count: orders.filter(o => o.status === "pending").length },
+            { status: "confirmed", label: "ยืนยันแล้ว", icon: "✅", count: orders.filter(o => o.status === "confirmed").length },
+            { status: "preparing", label: "กำลังเตรียม", icon: "👨‍🍳", count: orders.filter(o => o.status === "preparing").length },
+            { status: "delivered", label: "จัดส่งแล้ว", icon: "🚚", count: orders.filter(o => o.status === "delivered").length },
+          ].map((stat) => (
+            <button
+              key={stat.status}
+              onClick={() => setFilterStatus(stat.status)}
+              className={`p-4 rounded-xl border transition-all ${
+                filterStatus === stat.status
+                  ? "border-green-500 bg-green-50 shadow-sm"
+                  : "border-gray-200 bg-white hover:border-green-200"
+              }`}
+            >
+              <span className="text-2xl">{stat.icon}</span>
+              <p className="text-2xl font-bold text-gray-800 mt-1">{stat.count}</p>
+              <p className="text-xs text-gray-500">{stat.label}</p>
+            </button>
+          ))}
         </div>
-        <button
-          onClick={fetchOrders}
-          className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
-        >
-          <span>🔄</span>
-          <span>รีเฟรช</span>
-        </button>
-      </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-        {[
-          { status: "all", label: "ทั้งหมด", icon: "📋", count: orders.length },
-          { status: "pending", label: "รอดำเนินการ", icon: "⏳", count: orders.filter(o => o.status === "pending").length },
-          { status: "confirmed", label: "ยืนยันแล้ว", icon: "✅", count: orders.filter(o => o.status === "confirmed").length },
-          { status: "preparing", label: "กำลังเตรียม", icon: "👨‍🍳", count: orders.filter(o => o.status === "preparing").length },
-          { status: "delivered", label: "จัดส่งแล้ว", icon: "🚚", count: orders.filter(o => o.status === "delivered").length },
-        ].map((stat) => (
-          <button
-            key={stat.status}
-            onClick={() => setFilterStatus(stat.status)}
-            className={`p-4 rounded-xl border transition-all ${
-              filterStatus === stat.status
-                ? "border-primary-500 bg-primary-50 shadow-sm"
-                : "border-gray-200 bg-white hover:border-primary-200"
-            }`}
-          >
-            <span className="text-2xl">{stat.icon}</span>
-            <p className="text-2xl font-bold text-gray-800 mt-1">{stat.count}</p>
-            <p className="text-xs text-gray-500">{stat.label}</p>
-          </button>
-        ))}
-      </div>
-
-      {/* Orders Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        {isLoading ? (
-          <div className="p-12 text-center">
-            <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-500 rounded-full animate-spin mx-auto" />
-            <p className="text-gray-500 mt-4">กำลังโหลด...</p>
-          </div>
-        ) : filteredOrders.length === 0 ? (
-          <div className="p-12 text-center">
-            <span className="text-5xl">📭</span>
-            <p className="text-gray-500 mt-4">ยังไม่มีออเดอร์</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">เลขออเดอร์</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">แพ็คเกจ</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">จำนวนเมนู</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">ราคารวม</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">สถานะ</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">วันที่สั่ง</th>
-                  <th className="text-right px-6 py-4 text-sm font-semibold text-gray-600">จัดการ</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filteredOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <span className="font-mono font-semibold text-primary-600">{order.orderNumber}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-gray-800">{planLabels[order.coursePlan] || order.coursePlan}</span>
-                      <span className="text-gray-400 text-sm ml-1">({order.totalDays} วัน)</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-gray-800">{order.items.length} รายการ</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="font-semibold text-gray-800">฿{order.totalPrice.toLocaleString()}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${statusConfig[order.status]?.bgColor} ${statusConfig[order.status]?.color}`}>
-                        {statusConfig[order.status]?.label || order.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {formatDate(order.createdAt)}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => setSelectedOrder(order)}
-                        className="px-3 py-1.5 bg-primary-50 text-primary-600 rounded-lg hover:bg-primary-100 transition-colors text-sm font-medium"
-                      >
-                        ดูรายละเอียด
-                      </button>
-                    </td>
+        {/* Orders Table */}
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          {isLoading ? (
+            <div className="p-12 text-center">
+              <div className="w-12 h-12 border-4 border-green-200 border-t-green-500 rounded-full animate-spin mx-auto" />
+              <p className="text-gray-500 mt-4">กำลังโหลด...</p>
+            </div>
+          ) : filteredOrders.length === 0 ? (
+            <div className="p-12 text-center">
+              <span className="text-5xl">📭</span>
+              <p className="text-gray-500 mt-4">ยังไม่มีออเดอร์</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">ลูกค้า</th>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">เลขออเดอร์</th>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">แพ็คเกจ</th>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">จำนวนเมนู</th>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">ราคารวม</th>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">สถานะ</th>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">วันที่สั่ง</th>
+                    <th className="text-right px-6 py-4 text-sm font-semibold text-gray-600">จัดการ</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredOrders.map((order) => (
+                    <tr key={order.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          {order.member?.pictureUrl ? (
+                            <img 
+                              src={order.member.pictureUrl} 
+                              alt={order.member.displayName || "User"}
+                              className="w-10 h-10 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                              <User className="w-5 h-5 text-gray-400" />
+                            </div>
+                          )}
+                          <div>
+                            <p className="font-medium text-gray-800">
+                              {order.member?.displayName || "ไม่ระบุชื่อ"}
+                            </p>
+                            {order.member?.phone && (
+                              <p className="text-xs text-gray-500">{order.member.phone}</p>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="font-mono font-semibold text-green-600">{order.orderNumber}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-gray-800">{planLabels[order.coursePlan] || order.coursePlan}</span>
+                        {order.totalDays > 1 && (
+                          <span className="text-gray-400 text-sm ml-1">({order.totalDays} วัน)</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-gray-800">{order.items.length} รายการ</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="font-semibold text-gray-800">฿{order.totalPrice.toLocaleString()}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium border ${statusConfig[order.status]?.bgColor} ${statusConfig[order.status]?.color}`}>
+                          {statusConfig[order.status]?.label || order.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500">
+                        {formatDate(order.createdAt)}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          onClick={() => setSelectedOrder(order)}
+                          className="px-3 py-1.5 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium"
+                        >
+                          ดูรายละเอียด
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Order Detail Modal */}
@@ -229,7 +260,7 @@ export default function OrdersPage() {
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-bold text-gray-800">รายละเอียดออเดอร์</h2>
-                <p className="text-sm text-primary-600 font-mono">{selectedOrder.orderNumber}</p>
+                <p className="text-sm text-green-600 font-mono">{selectedOrder.orderNumber}</p>
               </div>
               <button
                 onClick={() => setSelectedOrder(null)}
@@ -241,33 +272,90 @@ export default function OrdersPage() {
 
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto max-h-[60vh]">
+              {/* Customer Info */}
+              <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-100">
+                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  ข้อมูลลูกค้า
+                </h3>
+                <div className="flex items-start gap-4">
+                  {selectedOrder.member?.pictureUrl ? (
+                    <img 
+                      src={selectedOrder.member.pictureUrl} 
+                      alt={selectedOrder.member.displayName || "User"}
+                      className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-md"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center border-2 border-white shadow-md">
+                      <User className="w-8 h-8 text-gray-400" />
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-800 text-lg">
+                      {selectedOrder.member?.displayName || "ไม่ระบุชื่อ"}
+                    </p>
+                    {selectedOrder.member?.phone && (
+                      <p className="text-sm text-gray-600 flex items-center gap-2 mt-1">
+                        <Phone className="w-4 h-4" />
+                        {selectedOrder.member.phone}
+                      </p>
+                    )}
+                    {selectedOrder.member?.email && (
+                      <p className="text-sm text-gray-600 flex items-center gap-2 mt-1">
+                        <Mail className="w-4 h-4" />
+                        {selectedOrder.member.email}
+                      </p>
+                    )}
+                    {selectedOrder.member?.lineUserId && (
+                      <p className="text-xs text-gray-400 flex items-center gap-2 mt-2">
+                        <MessageCircle className="w-3 h-3" />
+                        LINE ID: {selectedOrder.member.lineUserId.slice(0, 10)}...
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Order Info */}
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="p-4 bg-gray-50 rounded-xl">
                   <p className="text-xs text-gray-500 mb-1">แพ็คเกจ</p>
-                  <p className="font-semibold">{planLabels[selectedOrder.coursePlan]} ({selectedOrder.totalDays} วัน)</p>
+                  <p className="font-semibold">{planLabels[selectedOrder.coursePlan] || selectedOrder.coursePlan} {selectedOrder.totalDays > 1 && `(${selectedOrder.totalDays} วัน)`}</p>
                 </div>
                 <div className="p-4 bg-gray-50 rounded-xl">
                   <p className="text-xs text-gray-500 mb-1">ราคารวม</p>
-                  <p className="font-bold text-primary-600 text-xl">฿{selectedOrder.totalPrice.toLocaleString()}</p>
+                  <p className="font-bold text-green-600 text-xl">฿{selectedOrder.totalPrice.toLocaleString()}</p>
                 </div>
               </div>
 
+              {/* Note */}
+              {selectedOrder.note && (
+                <div className="mb-6 p-4 bg-amber-50 rounded-xl border border-amber-100">
+                  <p className="text-xs text-amber-600 font-medium mb-1">📝 หมายเหตุ</p>
+                  <p className="text-gray-700">{selectedOrder.note}</p>
+                </div>
+              )}
+
               {/* Items by Day */}
-              <h3 className="font-semibold text-gray-800 mb-3">รายการเมนู</h3>
+              <h3 className="font-semibold text-gray-800 mb-3">🍽️ รายการเมนู</h3>
               {Object.entries(groupItemsByDay(selectedOrder.items))
                 .sort(([a], [b]) => Number(a) - Number(b))
                 .map(([day, items]) => (
                   <div key={day} className="mb-4">
-                    <p className="text-sm font-medium text-primary-600 mb-2">📅 วันที่ {day}</p>
+                    {selectedOrder.totalDays > 1 && (
+                      <p className="text-sm font-medium text-green-600 mb-2">📅 วันที่ {day}</p>
+                    )}
                     <div className="space-y-2">
                       {items.map((item) => (
                         <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                           <div>
                             <p className="font-medium text-gray-800">{item.foodName}</p>
-                            <p className="text-xs text-gray-500">{mealLabels[item.mealType] || item.mealType}</p>
+                            <p className="text-xs text-gray-500">
+                              {mealLabels[item.mealType] || item.mealType}
+                              {item.quantity > 1 && ` x${item.quantity}`}
+                            </p>
                           </div>
-                          <p className="font-semibold text-gray-700">฿{item.price}</p>
+                          <p className="font-semibold text-gray-700">฿{item.price.toLocaleString()}</p>
                         </div>
                       ))}
                     </div>
@@ -277,7 +365,7 @@ export default function OrdersPage() {
 
             {/* Modal Footer - Status Actions */}
             <div className="px-6 py-4 border-t border-gray-100 bg-gray-50">
-              <p className="text-sm text-gray-500 mb-3">เปลี่ยนสถานะ</p>
+              <p className="text-sm text-gray-500 mb-3">เปลี่ยนสถานะ (จะแจ้งลูกค้าทาง LINE อัตโนมัติ)</p>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(statusConfig).map(([status, config]) => (
                   <button
@@ -287,7 +375,7 @@ export default function OrdersPage() {
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${
                       selectedOrder.status === status
                         ? `${config.bgColor} ${config.color} cursor-not-allowed`
-                        : "bg-white border-gray-200 text-gray-600 hover:border-primary-300"
+                        : "bg-white border-gray-200 text-gray-600 hover:border-green-300"
                     }`}
                   >
                     {config.label}

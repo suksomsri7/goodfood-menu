@@ -33,7 +33,18 @@ export interface LineStickerMessage {
   stickerId: string;
 }
 
-export type LineMessage = LineTextMessage | LineImageMessage | LineStickerMessage;
+export interface LineFlexMessage {
+  type: "flex";
+  altText: string;
+  contents: FlexContainer;
+}
+
+export interface FlexContainer {
+  type: "bubble" | "carousel";
+  [key: string]: unknown;
+}
+
+export type LineMessage = LineTextMessage | LineImageMessage | LineStickerMessage | LineFlexMessage;
 
 // Verify webhook signature
 export function verifySignature(body: string, signature: string): boolean {
@@ -193,4 +204,269 @@ export function createStickerMessage(packageId: string, stickerId: string): Line
     packageId,
     stickerId,
   };
+}
+
+// Create Flex Message helper
+export function createFlexMessage(altText: string, contents: FlexContainer): LineFlexMessage {
+  return {
+    type: "flex",
+    altText,
+    contents,
+  };
+}
+
+// Create Order Confirmation Flex Message
+export function createOrderFlexMessage(order: {
+  orderNumber: string;
+  totalPrice: number;
+  totalDays?: number;
+  coursePlan?: string;
+  items: Array<{ foodName: string; quantity: number; price: number }>;
+  status: string;
+}): LineFlexMessage {
+  const statusLabels: Record<string, string> = {
+    pending: "⏳ รอดำเนินการ",
+    confirmed: "✅ ยืนยันแล้ว",
+    preparing: "👨‍🍳 กำลังเตรียม",
+    delivered: "🚚 จัดส่งแล้ว",
+    cancelled: "❌ ยกเลิก",
+  };
+
+  const statusColors: Record<string, string> = {
+    pending: "#FFA000",
+    confirmed: "#4CAF50",
+    preparing: "#9C27B0",
+    delivered: "#2196F3",
+    cancelled: "#F44336",
+  };
+
+  // สร้าง item list (แสดงสูงสุด 5 รายการ)
+  const displayItems = order.items.slice(0, 5);
+  const remainingCount = order.items.length - 5;
+
+  const itemComponents = displayItems.map((item) => ({
+    type: "box",
+    layout: "horizontal",
+    contents: [
+      {
+        type: "text",
+        text: `${item.foodName}`,
+        size: "sm",
+        color: "#555555",
+        flex: 0,
+        wrap: true,
+      },
+      {
+        type: "text",
+        text: `x${item.quantity}`,
+        size: "sm",
+        color: "#111111",
+        align: "end",
+      },
+    ],
+  }));
+
+  if (remainingCount > 0) {
+    itemComponents.push({
+      type: "box",
+      layout: "horizontal",
+      contents: [
+        {
+          type: "text",
+          text: `และอีก ${remainingCount} รายการ...`,
+          size: "xs",
+          color: "#AAAAAA",
+          flex: 0,
+          wrap: false,
+        },
+        {
+          type: "text",
+          text: "",
+          size: "sm",
+          color: "#111111",
+          align: "end",
+        },
+      ],
+    });
+  }
+
+  const flexContents: FlexContainer = {
+    type: "bubble",
+    header: {
+      type: "box",
+      layout: "vertical",
+      contents: [
+        {
+          type: "box",
+          layout: "horizontal",
+          contents: [
+            {
+              type: "text",
+              text: "🍽️ GoodFood",
+              weight: "bold",
+              color: "#4CAF50",
+              size: "sm",
+            },
+            {
+              type: "text",
+              text: statusLabels[order.status] || order.status,
+              weight: "bold",
+              color: statusColors[order.status] || "#666666",
+              size: "xs",
+              align: "end",
+            },
+          ],
+        },
+      ],
+      paddingAll: "15px",
+      backgroundColor: "#F8F9FA",
+    },
+    body: {
+      type: "box",
+      layout: "vertical",
+      contents: [
+        {
+          type: "text",
+          text: "คำสั่งซื้อของคุณ",
+          weight: "bold",
+          size: "xl",
+          margin: "none",
+        },
+        {
+          type: "text",
+          text: `#${order.orderNumber}`,
+          size: "sm",
+          color: "#4CAF50",
+          margin: "sm",
+        },
+        {
+          type: "separator",
+          margin: "lg",
+        },
+        {
+          type: "box",
+          layout: "vertical",
+          margin: "lg",
+          spacing: "sm",
+          contents: itemComponents,
+        },
+        {
+          type: "separator",
+          margin: "lg",
+        },
+        {
+          type: "box",
+          layout: "horizontal",
+          margin: "lg",
+          contents: [
+            {
+              type: "text",
+              text: "รวมทั้งหมด",
+              size: "md",
+              color: "#555555",
+              weight: "bold",
+            },
+            {
+              type: "text",
+              text: `฿${order.totalPrice.toLocaleString()}`,
+              size: "lg",
+              color: "#4CAF50",
+              weight: "bold",
+              align: "end",
+            },
+          ],
+        },
+      ],
+      paddingAll: "20px",
+    },
+    footer: {
+      type: "box",
+      layout: "vertical",
+      spacing: "sm",
+      contents: [
+        {
+          type: "text",
+          text: "ขอบคุณที่ใช้บริการ GoodFood 💚",
+          size: "xs",
+          color: "#AAAAAA",
+          align: "center",
+        },
+      ],
+      paddingAll: "15px",
+    },
+    styles: {
+      header: {
+        separator: false,
+      },
+    },
+  };
+
+  return createFlexMessage(`คำสั่งซื้อ #${order.orderNumber}`, flexContents);
+}
+
+// Create Order Status Update Flex Message
+export function createOrderStatusFlexMessage(
+  orderNumber: string,
+  status: string,
+  message?: string
+): LineFlexMessage {
+  const statusLabels: Record<string, { text: string; emoji: string; color: string }> = {
+    pending: { text: "รอดำเนินการ", emoji: "⏳", color: "#FFA000" },
+    confirmed: { text: "ยืนยันแล้ว", emoji: "✅", color: "#4CAF50" },
+    preparing: { text: "กำลังเตรียมอาหาร", emoji: "👨‍🍳", color: "#9C27B0" },
+    delivered: { text: "จัดส่งแล้ว", emoji: "🚚", color: "#2196F3" },
+    cancelled: { text: "ยกเลิก", emoji: "❌", color: "#F44336" },
+  };
+
+  const statusInfo = statusLabels[status] || { text: status, emoji: "📋", color: "#666666" };
+
+  const flexContents: FlexContainer = {
+    type: "bubble",
+    size: "kilo",
+    body: {
+      type: "box",
+      layout: "vertical",
+      contents: [
+        {
+          type: "text",
+          text: statusInfo.emoji,
+          size: "3xl",
+          align: "center",
+        },
+        {
+          type: "text",
+          text: statusInfo.text,
+          weight: "bold",
+          size: "xl",
+          align: "center",
+          margin: "md",
+          color: statusInfo.color,
+        },
+        {
+          type: "text",
+          text: `#${orderNumber}`,
+          size: "sm",
+          color: "#AAAAAA",
+          align: "center",
+          margin: "sm",
+        },
+        ...(message
+          ? [
+              {
+                type: "text" as const,
+                text: message,
+                size: "sm" as const,
+                color: "#555555",
+                align: "center" as const,
+                margin: "lg" as const,
+                wrap: true,
+              },
+            ]
+          : []),
+      ],
+      paddingAll: "20px",
+    },
+  };
+
+  return createFlexMessage(`อัปเดตสถานะ: ${statusInfo.text}`, flexContents);
 }
