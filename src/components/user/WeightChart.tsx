@@ -133,7 +133,7 @@ export function WeightChart({
                   boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
                   fontSize: "12px",
                 }}
-                formatter={(value: number) => [`${value} kg`, "น้ำหนัก"]}
+                formatter={(value) => [`${value} kg`, "น้ำหนัก"]}
               />
               <ReferenceLine
                 y={targetWeight}
