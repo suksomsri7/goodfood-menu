@@ -13,14 +13,20 @@ model Member {
   lineUserId    String    @unique // LINE User ID จาก LIFF
   displayName   String?
   pictureUrl    String?
+  name          String? // ชื่อจริง
   email         String?
   phone         String?
-  gender        String?
+  gender        String? // male, female
   birthDate     DateTime?
   height        Float? // cm
   weight        Float? // kg - น้ำหนักปัจจุบัน
   goalWeight    Float? // kg - เป้าหมายน้ำหนัก
+  goalType      String? // lose, gain, maintain
   activityLevel String? // sedentary, light, moderate, active, very_active
+  dietType      String? // balanced, high_protein, low_fat, custom
+  targetMonths  Int? // ระยะเวลาเป้าหมาย (เดือน)
+  bmr           Float? // Basal Metabolic Rate
+  tdee          Float? // Total Daily Energy Expenditure
   dailyCalories Int? // เป้าหมายแคลอรี่ต่อวัน
   dailyProtein  Float? // เป้าหมายโปรตีนต่อวัน (g)
   dailyCarbs    Float? // เป้าหมายคาร์บต่อวัน (g)
@@ -28,6 +34,7 @@ model Member {
   dailySodium   Float? // เป้าหมายโซเดียมต่อวัน (mg)
   dailySugar    Float? // เป้าหมายน้ำตาลต่อวัน (g)
   dailyWater    Float? // เป้าหมายน้ำต่อวัน (ml)
+  isOnboarded   Boolean   @default(false) // ผ่านการตั้งค่าเป้าหมายแล้ว
   isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -320,4 +327,43 @@ model Role {
   updatedAt   DateTime @updatedAt
 
   @@map("roles")
+}
+
+// ==================== LINE แชท ====================
+model LineConversation {
+  id              String        @id @default(cuid())
+  lineUserId      String        @unique // LINE User ID
+  displayName     String?
+  pictureUrl      String?
+  statusMessage   String?
+  lastMessageAt   DateTime      @default(now())
+  unreadCount     Int           @default(0)
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  messages        LineMessage[]
+
+  @@index([lastMessageAt])
+  @@map("line_conversations")
+}
+
+model LineMessage {
+  id             String           @id @default(cuid())
+  conversationId String
+  conversation   LineConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  lineMessageId  String?          @unique // LINE Message ID (null for outgoing)
+  type           String           @default("text") // text, image, sticker, video, audio, file
+  direction      String           // incoming, outgoing
+  content        String?          @db.Text // ข้อความ หรือ URL รูป/ไฟล์
+  stickerPackageId String?        // สำหรับ sticker
+  stickerId      String?          // สำหรับ sticker
+  previewUrl     String?          // preview สำหรับรูป/วีดีโอ
+  fileName       String?          // ชื่อไฟล์
+  fileSize       Int?             // ขนาดไฟล์
+  duration       Int?             // ความยาว audio/video (ms)
+  isRead         Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+
+  @@index([conversationId, createdAt])
+  @@map("line_messages")
 }
