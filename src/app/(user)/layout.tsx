@@ -1,3 +1,7 @@
+"use client";
+
+import { OnboardingGuard } from "@/components/providers/OnboardingGuard";
+
 export default function UserLayout({
   children,
 }: {
@@ -5,7 +9,7 @@ export default function UserLayout({
 }) {
   return (
     <div className="min-h-screen bg-white">
-      {children}
+      <OnboardingGuard>{children}</OnboardingGuard>
     </div>
   );
 }

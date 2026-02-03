@@ -1,3 +1,7 @@
+"use client";
+
+import { OnboardingGuard } from "@/components/providers/OnboardingGuard";
+
 export default function CalLayout({
   children,
 }: {
@@ -5,7 +9,7 @@ export default function CalLayout({
 }) {
   return (
     <div className="min-h-screen bg-white">
-      {children}
+      <OnboardingGuard>{children}</OnboardingGuard>
     </div>
   );
 }
