@@ -111,9 +111,12 @@ model CartItem {
 // ==================== คำสั่งซื้อ ====================
 model Order {
   id          String      @id @default(cuid())
-  memberId    String
-  member      Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  totalAmount Float
+  orderNumber String      @unique
+  memberId    String?
+  member      Member?     @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  coursePlan  String? // แผนอาหาร
+  totalDays   Int? // จำนวนวัน
+  totalPrice  Float       @default(0)
   status      String      @default("pending") // pending, confirmed, preparing, ready, completed, cancelled
   note        String?
   items       OrderItem[]
@@ -125,15 +128,17 @@ model Order {
 }
 
 model OrderItem {
-  id        String @id @default(cuid())
+  id        String  @id @default(cuid())
   orderId   String
-  order     Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   foodId    String
-  food      Food   @relation(fields: [foodId], references: [id])
+  food      Food    @relation(fields: [foodId], references: [id])
   foodName  String // เก็บชื่อไว้กรณี food ถูกลบ
   price     Float
-  quantity  Int
-  calories  Float
+  quantity  Int     @default(1)
+  dayNumber Int? // วันที่ในแผน
+  mealType  String? // breakfast, lunch, dinner, snack
+  calories  Float?
 
   @@map("order_items")
 }
