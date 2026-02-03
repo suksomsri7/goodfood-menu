@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { DaySelector } from "@/components/user/DaySelector";
 import { CalorieRing } from "@/components/user/CalorieRing";
 import { MacroProgressBar } from "@/components/user/MacroProgressBar";
@@ -8,6 +8,7 @@ import { MealList } from "@/components/user/MealList";
 import { RecommendationCard } from "@/components/user/RecommendationCard";
 import { MealDetailModal } from "@/components/user/MealDetailModal";
 import { FloatingAddButton } from "@/components/user/FloatingAddButton";
+import { useLiff } from "@/components/providers/LiffProvider";
 
 // Types
 interface Meal {
@@ -26,77 +27,139 @@ interface Meal {
   ingredients?: string;
 }
 
-// Mock data
-const mockUser = {
-  targetCalories: 2500,
-  targetProtein: 175,
-  targetCarbs: 280,
-  targetFat: 85,
+interface Member {
+  dailyCalories: number | null;
+  dailyProtein: number | null;
+  dailyCarbs: number | null;
+  dailyFat: number | null;
+  dailySodium: number | null;
+  dailySugar: number | null;
+  dailyWater: number | null;
+}
+
+// Default goals
+const defaultGoals = {
+  targetCalories: 2000,
+  targetProtein: 150,
+  targetCarbs: 250,
+  targetFat: 65,
   targetSodium: 2300,
   targetSugar: 50,
-  targetWater: 2000, // ml
+  targetWater: 2000,
 };
 
-const initialMeals: Meal[] = [
-  {
-    id: "1",
-    name: "Pasta Salad Bowl",
-    weight: 350,
-    multiplier: 1.7,
-    calories: 680,
-    protein: 20,
-    carbs: 94,
-    fat: 26,
-    sodium: 580,
-    sugar: 8,
-    time: "16:30",
-  },
-  {
-    id: "2",
-    name: "Grilled Salmon",
-    weight: 150,
-    multiplier: 2.0,
-    calories: 500,
-    protein: 46,
-    carbs: 0,
-    fat: 30,
-    sodium: 120,
-    sugar: 0,
-    time: "16:30",
-  },
-  {
-    id: "3",
-    name: "Colorful Salad Bowl",
-    weight: 400,
-    calories: 350,
-    protein: 10,
-    carbs: 40,
-    fat: 20,
-    sodium: 320,
-    sugar: 12,
-    time: "16:29",
-  },
-  {
-    id: "4",
-    name: "Yogurt Parfait",
-    weight: 150,
-    multiplier: 2.0,
-    calories: 300,
-    protein: 10,
-    carbs: 48,
-    fat: 8,
-    sodium: 85,
-    sugar: 24,
-    time: "16:28",
-  },
-];
-
 export default function CaloriePage() {
+  const { profile, isReady, isLoggedIn } = useLiff();
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [meals, setMeals] = useState<Meal[]>(initialMeals);
+  const [meals, setMeals] = useState<Meal[]>([]);
+  const [member, setMember] = useState<Member | null>(null);
+  const [waterIntake, setWaterIntake] = useState(0);
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [showMealDetail, setShowMealDetail] = useState(false);
-  const [waterIntake, setWaterIntake] = useState(1200); // ml
+  const [isLoading, setIsLoading] = useState(true);
+
+  const lineUserId = profile?.userId;
+
+  // Fetch member data
+  const fetchMember = useCallback(async () => {
+    if (!lineUserId) return;
+
+    try {
+      const res = await fetch(`/api/members/me?lineUserId=${lineUserId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setMember(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch member:", error);
+    }
+  }, [lineUserId]);
+
+  // Fetch meals for selected date
+  const fetchMeals = useCallback(async () => {
+    if (!lineUserId) return;
+
+    try {
+      const dateStr = selectedDate.toISOString().split("T")[0];
+      const res = await fetch(
+        `/api/meals?lineUserId=${lineUserId}&date=${dateStr}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        // Transform data to match Meal interface
+        const transformedMeals: Meal[] = data.map((meal: any) => ({
+          id: meal.id,
+          name: meal.name,
+          weight: meal.weight,
+          multiplier: meal.multiplier,
+          calories: meal.calories,
+          protein: meal.protein,
+          carbs: meal.carbs,
+          fat: meal.fat,
+          sodium: meal.sodium,
+          sugar: meal.sugar,
+          imageUrl: meal.imageUrl,
+          ingredients: meal.ingredients,
+          time: new Date(meal.date).toLocaleTimeString("th-TH", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        }));
+        setMeals(transformedMeals);
+      }
+    } catch (error) {
+      console.error("Failed to fetch meals:", error);
+    }
+  }, [lineUserId, selectedDate]);
+
+  // Fetch water intake for selected date
+  const fetchWater = useCallback(async () => {
+    if (!lineUserId) return;
+
+    try {
+      const dateStr = selectedDate.toISOString().split("T")[0];
+      const res = await fetch(
+        `/api/water?lineUserId=${lineUserId}&date=${dateStr}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setWaterIntake(data.total || 0);
+      }
+    } catch (error) {
+      console.error("Failed to fetch water:", error);
+    }
+  }, [lineUserId, selectedDate]);
+
+  // Initial data fetch
+  useEffect(() => {
+    if (isReady && lineUserId) {
+      setIsLoading(true);
+      Promise.all([fetchMember(), fetchMeals(), fetchWater()]).finally(() => {
+        setIsLoading(false);
+      });
+    } else if (isReady && !isLoggedIn) {
+      setIsLoading(false);
+    }
+  }, [isReady, lineUserId, isLoggedIn, fetchMember, fetchMeals, fetchWater]);
+
+  // Refetch meals when date changes
+  useEffect(() => {
+    if (lineUserId) {
+      fetchMeals();
+      fetchWater();
+    }
+  }, [selectedDate, lineUserId, fetchMeals, fetchWater]);
+
+  // Get user goals (from member or defaults)
+  const goals = {
+    targetCalories: member?.dailyCalories || defaultGoals.targetCalories,
+    targetProtein: member?.dailyProtein || defaultGoals.targetProtein,
+    targetCarbs: member?.dailyCarbs || defaultGoals.targetCarbs,
+    targetFat: member?.dailyFat || defaultGoals.targetFat,
+    targetSodium: member?.dailySodium || defaultGoals.targetSodium,
+    targetSugar: member?.dailySugar || defaultGoals.targetSugar,
+    targetWater: member?.dailyWater || defaultGoals.targetWater,
+  };
 
   // Calculate totals from meals
   const dailyData = meals.reduce(
@@ -111,20 +174,30 @@ export default function CaloriePage() {
     { consumed: 0, protein: 0, carbs: 0, fat: 0, sodium: 0, sugar: 0 }
   );
 
-  const remaining = mockUser.targetCalories - dailyData.consumed;
+  const remaining = goals.targetCalories - dailyData.consumed;
 
   const handleMealClick = (meal: Meal) => {
     setSelectedMeal(meal);
     setShowMealDetail(true);
   };
 
-  const handleDeleteMeal = (mealId: string) => {
-    setMeals(meals.filter((m) => m.id !== mealId));
-    setShowMealDetail(false);
-    setSelectedMeal(null);
+  const handleDeleteMeal = async (mealId: string) => {
+    try {
+      const res = await fetch(`/api/meals/${mealId}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        setMeals(meals.filter((m) => m.id !== mealId));
+        setShowMealDetail(false);
+        setSelectedMeal(null);
+      }
+    } catch (error) {
+      console.error("Failed to delete meal:", error);
+    }
   };
 
-  const handleAddMeal = (newMeal: {
+  const handleAddMeal = async (newMeal: {
     name: string;
     calories: number;
     protein: number;
@@ -137,16 +210,64 @@ export default function CaloriePage() {
     ingredients?: string;
     imageUrl?: string;
   }) => {
-    const meal: Meal = {
-      id: Date.now().toString(),
-      ...newMeal,
-      time: new Date().toLocaleTimeString("th-TH", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    };
-    setMeals([meal, ...meals]);
+    if (!lineUserId) return;
+
+    try {
+      const res = await fetch("/api/meals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lineUserId,
+          ...newMeal,
+          date: selectedDate.toISOString(),
+        }),
+      });
+
+      if (res.ok) {
+        const savedMeal = await res.json();
+        const meal: Meal = {
+          id: savedMeal.id,
+          ...newMeal,
+          time: new Date().toLocaleTimeString("th-TH", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        };
+        setMeals([meal, ...meals]);
+      }
+    } catch (error) {
+      console.error("Failed to add meal:", error);
+    }
   };
+
+  // Loading state
+  if (!isReady || isLoading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-500">กำลังโหลด...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Not logged in state
+  if (!isLoggedIn || !lineUserId) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center px-6">
+        <div className="text-center">
+          <div className="text-6xl mb-4">🔐</div>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">
+            กรุณาเข้าสู่ระบบ
+          </h2>
+          <p className="text-gray-500 text-sm">
+            เปิดผ่าน LINE เพื่อใช้งานระบบนับแคลอรี่
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white pb-28">
@@ -159,7 +280,7 @@ export default function CaloriePage() {
           remaining={remaining}
           consumed={dailyData.consumed}
           burnt={0}
-          target={mockUser.targetCalories}
+          target={goals.targetCalories}
         />
 
         {/* Macros Row 1 - Carbs, Protein, Fat */}
@@ -167,21 +288,21 @@ export default function CaloriePage() {
           <MacroProgressBar
             label="Carbohydrates"
             current={dailyData.carbs}
-            target={mockUser.targetCarbs}
+            target={goals.targetCarbs}
             color="#fbbf24"
             delay={0.1}
           />
           <MacroProgressBar
             label="Protein"
             current={dailyData.protein}
-            target={mockUser.targetProtein}
+            target={goals.targetProtein}
             color="#f87171"
             delay={0.2}
           />
           <MacroProgressBar
             label="Fat"
             current={dailyData.fat}
-            target={mockUser.targetFat}
+            target={goals.targetFat}
             color="#60a5fa"
             delay={0.3}
           />
@@ -192,7 +313,7 @@ export default function CaloriePage() {
           <MacroProgressBar
             label="Sodium"
             current={dailyData.sodium}
-            target={mockUser.targetSodium}
+            target={goals.targetSodium}
             color="#a78bfa"
             unit="mg"
             delay={0.4}
@@ -200,14 +321,14 @@ export default function CaloriePage() {
           <MacroProgressBar
             label="Sugar"
             current={dailyData.sugar}
-            target={mockUser.targetSugar}
+            target={goals.targetSugar}
             color="#f472b6"
             delay={0.5}
           />
           <MacroProgressBar
             label="Water"
             current={waterIntake}
-            target={mockUser.targetWater}
+            target={goals.targetWater}
             color="#22d3ee"
             unit="ml"
             delay={0.6}
@@ -228,7 +349,15 @@ export default function CaloriePage() {
 
       {/* Meals */}
       <div className="px-6">
-        <MealList meals={meals} onMealClick={handleMealClick} />
+        {meals.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-5xl mb-4">🍽️</div>
+            <p className="text-gray-400">ยังไม่มีรายการอาหารวันนี้</p>
+            <p className="text-gray-400 text-sm">กดปุ่ม + เพื่อเพิ่มมื้ออาหาร</p>
+          </div>
+        ) : (
+          <MealList meals={meals} onMealClick={handleMealClick} />
+        )}
       </div>
 
       {/* Meal Detail Modal */}

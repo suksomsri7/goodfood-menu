@@ -7,7 +7,16 @@ import {
   useState,
   ReactNode,
 } from "react";
-import { initLiff, getProfile, isLoggedIn, login, isInClient, LiffProfile } from "@/lib/liff";
+import { usePathname } from "next/navigation";
+import {
+  initLiff,
+  getProfile,
+  isLoggedIn,
+  login,
+  isInClient,
+  getLiffIdForPath,
+  LiffProfile,
+} from "@/lib/liff";
 
 interface LiffContextType {
   isReady: boolean;
@@ -36,6 +45,7 @@ interface LiffProviderProps {
 }
 
 export function LiffProvider({ children }: LiffProviderProps) {
+  const pathname = usePathname();
   const [isReady, setIsReady] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
   const [inClient, setInClient] = useState(false);
@@ -45,11 +55,14 @@ export function LiffProvider({ children }: LiffProviderProps) {
   useEffect(() => {
     const init = async () => {
       try {
-        const success = await initLiff();
+        // Get LIFF ID based on current path
+        const liffId = getLiffIdForPath(pathname);
         
+        const success = await initLiff(liffId);
+
         if (!success) {
           // Development mode - use mock profile
-          if (process.env.NODE_ENV === "development" && !process.env.NEXT_PUBLIC_LIFF_ID) {
+          if (process.env.NODE_ENV === "development" && !liffId) {
             console.log("🔧 Development mode: Using mock LIFF profile");
             setProfile({
               userId: "dev-user-001",
@@ -60,25 +73,30 @@ export function LiffProvider({ children }: LiffProviderProps) {
             setIsReady(true);
             return;
           }
-          
+
           setError("LIFF initialization failed");
           setIsReady(true);
           return;
         }
 
         setInClient(isInClient());
-        
+
         if (isLoggedIn()) {
           setLoggedIn(true);
           const userProfile = await getProfile();
           if (userProfile) {
             setProfile(userProfile);
-            
+
             // Register/update user in database
             await registerUser(userProfile);
           }
+        } else {
+          // Not logged in - trigger login in LIFF browser
+          if (isInClient()) {
+            login();
+          }
         }
-        
+
         setIsReady(true);
       } catch (err) {
         console.error("LIFF init error:", err);
@@ -88,7 +106,7 @@ export function LiffProvider({ children }: LiffProviderProps) {
     };
 
     init();
-  }, []);
+  }, [pathname]);
 
   return (
     <LiffContext.Provider

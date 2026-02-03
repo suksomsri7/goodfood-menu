@@ -1,6 +1,13 @@
 import liff from "@line/liff";
 
-export const LIFF_ID = process.env.NEXT_PUBLIC_LIFF_ID || "";
+// LIFF IDs for different pages
+export const LIFF_IDS = {
+  cal: process.env.NEXT_PUBLIC_LIFF_ID_CAL || "",
+  goal: process.env.NEXT_PUBLIC_LIFF_ID_GOAL || "",
+  menu: process.env.NEXT_PUBLIC_LIFF_ID_MENU || "",
+} as const;
+
+export type LiffPage = keyof typeof LIFF_IDS;
 
 export interface LiffProfile {
   userId: string;
@@ -10,23 +17,37 @@ export interface LiffProfile {
 }
 
 let isInitialized = false;
+let currentLiffId = "";
 
-export async function initLiff(): Promise<boolean> {
-  if (isInitialized) return true;
+export function getLiffIdForPath(pathname: string): string {
+  if (pathname.includes("/cal")) return LIFF_IDS.cal;
+  if (pathname.includes("/goal")) return LIFF_IDS.goal;
+  if (pathname.includes("/menu")) return LIFF_IDS.menu;
+  return LIFF_IDS.cal; // default
+}
+
+export async function initLiff(liffId: string): Promise<boolean> {
+  // If already initialized with the same ID, return true
+  if (isInitialized && currentLiffId === liffId) return true;
   
-  if (!LIFF_ID) {
+  if (!liffId) {
     console.warn("LIFF_ID is not set");
     return false;
   }
 
   try {
-    await liff.init({ liffId: LIFF_ID });
+    await liff.init({ liffId });
     isInitialized = true;
+    currentLiffId = liffId;
     return true;
   } catch (error) {
     console.error("LIFF init failed:", error);
     return false;
   }
+}
+
+export function isLiffInitialized(): boolean {
+  return isInitialized;
 }
 
 export function isLoggedIn(): boolean {
