@@ -1,4 +1,18 @@
+"use client";
+
 import { Sidebar } from "@/components/backoffice/Sidebar";
+import { SidebarProvider, useSidebar } from "@/components/backoffice/SidebarContext";
+import { cn } from "@/lib/utils";
+
+function BackofficeContent({ children }: { children: React.ReactNode }) {
+  const { collapsed } = useSidebar();
+
+  return (
+    <main className={cn("transition-all duration-300", collapsed ? "ml-16" : "ml-60")}>
+      {children}
+    </main>
+  );
+}
 
 export default function BackofficeLayout({
   children,
@@ -6,11 +20,11 @@ export default function BackofficeLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-[#F8F9FA]">
-      <Sidebar />
-      <main className="ml-60 transition-all duration-300">
-        {children}
-      </main>
-    </div>
+    <SidebarProvider>
+      <div className="min-h-screen bg-[#F8F9FA]">
+        <Sidebar />
+        <BackofficeContent>{children}</BackofficeContent>
+      </div>
+    </SidebarProvider>
   );
 }

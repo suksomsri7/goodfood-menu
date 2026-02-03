@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { LiffProvider } from "@/components/providers/LiffProvider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -29,7 +30,7 @@ export default function RootLayout({
   return (
     <html lang="th">
       <body className={`${inter.className} antialiased`}>
-        {children}
+        <LiffProvider>{children}</LiffProvider>
       </body>
     </html>
   );

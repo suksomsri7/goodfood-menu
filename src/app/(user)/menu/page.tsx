@@ -183,20 +183,30 @@ export default function MenuPage() {
     ? foods.filter(food => food.name.toLowerCase().includes(searchQuery.toLowerCase()))
     : foods;
 
-  // Get categories that have products
+  // Get categories that have products (from filtered foods)
   const categoriesWithProducts = categories.filter(cat =>
     filteredFoods.some(food => food.category?.id === cat.id)
   );
 
-  // Get bestseller foods
-  const bestsellerFoods = foods.filter(f => f.badge === "bestseller");
+  // Get bestseller foods (from filtered foods so search works)
+  const bestsellerFoods = filteredFoods.filter(f => f.badge === "bestseller");
 
-  // Build tabs dynamically based on available data
+  // Filter packages by search
+  const filteredPackages = searchQuery
+    ? packages.filter(pkg => pkg.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    : packages;
+
+  // Filter promotions by search
+  const filteredPromotions = searchQuery
+    ? promotions.filter(promo => promo.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    : promotions;
+
+  // Build tabs dynamically based on available data (use filtered data)
   const allTabs = [
     // แพ็คเกจ - show only if has packages
-    ...(packages.length > 0 ? [{ id: "package", label: "แพ็คเกจ" }] : []),
+    ...(filteredPackages.length > 0 ? [{ id: "package", label: "แพ็คเกจ" }] : []),
     // โปรโมชั่น - show only if has promotions
-    ...(promotions.length > 0 ? [{ id: "promotion", label: "โปรโมชั่น" }] : []),
+    ...(filteredPromotions.length > 0 ? [{ id: "promotion", label: "โปรโมชั่น" }] : []),
     // คนสั่งเยอะ - show only if has foods with badge "bestseller"
     ...(bestsellerFoods.length > 0 ? [{ id: "bestseller", label: "คนสั่งเยอะ" }] : []),
     // Categories with products
@@ -258,6 +268,14 @@ export default function MenuPage() {
         )}
 
         <div className="flex items-center px-4 py-3 gap-3">
+          {/* Back Button */}
+          <a href="/cal" className="flex-shrink-0 p-1">
+            <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </a>
+
+          {/* Search Button */}
           <button onClick={() => setShowSearch(!showSearch)} className="flex-shrink-0 p-1">
             <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -305,14 +323,14 @@ export default function MenuPage() {
       ) : (
         <div className="px-4 py-4">
           {/* แพ็คเกจ Section */}
-          {packages.length > 0 && (
+          {filteredPackages.length > 0 && (
             <div
               ref={(el) => { sectionRefs.current["package"] = el; }}
               className="mb-8"
             >
               <h2 className="text-lg font-bold text-gray-900 mb-4">แพ็คเกจ</h2>
               <div className="space-y-3">
-                {packages.map((pkg) => (
+                {filteredPackages.map((pkg) => (
                   <div
                     key={pkg.id}
                     className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl p-4 text-white shadow-lg"
@@ -353,14 +371,14 @@ export default function MenuPage() {
           )}
 
           {/* โปรโมชั่น Section */}
-          {promotions.length > 0 && (
+          {filteredPromotions.length > 0 && (
             <div
               ref={(el) => { sectionRefs.current["promotion"] = el; }}
               className="mb-8"
             >
               <h2 className="text-lg font-bold text-gray-900 mb-4">โปรโมชั่น</h2>
               <div className="space-y-3">
-                {promotions.map((promo) => (
+                {filteredPromotions.map((promo) => (
                   <div
                     key={promo.id}
                     className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-4 text-white shadow-lg"
@@ -524,15 +542,26 @@ export default function MenuPage() {
             );
           })}
 
-          {categoriesWithProducts.length === 0 && !searchQuery && (
+          {/* Empty State - No data at all */}
+          {!searchQuery && categoriesWithProducts.length === 0 && filteredPackages.length === 0 && filteredPromotions.length === 0 && bestsellerFoods.length === 0 && (
             <div className="text-center py-20">
-              <p className="text-gray-400">ยังไม่มีเมนู</p>
+              <span className="text-5xl">🍽️</span>
+              <p className="text-gray-400 mt-4">ยังไม่มีเมนู</p>
             </div>
           )}
 
-          {searchQuery && filteredFoods.length === 0 && (
+          {/* Empty State - Search no results */}
+          {searchQuery && filteredFoods.length === 0 && filteredPackages.length === 0 && filteredPromotions.length === 0 && (
             <div className="text-center py-20">
-              <p className="text-gray-400">ไม่พบเมนู "{searchQuery}"</p>
+              <span className="text-5xl">🔍</span>
+              <p className="text-gray-500 mt-4">ไม่พบผลลัพธ์สำหรับ</p>
+              <p className="text-gray-900 font-semibold">"{searchQuery}"</p>
+              <button 
+                onClick={() => setSearchQuery("")}
+                className="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg text-sm"
+              >
+                ล้างการค้นหา
+              </button>
             </div>
           )}
         </div>

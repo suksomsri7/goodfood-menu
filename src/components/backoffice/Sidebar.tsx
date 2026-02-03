@@ -24,7 +24,7 @@ import {
   Table2,
   ScanBarcode,
 } from "lucide-react";
-import { useState } from "react";
+import { useSidebar } from "./SidebarContext";
 
 interface NavItem {
   href: string;
@@ -84,7 +84,7 @@ const navGroups: NavGroup[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed, toggleCollapsed } = useSidebar();
 
   return (
     <aside
@@ -104,7 +104,7 @@ export function Sidebar() {
           </div>
         )}
         <button
-          onClick={() => setCollapsed(!collapsed)}
+          onClick={toggleCollapsed}
           className="p-1.5 rounded-lg hover:bg-gray-100"
         >
           <ChevronLeft className={cn("w-4 h-4 text-gray-400", collapsed && "rotate-180")} />
