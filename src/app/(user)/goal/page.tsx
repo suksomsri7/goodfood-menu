@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { WeightChart } from "@/components/user/WeightChart";
-import { FoodStockCard } from "@/components/user/FoodStockCard";
 import { GoalSummary } from "@/components/user/GoalSummary";
+import { Target } from "lucide-react";
 import { OnboardingModal } from "@/components/user/OnboardingModal";
 import { useLiff } from "@/components/providers/LiffProvider";
 import type { Gender } from "@/lib/health-calculator";
@@ -13,19 +13,6 @@ interface WeightData {
   date: string;
   weight: number;
   label: string;
-}
-
-type OrderStatus = "pending" | "confirmed" | "preparing" | "ready" | "completed" | "cancelled";
-
-interface OrderedFood {
-  id: string;
-  name: string;
-  quantity: number;
-  calories: number;
-  price: number;
-  date: string;
-  status?: OrderStatus;
-  orderNumber?: string;
 }
 
 interface Member {
@@ -43,7 +30,6 @@ export default function GoalPage() {
   const { profile, isReady, isLoggedIn } = useLiff();
   const [member, setMember] = useState<Member | null>(null);
   const [weightData, setWeightData] = useState<WeightData[]>([]);
-  const [orderedFood, setOrderedFood] = useState<OrderedFood[]>([]);
   const [currentWeight, setCurrentWeight] = useState(0);
   const [startWeight, setStartWeight] = useState(0);
   const [todayCalories, setTodayCalories] = useState(0);
@@ -91,49 +77,6 @@ export default function GoalPage() {
       }
     } catch (error) {
       console.error("Failed to fetch weight logs:", error);
-    }
-  }, [lineUserId]);
-
-  // Fetch orders
-  const fetchOrders = useCallback(async () => {
-    if (!lineUserId) return;
-
-    try {
-      const res = await fetch(`/api/orders?lineUserId=${lineUserId}&limit=10`);
-      if (res.ok) {
-        const data = await res.json();
-        // Transform orders to ordered food items
-        const items: OrderedFood[] = [];
-        const today = new Date().toDateString();
-        const yesterday = new Date(Date.now() - 86400000).toDateString();
-
-        data.forEach((order: any) => {
-          const orderDate = new Date(order.createdAt).toDateString();
-          const dateLabel =
-            orderDate === today
-              ? "วันนี้"
-              : orderDate === yesterday
-              ? "เมื่อวาน"
-              : new Date(order.createdAt).toLocaleDateString("th-TH");
-
-          order.items?.forEach((item: any) => {
-            items.push({
-              id: item.id,
-              name: item.foodName,
-              quantity: item.quantity,
-              calories: item.calories || 0,
-              price: item.price,
-              date: dateLabel,
-              status: order.status,
-              orderNumber: order.orderNumber,
-            });
-          });
-        });
-
-        setOrderedFood(items);
-      }
-    } catch (error) {
-      console.error("Failed to fetch orders:", error);
     }
   }, [lineUserId]);
 
@@ -211,7 +154,6 @@ export default function GoalPage() {
       Promise.all([
         fetchMember(),
         fetchWeightLogs(),
-        fetchOrders(),
         fetchTodayData(),
         fetchWeeklyData(),
       ]).finally(() => {
@@ -226,7 +168,6 @@ export default function GoalPage() {
     isLoggedIn,
     fetchMember,
     fetchWeightLogs,
-    fetchOrders,
     fetchTodayData,
     fetchWeeklyData,
   ]);
@@ -358,7 +299,7 @@ export default function GoalPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-8">
+    <div className="min-h-screen bg-slate-50 pb-24">
       {/* Reset Goal Modal */}
       {showResetGoal && lineUserId && (
         <OnboardingModal
@@ -398,38 +339,16 @@ export default function GoalPage() {
           onUpdateWeight={handleUpdateWeight}
         />
 
-        {/* Two Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Goal Summary */}
-          <GoalSummary
-            goals={getGoals(currentWeight || 70)}
-            daysToGoal={daysToGoal > 0 ? daysToGoal : 0}
-            achievements={
-              getGoals(currentWeight || 70).filter(
-                (g) => g.current >= g.target
-              ).length
-            }
-            onResetGoal={() => setShowResetGoal(true)}
-          />
-
-          {/* Ordered Food */}
-          <FoodStockCard
-            items={
-              orderedFood.length > 0
-                ? orderedFood
-                : [
-                    {
-                      id: "empty",
-                      name: "ยังไม่มีรายการสั่งซื้อ",
-                      quantity: 0,
-                      calories: 0,
-                      price: 0,
-                      date: "-",
-                    },
-                  ]
-            }
-          />
-        </div>
+        {/* Goal Summary */}
+        <GoalSummary
+          goals={getGoals(currentWeight || 70)}
+          daysToGoal={daysToGoal > 0 ? daysToGoal : 0}
+          achievements={
+            getGoals(currentWeight || 70).filter(
+              (g) => g.current >= g.target
+            ).length
+          }
+        />
 
         {/* Weekly Summary */}
         <motion.div
@@ -448,9 +367,9 @@ export default function GoalPage() {
             </div>
             <div className="p-4 bg-slate-50 rounded-xl">
               <p className="text-2xl font-semibold text-slate-900">
-                {orderedFood.length}
+                {weightData.length}
               </p>
-              <p className="text-sm text-slate-500">รายการที่สั่ง</p>
+              <p className="text-sm text-slate-500">วันที่บันทึกน้ำหนัก</p>
             </div>
             <div className="p-4 bg-slate-50 rounded-xl">
               <p
@@ -480,6 +399,17 @@ export default function GoalPage() {
             </div>
           </div>
         </motion.div>
+      </div>
+
+      {/* Fixed Bottom Button */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-200">
+        <button
+          onClick={() => setShowResetGoal(true)}
+          className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+        >
+          <Target className="w-4 h-4" />
+          ตั้งเป้าหมายใหม่
+        </button>
       </div>
     </div>
   );

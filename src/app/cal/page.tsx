@@ -56,7 +56,6 @@ export default function CaloriePage() {
   const [meals, setMeals] = useState<Meal[]>([]);
   const [member, setMember] = useState<Member | null>(null);
   const [waterIntake, setWaterIntake] = useState(0);
-  const [cartCount, setCartCount] = useState(0);
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [showMealDetail, setShowMealDetail] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -135,22 +134,6 @@ export default function CaloriePage() {
     }
   }, [lineUserId, selectedDate]);
 
-  // Fetch cart count
-  const fetchCartCount = useCallback(async () => {
-    if (!lineUserId) return;
-
-    try {
-      const res = await fetch(`/api/cart?lineUserId=${lineUserId}`);
-      if (res.ok) {
-        const data = await res.json();
-        const totalItems = data.items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0;
-        setCartCount(totalItems);
-      }
-    } catch (error) {
-      console.error("Failed to fetch cart:", error);
-    }
-  }, [lineUserId]);
-
   // Fetch AI recommendation
   const fetchRecommendation = useCallback(async (forceRefresh = false) => {
     if (!lineUserId) return;
@@ -181,7 +164,7 @@ export default function CaloriePage() {
   useEffect(() => {
     if (isReady && lineUserId) {
       setIsLoading(true);
-      Promise.all([fetchMember(), fetchMeals(), fetchWater(), fetchCartCount()]).finally(() => {
+      Promise.all([fetchMember(), fetchMeals(), fetchWater()]).finally(() => {
         setIsLoading(false);
         // Fetch recommendation after main data is loaded
         fetchRecommendation();
@@ -189,7 +172,7 @@ export default function CaloriePage() {
     } else if (isReady && !isLoggedIn) {
       setIsLoading(false);
     }
-  }, [isReady, lineUserId, isLoggedIn, fetchMember, fetchMeals, fetchWater, fetchCartCount, fetchRecommendation]);
+  }, [isReady, lineUserId, isLoggedIn, fetchMember, fetchMeals, fetchWater, fetchRecommendation]);
 
   // Refetch meals when date changes
   useEffect(() => {
@@ -345,7 +328,7 @@ export default function CaloriePage() {
   return (
     <div className="min-h-screen bg-white pb-28">
       {/* Header - Sticky */}
-      <DaySelector selectedDate={selectedDate} onDateChange={setSelectedDate} cartCount={cartCount} />
+      <DaySelector selectedDate={selectedDate} onDateChange={setSelectedDate} />
 
       {/* Calories Card */}
       <div className="mx-6 mb-12">
