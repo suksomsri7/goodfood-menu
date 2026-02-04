@@ -44,6 +44,9 @@ const statusConfig: Record<OrderStatus, { label: string; color: string; bgColor:
 
 export default function OrdersPage() {
   const { profile, isReady, isLoggedIn } = useLiff();
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orders/page.tsx:47',message:'useLiff values in OrdersPage',data:{isReady,isLoggedIn,hasProfile:!!profile,userId:profile?.userId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
+  // #endregion
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"active" | "completed">("completed");

@@ -45,7 +45,8 @@ const statusConfig: Record<string, { label: string; color: string; bgColor: stri
   pending: { label: "รอดำเนินการ", color: "text-amber-700", bgColor: "bg-amber-50 border-amber-200", icon: "⏳" },
   confirmed: { label: "ยืนยันคำสั่งซื้อ", color: "text-green-700", bgColor: "bg-green-50 border-green-200", icon: "✅" },
   preparing: { label: "รับชำระเงิน", color: "text-purple-700", bgColor: "bg-purple-50 border-purple-200", icon: "💰" },
-  delivered: { label: "จัดส่งแล้ว", color: "text-blue-700", bgColor: "bg-blue-50 border-blue-200", icon: "🚚" },
+  shipping: { label: "กำลังจัดส่ง", color: "text-blue-700", bgColor: "bg-blue-50 border-blue-200", icon: "🚚" },
+  completed: { label: "จัดส่งเรียบร้อย", color: "text-teal-700", bgColor: "bg-teal-50 border-teal-200", icon: "✅" },
   cancelled: { label: "ยกเลิก", color: "text-red-700", bgColor: "bg-red-50 border-red-200", icon: "❌" },
 };
 
@@ -136,17 +137,17 @@ export default function OrdersPage() {
   };
 
   const handleStatusClick = (orderId: string, newStatus: string) => {
-    if (newStatus === "delivered") {
-      // Show tracking modal for delivered status
+    if (newStatus === "shipping") {
+      // Show tracking modal for shipping status
       setShowTrackingModal(true);
     } else {
       updateOrderStatus(orderId, newStatus);
     }
   };
 
-  const handleDeliveredSubmit = () => {
+  const handleShippingSubmit = () => {
     if (!selectedOrder) return;
-    updateOrderStatus(selectedOrder.id, "delivered", {
+    updateOrderStatus(selectedOrder.id, "shipping", {
       trackingNumber: trackingNumber || undefined,
       carrier: carrier || undefined,
     });
@@ -183,13 +184,14 @@ export default function OrdersPage() {
       
       <div className="p-6">
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
           {[
             { status: "all", label: "ทั้งหมด", icon: "📋", count: orders.length },
             { status: "pending", label: "รอดำเนินการ", icon: "⏳", count: orders.filter(o => o.status === "pending").length },
             { status: "confirmed", label: "ยืนยันคำสั่งซื้อ", icon: "✅", count: orders.filter(o => o.status === "confirmed").length },
             { status: "preparing", label: "รับชำระเงิน", icon: "💰", count: orders.filter(o => o.status === "preparing").length },
-            { status: "delivered", label: "จัดส่งแล้ว", icon: "🚚", count: orders.filter(o => o.status === "delivered").length },
+            { status: "shipping", label: "กำลังจัดส่ง", icon: "🚚", count: orders.filter(o => o.status === "shipping").length },
+            { status: "completed", label: "จัดส่งเรียบร้อย", icon: "✅", count: orders.filter(o => o.status === "completed").length },
           ].map((stat) => (
             <button
               key={stat.status}
@@ -377,8 +379,8 @@ export default function OrdersPage() {
                   </div>
                 </div>
 
-                {/* Tracking Info (if delivered) */}
-                {selectedOrder.status === "delivered" && (selectedOrder.trackingNumber || selectedOrder.carrier) && (
+                {/* Tracking Info (if shipping or completed) */}
+                {(selectedOrder.status === "shipping" || selectedOrder.status === "completed") && (selectedOrder.trackingNumber || selectedOrder.carrier) && (
                   <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
                     <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
                       <Truck className="w-4 h-4 text-blue-600" />
@@ -537,7 +539,7 @@ export default function OrdersPage() {
                   ยกเลิก
                 </button>
                 <button
-                  onClick={handleDeliveredSubmit}
+                  onClick={handleShippingSubmit}
                   disabled={updatingStatus}
                   className="flex-1 px-4 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 font-medium disabled:opacity-50 flex items-center justify-center gap-2"
                 >
@@ -549,7 +551,7 @@ export default function OrdersPage() {
                   ) : (
                     <>
                       <Truck className="w-4 h-4" />
-                      จัดส่งแล้ว
+                      กำลังจัดส่ง
                     </>
                   )}
                 </button>

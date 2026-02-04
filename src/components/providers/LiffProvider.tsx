@@ -54,6 +54,9 @@ export function LiffProvider({ children }: LiffProviderProps) {
 
   useEffect(() => {
     const init = async () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiffProvider.tsx:56',message:'LIFF init started',data:{pathname},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
       try {
         // Check for dev mode query param (for testing in production)
         const urlParams = new URLSearchParams(window.location.search);
@@ -75,8 +78,14 @@ export function LiffProvider({ children }: LiffProviderProps) {
         
         // Get LIFF ID based on current path
         const liffId = getLiffIdForPath(pathname);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiffProvider.tsx:79',message:'LIFF ID resolved',data:{liffId,pathname},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5'})}).catch(()=>{});
+        // #endregion
         
         const success = await initLiff(liffId);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiffProvider.tsx:83',message:'LIFF init result',data:{success,liffId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5'})}).catch(()=>{});
+        // #endregion
 
         if (!success) {
           // Development mode without LIFF ID - use mock profile
@@ -98,10 +107,18 @@ export function LiffProvider({ children }: LiffProviderProps) {
         }
 
         setInClient(isInClient());
+        const loggedInStatus = isLoggedIn();
+        const inClientStatus = isInClient();
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiffProvider.tsx:108',message:'LIFF login status',data:{loggedInStatus,inClientStatus},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
+        // #endregion
 
-        if (isLoggedIn()) {
+        if (loggedInStatus) {
           setLoggedIn(true);
           const userProfile = await getProfile();
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiffProvider.tsx:116',message:'LIFF profile fetched',data:{hasProfile:!!userProfile,userId:userProfile?.userId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+          // #endregion
           if (userProfile) {
             setProfile(userProfile);
 
@@ -109,10 +126,11 @@ export function LiffProvider({ children }: LiffProviderProps) {
             await registerUser(userProfile);
           }
         } else {
-          // Not logged in - trigger login in LIFF browser
-          if (isInClient()) {
-            login();
-          }
+          // Not logged in - trigger login (works in both LIFF browser and external browser)
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiffProvider.tsx:127',message:'LIFF not logged in - triggering login',data:{inClientStatus,willTriggerLogin:true},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2',runId:'post-fix'})}).catch(()=>{});
+          // #endregion
+          login();
         }
 
         setIsReady(true);

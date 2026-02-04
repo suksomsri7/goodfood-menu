@@ -226,9 +226,10 @@ export function createOrderFlexMessage(order: {
 }): LineFlexMessage {
   const statusLabels: Record<string, string> = {
     pending: "⏳ รอดำเนินการ",
-    confirmed: "✅ ยืนยันแล้ว",
-    preparing: "👨‍🍳 กำลังเตรียม",
-    delivered: "🚚 จัดส่งแล้ว",
+    confirmed: "✅ ยืนยันคำสั่งซื้อ",
+    preparing: "💰 รับชำระเงิน",
+    shipping: "🚚 กำลังจัดส่ง",
+    completed: "✅ จัดส่งเรียบร้อย",
     cancelled: "❌ ยกเลิก",
   };
 
@@ -236,7 +237,8 @@ export function createOrderFlexMessage(order: {
     pending: "#FFA000",
     confirmed: "#4CAF50",
     preparing: "#9C27B0",
-    delivered: "#2196F3",
+    shipping: "#2196F3",
+    completed: "#00897B",
     cancelled: "#F44336",
   };
 
@@ -413,8 +415,9 @@ export function createOrderStatusFlexMessage(
   const statusLabels: Record<string, { text: string; emoji: string; color: string }> = {
     pending: { text: "รอดำเนินการ", emoji: "⏳", color: "#FFA000" },
     confirmed: { text: "ยืนยันคำสั่งซื้อ", emoji: "✅", color: "#4CAF50" },
-    preparing: { text: "กำลังเตรียมอาหาร", emoji: "👨‍🍳", color: "#9C27B0" },
-    delivered: { text: "จัดส่งแล้ว", emoji: "🚚", color: "#2196F3" },
+    preparing: { text: "รับชำระเงิน", emoji: "💰", color: "#9C27B0" },
+    shipping: { text: "กำลังจัดส่ง", emoji: "🚚", color: "#2196F3" },
+    completed: { text: "จัดส่งเรียบร้อย", emoji: "✅", color: "#00897B" },
     cancelled: { text: "ยกเลิก", emoji: "❌", color: "#F44336" },
   };
 
@@ -681,8 +684,8 @@ export function createOrderPreparingFlexMessage(orderNumber: string): LineFlexMe
   return createFlexMessage(`กำลังเตรียมอาหาร #${orderNumber}`, flexContents);
 }
 
-// Create Order Delivered Flex Message with Tracking Info
-export function createOrderDeliveredFlexMessage(
+// Create Order Shipping Flex Message with Tracking Info (กำลังจัดส่ง)
+export function createOrderShippingFlexMessage(
   orderNumber: string,
   trackingNumber?: string,
   carrier?: string
@@ -696,7 +699,7 @@ export function createOrderDeliveredFlexMessage(
     },
     {
       type: "text",
-      text: "จัดส่งแล้ว",
+      text: "กำลังจัดส่ง",
       weight: "bold",
       size: "xl",
       align: "center",
@@ -710,6 +713,14 @@ export function createOrderDeliveredFlexMessage(
       color: "#AAAAAA",
       align: "center",
       margin: "sm",
+    },
+    {
+      type: "text",
+      text: "พัสดุของคุณกำลังถูกจัดส่ง",
+      size: "sm",
+      color: "#555555",
+      align: "center",
+      margin: "md",
     },
   ];
 
@@ -780,5 +791,75 @@ export function createOrderDeliveredFlexMessage(
     },
   };
 
-  return createFlexMessage(`จัดส่งแล้ว #${orderNumber}`, flexContents);
+  return createFlexMessage(`กำลังจัดส่ง #${orderNumber}`, flexContents);
+}
+
+// Create Order Completed Flex Message (จัดส่งเรียบร้อย)
+export function createOrderCompletedFlexMessage(
+  orderNumber: string,
+  baseUrl: string = "https://goodfood-menu.vercel.app"
+): LineFlexMessage {
+  const flexContents: FlexContainer = {
+    type: "bubble",
+    size: "kilo",
+    body: {
+      type: "box",
+      layout: "vertical",
+      contents: [
+        {
+          type: "text",
+          text: "✅",
+          size: "3xl",
+          align: "center",
+        },
+        {
+          type: "text",
+          text: "จัดส่งเรียบร้อย",
+          weight: "bold",
+          size: "xl",
+          align: "center",
+          margin: "md",
+          color: "#00897B",
+        },
+        {
+          type: "text",
+          text: `#${orderNumber}`,
+          size: "sm",
+          color: "#AAAAAA",
+          align: "center",
+          margin: "sm",
+        },
+        {
+          type: "text",
+          text: "พัสดุของคุณถูกจัดส่งเรียบร้อยแล้ว\nขอบคุณที่ใช้บริการ GoodFood 💚",
+          size: "sm",
+          color: "#555555",
+          align: "center",
+          margin: "lg",
+          wrap: true,
+        },
+      ],
+      paddingAll: "20px",
+    },
+    footer: {
+      type: "box",
+      layout: "vertical",
+      spacing: "sm",
+      contents: [
+        {
+          type: "button",
+          style: "primary",
+          color: "#00897B",
+          action: {
+            type: "uri",
+            label: "📋 ตรวจสอบรายการอาหาร",
+            uri: `${baseUrl}/orders`,
+          },
+        },
+      ],
+      paddingAll: "15px",
+    },
+  };
+
+  return createFlexMessage(`จัดส่งเรียบร้อย #${orderNumber}`, flexContents);
 }

@@ -5,7 +5,8 @@ import {
   createOrderStatusFlexMessage,
   createOrderConfirmedFlexMessage,
   createOrderPreparingFlexMessage,
-  createOrderDeliveredFlexMessage
+  createOrderShippingFlexMessage,
+  createOrderCompletedFlexMessage
 } from "@/lib/line";
 
 // GET - ดึงข้อมูล Order ตาม ID
@@ -98,10 +99,22 @@ export async function PATCH(
 
           switch (status) {
             case "confirmed":
+              // ดึงข้อมูลบัญชีรับชำระเงิน
+              const paymentAccount = await prisma.paymentAccount.findFirst({
+                where: { isActive: true, isDefault: true },
+              }) || await prisma.paymentAccount.findFirst({
+                where: { isActive: true },
+              });
+
               flexMessage = createOrderConfirmedFlexMessage(
                 order.orderNumber,
                 order.totalPrice,
-                undefined // TODO: Add payment account when model is available
+                paymentAccount ? {
+                  bankName: paymentAccount.bankName,
+                  accountName: paymentAccount.accountName,
+                  accountNumber: paymentAccount.accountNumber,
+                  qrCodeUrl: paymentAccount.qrCodeUrl,
+                } : undefined
               );
               break;
 
@@ -109,16 +122,20 @@ export async function PATCH(
               flexMessage = createOrderPreparingFlexMessage(order.orderNumber);
               break;
 
-            case "delivered":
+            case "shipping":
               // @ts-ignore - trackingNumber and carrier exist in schema
               const trackingNum = (order as any).trackingNumber;
               // @ts-ignore
               const carrierName = (order as any).carrier;
-              flexMessage = createOrderDeliveredFlexMessage(
+              flexMessage = createOrderShippingFlexMessage(
                 order.orderNumber,
                 trackingNum || undefined,
                 carrierName || undefined
               );
+              break;
+
+            case "completed":
+              flexMessage = createOrderCompletedFlexMessage(order.orderNumber);
               break;
 
             case "cancelled":
