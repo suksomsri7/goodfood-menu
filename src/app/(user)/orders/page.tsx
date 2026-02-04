@@ -43,7 +43,7 @@ const statusConfig: Record<OrderStatus, { label: string; color: string; bgColor:
 };
 
 export default function OrdersPage() {
-  const { profile, isReady, isLoggedIn } = useLiff();
+  const { profile, isReady, isLoggedIn, error } = useLiff();
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"active" | "completed">("completed");
@@ -131,13 +131,12 @@ export default function OrdersPage() {
             เปิดผ่าน LINE เพื่อดูรายการสั่งซื้อของคุณ
           </p>
           {/* Debug info for production */}
-          <div className="mt-6 p-4 bg-gray-100 rounded-lg text-left text-xs text-gray-600">
-            <p>Debug Info:</p>
-            <p>isReady: {String(isReady)}</p>
-            <p>isLoggedIn: {String(isLoggedIn)}</p>
-            <p>hasProfile: {String(!!profile)}</p>
-            <p>userId: {profile?.userId || 'null'}</p>
-            <p>URL: {typeof window !== 'undefined' ? window.location.href : 'N/A'}</p>
+          <div className="mt-6 p-4 bg-gray-100 rounded-lg text-left text-xs text-gray-600 break-all">
+            <p className="font-bold mb-2">Debug v3:</p>
+            <p>isReady: <span className="font-mono bg-white px-1">{String(isReady)}</span></p>
+            <p>isLoggedIn: <span className="font-mono bg-white px-1">{String(isLoggedIn)}</span></p>
+            <p>profile: <span className="font-mono bg-white px-1">{profile ? profile.userId : 'null'}</span></p>
+            <p>error: <span className="font-mono bg-red-100 px-1">{error || 'none'}</span></p>
           </div>
         </div>
       </div>
