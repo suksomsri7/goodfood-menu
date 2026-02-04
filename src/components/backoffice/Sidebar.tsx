@@ -23,6 +23,7 @@ import {
   BadgePercent,
   Table2,
   ScanBarcode,
+  CreditCard,
 } from "lucide-react";
 import { useSidebar } from "./SidebarContext";
 
@@ -69,7 +70,7 @@ const navGroups: NavGroup[] = [
     title: "ตั้งค่า",
     items: [
       { href: "/backoffice/categories", label: "หมวดอาหาร", icon: <Layers className="w-5 h-5" /> },
-      { href: "/backoffice/settings", label: "ตั้งค่าทั่วไป", icon: <Settings className="w-5 h-5" /> },
+      { href: "/backoffice/settings", label: "บัญชีรับชำระเงิน", icon: <CreditCard className="w-5 h-5" /> },
     ],
   },
   {
