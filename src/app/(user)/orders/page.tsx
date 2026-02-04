@@ -130,6 +130,15 @@ export default function OrdersPage() {
           <p className="text-gray-500 text-sm">
             เปิดผ่าน LINE เพื่อดูรายการสั่งซื้อของคุณ
           </p>
+          {/* Debug info for production */}
+          <div className="mt-6 p-4 bg-gray-100 rounded-lg text-left text-xs text-gray-600">
+            <p>Debug Info:</p>
+            <p>isReady: {String(isReady)}</p>
+            <p>isLoggedIn: {String(isLoggedIn)}</p>
+            <p>hasProfile: {String(!!profile)}</p>
+            <p>userId: {profile?.userId || 'null'}</p>
+            <p>URL: {typeof window !== 'undefined' ? window.location.href : 'N/A'}</p>
+          </div>
         </div>
       </div>
     );
