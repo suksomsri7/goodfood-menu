@@ -132,11 +132,11 @@ export default function OrdersPage() {
           </p>
           {/* Debug info for production */}
           <div className="mt-6 p-4 bg-gray-100 rounded-lg text-left text-xs text-gray-600 break-all">
-            <p className="font-bold mb-2">Debug v3:</p>
+            <p className="font-bold mb-2">Debug v4:</p>
             <p>isReady: <span className="font-mono bg-white px-1">{String(isReady)}</span></p>
             <p>isLoggedIn: <span className="font-mono bg-white px-1">{String(isLoggedIn)}</span></p>
-            <p>profile: <span className="font-mono bg-white px-1">{profile ? profile.userId : 'null'}</span></p>
             <p>error: <span className="font-mono bg-red-100 px-1">{error || 'none'}</span></p>
+            <p>LIFF_MENU: <span className="font-mono bg-yellow-100 px-1">{process.env.NEXT_PUBLIC_LIFF_ID_MENU || 'NOT SET'}</span></p>
           </div>
         </div>
       </div>
