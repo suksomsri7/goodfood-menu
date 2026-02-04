@@ -55,6 +55,12 @@ export function LiffProvider({ children }: LiffProviderProps) {
   useEffect(() => {
     const init = async () => {
       try {
+        // BACKOFFICE: Skip LIFF completely - no authentication required
+        if (pathname.startsWith('/backoffice')) {
+          setIsReady(true);
+          return;
+        }
+
         // Check for dev mode query param (for testing in production)
         const urlParams = new URLSearchParams(window.location.search);
         const devMode = urlParams.get("dev") === "true";
@@ -98,8 +104,9 @@ export function LiffProvider({ children }: LiffProviderProps) {
         }
 
         setInClient(isInClient());
+        const loggedInCheck = isLoggedIn();
 
-        if (isLoggedIn()) {
+        if (loggedInCheck) {
           setLoggedIn(true);
           const userProfile = await getProfile();
           if (userProfile) {
