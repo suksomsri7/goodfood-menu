@@ -244,7 +244,6 @@ export default function MenuPage() {
 
     setIsSubmitting(true);
     try {
-      // Create order
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -414,11 +413,8 @@ export default function MenuPage() {
         )}
 
         <div className="flex items-center px-4 py-3 gap-3">
-          {/* Title */}
-          <h1 className="text-lg font-semibold text-gray-900 flex-shrink-0">เมนูอาหาร</h1>
-
           {/* Search Button */}
-          <button onClick={() => setShowSearch(!showSearch)} className="flex-shrink-0 p-1 ml-auto">
+          <button onClick={() => setShowSearch(!showSearch)} className="flex-shrink-0 p-1">
             <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
