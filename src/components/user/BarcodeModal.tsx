@@ -8,7 +8,6 @@ import {
   Loader2,
   Check,
   RotateCcw,
-  History,
   Plus,
   Minus,
   AlertCircle,
@@ -60,44 +59,18 @@ type ModalState =
   | "analyzing"
   | "confirm";
 
-// Mock recent scans (in real app, fetch from API)
-const mockRecentScans: BarcodeProduct[] = [
-  {
-    barcode: "8850999220017",
-    name: "มาม่า รสต้มยำกุ้ง",
-    brand: "มาม่า",
-    calories: 350,
-    protein: 8,
-    carbs: 48,
-    fat: 14,
-    sodium: 1200,
-    sugar: 5,
-  },
-  {
-    barcode: "8851959132012",
-    name: "นมโฟร์โมสต์ ไขมันต่ำ",
-    brand: "โฟร์โมสต์",
-    calories: 120,
-    protein: 8,
-    carbs: 12,
-    fat: 4,
-    sodium: 150,
-    sugar: 12,
-  },
-];
-
 export function BarcodeModal({ isOpen, onClose, onSave }: BarcodeModalProps) {
   const [state, setState] = useState<ModalState>("scanner");
   const [barcode, setBarcode] = useState("");
   const [product, setProduct] = useState<BarcodeProduct | null>(null);
   const [quantity, setQuantity] = useState(1);
-  const [recentScans, setRecentScans] = useState<BarcodeProduct[]>(mockRecentScans);
   const [error, setError] = useState("");
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const [manualBarcode, setManualBarcode] = useState("");
 
   // Editable form data
   const [formData, setFormData] = useState<BarcodeProduct>({
@@ -137,17 +110,21 @@ export function BarcodeModal({ isOpen, onClose, onSave }: BarcodeModalProps) {
 
   // Search barcode
   const searchBarcode = async (code: string) => {
-    if (!code || code.length < 8) return;
+    // Trim whitespace from barcode
+    const trimmedCode = code.trim();
     
-    setBarcode(code);
+    if (!trimmedCode || trimmedCode.length < 8) return;
+    
+    setBarcode(trimmedCode);
     setState("searching");
     setError("");
     stopCamera();
 
     try {
-      const response = await fetch(`/api/barcode/${code}`);
+      const response = await fetch(`/api/barcode/${trimmedCode}`);
       const result = await response.json();
 
+      // API returns { source: "database"|"openfoodfacts"|"not_found", success: true|false, data: ... }
       if (result.success && result.data) {
         setProduct(result.data);
         setFormData({
@@ -264,24 +241,12 @@ export function BarcodeModal({ isOpen, onClose, onSave }: BarcodeModalProps) {
     handleClose();
   };
 
-  // Quick add from history
-  const quickAdd = (item: BarcodeProduct) => {
-    setProduct(item);
-    setFormData({
-      ...item,
-      sodium: item.sodium || 0,
-      sugar: item.sugar || 0,
-    });
-    setBarcode(item.barcode);
-    setQuantity(1);
-    setState("found");
-  };
-
   // Reset and close
   const handleClose = () => {
     stopCamera();
     setState("scanner");
     setBarcode("");
+    setManualBarcode("");
     setProduct(null);
     setQuantity(1);
     setError("");
@@ -315,15 +280,6 @@ export function BarcodeModal({ isOpen, onClose, onSave }: BarcodeModalProps) {
     return () => stopCamera();
   }, [isOpen, state, startCamera, stopCamera]);
 
-  // Manual barcode input handler
-  const handleManualInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      const input = e.currentTarget.value.trim();
-      if (input.length >= 8) {
-        searchBarcode(input);
-      }
-    }
-  };
 
   if (!isOpen) return null;
 
@@ -374,41 +330,31 @@ export function BarcodeModal({ isOpen, onClose, onSave }: BarcodeModalProps) {
               <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4" />
               
               {/* Manual input */}
-              <div className="mb-4">
+              <div className="flex gap-2">
                 <input
                   type="text"
                   placeholder="พิมพ์รหัส barcode..."
-                  className="w-full px-4 py-3 bg-gray-100 rounded-xl text-gray-800 placeholder-gray-400"
-                  onKeyDown={handleManualInput}
+                  value={manualBarcode}
+                  onChange={(e) => setManualBarcode(e.target.value)}
+                  className="flex-1 px-4 py-3 bg-gray-100 rounded-xl text-gray-800 placeholder-gray-400"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && manualBarcode.length >= 8) {
+                      searchBarcode(manualBarcode);
+                    }
+                  }}
                 />
+                <button
+                  onClick={() => {
+                    if (manualBarcode.length >= 8) {
+                      searchBarcode(manualBarcode);
+                    }
+                  }}
+                  disabled={manualBarcode.length < 8}
+                  className="px-6 py-3 bg-gray-900 text-white rounded-xl font-medium disabled:bg-gray-300 disabled:text-gray-500"
+                >
+                  ค้นหา
+                </button>
               </div>
-
-              {/* Recent scans */}
-              {recentScans.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 text-gray-500 mb-3">
-                    <History className="w-4 h-4" />
-                    <span className="text-sm">Scan ล่าสุด</span>
-                  </div>
-                  <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {recentScans.map((item) => (
-                      <button
-                        key={item.barcode}
-                        onClick={() => quickAdd(item)}
-                        className="w-full flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100"
-                      >
-                        <div className="text-left">
-                          <p className="font-medium text-gray-800 text-sm">{item.name}</p>
-                          <p className="text-xs text-gray-500">{item.calories} kcal</p>
-                        </div>
-                        <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                          <Plus className="w-4 h-4 text-gray-600" />
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </>
         )}

@@ -60,6 +60,8 @@ export default function CaloriePage() {
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [showMealDetail, setShowMealDetail] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [recommendation, setRecommendation] = useState<string>("");
+  const [isLoadingRecommendation, setIsLoadingRecommendation] = useState(false);
 
   const lineUserId = profile?.userId;
 
@@ -149,6 +151,27 @@ export default function CaloriePage() {
     }
   }, [lineUserId]);
 
+  // Fetch AI recommendation
+  const fetchRecommendation = useCallback(async (forceRefresh = false) => {
+    if (!lineUserId) return;
+
+    setIsLoadingRecommendation(true);
+    try {
+      const url = forceRefresh 
+        ? `/api/recommendation?lineUserId=${lineUserId}&refresh=true`
+        : `/api/recommendation?lineUserId=${lineUserId}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        setRecommendation(data.message || "");
+      }
+    } catch (error) {
+      console.error("Failed to fetch recommendation:", error);
+    } finally {
+      setIsLoadingRecommendation(false);
+    }
+  }, [lineUserId]);
+
   // Set page title
   useEffect(() => {
     document.title = "แคลอรี่";
@@ -160,11 +183,13 @@ export default function CaloriePage() {
       setIsLoading(true);
       Promise.all([fetchMember(), fetchMeals(), fetchWater(), fetchCartCount()]).finally(() => {
         setIsLoading(false);
+        // Fetch recommendation after main data is loaded
+        fetchRecommendation();
       });
     } else if (isReady && !isLoggedIn) {
       setIsLoading(false);
     }
-  }, [isReady, lineUserId, isLoggedIn, fetchMember, fetchMeals, fetchWater, fetchCartCount]);
+  }, [isReady, lineUserId, isLoggedIn, fetchMember, fetchMeals, fetchWater, fetchCartCount, fetchRecommendation]);
 
   // Refetch meals when date changes
   useEffect(() => {
@@ -258,6 +283,8 @@ export default function CaloriePage() {
           }),
         };
         setMeals([meal, ...meals]);
+        // Fetch new AI recommendation after adding meal
+        fetchRecommendation(true);
       }
     } catch (error) {
       console.error("Failed to add meal:", error);
@@ -379,14 +406,12 @@ export default function CaloriePage() {
         </div>
       </div>
 
-      {/* Recommendation */}
+      {/* AI Recommendation */}
       <div className="px-6 mb-6">
         <RecommendationCard
-          message={
-            remaining > 0
-              ? `คุณยังเหลือแคลอรี่อีก ${remaining} Kcal วันนี้ลองเพิ่มผักและโปรตีนเพื่อให้ครบโภชนาการ`
-              : `คุณทานครบเป้าหมายแล้ววันนี้! เยี่ยมมาก 🎉`
-          }
+          message={recommendation}
+          isLoading={isLoadingRecommendation}
+          onRefresh={() => fetchRecommendation(true)}
         />
       </div>
 

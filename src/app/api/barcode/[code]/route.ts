@@ -96,9 +96,14 @@ export async function GET(
     console.log(`🔍 Searching barcode: ${barcode}`);
 
     // Step 1: Search in GoodFood Database first
-    const existingProduct = await prisma.barcodeProduct.findUnique({
-      where: { barcode },
-    });
+    let existingProduct = null;
+    try {
+      existingProduct = await prisma.barcodeProduct.findUnique({
+        where: { barcode },
+      });
+    } catch (dbError: any) {
+      console.error('DB Error:', dbError);
+    }
 
     if (existingProduct) {
       console.log(`✅ Found in GoodFood DB: ${existingProduct.name}`);

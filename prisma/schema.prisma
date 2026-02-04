@@ -40,13 +40,29 @@ model Member {
   updatedAt     DateTime  @updatedAt
 
   // Relations
-  mealLogs   MealLog[]
-  weightLogs WeightLog[]
-  waterLogs  WaterLog[]
-  cartItems  CartItem[]
-  orders     Order[]
+  mealLogs         MealLog[]
+  weightLogs       WeightLog[]
+  waterLogs        WaterLog[]
+  cartItems        CartItem[]
+  orders           Order[]
+  aiRecommendation AiRecommendation?
 
   @@map("members")
+}
+
+// ==================== AI Recommendation (Cache) ====================
+model AiRecommendation {
+  id           String   @id @default(cuid())
+  memberId     String   @unique
+  member       Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  message      String   @db.Text // คำแนะนำจาก AI
+  context      Json?    // ข้อมูลที่ส่งให้ AI (สำหรับ debug)
+  date         DateTime @default(now()) // วันที่สร้าง
+  requestCount Int      @default(1) // นับจำนวน request ต่อวัน
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("ai_recommendations")
 }
 
 // ==================== บันทึกมื้ออาหาร ====================

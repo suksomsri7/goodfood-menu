@@ -1,23 +1,51 @@
 "use client";
 
-import { Lightbulb } from "lucide-react";
+import { Sparkles, RefreshCw } from "lucide-react";
 
 interface RecommendationCardProps {
   message?: string;
+  isLoading?: boolean;
+  onRefresh?: () => void;
 }
 
-export function RecommendationCard({ 
-  message = "คุณยังเหลือแคลอรี่อีก 257 Kcal วันนี้ลองเพิ่มผักและโปรตีนเพื่อให้ครบโภชนาการ" 
+export function RecommendationCard({
+  message,
+  isLoading = false,
+  onRefresh,
 }: RecommendationCardProps) {
   return (
-    <div className="bg-gray-50 rounded-2xl p-4 flex items-start gap-3">
-      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-        <Lightbulb className="w-4 h-4 text-gray-400" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs text-gray-500 leading-relaxed">
-          {message}
-        </p>
+    <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-4 border border-green-100">
+      <div className="flex items-start gap-3">
+        <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+          <Sparkles className="w-4 h-4 text-green-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-medium text-green-700">
+              AI แนะนำสำหรับคุณ
+            </span>
+            {onRefresh && !isLoading && (
+              <button
+                onClick={onRefresh}
+                className="p-1 text-green-500 hover:text-green-700 transition-colors"
+                title="วิเคราะห์ใหม่"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {isLoading ? (
+            <div className="space-y-2">
+              <div className="h-3 bg-green-100 rounded animate-pulse w-full" />
+              <div className="h-3 bg-green-100 rounded animate-pulse w-3/4" />
+            </div>
+          ) : (
+            <p className="text-sm text-gray-700 leading-relaxed">
+              {message || "กำลังวิเคราะห์ข้อมูลของคุณ..."}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );

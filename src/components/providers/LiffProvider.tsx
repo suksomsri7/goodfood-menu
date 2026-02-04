@@ -55,13 +55,31 @@ export function LiffProvider({ children }: LiffProviderProps) {
   useEffect(() => {
     const init = async () => {
       try {
+        // Check for dev mode query param (for testing in production)
+        const urlParams = new URLSearchParams(window.location.search);
+        const devMode = urlParams.get("dev") === "true";
+        
+        // DEV MODE: Skip LIFF and use mock profile
+        if (devMode) {
+          console.log("🔧 Dev mode enabled: Using mock LIFF profile");
+          setProfile({
+            userId: "dev-user-001",
+            displayName: "Developer (Test Mode)",
+            pictureUrl: undefined,
+          });
+          setLoggedIn(true);
+          setInClient(false);
+          setIsReady(true);
+          return;
+        }
+        
         // Get LIFF ID based on current path
         const liffId = getLiffIdForPath(pathname);
         
         const success = await initLiff(liffId);
 
         if (!success) {
-          // Development mode - use mock profile
+          // Development mode without LIFF ID - use mock profile
           if (process.env.NODE_ENV === "development" && !liffId) {
             console.log("🔧 Development mode: Using mock LIFF profile");
             setProfile({

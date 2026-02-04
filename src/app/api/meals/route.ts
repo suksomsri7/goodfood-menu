@@ -123,6 +123,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Invalidate AI recommendation cache (trigger regenerate on next fetch)
+    try {
+      await prisma.aiRecommendation.deleteMany({
+        where: { memberId: member.id },
+      });
+    } catch (e) {
+      // Ignore error if recommendation doesn't exist
+    }
+
     return NextResponse.json(meal);
   } catch (error) {
     console.error("Failed to add meal:", error);
