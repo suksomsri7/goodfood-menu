@@ -104,31 +104,88 @@ export function CameraModal({ isOpen, onClose, onSave }: CameraModalProps) {
       sugar: "",
       multiplier: "1",
     });
+    setAiMessage("");
+    setAnalysisError("");
     startCamera();
   };
 
-  // Analyze nutrition (mock AI)
+  // AI analysis state
+  const [aiMessage, setAiMessage] = useState<string>("");
+  const [analysisError, setAnalysisError] = useState<string>("");
+
+  // Analyze nutrition using GPT-4o
   const analyzeNutrition = async () => {
+    if (!capturedImage) return;
+    
     setState("analyzing");
+    setAnalysisError("");
+    setAiMessage("");
     
-    // Simulate AI analysis delay
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    
-    // Mock AI result
-    setFormData({
-      name: "อาหารจากรูปถ่าย",
-      weight: "250",
-      ingredients: "ข้าว, ไข่เจียว, ผักบุ้ง",
-      calories: "450",
-      protein: "18",
-      carbs: "52",
-      fat: "20",
-      sodium: "680",
-      sugar: "4",
-      multiplier: "1",
-    });
-    
-    setState("result");
+    try {
+      const response = await fetch("/api/analyze-food", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          image: capturedImage,
+          description: formData.ingredients, // User's description
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.error && !result.data) {
+        throw new Error(result.error);
+      }
+
+      const data = result.data;
+      
+      setFormData({
+        name: data.name || "อาหาร",
+        weight: String(data.weight || ""),
+        ingredients: data.ingredients || "",
+        calories: String(data.calories || ""),
+        protein: String(data.protein || ""),
+        carbs: String(data.carbs || ""),
+        fat: String(data.fat || ""),
+        sodium: String(data.sodium || ""),
+        sugar: String(data.sugar || ""),
+        multiplier: "1",
+      });
+
+      // Show AI description/message
+      if (data.description) {
+        setAiMessage(data.description);
+      }
+      
+      // Show error message if there was one
+      if (result.error) {
+        setAnalysisError(result.error);
+      }
+      
+      setState("result");
+      
+    } catch (error: any) {
+      console.error("Analysis error:", error);
+      setAnalysisError(error.message || "เกิดข้อผิดพลาดในการวิเคราะห์");
+      
+      // Set default values on error
+      setFormData({
+        name: "อาหาร",
+        weight: "200",
+        ingredients: formData.ingredients || "",
+        calories: "300",
+        protein: "10",
+        carbs: "40",
+        fat: "12",
+        sodium: "500",
+        sugar: "5",
+        multiplier: "1",
+      });
+      
+      setState("result");
+    }
   };
 
   // Handle save
@@ -166,6 +223,8 @@ export function CameraModal({ isOpen, onClose, onSave }: CameraModalProps) {
       sugar: "",
       multiplier: "1",
     });
+    setAiMessage("");
+    setAnalysisError("");
     onClose();
   };
 
@@ -312,6 +371,21 @@ export function CameraModal({ isOpen, onClose, onSave }: CameraModalProps) {
                   <h2 className="text-lg font-semibold text-center mb-4">
                     ผลการวิเคราะห์
                   </h2>
+
+                  {/* AI Message */}
+                  {aiMessage && (
+                    <div className="mb-4 p-3 bg-blue-50 rounded-xl">
+                      <p className="text-sm text-blue-700">💡 {aiMessage}</p>
+                    </div>
+                  )}
+
+                  {/* Error Message */}
+                  {analysisError && (
+                    <div className="mb-4 p-3 bg-yellow-50 rounded-xl">
+                      <p className="text-sm text-yellow-700">⚠️ {analysisError}</p>
+                      <p className="text-xs text-yellow-600 mt-1">คุณสามารถแก้ไขข้อมูลด้านล่างได้</p>
+                    </div>
+                  )}
 
                   <div className="max-h-[50vh] overflow-y-auto space-y-4 pb-4">
                     {/* Food Name */}
