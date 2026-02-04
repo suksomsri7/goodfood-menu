@@ -56,9 +56,11 @@ export function isLoggedIn(): boolean {
   return liff.isLoggedIn();
 }
 
-export function login(): void {
+export function login(redirectUri?: string): void {
   if (!isInitialized) return;
-  liff.login();
+  // Use current URL as redirect target to preserve the page after login
+  const uri = redirectUri || (typeof window !== 'undefined' ? window.location.href : undefined);
+  liff.login(uri ? { redirectUri: uri } : undefined);
 }
 
 export function logout(): void {
