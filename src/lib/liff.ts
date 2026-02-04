@@ -5,6 +5,7 @@ export const LIFF_IDS = {
   cal: process.env.NEXT_PUBLIC_LIFF_ID_CAL || "",
   goal: process.env.NEXT_PUBLIC_LIFF_ID_GOAL || "",
   menu: process.env.NEXT_PUBLIC_LIFF_ID_MENU || "",
+  orders: process.env.NEXT_PUBLIC_LIFF_ID_ORDERS || "",
 } as const;
 
 export type LiffPage = keyof typeof LIFF_IDS;
@@ -23,7 +24,7 @@ export function getLiffIdForPath(pathname: string): string {
   if (pathname.includes("/cal")) return LIFF_IDS.cal;
   if (pathname.includes("/goal")) return LIFF_IDS.goal;
   if (pathname.includes("/menu")) return LIFF_IDS.menu;
-  if (pathname.includes("/orders")) return LIFF_IDS.menu; // Use menu LIFF ID for orders
+  if (pathname.includes("/orders")) return LIFF_IDS.orders;
   return LIFF_IDS.cal; // default
 }
 
