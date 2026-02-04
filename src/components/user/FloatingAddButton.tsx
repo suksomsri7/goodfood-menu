@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ManualEntryModal } from "./ManualEntryModal";
 import { CameraModal } from "./CameraModal";
 import { StockModal } from "./StockModal";
+import { BarcodeModal } from "./BarcodeModal";
 
 interface FloatingAddButtonProps {
   onAddMeal?: (meal: {
@@ -28,10 +29,11 @@ export function FloatingAddButton({ onAddMeal }: FloatingAddButtonProps) {
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [showStock, setShowStock] = useState(false);
+  const [showBarcode, setShowBarcode] = useState(false);
 
   const options = [
     { icon: Package, label: "Stock", action: () => setShowStock(true) },
-    { icon: Barcode, label: "Scan barcode", action: () => {} },
+    { icon: Barcode, label: "Scan barcode", action: () => setShowBarcode(true) },
     { icon: Camera, label: "Take photo", action: () => setShowCamera(true) },
     { icon: PenLine, label: "Manual entry", action: () => setShowManualEntry(true) },
   ];
@@ -139,6 +141,13 @@ export function FloatingAddButton({ onAddMeal }: FloatingAddButtonProps) {
             multiplier: 1,
           });
         }}
+      />
+
+      {/* Barcode Modal */}
+      <BarcodeModal
+        isOpen={showBarcode}
+        onClose={() => setShowBarcode(false)}
+        onSave={handleSaveMeal}
       />
     </>
   );

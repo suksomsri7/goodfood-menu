@@ -384,3 +384,47 @@ model PaymentAccount {
 
   @@map("payment_accounts")
 }
+
+// ==================== Barcode Products ====================
+model BarcodeProduct {
+  id           String   @id @default(cuid())
+  barcode      String   @unique // รหัส barcode
+  name         String // ชื่อสินค้า
+  brand        String? // ยี่ห้อ
+  imageUrl     String? // รูปสินค้า
+  servingSize  Float? // ขนาด serving (g/ml)
+  servingUnit  String?  @default("g") // หน่วย g, ml, ชิ้น
+  calories     Float // แคลอรี่ต่อ serving
+  protein      Float // โปรตีน (g)
+  carbs        Float // คาร์โบไฮเดรต (g)
+  fat          Float // ไขมัน (g)
+  sodium       Float? // โซเดียม (mg)
+  sugar        Float? // น้ำตาล (g)
+  fiber        Float? // ใยอาหาร (g)
+  source       String   @default("manual") // manual, openfoodfacts, ai_analysis
+  verified     Boolean  @default(false) // ยืนยันข้อมูลแล้ว
+  scanCount    Int      @default(1) // จำนวนครั้งที่ถูก scan
+  createdById  String? // user ที่สร้าง
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  scanHistory  BarcodeScanHistory[]
+
+  @@index([barcode])
+  @@index([name])
+  @@map("barcode_products")
+}
+
+// ==================== Barcode Scan History ====================
+model BarcodeScanHistory {
+  id              String          @id @default(cuid())
+  memberId        String
+  barcodeProductId String
+  barcodeProduct  BarcodeProduct  @relation(fields: [barcodeProductId], references: [id], onDelete: Cascade)
+  quantity        Float           @default(1) // จำนวนที่ทาน
+  createdAt       DateTime        @default(now())
+
+  @@index([memberId, createdAt])
+  @@map("barcode_scan_history")
+}
