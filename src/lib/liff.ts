@@ -20,10 +20,6 @@ let isInitialized = false;
 let currentLiffId = "";
 
 export function getLiffIdForPath(pathname: string): string {
-  // #region agent log
-  const result = pathname.includes("/cal") ? LIFF_IDS.cal : pathname.includes("/goal") ? LIFF_IDS.goal : pathname.includes("/menu") ? LIFF_IDS.menu : pathname.includes("/orders") ? LIFF_IDS.menu : LIFF_IDS.cal;
-  fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'liff.ts:23',message:'getLiffIdForPath',data:{pathname,result,LIFF_IDS_cal:LIFF_IDS.cal,LIFF_IDS_goal:LIFF_IDS.goal,LIFF_IDS_menu:LIFF_IDS.menu},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H6'})}).catch(()=>{});
-  // #endregion
   if (pathname.includes("/cal")) return LIFF_IDS.cal;
   if (pathname.includes("/goal")) return LIFF_IDS.goal;
   if (pathname.includes("/menu")) return LIFF_IDS.menu;
