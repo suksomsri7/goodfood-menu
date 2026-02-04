@@ -16,12 +16,20 @@ import Link from "next/link";
 
 type OrderStatus = "pending" | "confirmed" | "preparing" | "ready" | "completed" | "cancelled";
 
+interface FoodInfo {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
 interface OrderItem {
   id: string;
   foodName: string;
   quantity: number;
   calories: number;
   price: number;
+  food?: FoodInfo;
 }
 
 interface Order {
@@ -65,7 +73,7 @@ export default function OrdersPage() {
   }, [lineUserId]);
 
   useEffect(() => {
-    document.title = "รายการสั่งซื้อ";
+    document.title = "รายการอาหาร";
   }, []);
 
   useEffect(() => {
@@ -128,16 +136,8 @@ export default function OrdersPage() {
             กรุณาเข้าสู่ระบบ
           </h2>
           <p className="text-gray-500 text-sm">
-            เปิดผ่าน LINE เพื่อดูรายการสั่งซื้อของคุณ
+            เปิดผ่าน LINE เพื่อดูรายการอาหารของคุณ
           </p>
-          {/* Debug info for production */}
-          <div className="mt-6 p-4 bg-gray-100 rounded-lg text-left text-xs text-gray-600 break-all">
-            <p className="font-bold mb-2">Debug v4:</p>
-            <p>isReady: <span className="font-mono bg-white px-1">{String(isReady)}</span></p>
-            <p>isLoggedIn: <span className="font-mono bg-white px-1">{String(isLoggedIn)}</span></p>
-            <p>error: <span className="font-mono bg-red-100 px-1">{error || 'none'}</span></p>
-            <p>LIFF_MENU: <span className="font-mono bg-yellow-100 px-1">{process.env.NEXT_PUBLIC_LIFF_ID_MENU || 'NOT SET'}</span></p>
-          </div>
         </div>
       </div>
     );
@@ -172,88 +172,143 @@ export default function OrdersPage() {
       </div>
 
       {/* Orders List */}
-      <div className="px-4 pt-4 space-y-4">
-        {displayOrders.length > 0 ? (
-          displayOrders.map((order, index) => {
-            const config = statusConfig[order.status];
-            const StatusIcon = config.icon;
-            const totalCalories = order.items.reduce(
-              (sum, item) => sum + (item.calories || 0) * item.quantity,
-              0
+      <div className="px-4 pt-4 space-y-3">
+        {activeTab === "completed" ? (
+          // พร้อมทาน - แสดงเป็น flat list อาหารพร้อมสารอาหาร
+          (() => {
+            const allFoodItems = completedOrders.flatMap((order) =>
+              order.items.map((item) => ({
+                ...item,
+                orderId: order.id,
+                orderNumber: order.orderNumber,
+              }))
             );
 
-            return (
-              <motion.div
-                key={order.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="bg-white rounded-2xl p-5 border border-slate-200"
-              >
-                {/* Order Header */}
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <p className="font-semibold text-slate-900">
-                      #{order.orderNumber}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {formatDate(order.createdAt)}
-                    </p>
-                  </div>
-                  <span
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${config.bgColor} ${config.color}`}
+            if (allFoodItems.length === 0) {
+              return (
+                <div className="py-16 text-center">
+                  <ShoppingBag className="w-16 h-16 text-slate-200 mx-auto mb-4" />
+                  <p className="text-slate-500 mb-4">ยังไม่มีรายการที่พร้อมทาน</p>
+                  <Link
+                    href="/menu"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl font-medium hover:bg-slate-800 transition-colors"
                   >
-                    <StatusIcon className="w-3.5 h-3.5" />
-                    {config.label}
-                  </span>
+                    <Plus className="w-4 h-4" />
+                    สั่งอาหาร
+                  </Link>
                 </div>
+              );
+            }
 
-                {/* Order Items */}
-                <div className="space-y-2 mb-4">
-                  {order.items.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between text-sm"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-700">{item.foodName}</span>
-                        <span className="text-slate-400">×{item.quantity}</span>
-                      </div>
-                      <span className="text-slate-600">
-                        ฿{item.price * item.quantity}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Order Footer */}
-                <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-                  <span className="text-xs text-slate-500">
-                    {totalCalories} kcal
-                  </span>
-                  <span className="font-semibold text-slate-900">
-                    ฿{order.totalAmount}
-                  </span>
-                </div>
-              </motion.div>
-            );
-          })
+            return allFoodItems.map((item, index) => {
+              const food = item.food;
+              return (
+                <motion.div
+                  key={`${item.orderId}-${item.id}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.03 }}
+                  className="bg-white rounded-xl p-4 border border-slate-200"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-medium text-slate-900">{item.foodName}</h3>
+                    <span className="text-xs text-slate-400">×{item.quantity}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-slate-500">
+                    <span className="bg-orange-50 text-orange-600 px-2 py-0.5 rounded">
+                      {food?.calories || item.calories || 0} kcal
+                    </span>
+                    <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded">
+                      P {food?.protein || 0}g
+                    </span>
+                    <span className="bg-amber-50 text-amber-600 px-2 py-0.5 rounded">
+                      C {food?.carbs || 0}g
+                    </span>
+                    <span className="bg-rose-50 text-rose-600 px-2 py-0.5 rounded">
+                      F {food?.fat || 0}g
+                    </span>
+                  </div>
+                </motion.div>
+              );
+            });
+          })()
         ) : (
-          <div className="py-16 text-center">
-            <ShoppingBag className="w-16 h-16 text-slate-200 mx-auto mb-4" />
-            <p className="text-slate-500 mb-4">
-              {activeTab === "active"
-                ? "ไม่มีรายการที่กำลังดำเนินการ"
-                : "ยังไม่มีรายการที่พร้อมทาน"}
-            </p>
-            <Link
-              href="/menu"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl font-medium hover:bg-slate-800 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              สั่งอาหาร
-            </Link>
-          </div>
+          // กำลังดำเนินการ - ไม่แสดงยอดเงิน
+          activeOrders.length > 0 ? (
+            activeOrders.map((order, index) => {
+              const config = statusConfig[order.status];
+              const StatusIcon = config.icon;
+              const totalCalories = order.items.reduce(
+                (sum, item) => sum + (item.calories || 0) * item.quantity,
+                0
+              );
+
+              return (
+                <motion.div
+                  key={order.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="bg-white rounded-2xl p-5 border border-slate-200"
+                >
+                  {/* Order Header */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="font-semibold text-slate-900">
+                        #{order.orderNumber}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {formatDate(order.createdAt)}
+                      </p>
+                    </div>
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${config.bgColor} ${config.color}`}
+                    >
+                      <StatusIcon className="w-3.5 h-3.5" />
+                      {config.label}
+                    </span>
+                  </div>
+
+                  {/* Order Items */}
+                  <div className="space-y-2">
+                    {order.items.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between text-sm"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-700">{item.foodName}</span>
+                          <span className="text-slate-400">×{item.quantity}</span>
+                        </div>
+                        <span className="text-xs text-slate-400">
+                          {item.food?.calories || item.calories || 0} kcal
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Order Footer - แค่ calories ไม่แสดงราคา */}
+                  <div className="pt-3 mt-3 border-t border-slate-100">
+                    <span className="text-xs text-slate-500">
+                      รวม {totalCalories} kcal
+                    </span>
+                  </div>
+                </motion.div>
+              );
+            })
+          ) : (
+            <div className="py-16 text-center">
+              <ShoppingBag className="w-16 h-16 text-slate-200 mx-auto mb-4" />
+              <p className="text-slate-500 mb-4">ไม่มีรายการที่กำลังดำเนินการ</p>
+              <Link
+                href="/menu"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl font-medium hover:bg-slate-800 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                สั่งอาหาร
+              </Link>
+            </div>
+          )
         )}
       </div>
     </div>
