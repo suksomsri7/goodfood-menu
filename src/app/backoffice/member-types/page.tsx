@@ -13,6 +13,8 @@ import {
   X,
   Crown,
   Infinity,
+  Brain,
+  ScanLine,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -22,7 +24,9 @@ interface MemberType {
   description: string | null;
   color: string;
   dailyPhotoLimit: number;
-  dailyAiLimit: number;
+  dailyAiAnalysisLimit: number;
+  dailyAiRecommendLimit: number;
+  dailyScanLimit: number;
   isDefault: boolean;
   isActive: boolean;
   order: number;
@@ -58,7 +62,9 @@ export default function MemberTypesPage() {
     description: "",
     color: "#4CAF50",
     dailyPhotoLimit: 3,
-    dailyAiLimit: 3,
+    dailyAiAnalysisLimit: 3,
+    dailyAiRecommendLimit: 3,
+    dailyScanLimit: 5,
     isDefault: false,
     isActive: true,
   });
@@ -88,7 +94,9 @@ export default function MemberTypesPage() {
       description: "",
       color: "#4CAF50",
       dailyPhotoLimit: 3,
-      dailyAiLimit: 3,
+      dailyAiAnalysisLimit: 3,
+      dailyAiRecommendLimit: 3,
+      dailyScanLimit: 5,
       isDefault: false,
       isActive: true,
     });
@@ -103,7 +111,9 @@ export default function MemberTypesPage() {
       description: type.description || "",
       color: type.color,
       dailyPhotoLimit: type.dailyPhotoLimit,
-      dailyAiLimit: type.dailyAiLimit,
+      dailyAiAnalysisLimit: type.dailyAiAnalysisLimit,
+      dailyAiRecommendLimit: type.dailyAiRecommendLimit,
+      dailyScanLimit: type.dailyScanLimit,
       isDefault: type.isDefault,
       isActive: type.isActive,
     });
@@ -270,7 +280,7 @@ export default function MemberTypesPage() {
                         )}
 
                         {/* Limits */}
-                        <div className="flex items-center gap-6">
+                        <div className="flex flex-wrap items-center gap-4">
                           <div className="flex items-center gap-2 text-sm">
                             <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
                               <Camera className="w-4 h-4 text-blue-600" />
@@ -288,9 +298,33 @@ export default function MemberTypesPage() {
                               <Sparkles className="w-4 h-4 text-purple-600" />
                             </div>
                             <div>
-                              <p className="text-gray-500 text-xs">AI แนะนำ</p>
+                              <p className="text-gray-500 text-xs">AI วิเคราะห์</p>
                               <p className="font-semibold text-gray-700">
-                                {formatLimit(type.dailyAiLimit)}/วัน
+                                {formatLimit(type.dailyAiAnalysisLimit)}/วัน
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                              <Brain className="w-4 h-4 text-amber-600" />
+                            </div>
+                            <div>
+                              <p className="text-gray-500 text-xs">AI คำแนะนำ</p>
+                              <p className="font-semibold text-gray-700">
+                                {formatLimit(type.dailyAiRecommendLimit)}/วัน
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className="w-8 h-8 rounded-lg bg-cyan-100 flex items-center justify-center">
+                              <ScanLine className="w-4 h-4 text-cyan-600" />
+                            </div>
+                            <div>
+                              <p className="text-gray-500 text-xs">สแกนหน้าจอ</p>
+                              <p className="font-semibold text-gray-700">
+                                {formatLimit(type.dailyScanLimit)}/วัน
                               </p>
                             </div>
                           </div>
@@ -448,16 +482,56 @@ export default function MemberTypesPage() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       <Sparkles className="w-4 h-4 inline mr-1" />
-                      AI แนะนำ (ครั้ง/วัน)
+                      AI วิเคราะห์ (หน้าแคลอรี่ ครั้ง/วัน)
                     </label>
                     <input
                       type="number"
                       min="0"
-                      value={formData.dailyAiLimit}
+                      value={formData.dailyAiAnalysisLimit}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          dailyAiLimit: parseInt(e.target.value) || 0,
+                          dailyAiAnalysisLimit: parseInt(e.target.value) || 0,
+                        })
+                      }
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">0 = ไม่จำกัด</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <Brain className="w-4 h-4 inline mr-1" />
+                      AI คำแนะนำ (หน้าStock อาหาร ครั้ง/วัน)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={formData.dailyAiRecommendLimit}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          dailyAiRecommendLimit: parseInt(e.target.value) || 0,
+                        })
+                      }
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">0 = ไม่จำกัด</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <ScanLine className="w-4 h-4 inline mr-1" />
+                      สแกนหน้าจอ (บันทึกออกกำลังกาย/อาหาร ครั้ง/วัน)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={formData.dailyScanLimit}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          dailyScanLimit: parseInt(e.target.value) || 0,
                         })
                       }
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"

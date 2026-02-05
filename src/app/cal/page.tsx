@@ -640,7 +640,31 @@ export default function CaloriePage() {
       />
 
       {/* Floating Add Button */}
-      <FloatingAddButton lineUserId={lineUserId} onAddMeal={handleAddMeal} onAddExercise={handleAddExercise} />
+      <FloatingAddButton 
+        lineUserId={lineUserId} 
+        dailyNutrition={{
+          consumed: {
+            calories: dailyData.consumed,
+            protein: dailyData.protein,
+            carbs: dailyData.carbs,
+            fat: dailyData.fat,
+          },
+          target: {
+            calories: goals.targetCalories,
+            protein: goals.targetProtein,
+            carbs: goals.targetCarbs,
+            fat: goals.targetFat,
+          },
+          remaining: {
+            calories: remaining,
+            protein: goals.targetProtein - dailyData.protein,
+            carbs: goals.targetCarbs - dailyData.carbs,
+            fat: goals.targetFat - dailyData.fat,
+          },
+        }}
+        onAddMeal={handleAddMeal} 
+        onAddExercise={handleAddExercise} 
+      />
     </div>
   );
 }

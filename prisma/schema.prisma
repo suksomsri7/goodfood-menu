@@ -371,18 +371,20 @@ model Role {
 
 // ==================== ประเภทสมาชิก ====================
 model MemberType {
-  id                  String   @id @default(cuid())
-  name                String   @unique // ชื่อประเภท เช่น Free, Basic, Premium
-  description         String?
-  color               String   @default("#4CAF50") // สีสำหรับแสดง badge
-  dailyPhotoLimit     Int      @default(3) // จำนวนครั้ง Take Photo ต่อวัน (0 = ไม่จำกัด)
-  dailyAiLimit        Int      @default(3) // จำนวนครั้ง AI แนะนำ ต่อวัน (0 = ไม่จำกัด)
-  isDefault           Boolean  @default(false) // เป็นค่า default สำหรับสมาชิกใหม่
-  isActive            Boolean  @default(true)
-  order               Int      @default(0)
-  members             Member[]
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                     String   @id @default(cuid())
+  name                   String   @unique // ชื่อประเภท เช่น Free, Basic, Premium
+  description            String?
+  color                  String   @default("#4CAF50") // สีสำหรับแสดง badge
+  dailyPhotoLimit        Int      @default(3) // จำนวนครั้ง Take Photo ต่อวัน (0 = ไม่จำกัด)
+  dailyAiAnalysisLimit   Int      @default(3) // AI วิเคราะห์ หน้าแคลอรี่ ครั้ง/วัน (0 = ไม่จำกัด)
+  dailyAiRecommendLimit  Int      @default(3) // AI คำแนะนำ หน้า Stock อาหาร ครั้ง/วัน (0 = ไม่จำกัด)
+  dailyScanLimit         Int      @default(5) // สแกนหน้าจอ บันทึกการออกกำลังกาย/อาหาร ครั้ง/วัน (0 = ไม่จำกัด)
+  isDefault              Boolean  @default(false) // เป็นค่า default สำหรับสมาชิกใหม่
+  isActive               Boolean  @default(true)
+  order                  Int      @default(0)
+  members                Member[]
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
   @@map("member_types")
 }

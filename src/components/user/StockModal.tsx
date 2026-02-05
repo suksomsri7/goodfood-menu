@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Lightbulb, Plus, Minus, Package } from "lucide-react";
+import { X, Plus, Minus, Package, Sparkles } from "lucide-react";
 
 interface StockItem {
   id: string;
@@ -16,10 +16,32 @@ interface StockItem {
   orderNumber: string;
 }
 
+interface DailyNutrition {
+  consumed: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  };
+  target: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  };
+  remaining: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  };
+}
+
 interface StockModalProps {
   isOpen: boolean;
   onClose: () => void;
   lineUserId?: string;
+  dailyNutrition?: DailyNutrition;
   onSelectItem?: (item: {
     name: string;
     calories: number;
@@ -30,30 +52,14 @@ interface StockModalProps {
   }) => void;
 }
 
-// Recommendation based on nutrition
-const getRecommendation = (items: StockItem[]) => {
-  if (items.length === 0) {
-    return "ยังไม่มีอาหารใน Stock สั่งซื้อเพิ่มได้ที่เมนู";
-  }
-  
-  const lowCalItems = items.filter((item) => item.calories < 200);
-  const highProteinItems = items.filter((item) => item.protein > 15);
-
-  if (highProteinItems.length > 0) {
-    return `แนะนำ: ${highProteinItems[0].name} โปรตีนสูง ${highProteinItems[0].protein}g เหมาะสำหรับมื้อนี้`;
-  }
-  if (lowCalItems.length > 0) {
-    return `แนะนำ: ${lowCalItems[0].name} แคลอรี่ต่ำเพียง ${lowCalItems[0].calories} Kcal`;
-  }
-  return "เลือกอาหารที่เหมาะกับเป้าหมายของคุณวันนี้";
-};
-
-export function StockModal({ isOpen, onClose, lineUserId, onSelectItem }: StockModalProps) {
+export function StockModal({ isOpen, onClose, lineUserId, dailyNutrition, onSelectItem }: StockModalProps) {
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null);
   const [selectQuantity, setSelectQuantity] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
+  const [aiRecommendation, setAiRecommendation] = useState<string>("");
+  const [isLoadingAi, setIsLoadingAi] = useState(false);
 
   // Fetch completed orders to get stock items
   const fetchStockItems = useCallback(async () => {
@@ -101,12 +107,62 @@ export function StockModal({ isOpen, onClose, lineUserId, onSelectItem }: StockM
   }, [isOpen, lineUserId, fetchStockItems]);
 
   const availableItems = stockItems.filter((item) => item.quantity > 0);
-  const recommendation = getRecommendation(availableItems);
+
+  // Fetch AI recommendation when item is selected
+  const fetchAiRecommendation = useCallback(async (item: StockItem, quantity: number) => {
+    if (!dailyNutrition) return;
+    
+    setIsLoadingAi(true);
+    setAiRecommendation("");
+    
+    try {
+      const res = await fetch("/api/stock-recommendation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          selectedFood: {
+            name: item.name,
+            calories: item.calories * quantity,
+            protein: item.protein * quantity,
+            carbs: item.carbs * quantity,
+            fat: item.fat * quantity,
+          },
+          dailyNutrition: {
+            consumed: dailyNutrition.consumed,
+            target: dailyNutrition.target,
+            remaining: dailyNutrition.remaining,
+          },
+        }),
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setAiRecommendation(data.recommendation || "");
+      }
+    } catch (error) {
+      console.error("Failed to fetch AI recommendation:", error);
+    } finally {
+      setIsLoadingAi(false);
+    }
+  }, [dailyNutrition]);
 
   const handleSelectClick = (item: StockItem) => {
     setSelectedItem(item);
     setSelectQuantity(1);
+    setAiRecommendation("");
+    // Fetch AI recommendation
+    fetchAiRecommendation(item, 1);
   };
+  
+  // Update recommendation when quantity changes
+  useEffect(() => {
+    if (selectedItem && selectQuantity > 0) {
+      const debounce = setTimeout(() => {
+        fetchAiRecommendation(selectedItem, selectQuantity);
+      }, 500);
+      return () => clearTimeout(debounce);
+    }
+  }, [selectQuantity, selectedItem, fetchAiRecommendation]);
 
   const handleConfirmSelect = async () => {
     if (!selectedItem || selectQuantity <= 0 || !lineUserId) return;
@@ -130,6 +186,25 @@ export function StockModal({ isOpen, onClose, lineUserId, onSelectItem }: StockM
           date: new Date().toISOString(),
         }),
       });
+
+      // Reduce quantity in order item
+      const newQuantity = selectedItem.quantity - selectQuantity;
+      await fetch(`/api/order-items/${selectedItem.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          quantity: newQuantity,
+        }),
+      });
+
+      // Update local state to reflect the change
+      setStockItems(prevItems => 
+        prevItems.map(item => 
+          item.id === selectedItem.id 
+            ? { ...item, quantity: newQuantity }
+            : item
+        ).filter(item => item.quantity > 0)
+      );
 
       // Call callback if provided
       onSelectItem?.({
@@ -183,20 +258,6 @@ export function StockModal({ isOpen, onClose, lineUserId, onSelectItem }: StockM
             </div>
           </div>
 
-          {/* Recommendation */}
-          {!isLoading && availableItems.length > 0 && (
-            <div className="px-6 py-4 bg-amber-50 border-b border-amber-100">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                  <Lightbulb className="w-4 h-4 text-amber-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-amber-800">คำแนะนำ</p>
-                  <p className="text-sm text-amber-700 mt-1">{recommendation}</p>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Stock List */}
           <div className="overflow-y-auto max-h-[60vh] px-6 py-4">
@@ -309,7 +370,7 @@ export function StockModal({ isOpen, onClose, lineUserId, onSelectItem }: StockM
                   </div>
 
                   {/* Nutrition Preview */}
-                  <div className="bg-gray-50 rounded-xl p-4 mb-6">
+                  <div className="bg-gray-50 rounded-xl p-4 mb-4">
                     <p className="text-xs text-gray-500 mb-2">สารอาหารที่จะได้รับ</p>
                     <p className="text-sm text-gray-700">
                       {selectedItem.calories * selectQuantity} Kcal • 
@@ -318,6 +379,28 @@ export function StockModal({ isOpen, onClose, lineUserId, onSelectItem }: StockM
                       F {selectedItem.fat * selectQuantity}g
                     </p>
                   </div>
+                  
+                  {/* AI Recommendation */}
+                  {dailyNutrition && (
+                    <div className="bg-amber-50 rounded-xl p-4 mb-6 border border-amber-100">
+                      <div className="flex items-start gap-2">
+                        <Sparkles className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <p className="text-xs font-medium text-amber-700 mb-1">AI คำแนะนำ</p>
+                          {isLoadingAi ? (
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 border-2 border-amber-300 border-t-amber-600 rounded-full animate-spin" />
+                              <span className="text-sm text-amber-600">กำลังวิเคราะห์...</span>
+                            </div>
+                          ) : aiRecommendation ? (
+                            <p className="text-sm text-amber-800">{aiRecommendation}</p>
+                          ) : (
+                            <p className="text-sm text-amber-600">ไม่สามารถโหลดคำแนะนำได้</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Buttons */}
                   <div className="flex gap-3">
