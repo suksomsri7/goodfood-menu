@@ -14,6 +14,19 @@ import {
   Check,
   CheckCheck,
   X,
+  Calendar,
+  Target,
+  ShoppingBag,
+  Utensils,
+  Droplet,
+  Activity,
+  Scale,
+  TrendingUp,
+  TrendingDown,
+  Package,
+  Truck,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 
@@ -41,12 +54,71 @@ interface Message {
   createdAt: string;
 }
 
+interface Member {
+  id: string;
+  lineUserId: string;
+  displayName: string | null;
+  pictureUrl: string | null;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  gender: string | null;
+  height: number | null;
+  weight: number | null;
+  goalWeight: number | null;
+  goalType: string | null;
+  activityLevel: string | null;
+  bmr: number | null;
+  tdee: number | null;
+  dailyCalories: number | null;
+  dailyProtein: number | null;
+  dailyCarbs: number | null;
+  dailyFat: number | null;
+  dailyWater: number | null;
+  isOnboarded: boolean;
+  _count?: {
+    mealLogs: number;
+    orders: number;
+  };
+}
+
+interface MealLog {
+  id: string;
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  date: string;
+  imageUrl: string | null;
+}
+
+interface Order {
+  id: string;
+  orderNumber: string;
+  status: string;
+  totalPrice: number;
+  createdAt: string;
+  items: { foodName: string; quantity: number; price: number }[];
+}
+
+type UserViewTab = "cal" | "goal" | "orders";
+
 // LINE Official Sticker packages
 const STICKER_PACKS = [
   { packageId: "11537", name: "Brown & Cony", stickers: ["52002734", "52002735", "52002736", "52002737", "52002738", "52002739", "52002740", "52002741"] },
   { packageId: "11538", name: "Brown & Friends", stickers: ["51626494", "51626495", "51626496", "51626497", "51626498", "51626499", "51626500", "51626501"] },
   { packageId: "11539", name: "CHOCO & Friends", stickers: ["52114110", "52114111", "52114112", "52114113", "52114114", "52114115", "52114116", "52114117"] },
 ];
+
+const statusConfig: Record<string, { label: string; color: string; bgColor: string; icon: React.ElementType }> = {
+  pending: { label: "รอดำเนินการ", color: "text-amber-700", bgColor: "bg-amber-50", icon: Clock },
+  confirmed: { label: "ยืนยันแล้ว", color: "text-green-700", bgColor: "bg-green-50", icon: CheckCircle },
+  preparing: { label: "รับชำระเงิน", color: "text-purple-700", bgColor: "bg-purple-50", icon: Package },
+  shipping: { label: "กำลังจัดส่ง", color: "text-blue-700", bgColor: "bg-blue-50", icon: Truck },
+  completed: { label: "จัดส่งเรียบร้อย", color: "text-teal-700", bgColor: "bg-teal-50", icon: CheckCircle },
+  cancelled: { label: "ยกเลิก", color: "text-red-700", bgColor: "bg-red-50", icon: XCircle },
+};
 
 export default function ChatPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -61,6 +133,13 @@ export default function ChatPage() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Third column states
+  const [activeUserView, setActiveUserView] = useState<UserViewTab>("cal");
+  const [userData, setUserData] = useState<Member | null>(null);
+  const [userMeals, setUserMeals] = useState<MealLog[]>([]);
+  const [userOrders, setUserOrders] = useState<Order[]>([]);
+  const [loadingUserData, setLoadingUserData] = useState(false);
 
   // Fetch conversations
   const fetchConversations = useCallback(async () => {
@@ -96,6 +175,47 @@ export default function ChatPage() {
     }
   }, []);
 
+  // Fetch user data for third column
+  const fetchUserData = useCallback(async (lineUserId: string) => {
+    setLoadingUserData(true);
+    try {
+      // Fetch member data
+      const memberRes = await fetch(`/api/members/me?lineUserId=${lineUserId}`);
+      if (memberRes.ok) {
+        const memberData = await memberRes.json();
+        setUserData(memberData);
+      } else {
+        setUserData(null);
+      }
+
+      // Fetch today's meals
+      const today = new Date().toISOString().split("T")[0];
+      const tzOffset = new Date().getTimezoneOffset();
+      const mealsRes = await fetch(
+        `/api/meals?lineUserId=${lineUserId}&date=${today}&tzOffset=${tzOffset}`
+      );
+      if (mealsRes.ok) {
+        const mealsData = await mealsRes.json();
+        setUserMeals(mealsData);
+      } else {
+        setUserMeals([]);
+      }
+
+      // Fetch orders
+      const ordersRes = await fetch(`/api/orders?lineUserId=${lineUserId}&limit=10`);
+      if (ordersRes.ok) {
+        const ordersData = await ordersRes.json();
+        setUserOrders(ordersData);
+      } else {
+        setUserOrders([]);
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    } finally {
+      setLoadingUserData(false);
+    }
+  }, []);
+
   // Initial fetch
   useEffect(() => {
     fetchConversations();
@@ -122,6 +242,7 @@ export default function ChatPage() {
   const handleSelectConversation = async (conv: Conversation) => {
     setSelectedConversation(conv);
     await fetchMessages(conv.id);
+    await fetchUserData(conv.lineUserId);
   };
 
   // Send text message
@@ -246,6 +367,17 @@ export default function ChatPage() {
     });
   };
 
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString("th-TH", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   // Get last message preview
   const getMessagePreview = (msg: Message | null) => {
     if (!msg) return "ยังไม่มีข้อความ";
@@ -267,18 +399,361 @@ export default function ChatPage() {
     }
   };
 
+  // Calculate totals for calories
+  const calculateTodayTotals = () => {
+    return userMeals.reduce(
+      (acc, meal) => ({
+        calories: acc.calories + meal.calories,
+        protein: acc.protein + meal.protein,
+        carbs: acc.carbs + meal.carbs,
+        fat: acc.fat + meal.fat,
+      }),
+      { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    );
+  };
+
   // Filtered conversations
   const filteredConversations = conversations.filter((conv) =>
     conv.displayName.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Render third column content
+  const renderUserViewContent = () => {
+    if (loadingUserData) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      );
+    }
+
+    switch (activeUserView) {
+      case "cal":
+        return renderCalView();
+      case "goal":
+        return renderGoalView();
+      case "orders":
+        return renderOrdersView();
+      default:
+        return null;
+    }
+  };
+
+  // Render Cal View (Today's meals)
+  const renderCalView = () => {
+    const totals = calculateTodayTotals();
+    const dailyCalories = userData?.dailyCalories || 2000;
+    const caloriePercent = Math.min(100, Math.round((totals.calories / dailyCalories) * 100));
+
+    return (
+      <div className="space-y-4">
+        {/* Today's Summary */}
+        <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl p-4 text-white">
+          <p className="text-sm opacity-90 mb-2">แคลอรี่วันนี้</p>
+          <div className="flex items-end justify-between">
+            <div>
+              <span className="text-3xl font-bold">{Math.round(totals.calories)}</span>
+              <span className="text-sm opacity-75 ml-1">/ {dailyCalories} kcal</span>
+            </div>
+            <div className="text-right">
+              <span className="text-2xl font-semibold">{caloriePercent}%</span>
+            </div>
+          </div>
+          <div className="mt-3 bg-white/20 rounded-full h-2">
+            <div
+              className="bg-white rounded-full h-2 transition-all duration-500"
+              style={{ width: `${caloriePercent}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Macros */}
+        <div className="grid grid-cols-3 gap-2">
+          <div className="bg-blue-50 rounded-xl p-3 text-center">
+            <p className="text-xs text-blue-600 mb-1">โปรตีน</p>
+            <p className="text-lg font-bold text-blue-700">{Math.round(totals.protein)}g</p>
+          </div>
+          <div className="bg-amber-50 rounded-xl p-3 text-center">
+            <p className="text-xs text-amber-600 mb-1">คาร์บ</p>
+            <p className="text-lg font-bold text-amber-700">{Math.round(totals.carbs)}g</p>
+          </div>
+          <div className="bg-rose-50 rounded-xl p-3 text-center">
+            <p className="text-xs text-rose-600 mb-1">ไขมัน</p>
+            <p className="text-lg font-bold text-rose-700">{Math.round(totals.fat)}g</p>
+          </div>
+        </div>
+
+        {/* Today's Meals */}
+        <div>
+          <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+            <Utensils className="w-4 h-4" />
+            มื้ออาหารวันนี้ ({userMeals.length})
+          </h4>
+          {userMeals.length === 0 ? (
+            <div className="text-center py-6 text-gray-400">
+              <Utensils className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">ยังไม่มีรายการอาหาร</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              {userMeals.map((meal) => (
+                <div
+                  key={meal.id}
+                  className="bg-white rounded-xl p-3 border border-gray-100 flex items-center gap-3"
+                >
+                  {meal.imageUrl ? (
+                    <img
+                      src={meal.imageUrl}
+                      alt={meal.name}
+                      className="w-12 h-12 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center">
+                      <Utensils className="w-5 h-5 text-gray-400" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-800 truncate">{meal.name}</p>
+                    <p className="text-xs text-gray-500">
+                      P {Math.round(meal.protein)}g • C {Math.round(meal.carbs)}g • F {Math.round(meal.fat)}g
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-green-600">{Math.round(meal.calories)}</p>
+                    <p className="text-xs text-gray-400">kcal</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Render Goal View
+  const renderGoalView = () => {
+    if (!userData) {
+      return (
+        <div className="text-center py-8 text-gray-400">
+          <Target className="w-12 h-12 mx-auto mb-2 opacity-50" />
+          <p>ไม่พบข้อมูลผู้ใช้</p>
+        </div>
+      );
+    }
+
+    const goalTypeLabels: Record<string, string> = {
+      lose: "ลดน้ำหนัก",
+      gain: "เพิ่มน้ำหนัก",
+      maintain: "รักษาน้ำหนัก",
+    };
+
+    const activityLabels: Record<string, string> = {
+      sedentary: "นั่งทำงาน",
+      light: "ออกกำลังเบา",
+      moderate: "ออกกำลังปานกลาง",
+      active: "ออกกำลังหนัก",
+      very_active: "ออกกำลังหนักมาก",
+    };
+
+    return (
+      <div className="space-y-4">
+        {/* Profile Summary */}
+        <div className="bg-white rounded-xl p-4 border border-gray-100">
+          <div className="flex items-center gap-3 mb-3">
+            {userData.pictureUrl ? (
+              <img
+                src={userData.pictureUrl}
+                alt={userData.displayName || ""}
+                className="w-14 h-14 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-14 h-14 rounded-full bg-gray-200 flex items-center justify-center">
+                <User className="w-7 h-7 text-gray-400" />
+              </div>
+            )}
+            <div>
+              <p className="font-semibold text-gray-800">{userData.displayName || "ไม่ระบุชื่อ"}</p>
+              <p className="text-sm text-gray-500">{userData.email || userData.phone || "-"}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            {userData.gender && (
+              <div className="flex items-center gap-2 text-gray-600">
+                <span>เพศ:</span>
+                <span className="font-medium">{userData.gender === "male" ? "ชาย" : "หญิง"}</span>
+              </div>
+            )}
+            {userData.height && (
+              <div className="flex items-center gap-2 text-gray-600">
+                <span>ส่วนสูง:</span>
+                <span className="font-medium">{userData.height} cm</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Weight Goal */}
+        {userData.weight && (
+          <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl p-4 text-white">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Scale className="w-5 h-5" />
+                <span className="font-medium">เป้าหมายน้ำหนัก</span>
+              </div>
+              {userData.goalType && (
+                <span className="px-2 py-1 bg-white/20 rounded-full text-xs">
+                  {goalTypeLabels[userData.goalType] || userData.goalType}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm opacity-75">ปัจจุบัน</p>
+                <p className="text-2xl font-bold">{userData.weight} kg</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {userData.goalType === "lose" ? (
+                  <TrendingDown className="w-6 h-6" />
+                ) : userData.goalType === "gain" ? (
+                  <TrendingUp className="w-6 h-6" />
+                ) : (
+                  <Activity className="w-6 h-6" />
+                )}
+              </div>
+              <div className="text-right">
+                <p className="text-sm opacity-75">เป้าหมาย</p>
+                <p className="text-2xl font-bold">{userData.goalWeight || "-"} kg</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Daily Goals */}
+        <div className="bg-white rounded-xl p-4 border border-gray-100">
+          <h4 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+            <Target className="w-4 h-4 text-green-600" />
+            เป้าหมายรายวัน
+          </h4>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center py-2 border-b border-gray-50">
+              <span className="text-gray-600">แคลอรี่</span>
+              <span className="font-semibold text-green-600">{userData.dailyCalories || "-"} kcal</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-50">
+              <span className="text-gray-600">โปรตีน</span>
+              <span className="font-semibold text-blue-600">{userData.dailyProtein || "-"} g</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-50">
+              <span className="text-gray-600">คาร์โบไฮเดรต</span>
+              <span className="font-semibold text-amber-600">{userData.dailyCarbs || "-"} g</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-50">
+              <span className="text-gray-600">ไขมัน</span>
+              <span className="font-semibold text-rose-600">{userData.dailyFat || "-"} g</span>
+            </div>
+            <div className="flex justify-between items-center py-2">
+              <span className="text-gray-600 flex items-center gap-1">
+                <Droplet className="w-4 h-4" />
+                น้ำ
+              </span>
+              <span className="font-semibold text-cyan-600">{userData.dailyWater || "-"} ml</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Activity & TDEE */}
+        {(userData.activityLevel || userData.tdee) && (
+          <div className="bg-gray-50 rounded-xl p-4">
+            <h4 className="font-semibold text-gray-700 mb-2">ข้อมูลเพิ่มเติม</h4>
+            {userData.activityLevel && (
+              <p className="text-sm text-gray-600">
+                กิจกรรม: <span className="font-medium">{activityLabels[userData.activityLevel] || userData.activityLevel}</span>
+              </p>
+            )}
+            {userData.bmr && (
+              <p className="text-sm text-gray-600">
+                BMR: <span className="font-medium">{Math.round(userData.bmr)} kcal</span>
+              </p>
+            )}
+            {userData.tdee && (
+              <p className="text-sm text-gray-600">
+                TDEE: <span className="font-medium">{Math.round(userData.tdee)} kcal</span>
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Render Orders View
+  const renderOrdersView = () => {
+    if (userOrders.length === 0) {
+      return (
+        <div className="text-center py-8 text-gray-400">
+          <ShoppingBag className="w-12 h-12 mx-auto mb-2 opacity-50" />
+          <p>ยังไม่มีรายการสั่งซื้อ</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-3">
+        {userOrders.map((order) => {
+          const config = statusConfig[order.status] || statusConfig.pending;
+          const StatusIcon = config.icon;
+
+          return (
+            <div
+              key={order.id}
+              className="bg-white rounded-xl p-4 border border-gray-100"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-mono font-semibold text-green-600 text-sm">
+                  #{order.orderNumber}
+                </span>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${config.bgColor} ${config.color}`}>
+                  <StatusIcon className="w-3 h-3" />
+                  {config.label}
+                </span>
+              </div>
+
+              <div className="space-y-1 mb-3">
+                {order.items.slice(0, 3).map((item, idx) => (
+                  <div key={idx} className="flex justify-between text-sm">
+                    <span className="text-gray-600 truncate flex-1">
+                      {item.foodName} x{item.quantity}
+                    </span>
+                    <span className="text-gray-800 ml-2">฿{item.price}</span>
+                  </div>
+                ))}
+                {order.items.length > 3 && (
+                  <p className="text-xs text-gray-400">
+                    +{order.items.length - 3} รายการเพิ่มเติม
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                <span className="text-xs text-gray-400">{formatDate(order.createdAt)}</span>
+                <span className="font-semibold text-green-600">฿{order.totalPrice.toLocaleString()}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div>
       <Header title="แชท LINE" subtitle="ตอบข้อความจาก LINE Official Account" />
 
       <div className="h-[calc(100vh-72px)] flex">
-        {/* Conversation List */}
-        <div className="w-[360px] border-r border-gray-100 bg-white flex flex-col">
+        {/* Column 1: Conversation List */}
+        <div className="w-[320px] border-r border-gray-100 bg-white flex flex-col">
           {/* Search & Refresh */}
           <div className="p-5 border-b border-gray-100">
             <div className="flex gap-2">
@@ -318,7 +793,7 @@ export default function ChatPage() {
                 <button
                   key={conv.id}
                   onClick={() => handleSelectConversation(conv)}
-                  className={`w-full p-4 flex items-start gap-4 hover:bg-gray-50 transition-colors border-b border-gray-50 ${
+                  className={`w-full p-4 flex items-start gap-3 hover:bg-gray-50 transition-colors border-b border-gray-50 ${
                     selectedConversation?.id === conv.id
                       ? "bg-green-50 border-l-4 border-l-green-500"
                       : ""
@@ -329,11 +804,11 @@ export default function ChatPage() {
                       <img
                         src={conv.pictureUrl}
                         alt={conv.displayName}
-                        className="w-12 h-12 rounded-full object-cover"
+                        className="w-11 h-11 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-semibold shadow-lg shadow-green-500/20">
-                        <User className="w-6 h-6" />
+                      <div className="w-11 h-11 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-semibold shadow-lg shadow-green-500/20">
+                        <User className="w-5 h-5" />
                       </div>
                     )}
                     {conv.unreadCount > 0 && (
@@ -344,7 +819,7 @@ export default function ChatPage() {
                   </div>
                   <div className="flex-1 min-w-0 text-left">
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-gray-900 truncate">
+                      <span className="font-semibold text-gray-900 truncate text-sm">
                         {conv.displayName}
                       </span>
                       <span className="text-xs text-gray-400 flex items-center gap-1">
@@ -365,47 +840,45 @@ export default function ChatPage() {
           </div>
         </div>
 
-        {/* Chat Area */}
+        {/* Column 2: Chat Area */}
         {selectedConversation ? (
-          <div className="flex-1 flex flex-col bg-[#FAFBFC]">
+          <div className="flex-1 flex flex-col bg-[#FAFBFC] min-w-0">
             {/* Chat Header */}
-            <div className="px-8 py-5 bg-white border-b border-gray-100 flex items-center justify-between">
-              <div className="flex items-center gap-4">
+            <div className="px-6 py-4 bg-white border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
                 {selectedConversation.pictureUrl ? (
                   <img
                     src={selectedConversation.pictureUrl}
                     alt={selectedConversation.displayName}
-                    className="w-11 h-11 rounded-full object-cover"
+                    className="w-10 h-10 rounded-full object-cover"
                   />
                 ) : (
-                  <div className="w-11 h-11 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-semibold shadow-lg shadow-green-500/20">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-semibold shadow-lg shadow-green-500/20">
                     <User className="w-5 h-5" />
                   </div>
                 )}
                 <div>
-                  <h3 className="font-semibold text-gray-900">
+                  <h3 className="font-semibold text-gray-900 text-sm">
                     {selectedConversation.displayName}
                   </h3>
                   {selectedConversation.statusMessage && (
-                    <p className="text-xs text-gray-500 truncate max-w-[200px]">
+                    <p className="text-xs text-gray-500 truncate max-w-[180px]">
                       {selectedConversation.statusMessage}
                     </p>
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => fetchMessages(selectedConversation.id)}
-                  className="p-2.5 rounded-xl hover:bg-gray-100 transition-colors text-gray-500"
-                  title="รีเฟรช"
-                >
-                  <RefreshCw className="w-5 h-5" />
-                </button>
-              </div>
+              <button
+                onClick={() => fetchMessages(selectedConversation.id)}
+                className="p-2 rounded-xl hover:bg-gray-100 transition-colors text-gray-500"
+                title="รีเฟรช"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
               <AnimatePresence>
                 {messages.map((message, index) => (
                   <motion.div
@@ -420,15 +893,15 @@ export default function ChatPage() {
                     }`}
                   >
                     <div
-                      className={`max-w-md ${
+                      className={`max-w-[280px] ${
                         message.direction === "outgoing"
                           ? "bg-green-500 text-white rounded-2xl rounded-br-md"
                           : "bg-white text-gray-800 rounded-2xl rounded-bl-md shadow-sm border border-gray-100"
-                      } ${message.type === "image" ? "p-1" : "px-5 py-3"}`}
+                      } ${message.type === "image" ? "p-1" : "px-4 py-2.5"}`}
                     >
                       {/* Text Message */}
                       {message.type === "text" && (
-                        <p className="text-[15px] leading-relaxed whitespace-pre-wrap">
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">
                           {message.content}
                         </p>
                       )}
@@ -449,7 +922,7 @@ export default function ChatPage() {
                           <img
                             src={`https://stickershop.line-scdn.net/stickershop/v1/sticker/${message.stickerId}/iPhone/sticker.png`}
                             alt="Sticker"
-                            className="w-24 h-24 object-contain"
+                            className="w-20 h-20 object-contain"
                           />
                         </div>
                       )}
@@ -471,7 +944,7 @@ export default function ChatPage() {
 
                       {/* Time & Status */}
                       <div
-                        className={`flex items-center gap-1 mt-1.5 text-xs ${
+                        className={`flex items-center gap-1 mt-1 text-[10px] ${
                           message.direction === "outgoing"
                             ? "text-white/70 justify-end"
                             : "text-gray-400"
@@ -480,9 +953,9 @@ export default function ChatPage() {
                         <span>{formatMessageTime(message.createdAt)}</span>
                         {message.direction === "outgoing" && (
                           message.isRead ? (
-                            <CheckCheck className="w-3.5 h-3.5" />
+                            <CheckCheck className="w-3 h-3" />
                           ) : (
-                            <Check className="w-3.5 h-3.5" />
+                            <Check className="w-3 h-3" />
                           )
                         )}
                       </div>
@@ -494,24 +967,24 @@ export default function ChatPage() {
             </div>
 
             {/* Quick Replies */}
-            <div className="px-6 py-3 flex gap-2 overflow-x-auto no-scrollbar">
-              <button className="px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-600 hover:bg-gray-50 whitespace-nowrap">
+            <div className="px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar">
+              <button className="px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs font-medium text-gray-600 hover:bg-gray-50 whitespace-nowrap">
                 👋 สวัสดีค่ะ
               </button>
-              <button className="px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-600 hover:bg-gray-50 whitespace-nowrap">
+              <button className="px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs font-medium text-gray-600 hover:bg-gray-50 whitespace-nowrap">
                 📋 ส่งเมนูแนะนำ
               </button>
-              <button className="px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-600 hover:bg-gray-50 whitespace-nowrap">
+              <button className="px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs font-medium text-gray-600 hover:bg-gray-50 whitespace-nowrap">
                 🎁 ส่งโปรโมชั่น
               </button>
-              <button className="px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-600 hover:bg-gray-50 whitespace-nowrap">
+              <button className="px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs font-medium text-gray-600 hover:bg-gray-50 whitespace-nowrap">
                 ✅ ขอบคุณค่ะ
               </button>
             </div>
 
             {/* Input */}
-            <div className="p-5 bg-white border-t border-gray-100">
-              <div className="flex items-center gap-3">
+            <div className="p-4 bg-white border-t border-gray-100">
+              <div className="flex items-center gap-2">
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -521,14 +994,14 @@ export default function ChatPage() {
                 />
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-2.5 rounded-xl hover:bg-gray-100 transition-colors text-gray-500"
+                  className="p-2 rounded-xl hover:bg-gray-100 transition-colors text-gray-500"
                   title="ส่งรูปภาพ"
                 >
                   <ImageIcon className="w-5 h-5" />
                 </button>
                 <button
                   onClick={() => setShowStickerPicker(!showStickerPicker)}
-                  className={`p-2.5 rounded-xl transition-colors ${
+                  className={`p-2 rounded-xl transition-colors ${
                     showStickerPicker
                       ? "bg-green-100 text-green-600"
                       : "hover:bg-gray-100 text-gray-500"
@@ -544,14 +1017,14 @@ export default function ChatPage() {
                     onChange={(e) => setMessageText(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
                     placeholder="พิมพ์ข้อความ..."
-                    className="w-full px-5 py-3 bg-gray-100 rounded-xl focus:ring-2 focus:ring-green-500 focus:bg-white outline-none transition-all text-[15px]"
+                    className="w-full px-4 py-2.5 bg-gray-100 rounded-xl focus:ring-2 focus:ring-green-500 focus:bg-white outline-none transition-all text-sm"
                     disabled={sending}
                   />
                 </div>
                 <button
                   onClick={handleSendMessage}
                   disabled={!messageText.trim() || sending}
-                  className="p-3.5 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors shadow-lg shadow-green-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-3 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors shadow-lg shadow-green-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {sending ? (
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -568,10 +1041,10 @@ export default function ChatPage() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
-                    className="mt-4 p-4 bg-gray-50 rounded-xl"
+                    className="mt-3 p-3 bg-gray-50 rounded-xl"
                   >
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="text-sm font-medium text-gray-700">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-xs font-medium text-gray-700">
                         สติกเกอร์
                       </span>
                       <button
@@ -582,16 +1055,16 @@ export default function ChatPage() {
                       </button>
                     </div>
                     {STICKER_PACKS.map((pack) => (
-                      <div key={pack.packageId} className="mb-4">
-                        <p className="text-xs text-gray-500 mb-2">{pack.name}</p>
-                        <div className="flex gap-2 overflow-x-auto pb-2">
+                      <div key={pack.packageId} className="mb-3">
+                        <p className="text-xs text-gray-500 mb-1">{pack.name}</p>
+                        <div className="flex gap-1 overflow-x-auto pb-1">
                           {pack.stickers.map((stickerId) => (
                             <button
                               key={stickerId}
                               onClick={() =>
                                 handleSendSticker(pack.packageId, stickerId)
                               }
-                              className="flex-shrink-0 w-16 h-16 rounded-lg hover:bg-white transition-colors p-1"
+                              className="flex-shrink-0 w-14 h-14 rounded-lg hover:bg-white transition-colors p-1"
                             >
                               <img
                                 src={`https://stickershop.line-scdn.net/stickershop/v1/sticker/${stickerId}/iPhone/sticker.png`}
@@ -609,17 +1082,64 @@ export default function ChatPage() {
             </div>
           </div>
         ) : (
-          // Empty State
+          // Empty State for Chat
           <div className="flex-1 flex flex-col items-center justify-center bg-[#FAFBFC] text-gray-400">
-            <div className="w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-              <MessageCircle className="w-12 h-12" />
+            <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+              <MessageCircle className="w-10 h-10" />
             </div>
-            <h3 className="text-lg font-medium text-gray-600 mb-2">
+            <h3 className="text-base font-medium text-gray-600 mb-2">
               เลือกแชทเพื่อเริ่มสนทนา
             </h3>
             <p className="text-sm">
               เลือกรายชื่อทางด้านซ้ายเพื่อดูข้อความ
             </p>
+          </div>
+        )}
+
+        {/* Column 3: User Data Panel */}
+        {selectedConversation && (
+          <div className="w-[340px] border-l border-gray-100 bg-white flex flex-col">
+            {/* Tab Bar */}
+            <div className="px-4 py-3 border-b border-gray-100 flex gap-1">
+              <button
+                onClick={() => setActiveUserView("cal")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  activeUserView === "cal"
+                    ? "bg-green-500 text-white shadow-lg shadow-green-500/20"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                <Calendar className="w-4 h-4" />
+                <span className="hidden lg:inline">Cal</span>
+              </button>
+              <button
+                onClick={() => setActiveUserView("goal")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  activeUserView === "goal"
+                    ? "bg-green-500 text-white shadow-lg shadow-green-500/20"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                <Target className="w-4 h-4" />
+                <span className="hidden lg:inline">Goal</span>
+              </button>
+              <button
+                onClick={() => setActiveUserView("orders")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  activeUserView === "orders"
+                    ? "bg-green-500 text-white shadow-lg shadow-green-500/20"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                <ShoppingBag className="w-4 h-4" />
+                <span className="hidden lg:inline">Orders</span>
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {renderUserViewContent()}
+            </div>
           </div>
         )}
       </div>

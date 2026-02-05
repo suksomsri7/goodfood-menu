@@ -6,7 +6,8 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const lineUserId = searchParams.get("lineUserId");
-    const dateStr = searchParams.get("date"); // YYYY-MM-DD
+    const dateStr = searchParams.get("date"); // YYYY-MM-DD (local date from client)
+    const tzOffsetStr = searchParams.get("tzOffset"); // Client timezone offset in minutes
 
     if (!lineUserId) {
       return NextResponse.json(
@@ -27,18 +28,32 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Build date filter
+    // Build date filter with timezone awareness
     let dateFilter = {};
     if (dateStr) {
-      const startOfDay = new Date(dateStr);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(dateStr);
-      endOfDay.setHours(23, 59, 59, 999);
+      // Parse client timezone offset (negative for UTC+, positive for UTC-)
+      // e.g., Thailand UTC+7 = -420 minutes
+      const tzOffset = tzOffsetStr ? parseInt(tzOffsetStr, 10) : 0;
+      
+      // Create start/end of day in client's local timezone
+      // dateStr is already in client's local date (YYYY-MM-DD)
+      // We need to find UTC times that correspond to midnight-midnight in client timezone
+      
+      // Parse the date parts
+      const [year, month, day] = dateStr.split('-').map(Number);
+      
+      // Create date at midnight UTC, then adjust for timezone
+      // If tzOffset is -420 (UTC+7), midnight local = 17:00 previous day UTC
+      const startOfDayUTC = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+      startOfDayUTC.setUTCMinutes(startOfDayUTC.getUTCMinutes() + tzOffset);
+      
+      const endOfDayUTC = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+      endOfDayUTC.setUTCMinutes(endOfDayUTC.getUTCMinutes() + tzOffset);
       
       dateFilter = {
         date: {
-          gte: startOfDay,
-          lte: endOfDay,
+          gte: startOfDayUTC,
+          lte: endOfDayUTC,
         },
       };
     }

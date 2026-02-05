@@ -84,9 +84,15 @@ export default function CaloriePage() {
     if (!lineUserId) return;
 
     try {
-      const dateStr = selectedDate.toISOString().split("T")[0];
+      // Use local date string to avoid timezone issues
+      const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
+      // Also send timezone offset so backend can filter correctly
+      const tzOffset = selectedDate.getTimezoneOffset();
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cal/page.tsx:fetchMeals',message:'Frontend date values (fixed)',data:{dateStr,tzOffset,selectedDateISO:selectedDate.toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H2'})}).catch(()=>{});
+      // #endregion
       const res = await fetch(
-        `/api/meals?lineUserId=${lineUserId}&date=${dateStr}`
+        `/api/meals?lineUserId=${lineUserId}&date=${dateStr}&tzOffset=${tzOffset}`
       );
       if (res.ok) {
         const data = await res.json();
@@ -121,9 +127,10 @@ export default function CaloriePage() {
     if (!lineUserId) return;
 
     try {
-      const dateStr = selectedDate.toISOString().split("T")[0];
+      const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
+      const tzOffset = selectedDate.getTimezoneOffset();
       const res = await fetch(
-        `/api/water?lineUserId=${lineUserId}&date=${dateStr}`
+        `/api/water?lineUserId=${lineUserId}&date=${dateStr}&tzOffset=${tzOffset}`
       );
       if (res.ok) {
         const data = await res.json();
