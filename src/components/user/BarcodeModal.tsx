@@ -13,6 +13,7 @@ import {
   AlertCircle,
   Sparkles,
 } from "lucide-react";
+import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from "@zxing/library";
 
 interface BarcodeProduct {
   barcode: string;
@@ -70,7 +71,10 @@ export function BarcodeModal({ isOpen, onClose, onSave }: BarcodeModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const readerRef = useRef<BrowserMultiFormatReader | null>(null);
+  const scanningRef = useRef<boolean>(false);
   const [manualBarcode, setManualBarcode] = useState("");
+  const [isScanning, setIsScanning] = useState(false);
 
   // Editable form data
   const [formData, setFormData] = useState<BarcodeProduct>({
@@ -87,12 +91,40 @@ export function BarcodeModal({ isOpen, onClose, onSave }: BarcodeModalProps) {
   // Start camera for barcode scanning
   const startCamera = useCallback(async () => {
     try {
+      // Initialize barcode reader with hints for better detection
+      const hints = new Map();
+      hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+        BarcodeFormat.EAN_13,
+        BarcodeFormat.EAN_8,
+        BarcodeFormat.UPC_A,
+        BarcodeFormat.UPC_E,
+        BarcodeFormat.CODE_128,
+        BarcodeFormat.CODE_39,
+      ]);
+      hints.set(DecodeHintType.TRY_HARDER, true);
+      
+      const reader = new BrowserMultiFormatReader(hints);
+      readerRef.current = reader;
+
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
+        video: { 
+          facingMode: "environment",
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
       });
       streamRef.current = stream;
+      
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        // Wait for video to be ready
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play();
+          // Start continuous barcode scanning after video is playing
+          scanningRef.current = true;
+          setIsScanning(true);
+          setTimeout(scanForBarcode, 500); // Start scanning after 500ms
+        };
       }
     } catch (err) {
       console.error("Camera error:", err);
@@ -100,8 +132,69 @@ export function BarcodeModal({ isOpen, onClose, onSave }: BarcodeModalProps) {
     }
   }, []);
 
+  // Continuous barcode scanning function - uses canvas to capture frames
+  const scanForBarcode = useCallback(async () => {
+    if (!readerRef.current || !videoRef.current || !canvasRef.current || !scanningRef.current) return;
+    
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    
+    // Check if video is ready
+    if (video.readyState !== video.HAVE_ENOUGH_DATA) {
+      if (scanningRef.current) {
+        setTimeout(scanForBarcode, 100);
+      }
+      return;
+    }
+    
+    try {
+      // Capture frame to canvas
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Try to decode from canvas image
+        try {
+          const imageUrl = canvas.toDataURL("image/jpeg");
+          const img = new Image();
+          img.src = imageUrl;
+          await new Promise((resolve) => { img.onload = resolve; });
+          
+          const result = await readerRef.current.decodeFromImageElement(img);
+          if (result && result.getText()) {
+            const scannedCode = result.getText();
+            console.log("Barcode detected:", scannedCode);
+            scanningRef.current = false;
+            setIsScanning(false);
+            searchBarcode(scannedCode);
+            return;
+          }
+        } catch {
+          // No barcode found in this frame
+        }
+      }
+    } catch (err) {
+      // Error capturing frame, continue
+    }
+    
+    // Continue scanning if still active
+    if (scanningRef.current) {
+      setTimeout(scanForBarcode, 150); // Scan every 150ms
+    }
+  }, []);
+
   // Stop camera
   const stopCamera = useCallback(() => {
+    scanningRef.current = false;
+    setIsScanning(false);
+    
+    if (readerRef.current) {
+      readerRef.current.reset();
+      readerRef.current = null;
+    }
+    
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
@@ -269,6 +362,8 @@ export function BarcodeModal({ isOpen, onClose, onSave }: BarcodeModalProps) {
     setState("scanner");
     setCapturedImage(null);
     setError("");
+    setBarcode("");
+    setManualBarcode("");
     startCamera();
   };
 
@@ -311,16 +406,41 @@ export function BarcodeModal({ isOpen, onClose, onSave }: BarcodeModalProps) {
                 ref={videoRef}
                 autoPlay
                 playsInline
+                muted
                 className="w-full h-full object-cover"
               />
               
               {/* Scan overlay */}
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-64 h-64 border-2 border-white rounded-2xl relative">
+                <div className="w-72 h-48 border-2 border-white rounded-2xl relative">
                   <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-green-400 rounded-tl-xl" />
                   <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-green-400 rounded-tr-xl" />
                   <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-green-400 rounded-bl-xl" />
                   <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-green-400 rounded-br-xl" />
+                  
+                  {/* Scanning line animation */}
+                  {isScanning && (
+                    <div className="absolute inset-x-2 h-0.5 bg-green-400 animate-pulse" 
+                         style={{ 
+                           top: '50%',
+                           boxShadow: '0 0 8px 2px rgba(74, 222, 128, 0.6)'
+                         }} 
+                    />
+                  )}
+                </div>
+              </div>
+              
+              {/* Scanning status */}
+              <div className="absolute top-20 left-0 right-0 flex justify-center">
+                <div className="bg-black/60 px-4 py-2 rounded-full flex items-center gap-2">
+                  {isScanning ? (
+                    <>
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                      <span className="text-white text-sm">กำลัง Scan...</span>
+                    </>
+                  ) : (
+                    <span className="text-white text-sm">จับภาพ Barcode</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -372,40 +492,132 @@ export function BarcodeModal({ isOpen, onClose, onSave }: BarcodeModalProps) {
           <div className="flex flex-col h-full bg-white">
             {/* Product info */}
             <div className="flex-1 p-6 overflow-y-auto">
-              <div className="text-center mb-6">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <Check className="w-8 h-8 text-green-500" />
+              <div className="text-center mb-4">
+                <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <Check className="w-7 h-7 text-green-500" />
                 </div>
-                <h2 className="text-xl font-bold text-gray-800">{product.name}</h2>
-                {product.brand && (
-                  <p className="text-sm text-gray-500">{product.brand}</p>
-                )}
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="text-xl font-bold text-gray-800 text-center bg-transparent border-b border-dashed border-gray-300 focus:border-gray-500 outline-none w-full"
+                />
+                <input
+                  type="text"
+                  value={formData.brand || ""}
+                  onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                  placeholder="ยี่ห้อ (ไม่บังคับ)"
+                  className="text-sm text-gray-500 text-center bg-transparent border-b border-dashed border-gray-200 focus:border-gray-400 outline-none w-full mt-1"
+                />
               </div>
 
-              {/* Nutrition info */}
+              {/* Serving info */}
+              <div className="bg-gray-50 rounded-xl p-3 mb-4">
+                <p className="text-xs text-gray-500 text-center mb-2">ปริมาณต่อ Serving</p>
+                <div className="flex items-center justify-center gap-2">
+                  <input
+                    type="number"
+                    value={formData.servingSize || ""}
+                    onChange={(e) => setFormData({ ...formData, servingSize: parseFloat(e.target.value) || undefined })}
+                    placeholder="ปริมาณ"
+                    className="w-20 px-2 py-1 text-center bg-white rounded-lg border border-gray-200 text-sm"
+                  />
+                  <input
+                    type="text"
+                    value={formData.servingUnit || "g"}
+                    onChange={(e) => setFormData({ ...formData, servingUnit: e.target.value })}
+                    className="w-16 px-2 py-1 text-center bg-white rounded-lg border border-gray-200 text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Calories - editable */}
               <div className="bg-orange-50 rounded-xl p-4 mb-4">
                 <p className="text-sm text-gray-500 mb-1">แคลอรี่ต่อ serving</p>
-                <p className="text-3xl font-bold text-gray-800">{product.calories} kcal</p>
+                <div className="flex items-center justify-center gap-2">
+                  <input
+                    type="number"
+                    value={formData.calories}
+                    onChange={(e) => setFormData({ ...formData, calories: parseFloat(e.target.value) || 0 })}
+                    className="text-3xl font-bold text-gray-800 bg-transparent w-24 text-center border-b-2 border-dashed border-orange-300 focus:border-orange-500 outline-none"
+                  />
+                  <span className="text-xl text-gray-500">kcal</span>
+                </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 mb-6">
+              {/* Main macros - editable */}
+              <div className="grid grid-cols-3 gap-3 mb-3">
                 <div className="bg-red-50 rounded-xl p-3 text-center">
-                  <p className="text-xs text-gray-500">โปรตีน</p>
-                  <p className="text-lg font-semibold">{product.protein}g</p>
+                  <p className="text-xs text-gray-500 mb-1">โปรตีน</p>
+                  <div className="flex items-center justify-center">
+                    <input
+                      type="number"
+                      value={formData.protein}
+                      onChange={(e) => setFormData({ ...formData, protein: parseFloat(e.target.value) || 0 })}
+                      className="w-14 text-lg font-semibold bg-transparent text-center border-b border-dashed border-red-300 outline-none"
+                    />
+                    <span className="text-sm text-gray-500">g</span>
+                  </div>
                 </div>
                 <div className="bg-yellow-50 rounded-xl p-3 text-center">
-                  <p className="text-xs text-gray-500">คาร์บ</p>
-                  <p className="text-lg font-semibold">{product.carbs}g</p>
+                  <p className="text-xs text-gray-500 mb-1">คาร์บ</p>
+                  <div className="flex items-center justify-center">
+                    <input
+                      type="number"
+                      value={formData.carbs}
+                      onChange={(e) => setFormData({ ...formData, carbs: parseFloat(e.target.value) || 0 })}
+                      className="w-14 text-lg font-semibold bg-transparent text-center border-b border-dashed border-yellow-300 outline-none"
+                    />
+                    <span className="text-sm text-gray-500">g</span>
+                  </div>
                 </div>
                 <div className="bg-blue-50 rounded-xl p-3 text-center">
-                  <p className="text-xs text-gray-500">ไขมัน</p>
-                  <p className="text-lg font-semibold">{product.fat}g</p>
+                  <p className="text-xs text-gray-500 mb-1">ไขมัน</p>
+                  <div className="flex items-center justify-center">
+                    <input
+                      type="number"
+                      value={formData.fat}
+                      onChange={(e) => setFormData({ ...formData, fat: parseFloat(e.target.value) || 0 })}
+                      className="w-14 text-lg font-semibold bg-transparent text-center border-b border-dashed border-blue-300 outline-none"
+                    />
+                    <span className="text-sm text-gray-500">g</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sodium & Sugar - editable */}
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="bg-purple-50 rounded-xl p-3 text-center">
+                  <p className="text-xs text-gray-500 mb-1">โซเดียม</p>
+                  <div className="flex items-center justify-center">
+                    <input
+                      type="number"
+                      value={formData.sodium || ""}
+                      onChange={(e) => setFormData({ ...formData, sodium: parseFloat(e.target.value) || 0 })}
+                      placeholder="0"
+                      className="w-16 text-lg font-semibold bg-transparent text-center border-b border-dashed border-purple-300 outline-none"
+                    />
+                    <span className="text-sm text-gray-500">mg</span>
+                  </div>
+                </div>
+                <div className="bg-pink-50 rounded-xl p-3 text-center">
+                  <p className="text-xs text-gray-500 mb-1">น้ำตาล</p>
+                  <div className="flex items-center justify-center">
+                    <input
+                      type="number"
+                      value={formData.sugar || ""}
+                      onChange={(e) => setFormData({ ...formData, sugar: parseFloat(e.target.value) || 0 })}
+                      placeholder="0"
+                      className="w-14 text-lg font-semibold bg-transparent text-center border-b border-dashed border-pink-300 outline-none"
+                    />
+                    <span className="text-sm text-gray-500">g</span>
+                  </div>
                 </div>
               </div>
 
               {/* Quantity selector */}
               <div className="bg-gray-50 rounded-xl p-4 mb-4">
-                <p className="text-sm text-gray-500 mb-3">จำนวน</p>
+                <p className="text-sm text-gray-500 mb-2 text-center">จำนวน Serving</p>
                 <div className="flex items-center justify-center gap-6">
                   <button
                     onClick={() => setQuantity(Math.max(0.5, quantity - 0.5))}
@@ -427,8 +639,15 @@ export function BarcodeModal({ isOpen, onClose, onSave }: BarcodeModalProps) {
 
               {/* Total */}
               <div className="bg-gray-900 text-white rounded-xl p-4">
-                <p className="text-sm text-gray-400 mb-1">รวม</p>
-                <p className="text-2xl font-bold">{Math.round(product.calories * quantity)} kcal</p>
+                <p className="text-sm text-gray-400 mb-1">รวม ({quantity} serving)</p>
+                <p className="text-2xl font-bold">{Math.round(formData.calories * quantity)} kcal</p>
+                <div className="grid grid-cols-5 gap-2 mt-2 text-xs text-gray-400">
+                  <div>P: {Math.round(formData.protein * quantity)}g</div>
+                  <div>C: {Math.round(formData.carbs * quantity)}g</div>
+                  <div>F: {Math.round(formData.fat * quantity)}g</div>
+                  <div>Na: {Math.round((formData.sodium || 0) * quantity)}mg</div>
+                  <div>Su: {Math.round((formData.sugar || 0) * quantity)}g</div>
+                </div>
               </div>
             </div>
 
@@ -438,7 +657,7 @@ export function BarcodeModal({ isOpen, onClose, onSave }: BarcodeModalProps) {
                 onClick={handleSave}
                 className="w-full py-4 bg-gray-900 text-white rounded-xl font-semibold"
               >
-                เพิ่ม {quantity > 1 ? `${quantity} ชิ้น` : ""}
+                เพิ่ม {quantity > 1 ? `${quantity} serving` : ""}
               </button>
               <button
                 onClick={goToScanner}
@@ -578,6 +797,7 @@ export function BarcodeModal({ isOpen, onClose, onSave }: BarcodeModalProps) {
 
               {/* Editable form */}
               <div className="space-y-4">
+                {/* Product Info */}
                 <div>
                   <label className="block text-sm text-gray-500 mb-1">ชื่อสินค้า</label>
                   <input
@@ -598,112 +818,142 @@ export function BarcodeModal({ isOpen, onClose, onSave }: BarcodeModalProps) {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm text-gray-500 mb-1">Serving Size</label>
-                    <input
-                      type="number"
-                      value={formData.servingSize || ""}
-                      onChange={(e) => setFormData({ ...formData, servingSize: parseFloat(e.target.value) })}
-                      className="w-full px-4 py-3 bg-gray-50 rounded-xl"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-500 mb-1">หน่วย</label>
-                    <input
-                      type="text"
-                      value={formData.servingUnit || "g"}
-                      onChange={(e) => setFormData({ ...formData, servingUnit: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 rounded-xl"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm text-gray-500 mb-1">แคลอรี่ (kcal)</label>
-                  <input
-                    type="number"
-                    value={formData.calories}
-                    onChange={(e) => setFormData({ ...formData, calories: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-4 py-3 bg-orange-50 rounded-xl"
-                  />
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-sm text-gray-500 mb-1">โปรตีน (g)</label>
-                    <input
-                      type="number"
-                      value={formData.protein}
-                      onChange={(e) => setFormData({ ...formData, protein: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-4 py-3 bg-red-50 rounded-xl"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-500 mb-1">คาร์บ (g)</label>
-                    <input
-                      type="number"
-                      value={formData.carbs}
-                      onChange={(e) => setFormData({ ...formData, carbs: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-4 py-3 bg-yellow-50 rounded-xl"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-500 mb-1">ไขมัน (g)</label>
-                    <input
-                      type="number"
-                      value={formData.fat}
-                      onChange={(e) => setFormData({ ...formData, fat: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-4 py-3 bg-blue-50 rounded-xl"
-                    />
+                {/* Serving Info Header */}
+                <div className="bg-blue-50 rounded-xl p-4">
+                  <p className="text-sm font-medium text-blue-800 text-center mb-3">
+                    📦 ข้อมูลต่อ 1 Serving
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-blue-600 mb-1">ปริมาณต่อ Serving</label>
+                      <input
+                        type="number"
+                        value={formData.servingSize || ""}
+                        onChange={(e) => setFormData({ ...formData, servingSize: parseFloat(e.target.value) })}
+                        className="w-full px-3 py-2 bg-white rounded-lg text-center font-semibold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-blue-600 mb-1">หน่วย</label>
+                      <input
+                        type="text"
+                        value={formData.servingUnit || "g"}
+                        onChange={(e) => setFormData({ ...formData, servingUnit: e.target.value })}
+                        className="w-full px-3 py-2 bg-white rounded-lg text-center font-semibold"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm text-gray-500 mb-1">โซเดียม (mg)</label>
+                {/* Nutrition per 1 Serving */}
+                <div className="border border-gray-200 rounded-xl p-4">
+                  <p className="text-xs text-gray-500 text-center mb-3">
+                    🍽️ สารอาหารต่อ 1 Serving ({formData.servingSize || 100}{formData.servingUnit || "g"})
+                  </p>
+                  
+                  <div className="mb-3">
+                    <label className="block text-sm text-gray-500 mb-1">แคลอรี่ (kcal)</label>
                     <input
                       type="number"
-                      value={formData.sodium || ""}
-                      onChange={(e) => setFormData({ ...formData, sodium: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-4 py-3 bg-purple-50 rounded-xl"
+                      value={formData.calories}
+                      onChange={(e) => setFormData({ ...formData, calories: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-4 py-3 bg-orange-50 rounded-xl text-lg font-bold text-center"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm text-gray-500 mb-1">น้ำตาล (g)</label>
-                    <input
-                      type="number"
-                      value={formData.sugar || ""}
-                      onChange={(e) => setFormData({ ...formData, sugar: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-4 py-3 bg-pink-50 rounded-xl"
-                    />
+
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">โปรตีน (g)</label>
+                      <input
+                        type="number"
+                        value={formData.protein}
+                        onChange={(e) => setFormData({ ...formData, protein: parseFloat(e.target.value) || 0 })}
+                        className="w-full px-2 py-2 bg-red-50 rounded-lg text-center"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">คาร์บ (g)</label>
+                      <input
+                        type="number"
+                        value={formData.carbs}
+                        onChange={(e) => setFormData({ ...formData, carbs: parseFloat(e.target.value) || 0 })}
+                        className="w-full px-2 py-2 bg-yellow-50 rounded-lg text-center"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">ไขมัน (g)</label>
+                      <input
+                        type="number"
+                        value={formData.fat}
+                        onChange={(e) => setFormData({ ...formData, fat: parseFloat(e.target.value) || 0 })}
+                        className="w-full px-2 py-2 bg-blue-50 rounded-lg text-center"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">โซเดียม (mg)</label>
+                      <input
+                        type="number"
+                        value={formData.sodium || ""}
+                        onChange={(e) => setFormData({ ...formData, sodium: parseFloat(e.target.value) || 0 })}
+                        className="w-full px-2 py-2 bg-purple-50 rounded-lg text-center"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">น้ำตาล (g)</label>
+                      <input
+                        type="number"
+                        value={formData.sugar || ""}
+                        onChange={(e) => setFormData({ ...formData, sugar: parseFloat(e.target.value) || 0 })}
+                        className="w-full px-2 py-2 bg-pink-50 rounded-lg text-center"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                {/* Quantity */}
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-sm text-gray-500 mb-3">จำนวน</p>
+                {/* Quantity - How many servings did you eat */}
+                <div className="bg-green-50 rounded-xl p-4">
+                  <p className="text-sm font-medium text-green-800 text-center mb-1">
+                    🍴 จำนวน Serving ที่รับประทาน
+                  </p>
+                  <p className="text-xs text-green-600 text-center mb-3">
+                    (1 Serving = {formData.servingSize || 100}{formData.servingUnit || "g"})
+                  </p>
                   <div className="flex items-center justify-center gap-6">
                     <button
                       onClick={() => setQuantity(Math.max(0.5, quantity - 0.5))}
-                      className="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center"
+                      className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center border border-green-200"
                     >
-                      <Minus className="w-5 h-5 text-gray-600" />
+                      <Minus className="w-5 h-5 text-green-600" />
                     </button>
-                    <span className="text-2xl font-bold text-gray-800">{quantity}</span>
+                    <div className="text-center">
+                      <span className="text-3xl font-bold text-green-700">{quantity}</span>
+                      <p className="text-xs text-green-600">Serving</p>
+                    </div>
                     <button
                       onClick={() => setQuantity(quantity + 0.5)}
-                      className="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center"
+                      className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center border border-green-200"
                     >
-                      <Plus className="w-5 h-5 text-gray-600" />
+                      <Plus className="w-5 h-5 text-green-600" />
                     </button>
                   </div>
                 </div>
 
                 {/* Total Preview */}
                 <div className="bg-gray-900 text-white rounded-xl p-4">
-                  <p className="text-sm text-gray-400 mb-1">รวม</p>
-                  <p className="text-2xl font-bold">{Math.round(formData.calories * quantity)} kcal</p>
+                  <p className="text-sm text-gray-400 mb-1">
+                    รวมทั้งหมด ({quantity} serving = {Math.round((formData.servingSize || 100) * quantity)}{formData.servingUnit || "g"})
+                  </p>
+                  <p className="text-2xl font-bold mb-2">{Math.round(formData.calories * quantity)} kcal</p>
+                  <div className="grid grid-cols-5 gap-1 text-xs text-gray-400">
+                    <div>P: {Math.round(formData.protein * quantity)}g</div>
+                    <div>C: {Math.round(formData.carbs * quantity)}g</div>
+                    <div>F: {Math.round(formData.fat * quantity)}g</div>
+                    <div>Na: {Math.round((formData.sodium || 0) * quantity)}mg</div>
+                    <div>Su: {Math.round((formData.sugar || 0) * quantity)}g</div>
+                  </div>
                 </div>
               </div>
             </div>

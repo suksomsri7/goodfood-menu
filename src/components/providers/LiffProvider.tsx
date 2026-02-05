@@ -68,13 +68,18 @@ export function LiffProvider({ children }: LiffProviderProps) {
         // DEV MODE: Skip LIFF and use mock profile
         if (devMode) {
           console.log("🔧 Dev mode enabled: Using mock LIFF profile");
-          setProfile({
+          const mockProfile = {
             userId: "dev-user-001",
             displayName: "Developer (Test Mode)",
             pictureUrl: undefined,
-          });
+          };
+          setProfile(mockProfile);
           setLoggedIn(true);
           setInClient(false);
+          
+          // Register dev user in database
+          await registerUser(mockProfile);
+          
           setIsReady(true);
           return;
         }

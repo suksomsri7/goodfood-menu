@@ -136,15 +136,24 @@ export async function GET(
         
         if (result.status === 1 && result.product) {
           const productData = mapOpenFoodFactsToProduct(result.product, barcode);
-          console.log(`✅ Found in Open Food Facts: ${productData.name}`);
+          
+          // Validate that product has meaningful data (name AND some nutrition info)
+          const hasValidName = productData.name && productData.name !== "ไม่ทราบชื่อ";
+          const hasNutritionData = productData.calories > 0 || productData.protein > 0 || productData.carbs > 0;
+          
+          if (hasValidName || hasNutritionData) {
+            console.log(`✅ Found in Open Food Facts: ${productData.name}`);
 
-          return NextResponse.json({
-            success: true,
-            source: "openfoodfacts",
-            data: productData,
-            // Flag to indicate this should be saved after user confirms
-            needsSave: true,
-          });
+            return NextResponse.json({
+              success: true,
+              source: "openfoodfacts",
+              data: productData,
+              // Flag to indicate this should be saved after user confirms
+              needsSave: true,
+            });
+          } else {
+            console.log(`⚠️ Open Food Facts has product but no useful data`);
+          }
         }
       }
     } catch (offError) {

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { X, Flame, Clock, Dumbbell, ChevronDown, Camera, Loader2, Settings2 } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { X, Flame, Clock, Dumbbell, ChevronDown, Camera, Loader2, Settings2, RotateCcw } from "lucide-react";
 
 interface ExerciseModalProps {
   isOpen: boolean;
@@ -199,15 +200,19 @@ export function ExerciseModal({ isOpen, onClose, onSave }: ExerciseModalProps) {
         video: { facingMode: "environment" } 
       });
       setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
       setShowCamera(true);
     } catch (error) {
       console.error("Failed to access camera:", error);
       alert("ไม่สามารถเข้าถึงกล้องได้");
     }
   };
+
+  // Effect to assign stream to video element when both are ready
+  useEffect(() => {
+    if (showCamera && stream && videoRef.current) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [showCamera, stream]);
 
   const stopCamera = () => {
     if (stream) {
@@ -274,6 +279,65 @@ export function ExerciseModal({ isOpen, onClose, onSave }: ExerciseModalProps) {
   };
 
   if (!isOpen) return null;
+
+  // Full-screen camera mode for scan
+  if (mode === "scan" && showCamera) {
+    return (
+      <AnimatePresence>
+        <motion.div
+          className="fixed inset-0 z-50 bg-black"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          {/* Full screen camera view */}
+          <div className="absolute inset-0">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              className="w-full h-full object-cover"
+            />
+          </div>
+
+          {/* Header with title */}
+          <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/70 to-transparent pt-4 pb-16 px-4">
+            <div className="flex items-center justify-between">
+              <div className="w-10" /> {/* Spacer */}
+              <h1 className="text-white text-lg font-semibold">
+                ถ่ายรูปหน้าจอเครื่องออกกำลังกาย
+              </h1>
+              <button
+                onClick={() => {
+                  stopCamera();
+                }}
+                className="p-2 bg-black/30 rounded-full text-white"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+          </div>
+
+          {/* Guide text */}
+          <div className="absolute top-24 left-0 right-0 text-center">
+            <p className="text-white/80 text-sm">
+              AI จะอ่านค่า เวลา, แคลอรี่, ระยะทาง
+            </p>
+          </div>
+
+          {/* Capture button */}
+          <div className="absolute bottom-8 left-0 right-0 flex justify-center">
+            <button
+              onClick={capturePhoto}
+              className="w-20 h-20 rounded-full bg-white border-4 border-gray-300 flex items-center justify-center"
+            >
+              <div className="w-16 h-16 rounded-full bg-white border-2 border-orange-400" />
+            </button>
+          </div>
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
@@ -537,10 +601,10 @@ export function ExerciseModal({ isOpen, onClose, onSave }: ExerciseModalProps) {
             </>
           ) : (
             <>
-              {/* Scan Mode - Camera Only */}
+              {/* Scan Mode */}
               
-              {/* Camera Button */}
-              {!capturedImage && !showCamera && (
+              {/* Camera Button - Only show when no image captured */}
+              {!capturedImage && (
                 <div className="space-y-4">
                   <div className="text-center">
                     <p className="text-sm text-gray-600 mb-4">
@@ -558,117 +622,101 @@ export function ExerciseModal({ isOpen, onClose, onSave }: ExerciseModalProps) {
                 </div>
               )}
 
-              {/* Camera View */}
-              {showCamera && (
-                <div className="space-y-3">
-                  <div className="relative rounded-xl overflow-hidden bg-black">
-                    <video
-                      ref={videoRef}
-                      autoPlay
-                      playsInline
-                      className="w-full"
-                    />
-                  </div>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={stopCamera}
-                      className="flex-1 py-3 bg-gray-200 text-gray-700 rounded-xl font-medium"
-                    >
-                      ยกเลิก
-                    </button>
-                    <button
-                      onClick={capturePhoto}
-                      className="flex-1 py-3 bg-orange-500 text-white rounded-xl font-medium"
-                    >
-                      ถ่ายรูป
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Captured Image & Analysis */}
+              {/* Results after capture - Show image + analysis */}
               {capturedImage && (
                 <div className="space-y-4">
-                  <div className="relative rounded-xl overflow-hidden">
-                    <img src={capturedImage} alt="Captured" className="w-full" />
-                    {isAnalyzing && (
-                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                        <div className="text-center text-white">
-                          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
-                          <p>กำลังวิเคราะห์...</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => {
-                      setCapturedImage(null);
-                      setAiResult(null);
-                      setCustomCalories(null);
-                      setCustomDistance("");
-                      setCustomExercise("");
-                    }}
-                    className="text-sm text-orange-500 hover:underline"
-                  >
-                    ถ่ายรูปใหม่
-                  </button>
+                  {/* Analyzing state */}
+                  {isAnalyzing && (
+                    <div className="py-8 flex flex-col items-center">
+                      <Loader2 className="w-12 h-12 text-orange-400 animate-spin mb-4" />
+                      <p className="text-gray-600">กำลังวิเคราะห์รูปภาพ...</p>
+                    </div>
+                  )}
 
-                  {/* AI Result - Editable */}
-                  {aiResult && !isAnalyzing && (
-                    <div className="space-y-3 pt-2 border-t border-gray-100">
-                      <p className="text-xs text-gray-500 text-center">ผลการวิเคราะห์ (แก้ไขได้)</p>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          ชื่อการออกกำลังกาย
-                        </label>
-                        <input
-                          type="text"
-                          value={customExercise}
-                          onChange={(e) => setCustomExercise(e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  {/* Results - Editable form */}
+                  {!isAnalyzing && (
+                    <>
+                      {/* Small preview image */}
+                      <div className="relative">
+                        <img 
+                          src={capturedImage} 
+                          alt="Captured" 
+                          className="w-full h-32 object-cover rounded-xl"
                         />
+                        <button
+                          onClick={() => {
+                            setCapturedImage(null);
+                            setAiResult(null);
+                            setCustomCalories(null);
+                            setCustomDistance("");
+                            setCustomExercise("");
+                            startCamera();
+                          }}
+                          className="absolute top-2 right-2 p-2 bg-black/50 rounded-full text-white hover:bg-black/70"
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                        </button>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
+                      {/* Form fields */}
+                      <div className="space-y-3">
+                        <p className="text-xs text-gray-500 text-center">
+                          {aiResult ? "ผลการวิเคราะห์ (แก้ไขได้)" : "กรอกข้อมูลด้วยตนเอง"}
+                        </p>
+                        
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            เวลา (นาที)
+                            ชื่อการออกกำลังกาย
                           </label>
                           <input
-                            type="number"
-                            value={duration}
-                            onChange={(e) => setDuration(Math.max(1, parseInt(e.target.value) || 0))}
+                            type="text"
+                            value={customExercise}
+                            onChange={(e) => setCustomExercise(e.target.value)}
+                            placeholder="เช่น ลู่วิ่ง, จักรยาน..."
                             className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                           />
                         </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            แคลอรี่ (kcal)
-                          </label>
-                          <input
-                            type="number"
-                            value={customCalories ?? ""}
-                            onChange={(e) => setCustomCalories(parseInt(e.target.value) || null)}
-                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                          />
-                        </div>
-                      </div>
 
-                      {customDistance && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              เวลา (นาที)
+                            </label>
+                            <input
+                              type="number"
+                              value={duration}
+                              onChange={(e) => setDuration(Math.max(1, parseInt(e.target.value) || 0))}
+                              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              แคลอรี่ (kcal)
+                            </label>
+                            <input
+                              type="number"
+                              value={customCalories ?? ""}
+                              onChange={(e) => setCustomCalories(parseInt(e.target.value) || null)}
+                              placeholder="ประมาณอัตโนมัติ"
+                              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                            />
+                          </div>
+                        </div>
+
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            ระยะทาง
+                            ระยะทาง (ไม่บังคับ)
                           </label>
                           <input
                             type="text"
                             value={customDistance}
                             onChange={(e) => setCustomDistance(e.target.value)}
+                            placeholder="เช่น 5.2 km"
                             className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                           />
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    </>
                   )}
                 </div>
               )}
@@ -692,19 +740,6 @@ export function ExerciseModal({ isOpen, onClose, onSave }: ExerciseModalProps) {
             </div>
           )}
 
-          {/* Note */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              บันทึกเพิ่มเติม (ไม่บังคับ)
-            </label>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="เช่น วิ่งที่สวนลุม, ออกกำลังกายที่ฟิตเนส..."
-              rows={2}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
-            />
-          </div>
         </div>
 
         {/* Footer */}

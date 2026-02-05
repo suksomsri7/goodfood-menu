@@ -10,7 +10,9 @@ import { RecommendationCard } from "@/components/user/RecommendationCard";
 import { MealDetailModal } from "@/components/user/MealDetailModal";
 import { FloatingAddButton } from "@/components/user/FloatingAddButton";
 import { WaterIntakeButton } from "@/components/user/WaterIntakeButton";
+import { AnalysisModal } from "@/components/user/AnalysisModal";
 import { useLiff } from "@/components/providers/LiffProvider";
+import { Brain } from "lucide-react";
 
 // Types
 interface Meal {
@@ -77,6 +79,15 @@ export default function CaloriePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [recommendation, setRecommendation] = useState<string>("");
   const [isLoadingRecommendation, setIsLoadingRecommendation] = useState(false);
+  
+  // AI Analysis state
+  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<{
+    summary: string | string[];
+    goalAnalysis: string | string[];
+    recommendations: string | string[];
+  } | null>(null);
+  const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
 
   const lineUserId = profile?.userId;
 
@@ -209,6 +220,39 @@ export default function CaloriePage() {
     }
   }, [lineUserId]);
 
+  // Fetch AI analysis
+  const fetchAnalysis = useCallback(async () => {
+    if (!lineUserId) return;
+
+    setIsLoadingAnalysis(true);
+    setShowAnalysis(true);
+    
+    try {
+      const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
+      
+      const res = await fetch("/api/ai-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lineUserId,
+          dateStr,
+        }),
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setAnalysisResult(data.analysis);
+      } else {
+        setAnalysisResult(null);
+      }
+    } catch (error) {
+      console.error("Failed to fetch analysis:", error);
+      setAnalysisResult(null);
+    } finally {
+      setIsLoadingAnalysis(false);
+    }
+  }, [lineUserId, selectedDate]);
+
   // Set page title
   useEffect(() => {
     document.title = "แคลอรี่";
@@ -220,13 +264,13 @@ export default function CaloriePage() {
       setIsLoading(true);
       Promise.all([fetchMember(), fetchMeals(), fetchWater(), fetchExercises()]).finally(() => {
         setIsLoading(false);
-        // Fetch recommendation after main data is loaded
-        fetchRecommendation();
+        // AI Recommendation disabled temporarily
+        // fetchRecommendation();
       });
     } else if (isReady && !isLoggedIn) {
       setIsLoading(false);
     }
-  }, [isReady, lineUserId, isLoggedIn, fetchMember, fetchMeals, fetchWater, fetchExercises, fetchRecommendation]);
+  }, [isReady, lineUserId, isLoggedIn, fetchMember, fetchMeals, fetchWater, fetchExercises]);
 
   // Refetch data when date changes
   useEffect(() => {
@@ -321,8 +365,8 @@ export default function CaloriePage() {
           }),
         };
         setMeals([meal, ...meals]);
-        // Fetch new AI recommendation after adding meal
-        fetchRecommendation(true);
+        // AI Recommendation disabled temporarily
+        // fetchRecommendation(true);
       }
     } catch (error) {
       console.error("Failed to add meal:", error);
@@ -469,6 +513,18 @@ export default function CaloriePage() {
           </div>
         )}
 
+        {/* AI Analysis Button */}
+        <div className="flex justify-center mb-8 mt-8">
+          <button
+            onClick={fetchAnalysis}
+            disabled={isLoadingAnalysis}
+            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full text-sm font-medium shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all active:scale-95"
+          >
+            <Brain className={`w-4 h-4 ${isLoadingAnalysis ? 'animate-pulse' : ''}`} />
+            <span>{isLoadingAnalysis ? 'กำลังวิเคราะห์...' : 'AI วิเคราะห์'}</span>
+          </button>
+        </div>
+
         {/* Macros Row 1 - Carbs, Protein, Fat */}
         <div className="flex gap-4 px-2 mb-3">
           <MacroProgressBar
@@ -519,14 +575,14 @@ export default function CaloriePage() {
         </div>
       </div>
 
-      {/* AI Recommendation */}
-      <div className="px-6 mb-6">
+      {/* AI Recommendation - Disabled temporarily */}
+      {/* <div className="px-6 mb-6">
         <RecommendationCard
           message={recommendation}
           isLoading={isLoadingRecommendation}
           onRefresh={() => fetchRecommendation(true)}
         />
-      </div>
+      </div> */}
 
       {/* Exercises */}
       {exercises.length > 0 && (
@@ -544,7 +600,14 @@ export default function CaloriePage() {
             <p className="text-gray-400 text-sm">กดปุ่ม + เพื่อเพิ่มมื้ออาหาร</p>
           </div>
         ) : meals.length > 0 ? (
-          <MealList meals={meals} onMealClick={handleMealClick} />
+          <>
+            {/* Meals Header - add mt-10 if exercises exist above */}
+            <div className={`flex items-center gap-2 mb-3 ${exercises.length > 0 ? 'mt-10' : ''}`}>
+              <span className="text-lg">🍽️</span>
+              <h3 className="font-semibold text-gray-800">รายการอาหาร</h3>
+            </div>
+            <MealList meals={meals} onMealClick={handleMealClick} />
+          </>
         ) : null}
       </div>
 
@@ -557,6 +620,15 @@ export default function CaloriePage() {
           setSelectedMeal(null);
         }}
         onDelete={handleDeleteMeal}
+      />
+
+      {/* AI Analysis Modal */}
+      <AnalysisModal
+        isOpen={showAnalysis}
+        onClose={() => setShowAnalysis(false)}
+        analysis={analysisResult}
+        isLoading={isLoadingAnalysis}
+        onRefresh={fetchAnalysis}
       />
 
       {/* Floating Add Button */}

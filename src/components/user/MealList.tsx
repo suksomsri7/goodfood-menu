@@ -38,11 +38,11 @@ export function MealList({ meals, onMealClick }: MealListProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-1">
       {meals.map((meal, index) => (
         <motion.div
           key={meal.id}
-          className="flex gap-5 py-5 border-b border-gray-100 last:border-b-0 cursor-pointer active:bg-gray-50 rounded-xl -mx-2 px-2 transition-colors"
+          className="flex gap-4 py-3 border-b border-gray-100 last:border-b-0 cursor-pointer active:bg-gray-50 rounded-xl -mx-2 px-2 transition-colors"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: index * 0.05 }}

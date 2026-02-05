@@ -1,6 +1,6 @@
 "use client";
 
-import { Flame, Clock, Dumbbell, Trash2 } from "lucide-react";
+import { Flame, Clock, Trash2 } from "lucide-react";
 
 interface Exercise {
   id: string;
@@ -35,9 +35,9 @@ export function ExerciseList({ exercises, onDelete }: ExerciseListProps) {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2 mb-2">
-        <Dumbbell className="w-4 h-4 text-orange-500" />
-        <h3 className="text-sm font-medium text-gray-700">การออกกำลังกาย</h3>
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-lg">💪</span>
+        <h3 className="font-semibold text-gray-800">การออกกำลังกาย</h3>
       </div>
       
       {exercises.map((exercise) => (
