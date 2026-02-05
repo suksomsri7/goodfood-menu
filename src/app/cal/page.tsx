@@ -28,6 +28,17 @@ interface Meal {
   ingredients?: string;
 }
 
+interface Exercise {
+  id: string;
+  name: string;
+  type?: string;
+  duration: number;
+  calories: number;
+  intensity?: string;
+  note?: string;
+  time: string;
+}
+
 interface Member {
   dailyCalories: number | null;
   dailyProtein: number | null;
@@ -54,6 +65,8 @@ export default function CaloriePage() {
   const { profile, isReady, isLoggedIn } = useLiff();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [meals, setMeals] = useState<Meal[]>([]);
+  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [exerciseBurned, setExerciseBurned] = useState(0);
   const [member, setMember] = useState<Member | null>(null);
   const [waterIntake, setWaterIntake] = useState(0);
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
@@ -88,9 +101,6 @@ export default function CaloriePage() {
       const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
       // Also send timezone offset so backend can filter correctly
       const tzOffset = selectedDate.getTimezoneOffset();
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cal/page.tsx:fetchMeals',message:'Frontend date values (fixed)',data:{dateStr,tzOffset,selectedDateISO:selectedDate.toISOString()},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H2'})}).catch(()=>{});
-      // #endregion
       const res = await fetch(
         `/api/meals?lineUserId=${lineUserId}&date=${dateStr}&tzOffset=${tzOffset}`
       );
@@ -138,6 +148,40 @@ export default function CaloriePage() {
       }
     } catch (error) {
       console.error("Failed to fetch water:", error);
+    }
+  }, [lineUserId, selectedDate]);
+
+  // Fetch exercises for selected date
+  const fetchExercises = useCallback(async () => {
+    if (!lineUserId) return;
+
+    try {
+      const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
+      const tzOffset = selectedDate.getTimezoneOffset();
+      const res = await fetch(
+        `/api/exercises?lineUserId=${lineUserId}&date=${dateStr}&tzOffset=${tzOffset}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        // Transform data to match Exercise interface
+        const transformedExercises: Exercise[] = (data.exercises || []).map((ex: any) => ({
+          id: ex.id,
+          name: ex.name,
+          type: ex.type,
+          duration: ex.duration,
+          calories: ex.calories,
+          intensity: ex.intensity,
+          note: ex.note,
+          time: new Date(ex.date).toLocaleTimeString("th-TH", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        }));
+        setExercises(transformedExercises);
+        setExerciseBurned(data.totalBurned || 0);
+      }
+    } catch (error) {
+      console.error("Failed to fetch exercises:", error);
     }
   }, [lineUserId, selectedDate]);
 

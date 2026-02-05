@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Camera, Barcode, PenLine, Package } from "lucide-react";
+import { Plus, Camera, Barcode, PenLine, Package, Dumbbell } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ManualEntryModal } from "./ManualEntryModal";
 import { CameraModal } from "./CameraModal";
 import { StockModal } from "./StockModal";
 import { BarcodeModal } from "./BarcodeModal";
+import { ExerciseModal } from "./ExerciseModal";
 
 interface FloatingAddButtonProps {
   onAddMeal?: (meal: {
@@ -22,16 +23,26 @@ interface FloatingAddButtonProps {
     ingredients?: string;
     imageUrl?: string;
   }) => void;
+  onAddExercise?: (exercise: {
+    name: string;
+    type: string;
+    duration: number;
+    calories: number;
+    intensity: string;
+    note?: string;
+  }) => void;
 }
 
-export function FloatingAddButton({ onAddMeal }: FloatingAddButtonProps) {
+export function FloatingAddButton({ onAddMeal, onAddExercise }: FloatingAddButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [showStock, setShowStock] = useState(false);
   const [showBarcode, setShowBarcode] = useState(false);
+  const [showExercise, setShowExercise] = useState(false);
 
   const options = [
+    { icon: Dumbbell, label: "ออกกำลังกาย", action: () => setShowExercise(true), color: "text-orange-500" },
     { icon: Package, label: "Stock", action: () => setShowStock(true) },
     { icon: Barcode, label: "Scan barcode", action: () => setShowBarcode(true) },
     { icon: Camera, label: "Take photo", action: () => setShowCamera(true) },
@@ -92,7 +103,7 @@ export function FloatingAddButton({ onAddMeal }: FloatingAddButtonProps) {
                   {option.label}
                 </span>
                 <div className="w-11 h-11 rounded-full bg-white shadow-sm flex items-center justify-center">
-                  <option.icon className="w-5 h-5 text-gray-700" strokeWidth={1.5} />
+                  <option.icon className={`w-5 h-5 ${"color" in option ? option.color : "text-gray-700"}`} strokeWidth={1.5} />
                 </div>
               </motion.button>
             ))}
@@ -148,6 +159,16 @@ export function FloatingAddButton({ onAddMeal }: FloatingAddButtonProps) {
         isOpen={showBarcode}
         onClose={() => setShowBarcode(false)}
         onSave={handleSaveMeal}
+      />
+
+      {/* Exercise Modal */}
+      <ExerciseModal
+        isOpen={showExercise}
+        onClose={() => setShowExercise(false)}
+        onSave={(exercise) => {
+          onAddExercise?.(exercise);
+          setShowExercise(false);
+        }}
       />
     </>
   );

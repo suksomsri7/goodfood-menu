@@ -43,6 +43,7 @@ model Member {
   mealLogs         MealLog[]
   weightLogs       WeightLog[]
   waterLogs        WaterLog[]
+  exerciseLogs     ExerciseLog[]
   cartItems        CartItem[]
   orders           Order[]
   aiRecommendation AiRecommendation?
@@ -114,6 +115,25 @@ model WaterLog {
 
   @@index([memberId, date])
   @@map("water_logs")
+}
+
+// ==================== บันทึกการออกกำลังกาย ====================
+model ExerciseLog {
+  id        String   @id @default(cuid())
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  name      String   // ชื่อการออกกำลังกาย เช่น วิ่ง, ว่ายน้ำ
+  type      String?  // cardio, strength, flexibility, sports
+  duration  Int      // ระยะเวลา (นาที)
+  calories  Float    // แคลอรี่ที่เผาผลาญ
+  intensity String?  // low, moderate, high
+  note      String?  // บันทึกเพิ่มเติม
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([memberId, date])
+  @@map("exercise_logs")
 }
 
 // ==================== ตะกร้าสินค้า ====================
