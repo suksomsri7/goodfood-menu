@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Header } from "@/components/backoffice/Header";
-import { User, Phone, Mail, MessageCircle, Package, Truck } from "lucide-react";
+import { User, Phone, Mail, MessageCircle, Package, Truck, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Member {
@@ -153,6 +153,31 @@ export default function OrdersPage() {
     });
   };
 
+  const handleDeleteOrder = async (orderId: string, orderNumber: string) => {
+    if (!confirm(`ต้องการลบออเดอร์ #${orderNumber} หรือไม่?\n\nการลบจะไม่สามารถกู้คืนได้`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        fetchOrders();
+        if (selectedOrder?.id === orderId) {
+          setSelectedOrder(null);
+        }
+      } else {
+        const data = await res.json();
+        alert(data.error || "เกิดข้อผิดพลาดในการลบ");
+      }
+    } catch (error) {
+      console.error("Error deleting order:", error);
+      alert("เกิดข้อผิดพลาด");
+    }
+  };
+
   const filteredOrders = orders.filter(
     order => filterStatus === "all" || order.status === filterStatus
   );
@@ -286,12 +311,21 @@ export default function OrdersPage() {
                         {formatDate(order.createdAt)}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => setSelectedOrder(order)}
-                          className="px-3 py-1.5 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium"
-                        >
-                          ดูรายละเอียด
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => setSelectedOrder(order)}
+                            className="px-3 py-1.5 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium"
+                          >
+                            ดูรายละเอียด
+                          </button>
+                          <button
+                            onClick={() => handleDeleteOrder(order.id, order.orderNumber)}
+                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="ลบออเดอร์"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -452,7 +486,16 @@ export default function OrdersPage() {
 
               {/* Modal Footer - Status Actions */}
               <div className="px-6 py-4 border-t border-gray-100 bg-gray-50">
-                <p className="text-sm text-gray-500 mb-3">เปลี่ยนสถานะ (จะแจ้งลูกค้าทาง LINE อัตโนมัติ)</p>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm text-gray-500">เปลี่ยนสถานะ (จะแจ้งลูกค้าทาง LINE อัตโนมัติ)</p>
+                  <button
+                    onClick={() => handleDeleteOrder(selectedOrder.id, selectedOrder.orderNumber)}
+                    className="px-3 py-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors text-sm font-medium flex items-center gap-1"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    ลบออเดอร์
+                  </button>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(statusConfig).map(([status, config]) => (
                     <button
