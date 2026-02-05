@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Search, Plus, Minus } from "lucide-react";
+import { X, Search, Plus, Minus, Sparkles } from "lucide-react";
 
 interface ManualEntryModalProps {
   isOpen: boolean;
@@ -32,6 +32,41 @@ export function ManualEntryModal({ isOpen, onClose, onSave }: ManualEntryModalPr
   const [sugar, setSugar] = useState("");
   const [weight, setWeight] = useState("");
   const [multiplier, setMultiplier] = useState(1);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  const handleAiAnalyze = async () => {
+    if (!name) return;
+    
+    setIsAnalyzing(true);
+    try {
+      const res = await fetch("/api/analyze-food-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          ingredients,
+          weight: weight ? Number(weight) : undefined,
+          quantity: multiplier,
+        }),
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        if (result.data) {
+          setCalories(String(result.data.calories || ""));
+          setProtein(String(result.data.protein || ""));
+          setCarbs(String(result.data.carbs || ""));
+          setFat(String(result.data.fat || ""));
+          setSodium(String(result.data.sodium || ""));
+          setSugar(String(result.data.sugar || ""));
+        }
+      }
+    } catch (error) {
+      console.error("AI analysis failed:", error);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   const handleSubmit = () => {
     if (!name || !calories) return;
@@ -138,7 +173,7 @@ export function ManualEntryModal({ isOpen, onClose, onSave }: ManualEntryModalPr
               </div>
 
               {/* Multiplier */}
-              <div className="mb-6">
+              <div className="mb-4">
                 <label className="block text-sm text-gray-500 mb-2">จำนวน</label>
                 <div className="flex items-center justify-center gap-6 bg-gray-50 rounded-xl py-3">
                   <button
@@ -159,6 +194,30 @@ export function ManualEntryModal({ isOpen, onClose, onSave }: ManualEntryModalPr
                 </div>
               </div>
 
+              {/* AI Analyze Button */}
+              <div className="mb-6">
+                <button
+                  onClick={handleAiAnalyze}
+                  disabled={!name || isAnalyzing}
+                  className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-medium flex items-center justify-center gap-2 disabled:from-gray-300 disabled:to-gray-300 disabled:text-gray-500 transition-all"
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>กำลังวิเคราะห์...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-5 h-5" />
+                      <span>AI วิเคราะห์สารอาหาร</span>
+                    </>
+                  )}
+                </button>
+                <p className="text-xs text-gray-400 text-center mt-2">
+                  วิเคราะห์จากชื่อ ส่วนประกอบ และน้ำหนักที่กรอก
+                </p>
+              </div>
+
               {/* Nutrition Info */}
               <div className="mb-6">
                 <label className="block text-sm text-gray-500 mb-3">ข้อมูลโภชนาการ (ต่อหน่วย)</label>
@@ -166,10 +225,11 @@ export function ManualEntryModal({ isOpen, onClose, onSave }: ManualEntryModalPr
                 <div className="grid grid-cols-2 gap-3">
                   {/* Calories */}
                   <div className="col-span-2">
+                    <label className="block text-xs font-medium text-orange-600 mb-1">แคลอรี่</label>
                     <div className="relative">
                       <input
                         type="number"
-                        placeholder="แคลอรี่"
+                        placeholder="0"
                         value={calories}
                         onChange={(e) => setCalories(e.target.value)}
                         className="w-full px-4 py-3 bg-orange-50 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
@@ -179,63 +239,78 @@ export function ManualEntryModal({ isOpen, onClose, onSave }: ManualEntryModalPr
                   </div>
 
                   {/* Protein */}
-                  <div className="relative">
-                    <input
-                      type="number"
-                      placeholder="โปรตีน"
-                      value={protein}
-                      onChange={(e) => setProtein(e.target.value)}
-                      className="w-full px-4 py-3 bg-red-50 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">g</span>
+                  <div>
+                    <label className="block text-xs font-medium text-red-600 mb-1">โปรตีน</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={protein}
+                        onChange={(e) => setProtein(e.target.value)}
+                        className="w-full px-4 py-3 bg-red-50 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">g</span>
+                    </div>
                   </div>
 
                   {/* Carbs */}
-                  <div className="relative">
-                    <input
-                      type="number"
-                      placeholder="คาร์บ"
-                      value={carbs}
-                      onChange={(e) => setCarbs(e.target.value)}
-                      className="w-full px-4 py-3 bg-yellow-50 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-200"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">g</span>
+                  <div>
+                    <label className="block text-xs font-medium text-yellow-600 mb-1">คาร์โบไฮเดรต</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={carbs}
+                        onChange={(e) => setCarbs(e.target.value)}
+                        className="w-full px-4 py-3 bg-yellow-50 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-200"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">g</span>
+                    </div>
                   </div>
 
                   {/* Fat */}
-                  <div className="relative">
-                    <input
-                      type="number"
-                      placeholder="ไขมัน"
-                      value={fat}
-                      onChange={(e) => setFat(e.target.value)}
-                      className="w-full px-4 py-3 bg-blue-50 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">g</span>
+                  <div>
+                    <label className="block text-xs font-medium text-blue-600 mb-1">ไขมัน</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={fat}
+                        onChange={(e) => setFat(e.target.value)}
+                        className="w-full px-4 py-3 bg-blue-50 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">g</span>
+                    </div>
                   </div>
 
                   {/* Sodium */}
-                  <div className="relative">
-                    <input
-                      type="number"
-                      placeholder="โซเดียม"
-                      value={sodium}
-                      onChange={(e) => setSodium(e.target.value)}
-                      className="w-full px-4 py-3 bg-purple-50 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-200"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">mg</span>
+                  <div>
+                    <label className="block text-xs font-medium text-purple-600 mb-1">โซเดียม</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={sodium}
+                        onChange={(e) => setSodium(e.target.value)}
+                        className="w-full px-4 py-3 bg-purple-50 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-200"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">mg</span>
+                    </div>
                   </div>
 
                   {/* Sugar */}
-                  <div className="relative col-span-2">
-                    <input
-                      type="number"
-                      placeholder="น้ำตาล"
-                      value={sugar}
-                      onChange={(e) => setSugar(e.target.value)}
-                      className="w-full px-4 py-3 bg-pink-50 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">g</span>
+                  <div className="col-span-2">
+                    <label className="block text-xs font-medium text-pink-600 mb-1">น้ำตาล</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={sugar}
+                        onChange={(e) => setSugar(e.target.value)}
+                        className="w-full px-4 py-3 bg-pink-50 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">g</span>
+                    </div>
                   </div>
                 </div>
               </div>

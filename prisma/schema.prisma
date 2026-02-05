@@ -162,6 +162,11 @@ model Order {
   coursePlan     String? // แผนอาหาร
   totalDays      Int? // จำนวนวัน
   totalPrice     Float       @default(0)
+  discount       Float       @default(0) // ส่วนลด
+  discountType   String?     // percent, fixed
+  discountValue  Float?      // ค่าส่วนลด (เช่น 10 สำหรับ 10%)
+  packageName    String?     // ชื่อแพ็คเกจที่ใช้
+  finalPrice     Float?      // ราคาสุทธิหลังหักส่วนลด
   status         String      @default("pending") // pending, confirmed, preparing, delivered, cancelled
   note           String?
   trackingNumber String? // เลขพัสดุ

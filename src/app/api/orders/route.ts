@@ -74,7 +74,20 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { coursePlan, totalDays, items, totalPrice, memberId, lineUserId, note } = body;
+    const { 
+      coursePlan, 
+      totalDays, 
+      items, 
+      totalPrice, 
+      memberId, 
+      lineUserId, 
+      note,
+      discount,
+      discountType,
+      discountValue,
+      packageName,
+      finalPrice
+    } = body;
 
     if (!items || items.length === 0) {
       return NextResponse.json(
@@ -100,6 +113,11 @@ export async function POST(request: NextRequest) {
         coursePlan: coursePlan || "single",
         totalDays: totalDays || 1,
         totalPrice: totalPrice || 0,
+        discount: discount || 0,
+        discountType: discountType || null,
+        discountValue: discountValue || null,
+        packageName: packageName || null,
+        finalPrice: finalPrice || totalPrice || 0,
         memberId: finalMemberId,
         note: note || null,
         items: {
@@ -142,6 +160,9 @@ export async function POST(request: NextRequest) {
             price: item.price,
           })),
           status: order.status,
+          discount: order.discount || 0,
+          packageName: order.packageName || null,
+          finalPrice: order.finalPrice || order.totalPrice,
         });
 
         await pushMessage(lineUserId, [flexMessage]);

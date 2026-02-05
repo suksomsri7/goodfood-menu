@@ -32,6 +32,11 @@ interface Order {
   coursePlan: string;
   totalDays: number;
   totalPrice: number;
+  discount: number;
+  discountType: string | null;
+  discountValue: number | null;
+  packageName: string | null;
+  finalPrice: number | null;
   status: string;
   note: string | null;
   trackingNumber: string | null;
@@ -300,7 +305,15 @@ export default function OrdersPage() {
                         <span className="text-gray-800">{order.items.length} รายการ</span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="font-semibold text-gray-800">฿{order.totalPrice.toLocaleString()}</span>
+                        {order.discount > 0 ? (
+                          <div>
+                            <span className="font-semibold text-green-600">฿{(order.finalPrice || order.totalPrice).toLocaleString()}</span>
+                            <div className="text-xs text-gray-400 line-through">฿{order.totalPrice.toLocaleString()}</div>
+                            <div className="text-xs text-green-500">-฿{order.discount.toLocaleString()}</div>
+                          </div>
+                        ) : (
+                          <span className="font-semibold text-gray-800">฿{order.totalPrice.toLocaleString()}</span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium border ${statusConfig[order.status]?.bgColor} ${statusConfig[order.status]?.color}`}>
@@ -438,50 +451,82 @@ export default function OrdersPage() {
                 )}
 
                 {/* Order Info */}
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="p-4 bg-gray-50 rounded-xl">
+                <div className="mb-6">
+                  <div className="p-4 bg-gray-50 rounded-xl mb-4">
                     <p className="text-xs text-gray-500 mb-1">แพ็คเกจ</p>
                     <p className="font-semibold">{planLabels[selectedOrder.coursePlan] || selectedOrder.coursePlan} {selectedOrder.totalDays > 1 && `(${selectedOrder.totalDays} วัน)`}</p>
                   </div>
-                  <div className="p-4 bg-gray-50 rounded-xl">
-                    <p className="text-xs text-gray-500 mb-1">ราคารวม</p>
-                    <p className="font-bold text-green-600 text-xl">฿{selectedOrder.totalPrice.toLocaleString()}</p>
+
+                  {/* Note */}
+                  {selectedOrder.note && (
+                    <div className="p-4 bg-amber-50 rounded-xl border border-amber-100 mb-4">
+                      <p className="text-xs text-amber-600 font-medium mb-1">📝 หมายเหตุ</p>
+                      <p className="text-gray-700">{selectedOrder.note}</p>
+                    </div>
+                  )}
+
+                  {/* Items by Day */}
+                  <h3 className="font-semibold text-gray-800 mb-3">🍽️ รายการเมนู</h3>
+                  {Object.entries(groupItemsByDay(selectedOrder.items))
+                    .sort(([a], [b]) => Number(a) - Number(b))
+                    .map(([day, items]) => (
+                      <div key={day} className="mb-4">
+                        {selectedOrder.totalDays > 1 && (
+                          <p className="text-sm font-medium text-green-600 mb-2">📅 วันที่ {day}</p>
+                        )}
+                        <div className="space-y-2">
+                          {items.map((item) => {
+                            const totalItemPrice = item.price * item.quantity;
+                            return (
+                              <div key={item.id} className="p-3 bg-gray-50 rounded-lg">
+                                <div className="flex items-center justify-between mb-1">
+                                  <p className="font-medium text-gray-800">{item.foodName}</p>
+                                  <p className="text-xs text-gray-500">{mealLabels[item.mealType] || item.mealType}</p>
+                                </div>
+                                <div className="flex items-center justify-between text-sm">
+                                  <p className="text-gray-500">
+                                    {item.quantity} x ฿{item.price.toLocaleString()}
+                                  </p>
+                                  <p className="font-semibold text-gray-700">= ฿{totalItemPrice.toLocaleString()}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+
+                  {/* Price Summary */}
+                  <div className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-100 mt-4">
+                    {/* ยอดรวมก่อนส่วนลด */}
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-gray-600">ยอดรวมก่อนส่วนลด</span>
+                      <span className="font-semibold text-gray-800">฿{selectedOrder.totalPrice.toLocaleString()}</span>
+                    </div>
+
+                    {/* ส่วนลด */}
+                    {selectedOrder.discount > 0 && (
+                      <div className="flex items-center justify-between py-2 border-t border-green-200">
+                        <div>
+                          <span className="text-green-600">ส่วนลด</span>
+                          {selectedOrder.packageName && (
+                            <p className="text-xs text-green-500">🎉 {selectedOrder.packageName}</p>
+                          )}
+                          {selectedOrder.discountType === "percent" && selectedOrder.discountValue && (
+                            <p className="text-xs text-green-500">({selectedOrder.discountValue}%)</p>
+                          )}
+                        </div>
+                        <span className="font-semibold text-green-600">-฿{selectedOrder.discount.toLocaleString()}</span>
+                      </div>
+                    )}
+
+                    {/* ที่ต้องชำระ */}
+                    <div className="flex items-center justify-between py-3 border-t-2 border-green-300 mt-2">
+                      <span className="font-bold text-gray-800 text-lg">ที่ต้องชำระ</span>
+                      <span className="font-bold text-green-600 text-2xl">฿{(selectedOrder.finalPrice || selectedOrder.totalPrice).toLocaleString()}</span>
+                    </div>
                   </div>
                 </div>
-
-                {/* Note */}
-                {selectedOrder.note && (
-                  <div className="mb-6 p-4 bg-amber-50 rounded-xl border border-amber-100">
-                    <p className="text-xs text-amber-600 font-medium mb-1">📝 หมายเหตุ</p>
-                    <p className="text-gray-700">{selectedOrder.note}</p>
-                  </div>
-                )}
-
-                {/* Items by Day */}
-                <h3 className="font-semibold text-gray-800 mb-3">🍽️ รายการเมนู</h3>
-                {Object.entries(groupItemsByDay(selectedOrder.items))
-                  .sort(([a], [b]) => Number(a) - Number(b))
-                  .map(([day, items]) => (
-                    <div key={day} className="mb-4">
-                      {selectedOrder.totalDays > 1 && (
-                        <p className="text-sm font-medium text-green-600 mb-2">📅 วันที่ {day}</p>
-                      )}
-                      <div className="space-y-2">
-                        {items.map((item) => (
-                          <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <div>
-                              <p className="font-medium text-gray-800">{item.foodName}</p>
-                              <p className="text-xs text-gray-500">
-                                {mealLabels[item.mealType] || item.mealType}
-                                {item.quantity > 1 && ` x${item.quantity}`}
-                              </p>
-                            </div>
-                            <p className="font-semibold text-gray-700">฿{item.price.toLocaleString()}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
               </div>
 
               {/* Modal Footer - Status Actions */}

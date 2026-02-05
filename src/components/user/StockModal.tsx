@@ -4,6 +4,13 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Minus, Package, Sparkles } from "lucide-react";
 
+interface StockItemSource {
+  id: string;
+  quantity: number;
+  orderId: string;
+  orderNumber: string;
+}
+
 interface StockItem {
   id: string;
   name: string;
@@ -14,6 +21,8 @@ interface StockItem {
   fat: number;
   orderId: string;
   orderNumber: string;
+  // For merged items - track all source items
+  sources?: StockItemSource[];
 }
 
 interface DailyNutrition {
@@ -76,7 +85,7 @@ export function StockModal({ isOpen, onClose, lineUserId, dailyNutrition, onSele
           (o: any) => o.status === "completed"
         );
         
-        const items: StockItem[] = completedOrders.flatMap((order: any) =>
+        const rawItems = completedOrders.flatMap((order: any) =>
           order.items.map((item: any) => ({
             id: item.id,
             name: item.foodName,
@@ -90,7 +99,33 @@ export function StockModal({ isOpen, onClose, lineUserId, dailyNutrition, onSele
           }))
         );
         
-        setStockItems(items);
+        // Merge duplicate items by name
+        const mergedMap = new Map<string, StockItem>();
+        rawItems.forEach((item: StockItem) => {
+          const existing = mergedMap.get(item.name);
+          if (existing) {
+            existing.quantity += item.quantity;
+            existing.sources = existing.sources || [];
+            existing.sources.push({
+              id: item.id,
+              quantity: item.quantity,
+              orderId: item.orderId,
+              orderNumber: item.orderNumber,
+            });
+          } else {
+            mergedMap.set(item.name, {
+              ...item,
+              sources: [{
+                id: item.id,
+                quantity: item.quantity,
+                orderId: item.orderId,
+                orderNumber: item.orderNumber,
+              }],
+            });
+          }
+        });
+        
+        setStockItems(Array.from(mergedMap.values()));
       }
     } catch (error) {
       console.error("Failed to fetch stock items:", error);
@@ -116,23 +151,24 @@ export function StockModal({ isOpen, onClose, lineUserId, dailyNutrition, onSele
     setAiRecommendation("");
     
     try {
+      const requestBody = {
+        selectedFood: {
+          name: item.name,
+          calories: item.calories * quantity,
+          protein: item.protein * quantity,
+          carbs: item.carbs * quantity,
+          fat: item.fat * quantity,
+        },
+        dailyNutrition: {
+          consumed: dailyNutrition.consumed,
+          target: dailyNutrition.target,
+          remaining: dailyNutrition.remaining,
+        },
+      };
       const res = await fetch("/api/stock-recommendation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          selectedFood: {
-            name: item.name,
-            calories: item.calories * quantity,
-            protein: item.protein * quantity,
-            carbs: item.carbs * quantity,
-            fat: item.fat * quantity,
-          },
-          dailyNutrition: {
-            consumed: dailyNutrition.consumed,
-            target: dailyNutrition.target,
-            remaining: dailyNutrition.remaining,
-          },
-        }),
+        body: JSON.stringify(requestBody),
       });
       
       if (res.ok) {
@@ -187,21 +223,38 @@ export function StockModal({ isOpen, onClose, lineUserId, dailyNutrition, onSele
         }),
       });
 
-      // Reduce quantity in order item
-      const newQuantity = selectedItem.quantity - selectQuantity;
-      await fetch(`/api/order-items/${selectedItem.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          quantity: newQuantity,
-        }),
-      });
+      // Reduce quantity from source items (for merged items)
+      let remainingToReduce = selectQuantity;
+      const sources = selectedItem.sources || [{
+        id: selectedItem.id,
+        quantity: selectedItem.quantity,
+        orderId: selectedItem.orderId,
+        orderNumber: selectedItem.orderNumber,
+      }];
+
+      for (const source of sources) {
+        if (remainingToReduce <= 0) break;
+        
+        const reduceFromThis = Math.min(source.quantity, remainingToReduce);
+        const newQuantity = source.quantity - reduceFromThis;
+        
+        await fetch(`/api/order-items/${source.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            quantity: newQuantity,
+          }),
+        });
+        
+        remainingToReduce -= reduceFromThis;
+      }
 
       // Update local state to reflect the change
+      const newTotalQuantity = selectedItem.quantity - selectQuantity;
       setStockItems(prevItems => 
         prevItems.map(item => 
-          item.id === selectedItem.id 
-            ? { ...item, quantity: newQuantity }
+          item.name === selectedItem.name 
+            ? { ...item, quantity: newTotalQuantity }
             : item
         ).filter(item => item.quantity > 0)
       );

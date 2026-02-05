@@ -223,6 +223,9 @@ export function createOrderFlexMessage(order: {
   coursePlan?: string;
   items: Array<{ foodName: string; quantity: number; price: number }>;
   status: string;
+  discount?: number;
+  packageName?: string | null;
+  finalPrice?: number;
 }): LineFlexMessage {
   const statusLabels: Record<string, string> = {
     pending: "⏳ รอดำเนินการ",
@@ -356,6 +359,7 @@ export function createOrderFlexMessage(order: {
           type: "separator",
           margin: "lg",
         },
+        // ราคาสินค้า
         {
           type: "box",
           layout: "horizontal",
@@ -363,14 +367,60 @@ export function createOrderFlexMessage(order: {
           contents: [
             {
               type: "text",
-              text: "รวมทั้งหมด",
-              size: "md",
+              text: "ราคาสินค้า",
+              size: "sm",
               color: "#555555",
-              weight: "bold",
             },
             {
               type: "text",
               text: `฿${order.totalPrice.toLocaleString()}`,
+              size: "sm",
+              color: "#555555",
+              align: "end",
+            },
+          ],
+        },
+        // ส่วนลด (ถ้ามี)
+        ...(order.discount && order.discount > 0
+          ? [
+              {
+                type: "box" as const,
+                layout: "horizontal" as const,
+                margin: "sm" as const,
+                contents: [
+                  {
+                    type: "text" as const,
+                    text: order.packageName ? `🎉 ${order.packageName}` : "ส่วนลด",
+                    size: "sm" as const,
+                    color: "#4CAF50",
+                  },
+                  {
+                    type: "text" as const,
+                    text: `-฿${order.discount.toLocaleString()}`,
+                    size: "sm" as const,
+                    color: "#4CAF50",
+                    align: "end" as const,
+                  },
+                ],
+              },
+            ]
+          : []),
+        // รวมทั้งหมด
+        {
+          type: "box",
+          layout: "horizontal",
+          margin: "md",
+          contents: [
+            {
+              type: "text",
+              text: "รวมทั้งหมด",
+              size: "md",
+              color: "#111111",
+              weight: "bold",
+            },
+            {
+              type: "text",
+              text: `฿${(order.finalPrice ?? order.totalPrice).toLocaleString()}`,
               size: "lg",
               color: "#4CAF50",
               weight: "bold",

@@ -79,6 +79,13 @@ export default function MenuPage() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showCart, setShowCart] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  
+  // Package modal state
+  const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
+  const [isAiSelecting, setIsAiSelecting] = useState(false);
+  const [aiSelectedFoods, setAiSelectedFoods] = useState<(Food & { quantity: number })[]>([]);
+  const [aiRecommendation, setAiRecommendation] = useState("");
+  const [showAiResult, setShowAiResult] = useState(false);
 
   // Refs for scrolling
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
@@ -252,6 +259,11 @@ export default function MenuPage() {
           coursePlan: "single",
           totalDays: 1,
           totalPrice,
+          discount: packageDiscount,
+          discountType: activePackage?.discountType || null,
+          discountValue: activePackage?.discountValue || null,
+          packageName: activePackage?.name || null,
+          finalPrice,
           items: cart.map(item => ({
             foodId: item.food.id,
             foodName: item.food.name,
@@ -288,6 +300,50 @@ export default function MenuPage() {
 
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
   const totalPrice = cart.reduce((sum, item) => sum + item.food.price * item.quantity, 0);
+  
+  // Find the best applicable package based on cart quantity
+  const bestApplicablePackage = (() => {
+    // Get all packages where totalItems >= requiredItems
+    const eligiblePackages = packages.filter(pkg => totalItems >= pkg.requiredItems);
+    
+    if (eligiblePackages.length === 0) return null;
+    
+    // Sort by discount value (highest first) and requiredItems (highest first for same discount)
+    // This ensures we get the best deal
+    return eligiblePackages.sort((a, b) => {
+      // Calculate actual discount amount for comparison
+      const discountA = a.discountType === "percent" 
+        ? totalPrice * (a.discountValue / 100) 
+        : a.discountValue;
+      const discountB = b.discountType === "percent" 
+        ? totalPrice * (b.discountValue / 100) 
+        : b.discountValue;
+      return discountB - discountA;
+    })[0];
+  })();
+  
+  // Find the next package to unlock (for showing "add X more" message)
+  const nextPackageToUnlock = (() => {
+    const lockedPackages = packages.filter(pkg => totalItems < pkg.requiredItems);
+    if (lockedPackages.length === 0) return null;
+    // Get the one with lowest requiredItems (closest to unlock)
+    return lockedPackages.sort((a, b) => a.requiredItems - b.requiredItems)[0];
+  })();
+  
+  // Calculate package discount
+  const activePackage = bestApplicablePackage;
+  const packageDiscount = (() => {
+    if (!activePackage) return 0;
+    
+    if (activePackage.discountType === "percent") {
+      return Math.round(totalPrice * (activePackage.discountValue / 100));
+    } else {
+      return activePackage.discountValue;
+    }
+  })();
+  
+  const finalPrice = totalPrice - packageDiscount;
+  const isPackageEligible = activePackage !== null;
 
   // Get all images for a food
   const getAllImages = (food: Food): string[] => {
@@ -313,6 +369,112 @@ export default function MenuPage() {
     setSelectedFood(null);
     setModalQuantity(1);
     setCurrentImageIndex(0);
+  };
+
+  // Open package detail modal
+  const openPackageDetail = (pkg: Package) => {
+    setSelectedPackage(pkg);
+    setAiSelectedFoods([]);
+    setAiRecommendation("");
+    setShowAiResult(false);
+  };
+
+  // Close package modal
+  const closePackageModal = () => {
+    setSelectedPackage(null);
+    setAiSelectedFoods([]);
+    setAiRecommendation("");
+    setShowAiResult(false);
+  };
+
+  // Handle AI select foods
+  const handleAiSelectFoods = async () => {
+    if (!selectedPackage) return;
+
+    setIsAiSelecting(true);
+    try {
+      // Get user goals if logged in
+      let userGoals = null;
+      if (lineUserId) {
+        const memberRes = await fetch(`/api/members/me?lineUserId=${lineUserId}`);
+        if (memberRes.ok) {
+          const memberData = await memberRes.json();
+          userGoals = {
+            dailyCalories: memberData.dailyCalories,
+            dailyProtein: memberData.dailyProtein,
+            dailyCarbs: memberData.dailyCarbs,
+            dailyFat: memberData.dailyFat,
+          };
+        }
+      }
+
+      const res = await fetch("/api/ai-select-menu", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          foods: foods.map(f => ({
+            id: f.id,
+            name: f.name,
+            calories: f.calories,
+            protein: f.protein,
+            carbs: f.carbs,
+            fat: f.fat,
+            price: f.price,
+          })),
+          requiredItems: selectedPackage.requiredItems,
+          packageName: selectedPackage.name,
+          userGoals,
+          lineUserId,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        // Map back to full Food objects
+        const selectedWithFullData = data.selectedFoods.map((sf: { id: string; quantity: number }) => {
+          const fullFood = foods.find(f => f.id === sf.id);
+          return fullFood ? { ...fullFood, quantity: sf.quantity } : null;
+        }).filter(Boolean);
+        
+        setAiSelectedFoods(selectedWithFullData);
+        setAiRecommendation(data.recommendation || "");
+        setShowAiResult(true);
+      }
+    } catch (error) {
+      console.error("AI selection failed:", error);
+    } finally {
+      setIsAiSelecting(false);
+    }
+  };
+
+  // Add AI selected foods to cart
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [addingProgress, setAddingProgress] = useState({ current: 0, total: 0, currentFood: "" });
+  
+  const addAiSelectedToCart = async () => {
+    if (isAddingToCart) return;
+    
+    setIsAddingToCart(true);
+    const total = aiSelectedFoods.length;
+    
+    for (let i = 0; i < aiSelectedFoods.length; i++) {
+      const food = aiSelectedFoods[i];
+      setAddingProgress({ current: i + 1, total, currentFood: food.name });
+      await addToCart(food, food.quantity);
+    }
+    
+    closePackageModal();
+    setIsAddingToCart(false);
+    setAddingProgress({ current: 0, total: 0, currentFood: "" });
+  };
+
+  // Handle manual selection - close package modal and let user browse
+  const handleManualSelection = () => {
+    closePackageModal();
+    // Scroll to first category
+    if (categoriesWithProducts.length > 0) {
+      scrollToSection(`cat-${categoriesWithProducts[0].id}`);
+    }
   };
 
   // Add from modal
@@ -471,7 +633,8 @@ export default function MenuPage() {
                 {filteredPackages.map((pkg) => (
                   <div
                     key={pkg.id}
-                    className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl p-4 text-white shadow-lg"
+                    onClick={() => openPackageDetail(pkg)}
+                    className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl p-4 text-white shadow-lg cursor-pointer active:scale-[0.98] transition-transform"
                   >
                     <div className="flex gap-4">
                       {pkg.imageUrl ? (
@@ -716,8 +879,18 @@ export default function MenuPage() {
               {totalItems}
             </span>
             <span className="font-medium">ตะกร้าอาหาร</span>
+            {isPackageEligible && packageDiscount > 0 && (
+              <span className="px-2 py-0.5 bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full">
+                -{activePackage?.discountType === "percent" ? `${activePackage?.discountValue}%` : `฿${packageDiscount}`}
+              </span>
+            )}
           </div>
-          <span className="text-lg font-bold">฿{totalPrice.toFixed(2)}</span>
+          <div className="text-right">
+            {isPackageEligible && packageDiscount > 0 && (
+              <span className="text-xs text-green-200 line-through mr-1">฿{totalPrice.toFixed(0)}</span>
+            )}
+            <span className="text-lg font-bold">฿{finalPrice.toFixed(2)}</span>
+          </div>
         </button>
       )}
 
@@ -726,14 +899,14 @@ export default function MenuPage() {
         <div className="fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowCart(false)} />
           
-          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[85vh] overflow-hidden animate-slide-up">
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[85vh] flex flex-col animate-slide-up">
             {/* Handle */}
-            <div className="flex justify-center pt-3 pb-2">
+            <div className="flex justify-center pt-3 pb-2 flex-shrink-0">
               <div className="w-10 h-1 bg-gray-300 rounded-full" />
             </div>
 
             {/* Header */}
-            <div className="px-4 pb-3 border-b border-gray-100 flex items-center justify-between">
+            <div className="px-4 pb-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
               <div>
                 <h2 className="text-lg font-bold text-gray-900">🛒 ตะกร้าอาหาร</h2>
                 <p className="text-sm text-gray-500">{totalItems} รายการ</p>
@@ -747,7 +920,7 @@ export default function MenuPage() {
             </div>
 
             {/* Cart Items */}
-            <div className="overflow-y-auto max-h-[50vh] p-4">
+            <div className="overflow-y-auto flex-1 min-h-0 p-4">
               {cart.length === 0 ? (
                 <div className="text-center py-12">
                   <span className="text-5xl">🛒</span>
@@ -820,11 +993,65 @@ export default function MenuPage() {
 
             {/* Footer */}
             {cart.length > 0 && (
-              <div className="border-t border-gray-100 p-4 pb-8 bg-white">
+              <div className="border-t border-gray-100 p-4 pb-8 bg-white flex-shrink-0 max-h-[45vh] overflow-y-auto">
+                {/* Package Discount Info */}
+                {(activePackage || nextPackageToUnlock) && (
+                  <div className="mb-4 space-y-2">
+                    {/* Current active package discount */}
+                    {activePackage && (
+                      <div className="p-3 rounded-xl bg-green-50 border border-green-200">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-lg">🎉</span>
+                          <span className="font-semibold text-green-700">
+                            {activePackage.name}
+                          </span>
+                        </div>
+                        <p className="text-sm text-green-600">
+                          ✓ ได้รับส่วนลด {activePackage.discountType === "percent" ? `${activePackage.discountValue}%` : `฿${activePackage.discountValue}`}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Next package to unlock */}
+                    {nextPackageToUnlock && (
+                      <div className="p-3 rounded-xl bg-amber-50 border border-amber-200">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-lg">🎁</span>
+                          <span className="font-semibold text-amber-700">
+                            {nextPackageToUnlock.name}
+                          </span>
+                        </div>
+                        <p className="text-sm text-amber-600">
+                          เพิ่มอีก {nextPackageToUnlock.requiredItems - totalItems} ชิ้น เพื่อรับส่วนลด {nextPackageToUnlock.discountType === "percent" ? `${nextPackageToUnlock.discountValue}%` : `฿${nextPackageToUnlock.discountValue}`}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Summary */}
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-gray-600">รวมทั้งหมด</span>
-                  <span className="text-2xl font-bold text-green-600">฿{totalPrice.toFixed(2)}</span>
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500">ราคาสินค้า ({totalItems} ชิ้น)</span>
+                    <span className="text-gray-700">฿{totalPrice.toFixed(2)}</span>
+                  </div>
+                  
+                  {isPackageEligible && packageDiscount > 0 && (
+                    <div className="flex items-center justify-between text-green-600">
+                      <span>ส่วนลดแพ็คเกจ</span>
+                      <span>-฿{packageDiscount.toFixed(2)}</span>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                    <span className="font-semibold text-gray-900">รวมทั้งหมด</span>
+                    <div className="text-right">
+                      {isPackageEligible && packageDiscount > 0 && (
+                        <span className="text-sm text-gray-400 line-through mr-2">฿{totalPrice.toFixed(2)}</span>
+                      )}
+                      <span className="text-2xl font-bold text-green-600">฿{finalPrice.toFixed(2)}</span>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Actions */}
@@ -840,7 +1067,7 @@ export default function MenuPage() {
                     disabled={isSubmitting}
                     className="flex-[2] py-3 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition-colors disabled:opacity-50"
                   >
-                    {isSubmitting ? "กำลังสั่งซื้อ..." : `สั่งซื้อ ฿${totalPrice.toFixed(2)}`}
+                    {isSubmitting ? "กำลังสั่งซื้อ..." : `สั่งซื้อ ฿${finalPrice.toFixed(2)}`}
                   </button>
                 </div>
               </div>
@@ -1044,6 +1271,224 @@ export default function MenuPage() {
             >
               OK
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Package Detail Modal */}
+      {selectedPackage && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/50" onClick={closePackageModal} />
+          
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[90vh] overflow-y-auto animate-slide-up">
+            {/* Handle */}
+            <div className="flex justify-center pt-3 pb-2">
+              <div className="w-10 h-1 bg-gray-300 rounded-full" />
+            </div>
+
+            {/* Close Button */}
+            <button 
+              onClick={closePackageModal}
+              className="absolute top-4 right-4 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center z-10 shadow"
+            >
+              <span className="text-gray-500 text-sm">✕</span>
+            </button>
+
+            {/* Package Header */}
+            <div className="px-4 pb-4">
+              <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl p-5 text-white">
+                <div className="flex gap-4">
+                  {selectedPackage.imageUrl ? (
+                    <img
+                      src={selectedPackage.imageUrl}
+                      alt={selectedPackage.name}
+                      className="w-24 h-24 rounded-xl object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-24 h-24 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-4xl">📦</span>
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <h2 className="font-bold text-xl mb-1">{selectedPackage.name}</h2>
+                    {selectedPackage.description && (
+                      <p className="text-white/80 text-sm mb-2">{selectedPackage.description}</p>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <span className="bg-white/20 px-3 py-1 rounded-lg text-sm">
+                        เลือก {selectedPackage.requiredItems} เมนู
+                      </span>
+                      <span className="bg-yellow-400 text-yellow-900 px-3 py-1 rounded-lg text-sm font-bold">
+                        {selectedPackage.discountType === "percent" 
+                          ? `ลด ${selectedPackage.discountValue}%` 
+                          : `ลด ฿${selectedPackage.discountValue}`}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Content */}
+            {!showAiResult ? (
+              // Selection Options
+              <div className="px-4 pb-8">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">เลือกวิธีการสั่งซื้อ</h3>
+                
+                <div className="space-y-3">
+                  {/* Manual Selection Button */}
+                  <button
+                    onClick={handleManualSelection}
+                    className="w-full p-4 bg-gray-50 rounded-xl border-2 border-gray-200 text-left hover:border-green-500 hover:bg-green-50 transition-all group"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-14 h-14 rounded-xl bg-gray-200 group-hover:bg-green-100 flex items-center justify-center text-3xl transition-colors">
+                        🛒
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900">เลือกเมนูอาหารเอง</h4>
+                        <p className="text-sm text-gray-500">เลือก {selectedPackage.requiredItems} เมนูตามใจชอบ</p>
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* AI Selection Button */}
+                  <button
+                    onClick={handleAiSelectFoods}
+                    disabled={isAiSelecting}
+                    className="w-full p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border-2 border-amber-200 text-left hover:border-amber-400 hover:from-amber-100 hover:to-orange-100 transition-all group disabled:opacity-70"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-14 h-14 rounded-xl bg-amber-200 group-hover:bg-amber-300 flex items-center justify-center text-3xl transition-colors">
+                        {isAiSelecting ? (
+                          <div className="w-8 h-8 border-3 border-amber-600 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          "✨"
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900">
+                          {isAiSelecting ? "กำลังวิเคราะห์..." : "AI ช่วยเลือกให้"}
+                        </h4>
+                        <p className="text-sm text-gray-500">
+                          {isAiSelecting 
+                            ? "กรุณารอสักครู่" 
+                            : "AI จะเลือกเมนูที่เหมาะกับคุณ"}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              // AI Result
+              <div className="px-4 pb-8">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">✨ AI เลือกให้แล้ว!</h3>
+
+                {/* AI Recommendation */}
+                {aiRecommendation && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+                    <p className="text-sm text-amber-800">💡 {aiRecommendation}</p>
+                  </div>
+                )}
+
+                {/* Selected Foods List */}
+                <div className="space-y-2 mb-4">
+                  {aiSelectedFoods.map((food, index) => (
+                    <div key={food.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                      <span className="w-6 h-6 rounded-full bg-green-500 text-white text-xs flex items-center justify-center font-semibold">
+                        {index + 1}
+                      </span>
+                      {food.imageUrl ? (
+                        <img src={food.imageUrl} alt={food.name} className="w-12 h-12 rounded-lg object-cover" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-lg bg-gray-200 flex items-center justify-center">
+                          🍽️
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-gray-900 truncate">{food.name}</h4>
+                        <p className="text-xs text-gray-500">
+                          {food.calories} kcal • P {food.protein}g • C {food.carbs}g • F {food.fat}g
+                        </p>
+                      </div>
+                      <p className="text-sm font-semibold text-green-600">฿{food.price}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Summary */}
+                <div className="bg-gray-100 rounded-xl p-4 mb-6">
+                  <h4 className="font-semibold text-gray-900 mb-2">สรุปสารอาหาร</h4>
+                  <div className="grid grid-cols-4 gap-2 text-center text-sm">
+                    <div>
+                      <p className="font-bold text-orange-500">
+                        {aiSelectedFoods.reduce((sum, f) => sum + f.calories, 0)}
+                      </p>
+                      <p className="text-xs text-gray-500">แคลอรี่</p>
+                    </div>
+                    <div>
+                      <p className="font-bold text-red-500">
+                        {aiSelectedFoods.reduce((sum, f) => sum + f.protein, 0)}g
+                      </p>
+                      <p className="text-xs text-gray-500">โปรตีน</p>
+                    </div>
+                    <div>
+                      <p className="font-bold text-amber-500">
+                        {aiSelectedFoods.reduce((sum, f) => sum + f.carbs, 0)}g
+                      </p>
+                      <p className="text-xs text-gray-500">คาร์บ</p>
+                    </div>
+                    <div>
+                      <p className="font-bold text-blue-500">
+                        {aiSelectedFoods.reduce((sum, f) => sum + f.fat, 0)}g
+                      </p>
+                      <p className="text-xs text-gray-500">ไขมัน</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Adding Progress */}
+                {isAddingToCart && (
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+                      <span className="text-sm font-medium text-green-700">
+                        กำลังเพิ่มลงตะกร้า ({addingProgress.current}/{addingProgress.total})
+                      </span>
+                    </div>
+                    <p className="text-sm text-green-600 truncate">
+                      🛒 {addingProgress.currentFood}
+                    </p>
+                    {/* Progress Bar */}
+                    <div className="mt-2 h-2 bg-green-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-green-500 transition-all duration-300"
+                        style={{ width: `${(addingProgress.current / addingProgress.total) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowAiResult(false)}
+                    disabled={isAddingToCart}
+                    className="flex-1 py-3 border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  >
+                    เลือกใหม่
+                  </button>
+                  <button
+                    onClick={addAiSelectedToCart}
+                    disabled={isAddingToCart}
+                    className="flex-[2] py-3 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition-colors disabled:opacity-50"
+                  >
+                    {isAddingToCart ? `กำลังเพิ่ม ${addingProgress.current}/${addingProgress.total}` : `เพิ่มลงตะกร้า ฿${aiSelectedFoods.reduce((sum, f) => sum + f.price, 0)}`}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
