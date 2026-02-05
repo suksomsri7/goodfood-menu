@@ -640,7 +640,7 @@ export default function CaloriePage() {
       />
 
       {/* Floating Add Button */}
-      <FloatingAddButton onAddMeal={handleAddMeal} onAddExercise={handleAddExercise} />
+      <FloatingAddButton lineUserId={lineUserId} onAddMeal={handleAddMeal} onAddExercise={handleAddExercise} />
     </div>
   );
 }

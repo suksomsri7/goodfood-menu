@@ -10,6 +10,7 @@ import { BarcodeModal } from "./BarcodeModal";
 import { ExerciseModal } from "./ExerciseModal";
 
 interface FloatingAddButtonProps {
+  lineUserId?: string;
   onAddMeal?: (meal: {
     name: string;
     calories: number;
@@ -33,7 +34,7 @@ interface FloatingAddButtonProps {
   }) => void;
 }
 
-export function FloatingAddButton({ onAddMeal, onAddExercise }: FloatingAddButtonProps) {
+export function FloatingAddButton({ lineUserId, onAddMeal, onAddExercise }: FloatingAddButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
@@ -140,6 +141,7 @@ export function FloatingAddButton({ onAddMeal, onAddExercise }: FloatingAddButto
       <StockModal
         isOpen={showStock}
         onClose={() => setShowStock(false)}
+        lineUserId={lineUserId}
         onSelectItem={(item) => {
           onAddMeal?.({
             name: item.name,
@@ -149,7 +151,7 @@ export function FloatingAddButton({ onAddMeal, onAddExercise }: FloatingAddButto
             fat: item.fat,
             sodium: 0,
             sugar: 0,
-            multiplier: 1,
+            multiplier: item.multiplier,
           });
         }}
       />

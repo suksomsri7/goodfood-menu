@@ -1,93 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Lightbulb, Plus, Minus } from "lucide-react";
+import { X, Lightbulb, Plus, Minus, Package } from "lucide-react";
 
 interface StockItem {
   id: string;
   name: string;
   quantity: number;
-  unit: string;
   calories: number;
   protein: number;
   carbs: number;
   fat: number;
-  imageUrl?: string;
+  orderId: string;
+  orderNumber: string;
 }
 
 interface StockModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectItem?: (item: StockItem) => void;
+  lineUserId?: string;
+  onSelectItem?: (item: {
+    name: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    multiplier: number;
+  }) => void;
 }
 
-// Mock stock data
-const mockStockItems: StockItem[] = [
-  {
-    id: "1",
-    name: "ข้าวกล่อง สเต็กไก่",
-    quantity: 3,
-    unit: "กล่อง",
-    calories: 450,
-    protein: 35,
-    carbs: 48,
-    fat: 12,
-  },
-  {
-    id: "2",
-    name: "สลัดผัก Caesar",
-    quantity: 2,
-    unit: "กล่อง",
-    calories: 180,
-    protein: 8,
-    carbs: 12,
-    fat: 10,
-  },
-  {
-    id: "3",
-    name: "ไข่ต้ม",
-    quantity: 6,
-    unit: "ฟอง",
-    calories: 78,
-    protein: 6,
-    carbs: 1,
-    fat: 5,
-  },
-  {
-    id: "4",
-    name: "โยเกิร์ตกรีก",
-    quantity: 4,
-    unit: "ถ้วย",
-    calories: 100,
-    protein: 17,
-    carbs: 6,
-    fat: 1,
-  },
-  {
-    id: "5",
-    name: "อกไก่ย่าง",
-    quantity: 2,
-    unit: "ชิ้น",
-    calories: 165,
-    protein: 31,
-    carbs: 0,
-    fat: 4,
-  },
-  {
-    id: "6",
-    name: "ข้าวโอ๊ต",
-    quantity: 1,
-    unit: "ถุง",
-    calories: 150,
-    protein: 5,
-    carbs: 27,
-    fat: 3,
-  },
-];
-
-// Mock recommendation based on remaining calories
+// Recommendation based on nutrition
 const getRecommendation = (items: StockItem[]) => {
+  if (items.length === 0) {
+    return "ยังไม่มีอาหารใน Stock สั่งซื้อเพิ่มได้ที่เมนู";
+  }
+  
   const lowCalItems = items.filter((item) => item.calories < 200);
   const highProteinItems = items.filter((item) => item.protein > 15);
 
@@ -100,10 +48,57 @@ const getRecommendation = (items: StockItem[]) => {
   return "เลือกอาหารที่เหมาะกับเป้าหมายของคุณวันนี้";
 };
 
-export function StockModal({ isOpen, onClose, onSelectItem }: StockModalProps) {
-  const [stockItems, setStockItems] = useState<StockItem[]>(mockStockItems);
+export function StockModal({ isOpen, onClose, lineUserId, onSelectItem }: StockModalProps) {
+  const [stockItems, setStockItems] = useState<StockItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null);
   const [selectQuantity, setSelectQuantity] = useState(1);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Fetch completed orders to get stock items
+  const fetchStockItems = useCallback(async () => {
+    if (!lineUserId) return;
+
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/orders?lineUserId=${lineUserId}&limit=50`);
+      if (res.ok) {
+        const orders = await res.json();
+        
+        // Filter completed orders and flatten items
+        const completedOrders = orders.filter(
+          (o: any) => o.status === "completed"
+        );
+        
+        const items: StockItem[] = completedOrders.flatMap((order: any) =>
+          order.items.map((item: any) => ({
+            id: item.id,
+            name: item.foodName,
+            quantity: item.quantity,
+            calories: item.food?.calories || item.calories || 0,
+            protein: item.food?.protein || 0,
+            carbs: item.food?.carbs || 0,
+            fat: item.food?.fat || 0,
+            orderId: order.id,
+            orderNumber: order.orderNumber,
+          }))
+        );
+        
+        setStockItems(items);
+      }
+    } catch (error) {
+      console.error("Failed to fetch stock items:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [lineUserId]);
+
+  // Fetch when modal opens
+  useEffect(() => {
+    if (isOpen && lineUserId) {
+      fetchStockItems();
+    }
+  }, [isOpen, lineUserId, fetchStockItems]);
 
   const availableItems = stockItems.filter((item) => item.quantity > 0);
   const recommendation = getRecommendation(availableItems);
@@ -113,28 +108,45 @@ export function StockModal({ isOpen, onClose, onSelectItem }: StockModalProps) {
     setSelectQuantity(1);
   };
 
-  const handleConfirmSelect = () => {
-    if (selectedItem && selectQuantity > 0) {
-      // Update stock
-      setStockItems((items) =>
-        items.map((item) =>
-          item.id === selectedItem.id
-            ? { ...item, quantity: Math.max(0, item.quantity - selectQuantity) }
-            : item
-        )
-      );
-      
-      // Add to meal with multiplied nutrition
+  const handleConfirmSelect = async () => {
+    if (!selectedItem || selectQuantity <= 0 || !lineUserId) return;
+
+    setIsSaving(true);
+    try {
+      // Add to meal log
+      await fetch("/api/meals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lineUserId,
+          name: selectedItem.name,
+          calories: selectedItem.calories * selectQuantity,
+          protein: selectedItem.protein * selectQuantity,
+          carbs: selectedItem.carbs * selectQuantity,
+          fat: selectedItem.fat * selectQuantity,
+          sodium: 0,
+          sugar: 0,
+          multiplier: selectQuantity,
+          date: new Date().toISOString(),
+        }),
+      });
+
+      // Call callback if provided
       onSelectItem?.({
-        ...selectedItem,
+        name: selectedItem.name,
         calories: selectedItem.calories * selectQuantity,
         protein: selectedItem.protein * selectQuantity,
         carbs: selectedItem.carbs * selectQuantity,
         fat: selectedItem.fat * selectQuantity,
+        multiplier: selectQuantity,
       });
-      
+
       setSelectedItem(null);
       onClose();
+    } catch (error) {
+      console.error("Failed to save meal:", error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -172,68 +184,72 @@ export function StockModal({ isOpen, onClose, onSelectItem }: StockModalProps) {
           </div>
 
           {/* Recommendation */}
-          <div className="px-6 py-4 bg-amber-50 border-b border-amber-100">
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                <Lightbulb className="w-4 h-4 text-amber-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-amber-800">คำแนะนำ</p>
-                <p className="text-sm text-amber-700 mt-1">{recommendation}</p>
+          {!isLoading && availableItems.length > 0 && (
+            <div className="px-6 py-4 bg-amber-50 border-b border-amber-100">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                  <Lightbulb className="w-4 h-4 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-amber-800">คำแนะนำ</p>
+                  <p className="text-sm text-amber-700 mt-1">{recommendation}</p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Stock List */}
           <div className="overflow-y-auto max-h-[60vh] px-6 py-4">
-            <p className="text-xs text-gray-400 mb-3">
-              มี {availableItems.length} รายการใน Stock
-            </p>
-
-            <div className="space-y-3">
-              {stockItems.map((item) => (
-                <div
-                  key={item.id}
-                  className={`p-4 rounded-2xl border transition-all ${
-                    item.quantity > 0
-                      ? "bg-white border-gray-200 hover:border-gray-300"
-                      : "bg-gray-50 border-gray-100 opacity-50"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-gray-800 truncate">
-                        {item.name}
-                      </h3>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {item.calories} Kcal • P {item.protein}g • C {item.carbs}g • F {item.fat}g
-                      </p>
-                    </div>
-
-                    {/* Quantity Display */}
-                    <div className="flex items-center">
-                      <span className="text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
-                        x{item.quantity}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Select Button */}
-                  {item.quantity > 0 && (
-                    <button
-                      onClick={() => handleSelectClick(item)}
-                      className="mt-3 w-full py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
-                    >
-                      เลือกทาน
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {availableItems.length === 0 && (
+            {isLoading ? (
               <div className="py-12 text-center">
+                <div className="w-10 h-10 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-gray-500">กำลังโหลด...</p>
+              </div>
+            ) : availableItems.length > 0 ? (
+              <>
+                <p className="text-xs text-gray-400 mb-3">
+                  มี {availableItems.length} รายการใน Stock
+                </p>
+
+                <div className="space-y-3">
+                  {availableItems.map((item) => (
+                    <div
+                      key={`${item.orderId}-${item.id}`}
+                      className="p-4 rounded-2xl border bg-white border-gray-200 hover:border-gray-300 transition-all"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-gray-800 truncate">
+                            {item.name}
+                          </h3>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {item.calories} Kcal • P {item.protein}g • C {item.carbs}g • F {item.fat}g
+                          </p>
+                        </div>
+
+                        {/* Quantity Display */}
+                        <div className="flex items-center">
+                          <span className="text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+                            ×{item.quantity}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Select Button */}
+                      <button
+                        onClick={() => handleSelectClick(item)}
+                        className="mt-3 w-full py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+                      >
+                        เลือกทาน
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="py-12 text-center">
+                <Package className="w-16 h-16 text-gray-200 mx-auto mb-4" />
                 <p className="text-gray-400">ไม่มีอาหารใน Stock</p>
                 <p className="text-sm text-gray-300 mt-1">
                   สั่งซื้ออาหารเพิ่มเติมได้ที่เมนู
@@ -266,14 +282,14 @@ export function StockModal({ isOpen, onClose, onSelectItem }: StockModalProps) {
                     {selectedItem.name}
                   </h3>
                   <p className="text-sm text-gray-500 text-center mb-6">
-                    คงเหลือ x{selectedItem.quantity} {selectedItem.unit}
+                    คงเหลือ ×{selectedItem.quantity}
                   </p>
 
                   {/* Quantity Selector */}
                   <div className="flex items-center justify-center gap-6 mb-6">
                     <button
                       onClick={() => setSelectQuantity(Math.max(1, selectQuantity - 1))}
-                      className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200"
+                      className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200 disabled:opacity-50"
                       disabled={selectQuantity <= 1}
                     >
                       <Minus className="w-5 h-5" />
@@ -285,7 +301,7 @@ export function StockModal({ isOpen, onClose, onSelectItem }: StockModalProps) {
                     
                     <button
                       onClick={() => setSelectQuantity(Math.min(selectedItem.quantity, selectQuantity + 1))}
-                      className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200"
+                      className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200 disabled:opacity-50"
                       disabled={selectQuantity >= selectedItem.quantity}
                     >
                       <Plus className="w-5 h-5" />
@@ -313,9 +329,10 @@ export function StockModal({ isOpen, onClose, onSelectItem }: StockModalProps) {
                     </button>
                     <button
                       onClick={handleConfirmSelect}
-                      className="flex-1 py-3 bg-gray-900 text-white rounded-xl font-medium"
+                      disabled={isSaving}
+                      className="flex-1 py-3 bg-gray-900 text-white rounded-xl font-medium disabled:opacity-50"
                     >
-                      ยืนยัน
+                      {isSaving ? "กำลังบันทึก..." : "ยืนยัน"}
                     </button>
                   </div>
                 </motion.div>
