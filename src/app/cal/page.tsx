@@ -83,9 +83,9 @@ export default function CaloriePage() {
   // AI Analysis state
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<{
-    summary: string | string[];
-    goalAnalysis: string | string[];
-    recommendations: string | string[];
+    summary?: string | string[] | null;
+    goalAnalysis?: string | string[] | null;
+    recommendations?: string | string[] | null;
   } | null>(null);
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
 
@@ -241,7 +241,15 @@ export default function CaloriePage() {
       
       if (res.ok) {
         const data = await res.json();
-        setAnalysisResult(data.analysis);
+        
+        // Ensure analysis has required fields with fallbacks
+        const safeAnalysis = data.analysis ? {
+          summary: data.analysis.summary || "ไม่สามารถวิเคราะห์ได้",
+          goalAnalysis: data.analysis.goalAnalysis || [],
+          recommendations: data.analysis.recommendations || []
+        } : null;
+        
+        setAnalysisResult(safeAnalysis);
       } else {
         setAnalysisResult(null);
       }

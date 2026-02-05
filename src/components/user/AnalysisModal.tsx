@@ -3,34 +3,55 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Brain, Target, Lightbulb } from "lucide-react";
 
+interface AnalysisData {
+  summary?: string | string[] | null;
+  goalAnalysis?: string | string[] | null;
+  recommendations?: string | string[] | null;
+}
+
 interface AnalysisModalProps {
   isOpen: boolean;
   onClose: () => void;
-  analysis: {
-    summary: string | string[];
-    goalAnalysis: string | string[];
-    recommendations: string | string[];
-  } | null;
+  analysis: AnalysisData | null;
   isLoading: boolean;
   onRefresh: () => void;
 }
 
 // Helper function to render content that could be string or array
-function renderContent(content: string | string[] | undefined): React.ReactNode {
+function renderContent(content: string | string[] | undefined | null): React.ReactNode {
+  // Handle null, undefined, empty string
   if (!content) return null;
+  
+  // Handle array
   if (Array.isArray(content)) {
+    if (content.length === 0) return null;
     return (
       <ul className="space-y-2">
         {content.map((item, index) => (
           <li key={index} className="flex items-start gap-2">
             <span className="text-gray-400 mt-0.5">•</span>
-            <span>{item}</span>
+            <span>{String(item)}</span>
           </li>
         ))}
       </ul>
     );
   }
-  return <p className="whitespace-pre-line">{content}</p>;
+  
+  // Handle string
+  if (typeof content === 'string') {
+    return <p className="whitespace-pre-line">{content}</p>;
+  }
+  
+  // Handle object (in case AI returns nested object)
+  if (typeof content === 'object') {
+    try {
+      return <p className="whitespace-pre-line">{JSON.stringify(content)}</p>;
+    } catch {
+      return null;
+    }
+  }
+  
+  return null;
 }
 
 export function AnalysisModal({
@@ -97,25 +118,27 @@ export function AnalysisModal({
             ) : analysis ? (
               <div className="space-y-6">
                 {/* Summary Section */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 }}
-                  className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-5 border border-purple-100"
-                >
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <Brain className="w-4 h-4 text-purple-600" />
+                {analysis.summary && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-5 border border-purple-100"
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <Brain className="w-4 h-4 text-purple-600" />
+                      </div>
+                      <h3 className="font-semibold text-purple-900">📊 สรุปผล</h3>
                     </div>
-                    <h3 className="font-semibold text-purple-900">📊 สรุปผล</h3>
-                  </div>
-                  <div className="text-gray-700 leading-relaxed">
-                    {renderContent(analysis.summary)}
-                  </div>
-                </motion.div>
+                    <div className="text-gray-700 leading-relaxed">
+                      {renderContent(analysis.summary)}
+                    </div>
+                  </motion.div>
+                )}
 
                 {/* Goal Analysis Section */}
-                {analysis.goalAnalysis && (Array.isArray(analysis.goalAnalysis) ? analysis.goalAnalysis.length > 0 : analysis.goalAnalysis) && (
+                {analysis.goalAnalysis && (Array.isArray(analysis.goalAnalysis) ? analysis.goalAnalysis.length > 0 : true) && (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -135,7 +158,7 @@ export function AnalysisModal({
                 )}
 
                 {/* Recommendations Section */}
-                {analysis.recommendations && (Array.isArray(analysis.recommendations) ? analysis.recommendations.length > 0 : analysis.recommendations) && (
+                {analysis.recommendations && (Array.isArray(analysis.recommendations) ? analysis.recommendations.length > 0 : true) && (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -152,6 +175,13 @@ export function AnalysisModal({
                       {renderContent(analysis.recommendations)}
                     </div>
                   </motion.div>
+                )}
+                
+                {/* Fallback if no content */}
+                {!analysis.summary && !analysis.goalAnalysis && !analysis.recommendations && (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">ไม่มีข้อมูลการวิเคราะห์</p>
+                  </div>
                 )}
               </div>
             ) : (

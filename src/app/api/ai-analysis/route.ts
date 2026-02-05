@@ -235,7 +235,16 @@ ${userData.today.exercises.length > 0 ?
     const content = response.choices[0]?.message?.content;
     
     if (!content) {
-      throw new Error("No response from AI");
+      console.error("AI returned no content");
+      return NextResponse.json({
+        success: true,
+        analysis: {
+          summary: "ไม่สามารถวิเคราะห์ได้ในขณะนี้",
+          goalAnalysis: [],
+          recommendations: [],
+        },
+        data: userData,
+      });
     }
 
     // Parse JSON from response
@@ -244,16 +253,28 @@ ${userData.today.exercises.length > 0 ?
       // Extract JSON from response (handle markdown code blocks)
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        analysis = JSON.parse(jsonMatch[0]);
+        const parsed = JSON.parse(jsonMatch[0]);
+        // Ensure all fields exist
+        analysis = {
+          summary: parsed.summary || "ไม่มีข้อมูลสรุป",
+          goalAnalysis: parsed.goalAnalysis || [],
+          recommendations: parsed.recommendations || [],
+        };
       } else {
-        throw new Error("No JSON found");
+        // No JSON found, use content as summary
+        analysis = {
+          summary: content.substring(0, 500),
+          goalAnalysis: [],
+          recommendations: [],
+        };
       }
     } catch (parseError) {
+      console.error("JSON parse error:", parseError);
       // If parsing fails, use the raw content
       analysis = {
-        summary: content,
-        goalAnalysis: "",
-        recommendations: "",
+        summary: content.substring(0, 500),
+        goalAnalysis: [],
+        recommendations: [],
       };
     }
 
