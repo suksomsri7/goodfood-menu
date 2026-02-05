@@ -33,7 +33,7 @@ import {
   PanelRightOpen,
   Users,
 } from "lucide-react";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, MouseEvent as ReactMouseEvent } from "react";
 
 interface Conversation {
   id: string;
@@ -149,6 +149,79 @@ export default function ChatPage() {
   // Column collapse states
   const [col1Collapsed, setCol1Collapsed] = useState(false);
   const [col3Collapsed, setCol3Collapsed] = useState(false);
+
+  // Column resize states
+  const [col1Width, setCol1Width] = useState(320);
+  const [col3Width, setCol3Width] = useState(340);
+  const [isResizingCol1, setIsResizingCol1] = useState(false);
+  const [isResizingCol3, setIsResizingCol3] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Min/Max widths
+  const COL1_MIN = 200;
+  const COL1_MAX = 450;
+  const COL3_MIN = 250;
+  const COL3_MAX = 500;
+
+  // Handle resize for Column 1
+  const handleCol1ResizeStart = (e: ReactMouseEvent) => {
+    e.preventDefault();
+    setIsResizingCol1(true);
+  };
+
+  // Handle resize for Column 3
+  const handleCol3ResizeStart = (e: ReactMouseEvent) => {
+    e.preventDefault();
+    setIsResizingCol3(true);
+  };
+
+  // Global mouse move and up handlers for resizing
+  useEffect(() => {
+    const handleMouseMove = (e: globalThis.MouseEvent) => {
+      if (!containerRef.current) return;
+      
+      const containerRect = containerRef.current.getBoundingClientRect();
+      
+      if (isResizingCol1) {
+        const newWidth = e.clientX - containerRect.left;
+        setCol1Width(Math.min(COL1_MAX, Math.max(COL1_MIN, newWidth)));
+        if (newWidth < 100) {
+          setCol1Collapsed(true);
+        } else if (col1Collapsed && newWidth > 150) {
+          setCol1Collapsed(false);
+        }
+      }
+      
+      if (isResizingCol3) {
+        const newWidth = containerRect.right - e.clientX;
+        setCol3Width(Math.min(COL3_MAX, Math.max(COL3_MIN, newWidth)));
+        if (newWidth < 100) {
+          setCol3Collapsed(true);
+        } else if (col3Collapsed && newWidth > 150) {
+          setCol3Collapsed(false);
+        }
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingCol1(false);
+      setIsResizingCol3(false);
+    };
+
+    if (isResizingCol1 || isResizingCol3) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizingCol1, isResizingCol3, col1Collapsed, col3Collapsed]);
 
   // Fetch conversations
   const fetchConversations = useCallback(async () => {
@@ -760,9 +833,12 @@ export default function ChatPage() {
     <div>
       <Header title="แชท LINE" subtitle="ตอบข้อความจาก LINE Official Account" />
 
-      <div className="h-[calc(100vh-72px)] flex">
+      <div ref={containerRef} className="h-[calc(100vh-72px)] flex relative">
         {/* Column 1: Conversation List */}
-        <div className={`border-r border-gray-100 bg-white flex flex-col transition-all duration-300 ${col1Collapsed ? 'w-16' : 'w-[320px]'}`}>
+        <div 
+          className="border-r border-gray-100 bg-white flex flex-col flex-shrink-0"
+          style={{ width: col1Collapsed ? 64 : col1Width }}
+        >
           {/* Header with collapse button */}
           <div className="p-3 border-b border-gray-100 flex items-center justify-between">
             {!col1Collapsed && (
@@ -871,9 +947,19 @@ export default function ChatPage() {
           </div>
         </div>
 
+        {/* Resize Handle for Column 1 */}
+        {!col1Collapsed && (
+          <div
+            className="w-1 hover:w-1.5 bg-transparent hover:bg-green-400 cursor-col-resize transition-all flex-shrink-0 group relative"
+            onMouseDown={handleCol1ResizeStart}
+          >
+            <div className="absolute inset-y-0 -left-1 -right-1" />
+          </div>
+        )}
+
         {/* Column 2: Chat Area */}
         {selectedConversation ? (
-          <div className="flex-1 flex flex-col bg-[#FAFBFC] min-w-0">
+          <div className="flex-1 flex flex-col bg-[#FAFBFC] min-w-[300px]">
             {/* Chat Header */}
             <div className="px-6 py-4 bg-white border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1127,9 +1213,22 @@ export default function ChatPage() {
           </div>
         )}
 
+        {/* Resize Handle for Column 3 */}
+        {selectedConversation && !col3Collapsed && (
+          <div
+            className="w-1 hover:w-1.5 bg-transparent hover:bg-green-400 cursor-col-resize transition-all flex-shrink-0 group relative"
+            onMouseDown={handleCol3ResizeStart}
+          >
+            <div className="absolute inset-y-0 -left-1 -right-1" />
+          </div>
+        )}
+
         {/* Column 3: User Data Panel */}
         {selectedConversation && (
-          <div className={`border-l border-gray-100 bg-white flex flex-col transition-all duration-300 ${col3Collapsed ? 'w-14' : 'w-[340px]'}`}>
+          <div 
+            className="border-l border-gray-100 bg-white flex flex-col flex-shrink-0"
+            style={{ width: col3Collapsed ? 56 : col3Width }}
+          >
             {/* Header with collapse button */}
             <div className="p-3 border-b border-gray-100 flex items-center justify-between">
               <button

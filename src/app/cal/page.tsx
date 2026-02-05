@@ -5,6 +5,7 @@ import { DaySelector } from "@/components/user/DaySelector";
 import { CalorieRing } from "@/components/user/CalorieRing";
 import { MacroProgressBar } from "@/components/user/MacroProgressBar";
 import { MealList } from "@/components/user/MealList";
+import { ExerciseList } from "@/components/user/ExerciseList";
 import { RecommendationCard } from "@/components/user/RecommendationCard";
 import { MealDetailModal } from "@/components/user/MealDetailModal";
 import { FloatingAddButton } from "@/components/user/FloatingAddButton";
@@ -215,7 +216,7 @@ export default function CaloriePage() {
   useEffect(() => {
     if (isReady && lineUserId) {
       setIsLoading(true);
-      Promise.all([fetchMember(), fetchMeals(), fetchWater()]).finally(() => {
+      Promise.all([fetchMember(), fetchMeals(), fetchWater(), fetchExercises()]).finally(() => {
         setIsLoading(false);
         // Fetch recommendation after main data is loaded
         fetchRecommendation();
@@ -223,15 +224,16 @@ export default function CaloriePage() {
     } else if (isReady && !isLoggedIn) {
       setIsLoading(false);
     }
-  }, [isReady, lineUserId, isLoggedIn, fetchMember, fetchMeals, fetchWater, fetchRecommendation]);
+  }, [isReady, lineUserId, isLoggedIn, fetchMember, fetchMeals, fetchWater, fetchExercises, fetchRecommendation]);
 
-  // Refetch meals when date changes
+  // Refetch data when date changes
   useEffect(() => {
     if (lineUserId) {
       fetchMeals();
       fetchWater();
+      fetchExercises();
     }
-  }, [selectedDate, lineUserId, fetchMeals, fetchWater]);
+  }, [selectedDate, lineUserId, fetchMeals, fetchWater, fetchExercises]);
 
   // Get user goals (from member or defaults)
   const goals = {
@@ -325,6 +327,63 @@ export default function CaloriePage() {
     }
   };
 
+  const handleAddExercise = async (newExercise: {
+    name: string;
+    type: string;
+    duration: number;
+    calories: number;
+    intensity: string;
+    note?: string;
+  }) => {
+    if (!lineUserId) return;
+
+    try {
+      const res = await fetch("/api/exercises", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lineUserId,
+          ...newExercise,
+          date: selectedDate.toISOString(),
+        }),
+      });
+
+      if (res.ok) {
+        const savedExercise = await res.json();
+        const exercise: Exercise = {
+          id: savedExercise.id,
+          ...newExercise,
+          time: new Date().toLocaleTimeString("th-TH", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        };
+        setExercises([exercise, ...exercises]);
+        setExerciseBurned(exerciseBurned + newExercise.calories);
+      }
+    } catch (error) {
+      console.error("Failed to add exercise:", error);
+    }
+  };
+
+  const handleDeleteExercise = async (exerciseId: string) => {
+    try {
+      const res = await fetch(`/api/exercises/${exerciseId}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        const deletedExercise = exercises.find(e => e.id === exerciseId);
+        setExercises(exercises.filter((e) => e.id !== exerciseId));
+        if (deletedExercise) {
+          setExerciseBurned(Math.max(0, exerciseBurned - deletedExercise.calories));
+        }
+      }
+    } catch (error) {
+      console.error("Failed to delete exercise:", error);
+    }
+  };
+
   const handleAddWater = async (amount: number) => {
     if (!lineUserId) return;
 
@@ -384,9 +443,9 @@ export default function CaloriePage() {
       {/* Calories Card */}
       <div className="mx-6 mb-12">
         <CalorieRing
-          remaining={remaining}
+          remaining={remaining + exerciseBurned}
           consumed={dailyData.consumed}
-          burnt={0}
+          burnt={exerciseBurned}
           target={goals.targetCalories}
         />
 
@@ -449,17 +508,24 @@ export default function CaloriePage() {
         />
       </div>
 
+      {/* Exercises */}
+      {exercises.length > 0 && (
+        <div className="px-6 mb-6">
+          <ExerciseList exercises={exercises} onDelete={handleDeleteExercise} />
+        </div>
+      )}
+
       {/* Meals */}
       <div className="px-6">
-        {meals.length === 0 ? (
+        {meals.length === 0 && exercises.length === 0 ? (
           <div className="text-center py-12">
             <div className="text-5xl mb-4">🍽️</div>
             <p className="text-gray-400">ยังไม่มีรายการอาหารวันนี้</p>
             <p className="text-gray-400 text-sm">กดปุ่ม + เพื่อเพิ่มมื้ออาหาร</p>
           </div>
-        ) : (
+        ) : meals.length > 0 ? (
           <MealList meals={meals} onMealClick={handleMealClick} />
-        )}
+        ) : null}
       </div>
 
       {/* Meal Detail Modal */}
@@ -474,7 +540,7 @@ export default function CaloriePage() {
       />
 
       {/* Floating Add Button */}
-      <FloatingAddButton onAddMeal={handleAddMeal} />
+      <FloatingAddButton onAddMeal={handleAddMeal} onAddExercise={handleAddExercise} />
     </div>
   );
 }
