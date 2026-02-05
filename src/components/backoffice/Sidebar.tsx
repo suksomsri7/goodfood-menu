@@ -24,6 +24,7 @@ import {
   Table2,
   ScanBarcode,
   CreditCard,
+  Crown,
 } from "lucide-react";
 import { useSidebar } from "./SidebarContext";
 
@@ -76,6 +77,7 @@ const navGroups: NavGroup[] = [
   {
     title: "ระบบ",
     items: [
+      { href: "/backoffice/member-types", label: "ประเภทสมาชิก", icon: <Crown className="w-5 h-5" /> },
       { href: "/backoffice/schedule", label: "ตั้งเวลา", icon: <Calendar className="w-5 h-5" /> },
       { href: "/backoffice/staff", label: "พนักงาน", icon: <UserCog className="w-5 h-5" /> },
       { href: "/backoffice/roles", label: "สิทธิ์", icon: <Shield className="w-5 h-5" /> },

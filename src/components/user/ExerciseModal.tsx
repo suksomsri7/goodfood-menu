@@ -92,7 +92,7 @@ const INTENSITY_LABELS: Record<string, string> = {
   high: "หนัก",
 };
 
-type Mode = "select" | "custom";
+type Mode = "select" | "custom" | "scan";
 
 export function ExerciseModal({ isOpen, onClose, onSave }: ExerciseModalProps) {
   const [mode, setMode] = useState<Mode>("select");
@@ -121,16 +121,18 @@ export function ExerciseModal({ isOpen, onClose, onSave }: ExerciseModalProps) {
   const [showCamera, setShowCamera] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
 
-  const exerciseName = mode === "custom" 
-    ? (aiResult?.name || customExercise || "กำหนดเอง")
+  const exerciseName = mode === "scan" 
+    ? (customExercise || aiResult?.name || "")
+    : mode === "custom"
+    ? (customExercise || "กำหนดเอง")
     : (selectedExercise || customExercise || "");
   
   // Calculate estimated calories
   const calculateCalories = () => {
-    if (mode === "custom" && customCalories !== null) {
+    if ((mode === "custom" || mode === "scan") && customCalories !== null) {
       return customCalories;
     }
-    if (mode === "custom" && aiResult?.calories) {
+    if (mode === "scan" && aiResult?.calories) {
       return aiResult.calories;
     }
     const baseRate = CALORIES_PER_MINUTE[exerciseName] || 5;
@@ -143,8 +145,10 @@ export function ExerciseModal({ isOpen, onClose, onSave }: ExerciseModalProps) {
   const estimatedCalories = calculateCalories();
 
   const handleSubmit = async () => {
-    const finalName = mode === "custom" 
-      ? (customExercise || aiResult?.name || "กำหนดเอง")
+    const finalName = mode === "scan" 
+      ? (customExercise || aiResult?.name || "ออกกำลังกาย")
+      : mode === "custom"
+      ? (customExercise || "กำหนดเอง")
       : exerciseName;
     
     if (!finalName || duration <= 0) return;
@@ -153,12 +157,12 @@ export function ExerciseModal({ isOpen, onClose, onSave }: ExerciseModalProps) {
     
     const exerciseType = EXERCISE_TYPES.find(t => 
       t.exercises.includes(finalName)
-    )?.category || (mode === "custom" ? "เครื่องออกกำลังกาย" : "อื่นๆ");
+    )?.category || (mode === "scan" ? "เครื่องออกกำลังกาย" : mode === "custom" ? "กำหนดเอง" : "อื่นๆ");
 
     onSave({
       name: finalName,
       type: exerciseType,
-      duration: mode === "custom" && aiResult?.duration ? aiResult.duration : duration,
+      duration: mode === "scan" && aiResult?.duration ? aiResult.duration : duration,
       calories: estimatedCalories,
       intensity,
       note: note || (customDistance ? `ระยะทาง: ${customDistance}` : undefined),
@@ -296,7 +300,7 @@ export function ExerciseModal({ isOpen, onClose, onSave }: ExerciseModalProps) {
         <div className="flex border-b border-gray-100">
           <button
             onClick={() => setMode("select")}
-            className={`flex-1 py-3 text-sm font-medium transition-colors ${
+            className={`flex-1 py-3 text-xs font-medium transition-colors ${
               mode === "select" 
                 ? "text-green-600 border-b-2 border-green-500" 
                 : "text-gray-500 hover:text-gray-700"
@@ -307,14 +311,25 @@ export function ExerciseModal({ isOpen, onClose, onSave }: ExerciseModalProps) {
           </button>
           <button
             onClick={() => setMode("custom")}
-            className={`flex-1 py-3 text-sm font-medium transition-colors ${
+            className={`flex-1 py-3 text-xs font-medium transition-colors ${
               mode === "custom" 
-                ? "text-orange-600 border-b-2 border-orange-500" 
+                ? "text-blue-600 border-b-2 border-blue-500" 
                 : "text-gray-500 hover:text-gray-700"
             }`}
           >
             <Settings2 className="w-4 h-4 inline mr-1" />
-            กำหนดเอง / สแกนเครื่อง
+            กำหนดเอง
+          </button>
+          <button
+            onClick={() => setMode("scan")}
+            className={`flex-1 py-3 text-xs font-medium transition-colors ${
+              mode === "scan" 
+                ? "text-orange-600 border-b-2 border-orange-500" 
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            <Camera className="w-4 h-4 inline mr-1" />
+            สแกนหน้าจอ
           </button>
         </div>
 
@@ -434,44 +449,112 @@ export function ExerciseModal({ isOpen, onClose, onSave }: ExerciseModalProps) {
                 </div>
               </div>
             </>
+          ) : mode === "custom" ? (
+            <>
+              {/* Custom Mode - Manual Entry */}
+              <div className="space-y-4">
+                {/* Exercise Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    ชื่อการออกกำลังกาย
+                  </label>
+                  <input
+                    type="text"
+                    value={customExercise}
+                    onChange={(e) => setCustomExercise(e.target.value)}
+                    placeholder="เช่น ลู่วิ่ง, จักรยาน, เครื่อง Elliptical..."
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Duration & Calories Row */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      เวลา (นาที)
+                    </label>
+                    <input
+                      type="number"
+                      value={duration}
+                      onChange={(e) => setDuration(Math.max(1, parseInt(e.target.value) || 0))}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      แคลอรี่ (kcal)
+                    </label>
+                    <input
+                      type="number"
+                      value={customCalories ?? ""}
+                      onChange={(e) => setCustomCalories(parseInt(e.target.value) || null)}
+                      placeholder="ประมาณอัตโนมัติ"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                {/* Distance (optional) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    ระยะทาง (ไม่บังคับ)
+                  </label>
+                  <input
+                    type="text"
+                    value={customDistance}
+                    onChange={(e) => setCustomDistance(e.target.value)}
+                    placeholder="เช่น 5.2 km, 3000 m"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Intensity */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    ความหนัก
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(["low", "moderate", "high"] as const).map((level) => (
+                      <button
+                        key={level}
+                        onClick={() => setIntensity(level)}
+                        className={`py-2.5 px-4 rounded-xl text-sm font-medium transition-colors ${
+                          intensity === level
+                            ? level === "low" 
+                              ? "bg-blue-100 text-blue-600 border-2 border-blue-300"
+                              : level === "moderate"
+                              ? "bg-yellow-100 text-yellow-600 border-2 border-yellow-300"
+                              : "bg-red-100 text-red-600 border-2 border-red-300"
+                            : "bg-gray-100 text-gray-600 border-2 border-transparent"
+                        }`}
+                      >
+                        {INTENSITY_LABELS[level]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </>
           ) : (
             <>
-              {/* Custom Mode */}
+              {/* Scan Mode - Camera Only */}
               
-              {/* Camera/Photo Section */}
+              {/* Camera Button */}
               {!capturedImage && !showCamera && (
-                <div className="space-y-3">
-                  <label className="block text-sm font-medium text-gray-700">
-                    ถ่ายรูปหน้าจอเครื่องออกกำลังกาย
-                  </label>
-                  <div className="flex gap-3">
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600 mb-4">
+                      ถ่ายรูปหน้าจอเครื่องออกกำลังกาย<br/>
+                      <span className="text-xs text-gray-400">AI จะอ่านค่า เวลา, แคลอรี่, ระยะทาง</span>
+                    </p>
                     <button
                       onClick={startCamera}
-                      className="flex-1 py-4 border-2 border-dashed border-orange-300 rounded-xl text-orange-500 hover:bg-orange-50 transition-colors flex flex-col items-center gap-2"
+                      className="w-full py-6 border-2 border-dashed border-orange-300 rounded-xl text-orange-500 hover:bg-orange-50 transition-colors flex flex-col items-center gap-2"
                     >
-                      <Camera className="w-8 h-8" />
-                      <span className="text-sm">ถ่ายรูป</span>
-                    </button>
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex-1 py-4 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:bg-gray-50 transition-colors flex flex-col items-center gap-2"
-                    >
-                      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <span className="text-sm">เลือกรูป</span>
+                      <Camera className="w-12 h-12" />
+                      <span className="font-medium">ถ่ายรูปหน้าจอเครื่อง</span>
                     </button>
                   </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleFileSelect}
-                  />
-                  <p className="text-xs text-gray-400 text-center">
-                    AI จะอ่านค่าจากหน้าจอเครื่อง (เวลา, แคลอรี่, ระยะทาง)
-                  </p>
                 </div>
               )}
 
@@ -505,7 +588,7 @@ export function ExerciseModal({ isOpen, onClose, onSave }: ExerciseModalProps) {
 
               {/* Captured Image & Analysis */}
               {capturedImage && (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div className="relative rounded-xl overflow-hidden">
                     <img src={capturedImage} alt="Captured" className="w-full" />
                     {isAnalyzing && (
@@ -521,88 +604,85 @@ export function ExerciseModal({ isOpen, onClose, onSave }: ExerciseModalProps) {
                     onClick={() => {
                       setCapturedImage(null);
                       setAiResult(null);
+                      setCustomCalories(null);
+                      setCustomDistance("");
+                      setCustomExercise("");
                     }}
                     className="text-sm text-orange-500 hover:underline"
                   >
                     ถ่ายรูปใหม่
                   </button>
+
+                  {/* AI Result - Editable */}
+                  {aiResult && !isAnalyzing && (
+                    <div className="space-y-3 pt-2 border-t border-gray-100">
+                      <p className="text-xs text-gray-500 text-center">ผลการวิเคราะห์ (แก้ไขได้)</p>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          ชื่อการออกกำลังกาย
+                        </label>
+                        <input
+                          type="text"
+                          value={customExercise}
+                          onChange={(e) => setCustomExercise(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            เวลา (นาที)
+                          </label>
+                          <input
+                            type="number"
+                            value={duration}
+                            onChange={(e) => setDuration(Math.max(1, parseInt(e.target.value) || 0))}
+                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            แคลอรี่ (kcal)
+                          </label>
+                          <input
+                            type="number"
+                            value={customCalories ?? ""}
+                            onChange={(e) => setCustomCalories(parseInt(e.target.value) || null)}
+                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+
+                      {customDistance && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            ระยะทาง
+                          </label>
+                          <input
+                            type="text"
+                            value={customDistance}
+                            onChange={(e) => setCustomDistance(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
-
-              {/* Manual Entry Fields */}
-              <div className="space-y-4 pt-2">
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <div className="flex-1 h-px bg-gray-200" />
-                  <span>หรือกรอกข้อมูลเอง</span>
-                  <div className="flex-1 h-px bg-gray-200" />
-                </div>
-
-                {/* Exercise Name */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ชื่อการออกกำลังกาย
-                  </label>
-                  <input
-                    type="text"
-                    value={customExercise}
-                    onChange={(e) => setCustomExercise(e.target.value)}
-                    placeholder="เช่น ลู่วิ่ง, จักรยาน, เครื่อง Elliptical..."
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  />
-                </div>
-
-                {/* Duration & Calories Row */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      เวลา (นาที)
-                    </label>
-                    <input
-                      type="number"
-                      value={aiResult?.duration || duration}
-                      onChange={(e) => setDuration(Math.max(1, parseInt(e.target.value) || 0))}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      แคลอรี่ (kcal)
-                    </label>
-                    <input
-                      type="number"
-                      value={customCalories ?? ""}
-                      onChange={(e) => setCustomCalories(parseInt(e.target.value) || null)}
-                      placeholder="อัตโนมัติ"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
-
-                {/* Distance (optional) */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ระยะทาง (ไม่บังคับ)
-                  </label>
-                  <input
-                    type="text"
-                    value={customDistance}
-                    onChange={(e) => setCustomDistance(e.target.value)}
-                    placeholder="เช่น 5.2 km, 3000 m"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
             </>
           )}
 
           {/* Estimated Calories */}
-          {(exerciseName || mode === "custom") && (
+          {(exerciseName || mode === "custom" || (mode === "scan" && (aiResult || customExercise))) && (
             <div className="bg-gradient-to-r from-orange-50 to-red-50 rounded-2xl p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Flame className="w-5 h-5 text-orange-500" />
                   <span className="text-sm font-medium text-gray-700">
-                    {mode === "custom" && customCalories ? "แคลอรี่ที่เผาผลาญ" : "แคลอรี่ (โดยประมาณ)"}
+                    {(mode === "custom" || mode === "scan") && customCalories ? "แคลอรี่ที่เผาผลาญ" : "แคลอรี่ (โดยประมาณ)"}
                   </span>
                 </div>
                 <span className="text-2xl font-bold text-orange-500">
@@ -631,10 +711,19 @@ export function ExerciseModal({ isOpen, onClose, onSave }: ExerciseModalProps) {
         <div className="sticky bottom-0 bg-white border-t border-gray-100 p-4">
           <button
             onClick={handleSubmit}
-            disabled={(!exerciseName && mode === "select") || (mode === "custom" && !customExercise && !aiResult) || duration <= 0 || isSubmitting || isAnalyzing}
+            disabled={
+              (mode === "select" && !exerciseName) || 
+              (mode === "custom" && !customExercise) || 
+              (mode === "scan" && !customExercise && !aiResult) ||
+              duration <= 0 || 
+              isSubmitting || 
+              isAnalyzing
+            }
             className={`w-full py-3.5 font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-              mode === "custom" 
+              mode === "scan" 
                 ? "bg-orange-500 hover:bg-orange-600 text-white"
+                : mode === "custom"
+                ? "bg-blue-500 hover:bg-blue-600 text-white"
                 : "bg-green-500 hover:bg-green-600 text-white"
             }`}
           >

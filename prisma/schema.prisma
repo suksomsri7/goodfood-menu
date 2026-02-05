@@ -34,6 +34,8 @@ model Member {
   dailySodium   Float? // เป้าหมายโซเดียมต่อวัน (mg)
   dailySugar    Float? // เป้าหมายน้ำตาลต่อวัน (g)
   dailyWater    Float? // เป้าหมายน้ำต่อวัน (ml)
+  memberTypeId  String? // ประเภทสมาชิก
+  memberType    MemberType? @relation(fields: [memberTypeId], references: [id])
   isOnboarded   Boolean   @default(false) // ผ่านการตั้งค่าเป้าหมายแล้ว
   isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
@@ -365,6 +367,24 @@ model Role {
   updatedAt   DateTime @updatedAt
 
   @@map("roles")
+}
+
+// ==================== ประเภทสมาชิก ====================
+model MemberType {
+  id                  String   @id @default(cuid())
+  name                String   @unique // ชื่อประเภท เช่น Free, Basic, Premium
+  description         String?
+  color               String   @default("#4CAF50") // สีสำหรับแสดง badge
+  dailyPhotoLimit     Int      @default(3) // จำนวนครั้ง Take Photo ต่อวัน (0 = ไม่จำกัด)
+  dailyAiLimit        Int      @default(3) // จำนวนครั้ง AI แนะนำ ต่อวัน (0 = ไม่จำกัด)
+  isDefault           Boolean  @default(false) // เป็นค่า default สำหรับสมาชิกใหม่
+  isActive            Boolean  @default(true)
+  order               Int      @default(0)
+  members             Member[]
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("member_types")
 }
 
 // ==================== LINE แชท ====================
