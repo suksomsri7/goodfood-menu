@@ -48,6 +48,8 @@ interface Member {
   dailySodium: number | null;
   dailySugar: number | null;
   dailyWater: number | null;
+  bmr: number | null;
+  tdee: number | null;
 }
 
 
@@ -448,6 +450,24 @@ export default function CaloriePage() {
           burnt={exerciseBurned}
           target={goals.targetCalories}
         />
+
+        {/* BMR/TDEE Info */}
+        {(member?.bmr || member?.tdee) && (
+          <div className="flex justify-center gap-6 mb-4 text-xs text-gray-400">
+            {member?.bmr && (
+              <div className="flex items-center gap-1">
+                <span>BMR:</span>
+                <span className="font-medium text-gray-500">{Math.round(member.bmr)} kcal</span>
+              </div>
+            )}
+            {member?.tdee && (
+              <div className="flex items-center gap-1">
+                <span>TDEE:</span>
+                <span className="font-medium text-gray-500">{Math.round(member.tdee)} kcal</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Macros Row 1 - Carbs, Protein, Fat */}
         <div className="flex gap-4 px-2 mb-3">

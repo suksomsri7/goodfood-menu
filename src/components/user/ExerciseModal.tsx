@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { X, Flame, Clock, Dumbbell, ChevronDown } from "lucide-react";
+import { useState, useRef } from "react";
+import { X, Flame, Clock, Dumbbell, ChevronDown, Camera, Loader2, Settings2 } from "lucide-react";
 
 interface ExerciseModalProps {
   isOpen: boolean;
@@ -17,30 +17,73 @@ interface ExerciseModalProps {
 }
 
 const EXERCISE_TYPES = [
-  { category: "คาร์ดิโอ", exercises: ["วิ่ง", "เดินเร็ว", "ปั่นจักรยาน", "ว่ายน้ำ", "กระโดดเชือก", "เต้นแอโรบิค", "เดินขึ้นบันได"] },
-  { category: "เวทเทรนนิ่ง", exercises: ["ยกน้ำหนัก", "วิดพื้น", "สควอท", "แพลงค์"] },
-  { category: "กีฬา", exercises: ["แบดมินตัน", "เทนนิส", "บาสเกตบอล", "ฟุตบอล"] },
-  { category: "ยืดหยุ่น", exercises: ["โยคะ", "ยืดเหยียด"] },
+  { 
+    category: "คาร์ดิโอ", 
+    exercises: [
+      "วิ่ง", "เดินเร็ว", "ปั่นจักรยาน", "ว่ายน้ำ", "กระโดดเชือก", 
+      "เต้นแอโรบิค", "เดินขึ้นบันได", "เดินบนลู่วิ่ง", "วิ่งบนลู่วิ่ง",
+      "ปั่นจักรยานอยู่กับที่", "เครื่องเดินวงรี (Elliptical)", "เครื่องพายเรือ",
+      "Step Aerobics", "Zumba", "เต้น", "กระโดดตบ (Jumping Jacks)"
+    ] 
+  },
+  { 
+    category: "เวทเทรนนิ่ง", 
+    exercises: [
+      "ยกน้ำหนัก", "วิดพื้น", "สควอท", "แพลงค์", "ดัมเบล",
+      "บาร์เบล", "เครื่อง Leg Press", "เครื่อง Chest Press", "เครื่อง Lat Pulldown",
+      "เครื่อง Cable", "ซิทอัพ", "Crunch", "Deadlift", "Bench Press",
+      "Lunges", "Burpees", "Pull-up", "Chin-up", "Dips"
+    ] 
+  },
+  { 
+    category: "กีฬา", 
+    exercises: [
+      "แบดมินตัน", "เทนนิส", "บาสเกตบอล", "ฟุตบอล", "วอลเลย์บอล",
+      "ปิงปอง", "กอล์ฟ", "มวย", "เทควันโด", "ยูโด", "คาราเต้",
+      "สควอช", "แฮนด์บอล", "รักบี้", "ฮอกกี้", "สเก็ต", "สกี"
+    ] 
+  },
+  { 
+    category: "ยืดหยุ่น / ใจและกาย", 
+    exercises: [
+      "โยคะ", "ยืดเหยียด", "พิลาทิส", "ไทชิ", "ชี่กง",
+      "โยคะร้อน (Hot Yoga)", "Foam Rolling", "การหายใจ"
+    ] 
+  },
+  {
+    category: "กิจกรรมอื่นๆ",
+    exercises: [
+      "ทำสวน", "ทำความสะอาดบ้าน", "ซักผ้า", "ล้างรถ", "เดินช้อปปิ้ง",
+      "เล่นกับลูก", "จูงสุนัขเดินเล่น", "ขี่ม้า", "ปีนเขา", "ตั้งแคมป์"
+    ]
+  }
 ];
 
 const CALORIES_PER_MINUTE: Record<string, number> = {
-  "วิ่ง": 10,
-  "เดินเร็ว": 5,
-  "ปั่นจักรยาน": 8,
-  "ว่ายน้ำ": 9,
-  "กระโดดเชือก": 12,
-  "เต้นแอโรบิค": 7,
-  "เดินขึ้นบันได": 8,
-  "ยกน้ำหนัก": 6,
-  "วิดพื้น": 7,
-  "สควอท": 6,
-  "แพลงค์": 4,
-  "แบดมินตัน": 7,
-  "เทนนิส": 8,
-  "บาสเกตบอล": 8,
-  "ฟุตบอล": 9,
-  "โยคะ": 3,
-  "ยืดเหยียด": 2,
+  // Cardio
+  "วิ่ง": 10, "เดินเร็ว": 5, "ปั่นจักรยาน": 8, "ว่ายน้ำ": 9, 
+  "กระโดดเชือก": 12, "เต้นแอโรบิค": 7, "เดินขึ้นบันได": 8,
+  "เดินบนลู่วิ่ง": 5, "วิ่งบนลู่วิ่ง": 10, "ปั่นจักรยานอยู่กับที่": 7,
+  "เครื่องเดินวงรี (Elliptical)": 8, "เครื่องพายเรือ": 9,
+  "Step Aerobics": 8, "Zumba": 7, "เต้น": 6, "กระโดดตบ (Jumping Jacks)": 8,
+  // Strength
+  "ยกน้ำหนัก": 6, "วิดพื้น": 7, "สควอท": 6, "แพลงค์": 4, "ดัมเบล": 5,
+  "บาร์เบล": 6, "เครื่อง Leg Press": 5, "เครื่อง Chest Press": 5,
+  "เครื่อง Lat Pulldown": 5, "เครื่อง Cable": 5, "ซิทอัพ": 5,
+  "Crunch": 4, "Deadlift": 7, "Bench Press": 6, "Lunges": 6,
+  "Burpees": 10, "Pull-up": 8, "Chin-up": 8, "Dips": 6,
+  // Sports
+  "แบดมินตัน": 7, "เทนนิส": 8, "บาสเกตบอล": 8, "ฟุตบอล": 9,
+  "วอลเลย์บอล": 6, "ปิงปอง": 4, "กอล์ฟ": 4, "มวย": 10,
+  "เทควันโด": 10, "ยูโด": 10, "คาราเต้": 10, "สควอช": 9,
+  "แฮนด์บอล": 8, "รักบี้": 9, "ฮอกกี้": 8, "สเก็ต": 7, "สกี": 8,
+  // Flexibility
+  "โยคะ": 3, "ยืดเหยียด": 2, "พิลาทิส": 4, "ไทชิ": 3, "ชี่กง": 2,
+  "โยคะร้อน (Hot Yoga)": 5, "Foam Rolling": 2, "การหายใจ": 1,
+  // Other activities
+  "ทำสวน": 4, "ทำความสะอาดบ้าน": 3, "ซักผ้า": 2, "ล้างรถ": 3,
+  "เดินช้อปปิ้ง": 3, "เล่นกับลูก": 4, "จูงสุนัขเดินเล่น": 3,
+  "ขี่ม้า": 5, "ปีนเขา": 8, "ตั้งแคมป์": 3,
 };
 
 const INTENSITY_LABELS: Record<string, string> = {
@@ -49,7 +92,10 @@ const INTENSITY_LABELS: Record<string, string> = {
   high: "หนัก",
 };
 
+type Mode = "select" | "custom";
+
 export function ExerciseModal({ isOpen, onClose, onSave }: ExerciseModalProps) {
+  const [mode, setMode] = useState<Mode>("select");
   const [selectedExercise, setSelectedExercise] = useState("");
   const [customExercise, setCustomExercise] = useState("");
   const [duration, setDuration] = useState(30);
@@ -57,11 +103,36 @@ export function ExerciseModal({ isOpen, onClose, onSave }: ExerciseModalProps) {
   const [note, setNote] = useState("");
   const [showExerciseList, setShowExerciseList] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Custom mode states
+  const [customCalories, setCustomCalories] = useState<number | null>(null);
+  const [customDistance, setCustomDistance] = useState<string>("");
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiResult, setAiResult] = useState<{
+    name: string;
+    duration: number;
+    calories: number;
+    distance?: string;
+  } | null>(null);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [showCamera, setShowCamera] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
 
-  const exerciseName = selectedExercise || customExercise || "";
+  const exerciseName = mode === "custom" 
+    ? (aiResult?.name || customExercise || "กำหนดเอง")
+    : (selectedExercise || customExercise || "");
   
   // Calculate estimated calories
   const calculateCalories = () => {
+    if (mode === "custom" && customCalories !== null) {
+      return customCalories;
+    }
+    if (mode === "custom" && aiResult?.calories) {
+      return aiResult.calories;
+    }
     const baseRate = CALORIES_PER_MINUTE[exerciseName] || 5;
     let multiplier = 1;
     if (intensity === "low") multiplier = 0.8;
@@ -72,40 +143,130 @@ export function ExerciseModal({ isOpen, onClose, onSave }: ExerciseModalProps) {
   const estimatedCalories = calculateCalories();
 
   const handleSubmit = async () => {
-    if (!exerciseName || duration <= 0) return;
+    const finalName = mode === "custom" 
+      ? (customExercise || aiResult?.name || "กำหนดเอง")
+      : exerciseName;
+    
+    if (!finalName || duration <= 0) return;
 
     setIsSubmitting(true);
     
     const exerciseType = EXERCISE_TYPES.find(t => 
-      t.exercises.includes(exerciseName)
-    )?.category || "อื่นๆ";
+      t.exercises.includes(finalName)
+    )?.category || (mode === "custom" ? "เครื่องออกกำลังกาย" : "อื่นๆ");
 
     onSave({
-      name: exerciseName,
+      name: finalName,
       type: exerciseType,
-      duration,
+      duration: mode === "custom" && aiResult?.duration ? aiResult.duration : duration,
       calories: estimatedCalories,
       intensity,
-      note: note || undefined,
+      note: note || (customDistance ? `ระยะทาง: ${customDistance}` : undefined),
     });
 
-    // Reset form
-    setSelectedExercise("");
-    setCustomExercise("");
-    setDuration(30);
-    setIntensity("moderate");
-    setNote("");
+    resetForm();
     setIsSubmitting(false);
   };
 
-  const handleClose = () => {
+  const resetForm = () => {
+    setMode("select");
     setSelectedExercise("");
     setCustomExercise("");
     setDuration(30);
     setIntensity("moderate");
     setNote("");
     setShowExerciseList(false);
+    setCustomCalories(null);
+    setCustomDistance("");
+    setCapturedImage(null);
+    setAiResult(null);
+    stopCamera();
+  };
+
+  const handleClose = () => {
+    resetForm();
     onClose();
+  };
+
+  // Camera functions
+  const startCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: "environment" } 
+      });
+      setStream(mediaStream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+      setShowCamera(true);
+    } catch (error) {
+      console.error("Failed to access camera:", error);
+      alert("ไม่สามารถเข้าถึงกล้องได้");
+    }
+  };
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    setShowCamera(false);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current) {
+      const canvas = document.createElement("canvas");
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(videoRef.current, 0, 0);
+        const imageData = canvas.toDataURL("image/jpeg", 0.8);
+        setCapturedImage(imageData);
+        stopCamera();
+        analyzeImage(imageData);
+      }
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const imageData = reader.result as string;
+        setCapturedImage(imageData);
+        analyzeImage(imageData);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const analyzeImage = async (imageData: string) => {
+    setIsAnalyzing(true);
+    try {
+      const res = await fetch("/api/analyze-exercise", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: imageData }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setAiResult(data);
+        if (data.duration) setDuration(data.duration);
+        if (data.calories) setCustomCalories(data.calories);
+        if (data.distance) setCustomDistance(data.distance);
+        if (data.name) setCustomExercise(data.name);
+      } else {
+        alert("ไม่สามารถวิเคราะห์ภาพได้ กรุณาลองใหม่หรือกรอกข้อมูลเอง");
+      }
+    } catch (error) {
+      console.error("Failed to analyze image:", error);
+      alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -131,134 +292,318 @@ export function ExerciseModal({ isOpen, onClose, onSave }: ExerciseModalProps) {
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-140px)]">
-          {/* Exercise Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <Dumbbell className="w-4 h-4 inline mr-1" />
-              ประเภทการออกกำลังกาย
-            </label>
-            
-            {/* Selected/Custom Input */}
-            <div 
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white cursor-pointer flex items-center justify-between"
-              onClick={() => setShowExerciseList(!showExerciseList)}
-            >
-              <span className={selectedExercise ? "text-gray-900" : "text-gray-400"}>
-                {selectedExercise || "เลือกการออกกำลังกาย"}
-              </span>
-              <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${showExerciseList ? "rotate-180" : ""}`} />
-            </div>
+        {/* Mode Tabs */}
+        <div className="flex border-b border-gray-100">
+          <button
+            onClick={() => setMode("select")}
+            className={`flex-1 py-3 text-sm font-medium transition-colors ${
+              mode === "select" 
+                ? "text-green-600 border-b-2 border-green-500" 
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            <Dumbbell className="w-4 h-4 inline mr-1" />
+            เลือกประเภท
+          </button>
+          <button
+            onClick={() => setMode("custom")}
+            className={`flex-1 py-3 text-sm font-medium transition-colors ${
+              mode === "custom" 
+                ? "text-orange-600 border-b-2 border-orange-500" 
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            <Settings2 className="w-4 h-4 inline mr-1" />
+            กำหนดเอง / สแกนเครื่อง
+          </button>
+        </div>
 
-            {/* Exercise List Dropdown */}
-            {showExerciseList && (
-              <div className="mt-2 border border-gray-200 rounded-xl bg-white max-h-48 overflow-y-auto">
-                {EXERCISE_TYPES.map((group) => (
-                  <div key={group.category}>
-                    <div className="px-4 py-2 bg-gray-50 text-xs font-medium text-gray-500 sticky top-0">
-                      {group.category}
-                    </div>
-                    {group.exercises.map((exercise) => (
-                      <button
-                        key={exercise}
-                        className={`w-full px-4 py-2.5 text-left hover:bg-gray-50 transition-colors ${
-                          selectedExercise === exercise ? "bg-green-50 text-green-600" : "text-gray-700"
-                        }`}
-                        onClick={() => {
-                          setSelectedExercise(exercise);
-                          setCustomExercise("");
-                          setShowExerciseList(false);
-                        }}
-                      >
-                        {exercise}
-                        <span className="text-xs text-gray-400 ml-2">
-                          ~{CALORIES_PER_MINUTE[exercise]} kcal/นาที
-                        </span>
-                      </button>
+        {/* Content */}
+        <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+          
+          {mode === "select" ? (
+            <>
+              {/* Exercise Selection Mode */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  ประเภทการออกกำลังกาย
+                </label>
+                
+                <div 
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white cursor-pointer flex items-center justify-between"
+                  onClick={() => setShowExerciseList(!showExerciseList)}
+                >
+                  <span className={selectedExercise ? "text-gray-900" : "text-gray-400"}>
+                    {selectedExercise || "เลือกการออกกำลังกาย"}
+                  </span>
+                  <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${showExerciseList ? "rotate-180" : ""}`} />
+                </div>
+
+                {showExerciseList && (
+                  <div className="mt-2 border border-gray-200 rounded-xl bg-white max-h-48 overflow-y-auto">
+                    {EXERCISE_TYPES.map((group) => (
+                      <div key={group.category}>
+                        <div className="px-4 py-2 bg-gray-50 text-xs font-medium text-gray-500 sticky top-0">
+                          {group.category}
+                        </div>
+                        {group.exercises.map((exercise) => (
+                          <button
+                            key={exercise}
+                            className={`w-full px-4 py-2.5 text-left hover:bg-gray-50 transition-colors ${
+                              selectedExercise === exercise ? "bg-green-50 text-green-600" : "text-gray-700"
+                            }`}
+                            onClick={() => {
+                              setSelectedExercise(exercise);
+                              setCustomExercise("");
+                              setShowExerciseList(false);
+                            }}
+                          >
+                            {exercise}
+                            <span className="text-xs text-gray-400 ml-2">
+                              ~{CALORIES_PER_MINUTE[exercise] || 5} kcal/นาที
+                            </span>
+                          </button>
+                        ))}
+                      </div>
                     ))}
                   </div>
-                ))}
+                )}
+
+                <div className="mt-3">
+                  <input
+                    type="text"
+                    value={customExercise}
+                    onChange={(e) => {
+                      setCustomExercise(e.target.value);
+                      setSelectedExercise("");
+                    }}
+                    placeholder="หรือพิมพ์ชื่อการออกกำลังกาย..."
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                </div>
               </div>
-            )}
 
-            {/* Custom Exercise Input */}
-            <div className="mt-3">
-              <input
-                type="text"
-                value={customExercise}
-                onChange={(e) => {
-                  setCustomExercise(e.target.value);
-                  setSelectedExercise("");
-                }}
-                placeholder="หรือพิมพ์ชื่อการออกกำลังกาย..."
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              />
-            </div>
-          </div>
+              {/* Duration */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Clock className="w-4 h-4 inline mr-1" />
+                  ระยะเวลา (นาที)
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min="5"
+                    max="180"
+                    step="5"
+                    value={duration}
+                    onChange={(e) => setDuration(parseInt(e.target.value))}
+                    className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-500"
+                  />
+                  <input
+                    type="number"
+                    value={duration}
+                    onChange={(e) => setDuration(Math.max(1, parseInt(e.target.value) || 0))}
+                    className="w-20 px-3 py-2 border border-gray-200 rounded-xl text-center"
+                  />
+                </div>
+              </div>
 
-          {/* Duration */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <Clock className="w-4 h-4 inline mr-1" />
-              ระยะเวลา (นาที)
-            </label>
-            <div className="flex items-center gap-3">
-              <input
-                type="range"
-                min="5"
-                max="180"
-                step="5"
-                value={duration}
-                onChange={(e) => setDuration(parseInt(e.target.value))}
-                className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-500"
-              />
-              <input
-                type="number"
-                value={duration}
-                onChange={(e) => setDuration(Math.max(1, parseInt(e.target.value) || 0))}
-                className="w-20 px-3 py-2 border border-gray-200 rounded-xl text-center"
-              />
-            </div>
-            <div className="flex justify-between text-xs text-gray-400 mt-1">
-              <span>5 นาที</span>
-              <span>180 นาที</span>
-            </div>
-          </div>
+              {/* Intensity */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  ความหนัก
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["low", "moderate", "high"] as const).map((level) => (
+                    <button
+                      key={level}
+                      onClick={() => setIntensity(level)}
+                      className={`py-2.5 px-4 rounded-xl text-sm font-medium transition-colors ${
+                        intensity === level
+                          ? level === "low" 
+                            ? "bg-blue-100 text-blue-600 border-2 border-blue-300"
+                            : level === "moderate"
+                            ? "bg-yellow-100 text-yellow-600 border-2 border-yellow-300"
+                            : "bg-red-100 text-red-600 border-2 border-red-300"
+                          : "bg-gray-100 text-gray-600 border-2 border-transparent"
+                      }`}
+                    >
+                      {INTENSITY_LABELS[level]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Custom Mode */}
+              
+              {/* Camera/Photo Section */}
+              {!capturedImage && !showCamera && (
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-gray-700">
+                    ถ่ายรูปหน้าจอเครื่องออกกำลังกาย
+                  </label>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={startCamera}
+                      className="flex-1 py-4 border-2 border-dashed border-orange-300 rounded-xl text-orange-500 hover:bg-orange-50 transition-colors flex flex-col items-center gap-2"
+                    >
+                      <Camera className="w-8 h-8" />
+                      <span className="text-sm">ถ่ายรูป</span>
+                    </button>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex-1 py-4 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:bg-gray-50 transition-colors flex flex-col items-center gap-2"
+                    >
+                      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span className="text-sm">เลือกรูป</span>
+                    </button>
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                  />
+                  <p className="text-xs text-gray-400 text-center">
+                    AI จะอ่านค่าจากหน้าจอเครื่อง (เวลา, แคลอรี่, ระยะทาง)
+                  </p>
+                </div>
+              )}
 
-          {/* Intensity */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              ความหนัก
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {(["low", "moderate", "high"] as const).map((level) => (
-                <button
-                  key={level}
-                  onClick={() => setIntensity(level)}
-                  className={`py-2.5 px-4 rounded-xl text-sm font-medium transition-colors ${
-                    intensity === level
-                      ? level === "low" 
-                        ? "bg-blue-100 text-blue-600 border-2 border-blue-300"
-                        : level === "moderate"
-                        ? "bg-yellow-100 text-yellow-600 border-2 border-yellow-300"
-                        : "bg-red-100 text-red-600 border-2 border-red-300"
-                      : "bg-gray-100 text-gray-600 border-2 border-transparent"
-                  }`}
-                >
-                  {INTENSITY_LABELS[level]}
-                </button>
-              ))}
-            </div>
-          </div>
+              {/* Camera View */}
+              {showCamera && (
+                <div className="space-y-3">
+                  <div className="relative rounded-xl overflow-hidden bg-black">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={stopCamera}
+                      className="flex-1 py-3 bg-gray-200 text-gray-700 rounded-xl font-medium"
+                    >
+                      ยกเลิก
+                    </button>
+                    <button
+                      onClick={capturePhoto}
+                      className="flex-1 py-3 bg-orange-500 text-white rounded-xl font-medium"
+                    >
+                      ถ่ายรูป
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Captured Image & Analysis */}
+              {capturedImage && (
+                <div className="space-y-3">
+                  <div className="relative rounded-xl overflow-hidden">
+                    <img src={capturedImage} alt="Captured" className="w-full" />
+                    {isAnalyzing && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <div className="text-center text-white">
+                          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
+                          <p>กำลังวิเคราะห์...</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setCapturedImage(null);
+                      setAiResult(null);
+                    }}
+                    className="text-sm text-orange-500 hover:underline"
+                  >
+                    ถ่ายรูปใหม่
+                  </button>
+                </div>
+              )}
+
+              {/* Manual Entry Fields */}
+              <div className="space-y-4 pt-2">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="flex-1 h-px bg-gray-200" />
+                  <span>หรือกรอกข้อมูลเอง</span>
+                  <div className="flex-1 h-px bg-gray-200" />
+                </div>
+
+                {/* Exercise Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    ชื่อการออกกำลังกาย
+                  </label>
+                  <input
+                    type="text"
+                    value={customExercise}
+                    onChange={(e) => setCustomExercise(e.target.value)}
+                    placeholder="เช่น ลู่วิ่ง, จักรยาน, เครื่อง Elliptical..."
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Duration & Calories Row */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      เวลา (นาที)
+                    </label>
+                    <input
+                      type="number"
+                      value={aiResult?.duration || duration}
+                      onChange={(e) => setDuration(Math.max(1, parseInt(e.target.value) || 0))}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      แคลอรี่ (kcal)
+                    </label>
+                    <input
+                      type="number"
+                      value={customCalories ?? ""}
+                      onChange={(e) => setCustomCalories(parseInt(e.target.value) || null)}
+                      placeholder="อัตโนมัติ"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                {/* Distance (optional) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    ระยะทาง (ไม่บังคับ)
+                  </label>
+                  <input
+                    type="text"
+                    value={customDistance}
+                    onChange={(e) => setCustomDistance(e.target.value)}
+                    placeholder="เช่น 5.2 km, 3000 m"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Estimated Calories */}
-          {exerciseName && (
+          {(exerciseName || mode === "custom") && (
             <div className="bg-gradient-to-r from-orange-50 to-red-50 rounded-2xl p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Flame className="w-5 h-5 text-orange-500" />
-                  <span className="text-sm font-medium text-gray-700">แคลอรี่ที่เผาผลาญ (โดยประมาณ)</span>
+                  <span className="text-sm font-medium text-gray-700">
+                    {mode === "custom" && customCalories ? "แคลอรี่ที่เผาผลาญ" : "แคลอรี่ (โดยประมาณ)"}
+                  </span>
                 </div>
                 <span className="text-2xl font-bold text-orange-500">
                   {estimatedCalories} <span className="text-sm font-normal">kcal</span>
@@ -286,8 +631,12 @@ export function ExerciseModal({ isOpen, onClose, onSave }: ExerciseModalProps) {
         <div className="sticky bottom-0 bg-white border-t border-gray-100 p-4">
           <button
             onClick={handleSubmit}
-            disabled={!exerciseName || duration <= 0 || isSubmitting}
-            className="w-full py-3.5 bg-green-500 text-white font-semibold rounded-xl hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={(!exerciseName && mode === "select") || (mode === "custom" && !customExercise && !aiResult) || duration <= 0 || isSubmitting || isAnalyzing}
+            className={`w-full py-3.5 font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+              mode === "custom" 
+                ? "bg-orange-500 hover:bg-orange-600 text-white"
+                : "bg-green-500 hover:bg-green-600 text-white"
+            }`}
           >
             {isSubmitting ? "กำลังบันทึก..." : "บันทึก"}
           </button>

@@ -94,6 +94,8 @@ interface MealLog {
   protein: number;
   carbs: number;
   fat: number;
+  sodium: number | null;
+  sugar: number | null;
   date: string;
   imageUrl: string | null;
 }
@@ -144,6 +146,7 @@ export default function ChatPage() {
   const [userData, setUserData] = useState<Member | null>(null);
   const [userMeals, setUserMeals] = useState<MealLog[]>([]);
   const [userOrders, setUserOrders] = useState<Order[]>([]);
+  const [userWater, setUserWater] = useState<number>(0);
   const [loadingUserData, setLoadingUserData] = useState(false);
 
   // Column collapse states
@@ -290,6 +293,15 @@ export default function ChatPage() {
         setUserOrders(ordersData);
       } else {
         setUserOrders([]);
+      }
+
+      // Fetch water intake
+      const waterRes = await fetch(`/api/water?lineUserId=${lineUserId}&date=${today}`);
+      if (waterRes.ok) {
+        const waterData = await waterRes.json();
+        setUserWater(waterData.total || 0);
+      } else {
+        setUserWater(0);
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
@@ -489,8 +501,10 @@ export default function ChatPage() {
         protein: acc.protein + meal.protein,
         carbs: acc.carbs + meal.carbs,
         fat: acc.fat + meal.fat,
+        sodium: acc.sodium + (meal.sodium || 0),
+        sugar: acc.sugar + (meal.sugar || 0),
       }),
-      { calories: 0, protein: 0, carbs: 0, fat: 0 }
+      { calories: 0, protein: 0, carbs: 0, fat: 0, sodium: 0, sugar: 0 }
     );
   };
 
@@ -551,17 +565,33 @@ export default function ChatPage() {
 
         {/* Macros */}
         <div className="grid grid-cols-3 gap-2">
-          <div className="bg-blue-50 rounded-xl p-3 text-center">
-            <p className="text-xs text-blue-600 mb-1">โปรตีน</p>
-            <p className="text-lg font-bold text-blue-700">{Math.round(totals.protein)}g</p>
+          <div className="bg-blue-50 rounded-xl p-2.5 text-center">
+            <p className="text-[10px] text-blue-600 mb-0.5">โปรตีน</p>
+            <p className="text-base font-bold text-blue-700">{Math.round(totals.protein)}g</p>
           </div>
-          <div className="bg-amber-50 rounded-xl p-3 text-center">
-            <p className="text-xs text-amber-600 mb-1">คาร์บ</p>
-            <p className="text-lg font-bold text-amber-700">{Math.round(totals.carbs)}g</p>
+          <div className="bg-amber-50 rounded-xl p-2.5 text-center">
+            <p className="text-[10px] text-amber-600 mb-0.5">คาร์บ</p>
+            <p className="text-base font-bold text-amber-700">{Math.round(totals.carbs)}g</p>
           </div>
-          <div className="bg-rose-50 rounded-xl p-3 text-center">
-            <p className="text-xs text-rose-600 mb-1">ไขมัน</p>
-            <p className="text-lg font-bold text-rose-700">{Math.round(totals.fat)}g</p>
+          <div className="bg-rose-50 rounded-xl p-2.5 text-center">
+            <p className="text-[10px] text-rose-600 mb-0.5">ไขมัน</p>
+            <p className="text-base font-bold text-rose-700">{Math.round(totals.fat)}g</p>
+          </div>
+        </div>
+
+        {/* Sodium, Sugar, Water */}
+        <div className="grid grid-cols-3 gap-2">
+          <div className="bg-orange-50 rounded-xl p-2.5 text-center">
+            <p className="text-[10px] text-orange-600 mb-0.5">โซเดียม</p>
+            <p className="text-base font-bold text-orange-700">{Math.round(totals.sodium)}<span className="text-xs font-normal">mg</span></p>
+          </div>
+          <div className="bg-pink-50 rounded-xl p-2.5 text-center">
+            <p className="text-[10px] text-pink-600 mb-0.5">น้ำตาล</p>
+            <p className="text-base font-bold text-pink-700">{Math.round(totals.sugar)}g</p>
+          </div>
+          <div className="bg-cyan-50 rounded-xl p-2.5 text-center">
+            <p className="text-[10px] text-cyan-600 mb-0.5">น้ำ</p>
+            <p className="text-base font-bold text-cyan-700">{Math.round(userWater)}<span className="text-xs font-normal">ml</span></p>
           </div>
         </div>
 
