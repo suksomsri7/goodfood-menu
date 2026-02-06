@@ -491,7 +491,7 @@ export default function CaloriePage() {
   return (
     <div className="min-h-screen bg-white pb-28">
       {/* Header - Sticky */}
-      <DaySelector selectedDate={selectedDate} onDateChange={setSelectedDate} />
+      <DaySelector selectedDate={selectedDate} onDateChange={setSelectedDate} showGoalIcon />
 
       {/* Calories Card */}
       <div className="mx-6 mb-12">

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Plus, Target, UtensilsCrossed, Camera, Barcode, PenLine, Package, Dumbbell } from "lucide-react";
+import { Plus, PieChart, UtensilsCrossed, Camera, Barcode, PenLine, Package, Dumbbell } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLiff } from "@/components/providers/LiffProvider";
 import { ManualEntryModal } from "./ManualEntryModal";
@@ -187,7 +187,7 @@ export function BottomNavBar() {
     }
   };
 
-  const isGoalActive = pathname === "/goal";
+  const isCalActive = pathname === "/cal";
   const isMenuActive = pathname === "/menu";
 
   return (
@@ -239,15 +239,15 @@ export function BottomNavBar() {
         {/* Background bar */}
         <div className="bg-white border-t border-gray-200 shadow-lg">
           <div className="flex items-center justify-around h-16 px-6">
-            {/* Goal button */}
+            {/* Cal button */}
             <button
-              onClick={() => router.push("/goal")}
+              onClick={() => router.push("/cal")}
               className={`flex flex-col items-center gap-1 px-6 py-2 rounded-xl transition-colors ${
-                isGoalActive ? "text-green-600" : "text-gray-500 hover:text-gray-700"
+                isCalActive ? "text-green-600" : "text-gray-500 hover:text-gray-700"
               }`}
             >
-              <Target className="w-6 h-6" strokeWidth={isGoalActive ? 2 : 1.5} />
-              <span className="text-xs font-medium">เป้าหมาย</span>
+              <PieChart className="w-6 h-6" strokeWidth={isCalActive ? 2 : 1.5} />
+              <span className="text-xs font-medium">Cal</span>
             </button>
 
             {/* Spacer for center button */}
