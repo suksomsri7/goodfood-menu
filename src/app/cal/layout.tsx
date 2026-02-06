@@ -1,6 +1,7 @@
 "use client";
 
 import { OnboardingGuard } from "@/components/providers/OnboardingGuard";
+import { BottomNavBar } from "@/components/user/BottomNavBar";
 
 export default function CalLayout({
   children,
@@ -8,8 +9,9 @@ export default function CalLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white pb-20">
       <OnboardingGuard>{children}</OnboardingGuard>
+      <BottomNavBar />
     </div>
   );
 }

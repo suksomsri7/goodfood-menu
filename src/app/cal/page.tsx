@@ -8,7 +8,6 @@ import { MealList } from "@/components/user/MealList";
 import { ExerciseList } from "@/components/user/ExerciseList";
 import { RecommendationCard } from "@/components/user/RecommendationCard";
 import { MealDetailModal } from "@/components/user/MealDetailModal";
-import { FloatingAddButton } from "@/components/user/FloatingAddButton";
 import { WaterIntakeButton } from "@/components/user/WaterIntakeButton";
 import { AnalysisModal } from "@/components/user/AnalysisModal";
 import { useLiff } from "@/components/providers/LiffProvider";
@@ -637,33 +636,6 @@ export default function CaloriePage() {
         analysis={analysisResult}
         isLoading={isLoadingAnalysis}
         onRefresh={fetchAnalysis}
-      />
-
-      {/* Floating Add Button */}
-      <FloatingAddButton 
-        lineUserId={lineUserId} 
-        dailyNutrition={{
-          consumed: {
-            calories: dailyData.consumed,
-            protein: dailyData.protein,
-            carbs: dailyData.carbs,
-            fat: dailyData.fat,
-          },
-          target: {
-            calories: goals.targetCalories,
-            protein: goals.targetProtein,
-            carbs: goals.targetCarbs,
-            fat: goals.targetFat,
-          },
-          remaining: {
-            calories: remaining,
-            protein: goals.targetProtein - dailyData.protein,
-            carbs: goals.targetCarbs - dailyData.carbs,
-            fat: goals.targetFat - dailyData.fat,
-          },
-        }}
-        onAddMeal={handleAddMeal} 
-        onAddExercise={handleAddExercise} 
       />
     </div>
   );
