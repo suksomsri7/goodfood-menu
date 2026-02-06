@@ -2,6 +2,23 @@
 
 import { useState, useEffect } from "react";
 import { Plus, Pencil, Trash2, Store, Package, Utensils, ToggleLeft, ToggleRight, GripVertical } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface Restaurant {
   id: string;
@@ -23,6 +40,135 @@ interface Restaurant {
   };
 }
 
+// Sortable Card Component
+function SortableRestaurantCard({
+  restaurant,
+  getSellTypeLabel,
+  toggleActive,
+  openModal,
+  handleDelete,
+}: {
+  restaurant: Restaurant;
+  getSellTypeLabel: (type: string) => string;
+  toggleActive: (restaurant: Restaurant) => void;
+  openModal: (restaurant: Restaurant) => void;
+  handleDelete: (id: string) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: restaurant.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`bg-white rounded-xl shadow-sm border overflow-hidden ${
+        !restaurant.isActive ? "opacity-60" : ""
+      } ${isDragging ? "ring-2 ring-green-400 shadow-lg" : ""}`}
+    >
+      <div className="flex">
+        {/* Drag Handle */}
+        <div 
+          className="flex items-center justify-center px-3 bg-gray-50 border-r cursor-grab active:cursor-grabbing hover:bg-gray-100 transition-colors"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="w-5 h-5 text-gray-400" />
+        </div>
+
+        {/* Cover/Logo */}
+        <div className="w-28 h-28 bg-gray-100 flex-shrink-0 relative">
+          {restaurant.coverUrl ? (
+            <img
+              src={restaurant.coverUrl}
+              alt={restaurant.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <Store className="w-10 h-10 text-gray-300" />
+            </div>
+          )}
+          {restaurant.logoUrl && (
+            <img
+              src={restaurant.logoUrl}
+              alt={restaurant.name}
+              className="absolute bottom-2 left-2 w-10 h-10 rounded-lg border-2 border-white shadow object-cover"
+            />
+          )}
+        </div>
+
+        {/* Info */}
+        <div className="flex-1 p-4">
+          <div className="flex items-start justify-between">
+            <div>
+              <h3 className="font-semibold text-gray-900">{restaurant.name}</h3>
+              <p className="text-sm text-gray-500">{restaurant.slug}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => toggleActive(restaurant)}
+                className="p-1 hover:bg-gray-100 rounded"
+                title={restaurant.isActive ? "ปิดใช้งาน" : "เปิดใช้งาน"}
+              >
+                {restaurant.isActive ? (
+                  <ToggleRight className="w-6 h-6 text-green-500" />
+                ) : (
+                  <ToggleLeft className="w-6 h-6 text-gray-400" />
+                )}
+              </button>
+              <button
+                onClick={() => openModal(restaurant)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <Pencil className="w-4 h-4 text-gray-500" />
+              </button>
+              <button
+                onClick={() => handleDelete(restaurant.id)}
+                className="p-2 hover:bg-red-50 rounded-lg"
+              >
+                <Trash2 className="w-4 h-4 text-red-500" />
+              </button>
+            </div>
+          </div>
+
+          {restaurant.description && (
+            <p className="text-sm text-gray-600 mt-1 line-clamp-1">{restaurant.description}</p>
+          )}
+
+          <div className="mt-3 flex flex-wrap gap-3 text-sm">
+            <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded-lg">
+              {getSellTypeLabel(restaurant.sellType)}
+            </span>
+            <span className="flex items-center gap-1 text-gray-600">
+              <Utensils className="w-4 h-4" />
+              {restaurant._count.foods} เมนู
+            </span>
+            <span className="flex items-center gap-1 text-gray-600">
+              <Package className="w-4 h-4" />
+              {restaurant._count.packages} แพ็คเกจ
+            </span>
+            <span className="text-gray-600">
+              ค่าส่ง: ฿{restaurant.deliveryFee}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function RestaurantsPage() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -40,6 +186,14 @@ export default function RestaurantsPage() {
     minOrder: 0,
   });
 
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   useEffect(() => {
     fetchRestaurants();
   }, []);
@@ -55,6 +209,37 @@ export default function RestaurantsPage() {
       console.error("Error fetching restaurants:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Handle drag end
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = restaurants.findIndex((r) => r.id === active.id);
+      const newIndex = restaurants.findIndex((r) => r.id === over.id);
+
+      const newRestaurants = arrayMove(restaurants, oldIndex, newIndex);
+      setRestaurants(newRestaurants);
+
+      // Update order in backend
+      try {
+        const items = newRestaurants.map((r, index) => ({
+          id: r.id,
+          order: index,
+        }));
+
+        await fetch("/api/restaurants/reorder", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items }),
+        });
+      } catch (err) {
+        console.error("Error saving order:", err);
+        // Revert on error
+        setRestaurants(restaurants);
+      }
     }
   };
 
@@ -168,7 +353,7 @@ export default function RestaurantsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">ร้านอาหาร</h1>
-          <p className="text-gray-500 mt-1">จัดการร้านอาหารในระบบ</p>
+          <p className="text-gray-500 mt-1">จัดการร้านอาหารในระบบ • ลากเพื่อจัดลำดับ</p>
         </div>
         <button
           onClick={() => openModal()}
@@ -179,110 +364,49 @@ export default function RestaurantsPage() {
         </button>
       </div>
 
-      {/* Restaurant Cards */}
-      <div className="grid gap-4">
-        {restaurants.map((restaurant) => (
-          <div
-            key={restaurant.id}
-            className={`bg-white rounded-xl shadow-sm border overflow-hidden ${
-              !restaurant.isActive ? "opacity-60" : ""
-            }`}
+      {/* Restaurant Cards with DnD */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={restaurants.map((r) => r.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="grid gap-4">
+            {restaurants.map((restaurant) => (
+              <SortableRestaurantCard
+                key={restaurant.id}
+                restaurant={restaurant}
+                getSellTypeLabel={getSellTypeLabel}
+                toggleActive={toggleActive}
+                openModal={openModal}
+                handleDelete={handleDelete}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
+
+      {restaurants.length === 0 && (
+        <div className="text-center py-12 bg-white rounded-xl">
+          <Store className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500">ยังไม่มีร้านอาหาร</p>
+          <button
+            onClick={() => openModal()}
+            className="mt-3 text-green-600 hover:underline"
           >
-            <div className="flex">
-              {/* Cover/Logo */}
-              <div className="w-32 h-32 bg-gray-100 flex-shrink-0 relative">
-                {restaurant.coverUrl ? (
-                  <img
-                    src={restaurant.coverUrl}
-                    alt={restaurant.name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Store className="w-10 h-10 text-gray-300" />
-                  </div>
-                )}
-                {restaurant.logoUrl && (
-                  <img
-                    src={restaurant.logoUrl}
-                    alt={restaurant.name}
-                    className="absolute bottom-2 left-2 w-12 h-12 rounded-lg border-2 border-white shadow object-cover"
-                  />
-                )}
-              </div>
+            + เพิ่มร้านอาหารแรก
+          </button>
+        </div>
+      )}
 
-              {/* Info */}
-              <div className="flex-1 p-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{restaurant.name}</h3>
-                    <p className="text-sm text-gray-500">{restaurant.slug}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => toggleActive(restaurant)}
-                      className="p-1 hover:bg-gray-100 rounded"
-                      title={restaurant.isActive ? "ปิดใช้งาน" : "เปิดใช้งาน"}
-                    >
-                      {restaurant.isActive ? (
-                        <ToggleRight className="w-6 h-6 text-green-500" />
-                      ) : (
-                        <ToggleLeft className="w-6 h-6 text-gray-400" />
-                      )}
-                    </button>
-                    <button
-                      onClick={() => openModal(restaurant)}
-                      className="p-2 hover:bg-gray-100 rounded-lg"
-                    >
-                      <Pencil className="w-4 h-4 text-gray-500" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(restaurant.id)}
-                      className="p-2 hover:bg-red-50 rounded-lg"
-                    >
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </button>
-                  </div>
-                </div>
-
-                {restaurant.description && (
-                  <p className="text-sm text-gray-600 mt-1 line-clamp-1">{restaurant.description}</p>
-                )}
-
-                <div className="mt-3 flex flex-wrap gap-3 text-sm">
-                  <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded-lg">
-                    {getSellTypeLabel(restaurant.sellType)}
-                  </span>
-                  <span className="flex items-center gap-1 text-gray-600">
-                    <Utensils className="w-4 h-4" />
-                    {restaurant._count.foods} เมนู
-                  </span>
-                  <span className="flex items-center gap-1 text-gray-600">
-                    <Package className="w-4 h-4" />
-                    {restaurant._count.packages} แพ็คเกจ
-                  </span>
-                  <span className="text-gray-600">
-                    ค่าส่ง: ฿{restaurant.deliveryFee}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-
-        {restaurants.length === 0 && (
-          <div className="text-center py-12 bg-white rounded-xl">
-            <Store className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">ยังไม่มีร้านอาหาร</p>
-            <button
-              onClick={() => openModal()}
-              className="mt-3 text-green-600 hover:underline"
-            >
-              + เพิ่มร้านอาหารแรก
-            </button>
-          </div>
-        )}
-      </div>
+      {restaurants.length > 1 && (
+        <p className="text-xs text-gray-400">
+          💡 ลากและวางเพื่อจัดลำดับร้านอาหาร
+        </p>
+      )}
 
       {/* Modal */}
       {showModal && (
