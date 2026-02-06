@@ -2,6 +2,7 @@
 
 import { Sidebar } from "@/components/backoffice/Sidebar";
 import { SidebarProvider, useSidebar } from "@/components/backoffice/SidebarContext";
+import { AdminProvider } from "@/components/backoffice/AdminContext";
 import { cn } from "@/lib/utils";
 
 function BackofficeContent({ children }: { children: React.ReactNode }) {
@@ -20,11 +21,13 @@ export default function BackofficeLayout({
   children: React.ReactNode;
 }) {
   return (
-    <SidebarProvider>
-      <div className="min-h-screen bg-[#F8F9FA]">
-        <Sidebar />
-        <BackofficeContent>{children}</BackofficeContent>
-      </div>
-    </SidebarProvider>
+    <AdminProvider>
+      <SidebarProvider>
+        <div className="min-h-screen bg-[#F8F9FA]">
+          <Sidebar />
+          <BackofficeContent>{children}</BackofficeContent>
+        </div>
+      </SidebarProvider>
+    </AdminProvider>
   );
 }

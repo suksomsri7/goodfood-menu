@@ -61,6 +61,7 @@ const navGroups: NavGroup[] = [
       { href: "/backoffice/promotions", label: "โปรโมชั่น", icon: <BadgePercent className="w-5 h-5" /> },
       { href: "/backoffice/barcode", label: "ข้อมูลจาก Scan Barcode", icon: <ScanBarcode className="w-5 h-5" /> },
       { href: "/backoffice/articles", label: "บทความ", icon: <FileText className="w-5 h-5" /> },
+      { href: "/backoffice/article-categories", label: "หมวดบทความ", icon: <Layers className="w-5 h-5" /> },
       { href: "/backoffice/youtube", label: "วีดีโอ", icon: <Youtube className="w-5 h-5" /> },
     ],
   },

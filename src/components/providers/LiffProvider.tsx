@@ -115,6 +115,9 @@ export function LiffProvider({ children }: LiffProviderProps) {
           setLoggedIn(true);
           const userProfile = await getProfile();
           if (userProfile) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiffProvider.tsx:117',message:'LIFF profile obtained',data:{userId:userProfile.userId,displayName:userProfile.displayName},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,E'})}).catch(()=>{});
+            // #endregion
             setProfile(userProfile);
 
             // Register/update user in database

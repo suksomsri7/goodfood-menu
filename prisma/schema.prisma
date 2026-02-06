@@ -7,76 +7,70 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ==================== สมาชิก (LINE User) ====================
 model Member {
-  id            String    @id @default(cuid())
-  lineUserId    String    @unique // LINE User ID จาก LIFF
-  displayName   String?
-  pictureUrl    String?
-  name          String? // ชื่อจริง
-  email         String?
-  phone         String?
-  gender        String? // male, female
-  birthDate     DateTime?
-  height        Float? // cm
-  weight        Float? // kg - น้ำหนักปัจจุบัน
-  goalWeight    Float? // kg - เป้าหมายน้ำหนัก
-  goalType      String? // lose, gain, maintain
-  activityLevel String? // sedentary, light, moderate, active, very_active
-  dietType      String? // balanced, high_protein, low_fat, custom
-  targetMonths  Int? // ระยะเวลาเป้าหมาย (เดือน)
-  bmr           Float? // Basal Metabolic Rate
-  tdee          Float? // Total Daily Energy Expenditure
-  dailyCalories Int? // เป้าหมายแคลอรี่ต่อวัน
-  dailyProtein  Float? // เป้าหมายโปรตีนต่อวัน (g)
-  dailyCarbs    Float? // เป้าหมายคาร์บต่อวัน (g)
-  dailyFat      Float? // เป้าหมายไขมันต่อวัน (g)
-  dailySodium   Float? // เป้าหมายโซเดียมต่อวัน (mg)
-  dailySugar    Float? // เป้าหมายน้ำตาลต่อวัน (g)
-  dailyWater    Float? // เป้าหมายน้ำต่อวัน (ml)
-  memberTypeId  String? // ประเภทสมาชิก
-  memberType    MemberType? @relation(fields: [memberTypeId], references: [id])
-  isOnboarded   Boolean   @default(false) // ผ่านการตั้งค่าเป้าหมายแล้ว
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relations
-  mealLogs         MealLog[]
-  weightLogs       WeightLog[]
-  waterLogs        WaterLog[]
-  exerciseLogs     ExerciseLog[]
-  cartItems        CartItem[]
-  orders           Order[]
+  id               String            @id @default(cuid())
+  lineUserId       String            @unique
+  displayName      String?
+  pictureUrl       String?
+  name             String?
+  email            String?
+  phone            String?
+  gender           String?
+  birthDate        DateTime?
+  height           Float?
+  weight           Float?
+  goalWeight       Float?
+  goalType         String?
+  activityLevel    String?
+  dietType         String?
+  targetMonths     Int?
+  bmr              Float?
+  tdee             Float?
+  dailyCalories    Int?
+  dailyProtein     Float?
+  dailyCarbs       Float?
+  dailyFat         Float?
+  dailySodium      Float?
+  dailySugar       Float?
+  dailyWater       Float?
+  memberTypeId     String?
+  isOnboarded      Boolean           @default(false)
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
   addresses        Address[]
   aiRecommendation AiRecommendation?
+  cartItems        CartItem[]
+  exerciseLogs     ExerciseLog[]
+  mealLogs         MealLog[]
+  memberType       MemberType?       @relation(fields: [memberTypeId], references: [id])
+  orders           Order[]
+  waterLogs        WaterLog[]
+  weightLogs       WeightLog[]
 
   @@map("members")
 }
 
-// ==================== AI Recommendation (Cache) ====================
 model AiRecommendation {
   id           String   @id @default(cuid())
   memberId     String   @unique
-  member       Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  message      String   @db.Text // คำแนะนำจาก AI
-  context      Json?    // ข้อมูลที่ส่งให้ AI (สำหรับ debug)
-  date         DateTime @default(now()) // วันที่สร้าง
-  requestCount Int      @default(1) // นับจำนวน request ต่อวัน
+  message      String
+  context      Json?
+  date         DateTime @default(now())
+  requestCount Int      @default(1)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  member       Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   @@map("ai_recommendations")
 }
 
-// ==================== บันทึกมื้ออาหาร ====================
 model MealLog {
   id          String   @id @default(cuid())
   memberId    String
-  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
   name        String
-  weight      Float? // กรัม
-  multiplier  Float    @default(1) // ตัวคูณ
+  weight      Float?
+  multiplier  Float    @default(1)
   calories    Float
   protein     Float
   carbs       Float
@@ -88,134 +82,122 @@ model MealLog {
   date        DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   @@index([memberId, date])
   @@map("meal_logs")
 }
 
-// ==================== บันทึกน้ำหนัก ====================
 model WeightLog {
   id        String   @id @default(cuid())
   memberId  String
-  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
   weight    Float
   date      DateTime @default(now())
   note      String?
   createdAt DateTime @default(now())
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   @@index([memberId, date])
   @@map("weight_logs")
 }
 
-// ==================== บันทึกการดื่มน้ำ ====================
 model WaterLog {
   id        String   @id @default(cuid())
   memberId  String
-  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  amount    Float // ml
+  amount    Float
   date      DateTime @default(now())
   createdAt DateTime @default(now())
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   @@index([memberId, date])
   @@map("water_logs")
 }
 
-// ==================== บันทึกการออกกำลังกาย ====================
 model ExerciseLog {
   id        String   @id @default(cuid())
   memberId  String
-  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  name      String   // ชื่อการออกกำลังกาย เช่น วิ่ง, ว่ายน้ำ
-  type      String?  // cardio, strength, flexibility, sports
-  duration  Int      // ระยะเวลา (นาที)
-  calories  Float    // แคลอรี่ที่เผาผลาญ
-  intensity String?  // low, moderate, high
-  note      String?  // บันทึกเพิ่มเติม
+  name      String
+  type      String?
+  duration  Int
+  calories  Float
+  intensity String?
+  note      String?
   date      DateTime @default(now())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   @@index([memberId, date])
   @@map("exercise_logs")
 }
 
-// ==================== ตะกร้าสินค้า ====================
 model CartItem {
   id           String      @id @default(cuid())
   memberId     String
-  member       Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
   foodId       String
-  food         Food        @relation(fields: [foodId], references: [id], onDelete: Cascade)
   restaurantId String?
-  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   quantity     Int         @default(1)
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
+  food         Food        @relation(fields: [foodId], references: [id], onDelete: Cascade)
+  member       Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
   @@unique([memberId, foodId])
   @@map("cart_items")
 }
 
-// ==================== คำสั่งซื้อ ====================
-// ==================== ที่อยู่จัดส่ง ====================
 model Address {
   id          String   @id @default(cuid())
   memberId    String
-  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  
-  label       String?  // ชื่อที่อยู่ (บ้าน, ที่ทำงาน)
-  name        String   // ชื่อผู้รับ
-  phone       String   // เบอร์โทร
-  address     String   // ที่อยู่ (บ้านเลขที่ ซอย ถนน)
-  subDistrict String?  // แขวง/ตำบล
-  district    String?  // เขต/อำเภอ
-  province    String   // จังหวัด
-  postalCode  String   // รหัสไปรษณีย์
-  note        String?  // หมายเหตุเพิ่มเติม (เช่น จุดสังเกต)
-  
-  isDefault   Boolean  @default(false) // ที่อยู่หลัก
+  label       String?
+  name        String
+  phone       String
+  address     String
+  subDistrict String?
+  district    String?
+  province    String
+  postalCode  String
+  note        String?
+  isDefault   Boolean  @default(false)
   isActive    Boolean  @default(true)
-  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
   orders      Order[]
-  
+
   @@index([memberId])
   @@map("addresses")
 }
 
 model Order {
-  id             String      @id @default(cuid())
-  orderNumber    String      @unique
-  memberId       String?
-  member         Member?     @relation(fields: [memberId], references: [id], onDelete: SetNull)
-  restaurantId   String?
-  restaurant     Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: SetNull)
-  addressId      String?
-  address        Address?    @relation(fields: [addressId], references: [id], onDelete: SetNull)
-  
-  // ข้อมูลที่อยู่ snapshot (กรณี address ถูกแก้ไข/ลบ)
-  deliveryName        String?  // ชื่อผู้รับ
-  deliveryPhone       String?  // เบอร์โทร
-  deliveryAddress     String?  // ที่อยู่เต็ม
-  
-  coursePlan     String? // แผนอาหาร
-  totalDays      Int? // จำนวนวัน
-  totalPrice     Float       @default(0)
-  deliveryFee    Float       @default(0) // ค่าจัดส่ง
-  discount       Float       @default(0) // ส่วนลด
-  discountType   String?     // percent, fixed
-  discountValue  Float?      // ค่าส่วนลด (เช่น 10 สำหรับ 10%)
-  packageName    String?     // ชื่อแพ็คเกจที่ใช้
-  finalPrice     Float?      // ราคาสุทธิหลังหักส่วนลด
-  status         String      @default("pending") // pending, confirmed, preparing, delivered, cancelled
-  note           String?
-  trackingNumber String? // เลขพัสดุ
-  carrier        String? // ขนส่ง เช่น Kerry, Flash, Thailand Post
-  items          OrderItem[]
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  id              String      @id @default(cuid())
+  orderNumber     String      @unique
+  memberId        String?
+  restaurantId    String?
+  addressId       String?
+  deliveryName    String?
+  deliveryPhone   String?
+  deliveryAddress String?
+  coursePlan      String?
+  totalDays       Int?
+  totalPrice      Float       @default(0)
+  deliveryFee     Float       @default(0)
+  discount        Float       @default(0)
+  discountType    String?
+  discountValue   Float?
+  packageName     String?
+  finalPrice      Float?
+  status          String      @default("pending")
+  note            String?
+  trackingNumber  String?
+  carrier         String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  items           OrderItem[]
+  address         Address?    @relation(fields: [addressId], references: [id])
+  member          Member?     @relation(fields: [memberId], references: [id])
+  restaurant      Restaurant? @relation(fields: [restaurantId], references: [id])
 
   @@index([memberId, createdAt])
   @@map("orders")
@@ -224,48 +206,44 @@ model Order {
 model OrderItem {
   id        String  @id @default(cuid())
   orderId   String
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   foodId    String
-  food      Food    @relation(fields: [foodId], references: [id])
-  foodName  String // เก็บชื่อไว้กรณี food ถูกลบ
+  foodName  String
   price     Float
   quantity  Int     @default(1)
-  dayNumber Int? // วันที่ในแผน
-  mealType  String? // breakfast, lunch, dinner, snack
+  dayNumber Int?
+  mealType  String?
   calories  Float?
+  food      Food    @relation(fields: [foodId], references: [id])
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@map("order_items")
 }
 
-// ==================== ร้านอาหาร ====================
 model Restaurant {
-  id              String     @id @default(cuid())
+  id              String      @id @default(cuid())
   name            String
-  slug            String     @unique
+  slug            String      @unique
   description     String?
   logoUrl         String?
   coverUrl        String?
-  sellType        String     @default("both") // "package", "per_meal", "both"
-  deliveryFee     Float      @default(0) // ค่าส่ง (แพ็คเกจ)
-  deliveryPerMeal Float      @default(0) // ค่าส่งต่อมื้อ
-  minOrder        Float      @default(0) // ขั้นต่ำในการสั่ง
-  isActive        Boolean    @default(true)
-  order           Int        @default(0)
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-
-  // Relations
-  categories Category[]
-  foods      Food[]
-  packages   Package[]
-  cartItems  CartItem[]
-  orders     Order[]
-  promotions Promotion[]
+  sellType        String      @default("both")
+  deliveryFee     Float       @default(0)
+  deliveryPerMeal Float       @default(0)
+  minOrder        Float       @default(0)
+  isActive        Boolean     @default(true)
+  order           Int         @default(0)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  cartItems       CartItem[]
+  categories      Category[]
+  foods           Food[]
+  orders          Order[]
+  packages        Package[]
+  promotions      Promotion[]
 
   @@map("restaurants")
 }
 
-// ==================== หมวดอาหาร ====================
 model Category {
   id           String      @id @default(cuid())
   name         String
@@ -275,95 +253,90 @@ model Category {
   isActive     Boolean     @default(true)
   order        Int         @default(0)
   restaurantId String?
-  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  foods        Food[]
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
+  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  foods        Food[]
 
   @@map("categories")
 }
 
-// ==================== เมนูอาหาร ====================
 model Food {
-  id            String      @id @default(cuid())
-  name          String
-  description   String?
-  ingredients   String[]    @default([]) // ส่วนประกอบ
-  imageUrl      String?
-  images        String[]    @default([]) // รูปภาพหลายรูป
-  price         Float
-  discountPrice Float? // ราคาลด
-  badge         String? // "discount" | "popular" | "bestseller"
-  calories      Float // เปลี่ยนเป็น Float เพื่อรองรับทศนิยม
-  protein       Float
-  carbs         Float
-  fat           Float
-  fiber         Float?
-  sugar         Float?
-  sodium        Float?
-  servingSize   Float?
-  servingUnit   String?
-  warning       String? // คำเตือน เช่น แพ้อาหาร
-  isActive      Boolean     @default(true)
-  order         Int         @default(0)
-  categoryId    String
-  category      Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  restaurantId  String?
-  restaurant    Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-
-  // Relations
-  promotionItems PromotionItem[]
-  promotionGifts PromotionGift[]
+  id             String          @id @default(cuid())
+  name           String
+  description    String?
+  ingredients    String[]        @default([])
+  imageUrl       String?
+  images         String[]        @default([])
+  price          Float
+  discountPrice  Float?
+  badge          String?
+  calories       Float
+  protein        Float
+  carbs          Float
+  fat            Float
+  fiber          Float?
+  sugar          Float?
+  sodium         Float?
+  servingSize    Float?
+  servingUnit    String?
+  warning        String?
+  isActive       Boolean         @default(true)
+  order          Int             @default(0)
+  categoryId     String
+  restaurantId   String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
   cartItems      CartItem[]
+  category       Category        @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  restaurant     Restaurant?     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   orderItems     OrderItem[]
+  promotionGifts PromotionGift[]
+  promotionItems PromotionItem[]
 
   @@map("foods")
 }
 
-// ==================== แพ็คเกจอาหาร ====================
 model Package {
   id            String      @id @default(cuid())
   name          String
   description   String?
   imageUrl      String?
-  days          Int         @default(7) // จำนวนวัน
-  mealsPerDay   Int         @default(3) // จำนวนมื้อต่อวัน
-  requiredItems Int         @default(1) // จำนวนรายการที่ต้องซื้อเพื่อรับส่วนลด
-  price         Float       @default(0) // ราคาแพ็คเกจ
-  discountType  String      @default("percent") // "percent" | "fixed"
-  discountValue Float       @default(0) // ค่าส่วนลด (เป็น % หรือ จำนวนเงิน)
+  days          Int         @default(7)
+  mealsPerDay   Int         @default(3)
+  requiredItems Int         @default(1)
+  price         Float       @default(0)
+  discountType  String      @default("percent")
+  discountValue Float       @default(0)
   isActive      Boolean     @default(true)
   order         Int         @default(0)
   restaurantId  String?
-  restaurant    Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+  restaurant    Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
   @@map("packages")
 }
 
-// ==================== โปรโมชั่น ====================
 model Promotion {
   id            String          @id @default(cuid())
   name          String
   description   String?
   imageUrl      String?
-  type          String // "discount" | "bundle" | "gift" | "threshold"
-  discountType  String? // "percent" | "fixed"
+  type          String
+  discountType  String?
   discountValue Float?
-  minQuantity   Int             @default(1) // จำนวนขั้นต่ำสำหรับโปรฯ threshold
-  minAmount     Float?          // ยอดขั้นต่ำสำหรับโปรฯ (บาท)
+  minQuantity   Int             @default(1)
+  minAmount     Float?
   startDate     DateTime?
   endDate       DateTime?
   isActive      Boolean         @default(true)
   restaurantId  String?
-  restaurant    Restaurant?     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  items         PromotionItem[]
-  gifts         PromotionGift[]
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
+  gifts         PromotionGift[]
+  items         PromotionItem[]
+  restaurant    Restaurant?     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
   @@map("promotions")
 }
@@ -371,10 +344,10 @@ model Promotion {
 model PromotionItem {
   id          String    @id @default(cuid())
   promotionId String
-  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
   foodId      String
-  food        Food      @relation(fields: [foodId], references: [id], onDelete: Cascade)
   quantity    Int       @default(1)
+  food        Food      @relation(fields: [foodId], references: [id], onDelete: Cascade)
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
 
   @@unique([promotionId, foodId])
   @@map("promotion_items")
@@ -383,57 +356,54 @@ model PromotionItem {
 model PromotionGift {
   id          String    @id @default(cuid())
   promotionId String
-  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
   foodId      String
-  food        Food      @relation(fields: [foodId], references: [id], onDelete: Cascade)
   quantity    Int       @default(1)
+  food        Food      @relation(fields: [foodId], references: [id], onDelete: Cascade)
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
 
   @@unique([promotionId, foodId])
   @@map("promotion_gifts")
 }
 
-// ==================== หมวดบทความ ====================
 model ArticleCategory {
   id          String    @id @default(cuid())
   name        String    @unique
   slug        String    @unique
   description String?
   color       String    @default("#4CAF50")
-  icon        String?   // emoji or icon name
+  icon        String?
   order       Int       @default(0)
   isActive    Boolean   @default(true)
-  articles    Article[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  articles    Article[]
 
   @@map("article_categories")
 }
 
-// ==================== บทความ ====================
 model Article {
   id          String           @id @default(cuid())
   title       String
   slug        String           @unique
   excerpt     String?
-  content     String?          @db.Text
+  content     String?
   imageUrl    String?
   categoryId  String?
-  category    ArticleCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  tags        String?          // comma-separated tags
+  tags        String?
   author      String?
   isFeatured  Boolean          @default(false)
-  status      String           @default("draft") // draft, published, scheduled
+  status      String           @default("draft")
   publishedAt DateTime?
   views       Int              @default(0)
-  readTime    Int              @default(5) // estimated read time in minutes
+  readTime    Int              @default(5)
   order       Int              @default(0)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
+  category    ArticleCategory? @relation(fields: [categoryId], references: [id])
 
   @@map("articles")
 }
 
-// ==================== วีดีโอ ====================
 model Video {
   id          String   @id @default(cuid())
   title       String
@@ -444,14 +414,13 @@ model Video {
   duration    String?
   views       Int      @default(0)
   likes       Int      @default(0)
-  status      String   @default("active") // active, inactive
+  status      String   @default("active")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@map("videos")
 }
 
-// ==================== พนักงาน ====================
 model Staff {
   id        String   @id @default(cuid())
   email     String   @unique
@@ -460,140 +429,132 @@ model Staff {
   phone     String?
   avatarUrl String?
   roleId    String
-  role      Role     @relation(fields: [roleId], references: [id])
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  role      Role     @relation(fields: [roleId], references: [id])
 
   @@map("staff")
 }
 
-// ==================== สิทธิ์ ====================
 model Role {
   id          String   @id @default(cuid())
   name        String   @unique
   description String?
   permissions Json     @default("[]")
-  staff       Staff[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  staff       Staff[]
 
   @@map("roles")
 }
 
-// ==================== ประเภทสมาชิก ====================
 model MemberType {
-  id                     String   @id @default(cuid())
-  name                   String   @unique // ชื่อประเภท เช่น Free, Basic, Premium
-  description            String?
-  color                  String   @default("#4CAF50") // สีสำหรับแสดง badge
-  dailyPhotoLimit        Int      @default(3) // จำนวนครั้ง Take Photo ต่อวัน (0 = ไม่จำกัด)
-  dailyAiAnalysisLimit   Int      @default(3) // AI วิเคราะห์ หน้าแคลอรี่ ครั้ง/วัน (0 = ไม่จำกัด)
-  dailyAiRecommendLimit  Int      @default(3) // AI คำแนะนำ หน้า Stock อาหาร ครั้ง/วัน (0 = ไม่จำกัด)
-  dailyScanLimit         Int      @default(5) // สแกนหน้าจอ บันทึกการออกกำลังกาย/อาหาร ครั้ง/วัน (0 = ไม่จำกัด)
-  isDefault              Boolean  @default(false) // เป็นค่า default สำหรับสมาชิกใหม่
-  isActive               Boolean  @default(true)
-  order                  Int      @default(0)
-  members                Member[]
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+  id                    String   @id @default(cuid())
+  name                  String   @unique
+  description           String?
+  color                 String   @default("#4CAF50")
+  dailyPhotoLimit       Int      @default(3)
+  dailyAiAnalysisLimit  Int      @default(3)
+  dailyAiRecommendLimit Int      @default(3)
+  dailyScanLimit        Int      @default(5)
+  isDefault             Boolean  @default(false)
+  isActive              Boolean  @default(true)
+  order                 Int      @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  members               Member[]
 
   @@map("member_types")
 }
 
-// ==================== LINE แชท ====================
 model LineConversation {
-  id              String        @id @default(cuid())
-  lineUserId      String        @unique // LINE User ID
-  displayName     String?
-  pictureUrl      String?
-  statusMessage   String?
-  lastMessageAt   DateTime      @default(now())
-  unreadCount     Int           @default(0)
-  isActive        Boolean       @default(true)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  messages        LineMessage[]
+  id            String        @id @default(cuid())
+  lineUserId    String        @unique
+  displayName   String?
+  pictureUrl    String?
+  statusMessage String?
+  lastMessageAt DateTime      @default(now())
+  unreadCount   Int           @default(0)
+  isActive      Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  messages      LineMessage[]
 
   @@index([lastMessageAt])
   @@map("line_conversations")
 }
 
 model LineMessage {
-  id             String           @id @default(cuid())
-  conversationId String
-  conversation   LineConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  lineMessageId  String?          @unique // LINE Message ID (null for outgoing)
-  type           String           @default("text") // text, image, sticker, video, audio, file
-  direction      String           // incoming, outgoing
-  content        String?          @db.Text // ข้อความ หรือ URL รูป/ไฟล์
-  stickerPackageId String?        // สำหรับ sticker
-  stickerId      String?          // สำหรับ sticker
-  previewUrl     String?          // preview สำหรับรูป/วีดีโอ
-  fileName       String?          // ชื่อไฟล์
-  fileSize       Int?             // ขนาดไฟล์
-  duration       Int?             // ความยาว audio/video (ms)
-  isRead         Boolean          @default(false)
-  createdAt      DateTime         @default(now())
+  id               String           @id @default(cuid())
+  conversationId   String
+  lineMessageId    String?          @unique
+  type             String           @default("text")
+  direction        String
+  content          String?
+  stickerPackageId String?
+  stickerId        String?
+  previewUrl       String?
+  fileName         String?
+  fileSize         Int?
+  duration         Int?
+  isRead           Boolean          @default(false)
+  createdAt        DateTime         @default(now())
+  conversation     LineConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId, createdAt])
   @@map("line_messages")
 }
 
-// ==================== บัญชีรับชำระเงิน ====================
 model PaymentAccount {
-  id          String   @id @default(cuid())
-  bankName    String // ชื่อธนาคาร เช่น กสิกร, ไทยพาณิชย์
-  accountName String // ชื่อบัญชี
-  accountNumber String // เลขบัญชี
-  qrCodeUrl   String? // URL รูป QR Code
-  isActive    Boolean  @default(true)
-  isDefault   Boolean  @default(false) // บัญชีหลัก
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(cuid())
+  bankName      String
+  accountName   String
+  accountNumber String
+  qrCodeUrl     String?
+  isActive      Boolean  @default(true)
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@map("payment_accounts")
 }
 
-// ==================== Barcode Products ====================
 model BarcodeProduct {
-  id           String   @id @default(cuid())
-  barcode      String   @unique // รหัส barcode
-  name         String // ชื่อสินค้า
-  brand        String? // ยี่ห้อ
-  imageUrl     String? // รูปสินค้า
-  servingSize  Float? // ขนาด serving (g/ml)
-  servingUnit  String?  @default("g") // หน่วย g, ml, ชิ้น
-  calories     Float // แคลอรี่ต่อ serving
-  protein      Float // โปรตีน (g)
-  carbs        Float // คาร์โบไฮเดรต (g)
-  fat          Float // ไขมัน (g)
-  sodium       Float? // โซเดียม (mg)
-  sugar        Float? // น้ำตาล (g)
-  fiber        Float? // ใยอาหาร (g)
-  source       String   @default("manual") // manual, openfoodfacts, ai_analysis
-  verified     Boolean  @default(false) // ยืนยันข้อมูลแล้ว
-  scanCount    Int      @default(1) // จำนวนครั้งที่ถูก scan
-  createdById  String? // user ที่สร้าง
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  // Relations
-  scanHistory  BarcodeScanHistory[]
+  id          String               @id @default(cuid())
+  barcode     String               @unique
+  name        String
+  brand       String?
+  imageUrl    String?
+  servingSize Float?
+  servingUnit String?              @default("g")
+  calories    Float
+  protein     Float
+  carbs       Float
+  fat         Float
+  sodium      Float?
+  sugar       Float?
+  fiber       Float?
+  source      String               @default("manual")
+  verified    Boolean              @default(false)
+  scanCount   Int                  @default(1)
+  createdById String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  scanHistory BarcodeScanHistory[]
 
   @@index([barcode])
   @@index([name])
   @@map("barcode_products")
 }
 
-// ==================== Barcode Scan History ====================
 model BarcodeScanHistory {
-  id              String          @id @default(cuid())
-  memberId        String
+  id               String         @id @default(cuid())
+  memberId         String
   barcodeProductId String
-  barcodeProduct  BarcodeProduct  @relation(fields: [barcodeProductId], references: [id], onDelete: Cascade)
-  quantity        Float           @default(1) // จำนวนที่ทาน
-  createdAt       DateTime        @default(now())
+  quantity         Float          @default(1)
+  createdAt        DateTime       @default(now())
+  barcodeProduct   BarcodeProduct @relation(fields: [barcodeProductId], references: [id], onDelete: Cascade)
 
   @@index([memberId, createdAt])
   @@map("barcode_scan_history")

@@ -1,6 +1,8 @@
 "use client";
 
 import { Header } from "@/components/backoffice/Header";
+import { TipTapEditor } from "@/components/backoffice/TipTapEditor";
+import { useAdmin } from "@/components/backoffice/AdminContext";
 import {
   Plus,
   Search,
@@ -19,16 +21,14 @@ import {
   Globe,
   EyeOff,
   X,
-  ChevronRight,
   Sparkles,
   TrendingUp,
   BookOpen,
   Loader2,
   Upload,
-  Image as ImageIcon,
+  FolderPlus,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
 
 interface ArticleCategory {
   id: string;
@@ -59,6 +59,7 @@ interface Article {
 }
 
 export default function ArticlesPage() {
+  const { admin } = useAdmin();
   const [articles, setArticles] = useState<Article[]>([]);
   const [categories, setCategories] = useState<ArticleCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -73,6 +74,8 @@ export default function ArticlesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [previewArticle, setPreviewArticle] = useState<Article | null>(null);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
   
   // Form state
   const [formData, setFormData] = useState({
@@ -128,6 +131,27 @@ export default function ArticlesPage() {
   const draftCount = articles.filter((a) => a.status === "draft").length;
   const totalViews = articles.reduce((sum, a) => sum + a.views, 0);
 
+  // Quick add category
+  const handleQuickAddCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    try {
+      const res = await fetch("/api/article-categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newCategoryName }),
+      });
+      if (res.ok) {
+        const newCat = await res.json();
+        setCategories((prev) => [...prev, newCat]);
+        setFormData((prev) => ({ ...prev, categoryId: newCat.id }));
+        setShowCategoryModal(false);
+        setNewCategoryName("");
+      }
+    } catch (error) {
+      console.error("Error creating category:", error);
+    }
+  };
+
   // Handlers
   const openCreateModal = () => {
     setEditingArticle(null);
@@ -137,7 +161,7 @@ export default function ArticlesPage() {
       content: "",
       categoryId: "",
       tags: "",
-      author: "",
+      author: admin?.name || "", // Auto-fill from logged-in admin
       isFeatured: false,
       status: "draft",
       readTime: "5",
@@ -777,17 +801,15 @@ export default function ArticlesPage() {
                 />
               </div>
 
-              {/* Content */}
+              {/* Content - TipTap Rich Text Editor */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   เนื้อหาบทความ
                 </label>
-                <textarea
-                  value={formData.content}
-                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                  rows={10}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm resize-none focus:ring-2 focus:ring-[#4CAF50]/20 focus:border-[#4CAF50] font-mono"
-                  placeholder="เขียนเนื้อหาบทความ... (รองรับ Markdown)"
+                <TipTapEditor
+                  content={formData.content}
+                  onChange={(content) => setFormData({ ...formData, content })}
+                  placeholder="เริ่มเขียนเนื้อหาบทความ... รองรับตัวหนา ตัวเอียง รูปภาพ และอื่นๆ"
                 />
               </div>
 
@@ -798,18 +820,28 @@ export default function ArticlesPage() {
                     <Tag className="w-4 h-4 inline mr-1" />
                     หมวดหมู่
                   </label>
-                  <select
-                    value={formData.categoryId}
-                    onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#4CAF50]/20 focus:border-[#4CAF50]"
-                  >
-                    <option value="">ไม่มีหมวดหมู่</option>
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.icon} {cat.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex gap-2">
+                    <select
+                      value={formData.categoryId}
+                      onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+                      className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#4CAF50]/20 focus:border-[#4CAF50]"
+                    >
+                      <option value="">ไม่มีหมวดหมู่</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.icon} {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => setShowCategoryModal(true)}
+                      className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+                      title="เพิ่มหมวดหมู่ใหม่"
+                    >
+                      <FolderPlus className="w-5 h-5 text-gray-600" />
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1027,6 +1059,44 @@ export default function ArticlesPage() {
                 className="px-4 py-2 bg-[#4CAF50] text-white rounded-lg text-sm font-medium hover:bg-[#43A047]"
               >
                 ปิด
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Add Category Modal */}
+      {showCategoryModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-bold mb-4">เพิ่มหมวดหมู่ใหม่</h3>
+            <input
+              type="text"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              placeholder="ชื่อหมวดหมู่"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm mb-4"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleQuickAddCategory();
+              }}
+            />
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowCategoryModal(false);
+                  setNewCategoryName("");
+                }}
+                className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={handleQuickAddCategory}
+                disabled={!newCategoryName.trim()}
+                className="px-4 py-2 bg-[#4CAF50] text-white rounded-lg text-sm font-medium hover:bg-[#43A047] disabled:opacity-50"
+              >
+                เพิ่ม
               </button>
             </div>
           </div>
