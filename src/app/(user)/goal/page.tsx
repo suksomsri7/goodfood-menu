@@ -228,15 +228,6 @@ export default function GoalPage() {
     },
     {
       id: "3",
-      title: "ออกกำลังกาย",
-      current: 0,
-      target: 5,
-      unit: "ครั้ง",
-      icon: "exercise" as const,
-      color: "#3b82f6",
-    },
-    {
-      id: "4",
       title: "ดื่มน้ำ",
       current: todayWater / 1000, // Convert to liters
       target: targetWater,

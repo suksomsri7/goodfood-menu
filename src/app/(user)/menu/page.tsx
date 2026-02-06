@@ -626,15 +626,12 @@ export default function MenuPage() {
         {/* Restaurant List */}
         <div className="p-4">
           {isLoading ? (
-            <div className="space-y-4">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="bg-white rounded-2xl p-4 animate-pulse">
-                  <div className="flex gap-4">
-                    <div className="w-20 h-20 bg-gray-200 rounded-xl" />
-                    <div className="flex-1">
-                      <div className="h-5 bg-gray-200 rounded w-2/3 mb-2" />
-                      <div className="h-4 bg-gray-200 rounded w-1/2" />
-                    </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="bg-white rounded-2xl overflow-hidden animate-pulse">
+                  <div className="aspect-[4/3] bg-gray-200" />
+                  <div className="p-3">
+                    <div className="h-4 bg-gray-200 rounded w-3/4" />
                   </div>
                 </div>
               ))}
@@ -645,65 +642,27 @@ export default function MenuPage() {
               <p className="text-gray-500 mt-4">ยังไม่มีร้านอาหาร</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
               {restaurants.map((restaurant) => (
                 <button
                   key={restaurant.id}
                   onClick={() => handleSelectRestaurant(restaurant)}
-                  className="w-full bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden text-left active:scale-[0.98] transition-transform"
+                  className="bg-white rounded-2xl shadow-sm overflow-hidden text-left active:scale-[0.98] transition-transform"
                 >
                   {/* Cover */}
-                  <div className="h-28 bg-gradient-to-r from-green-400 to-green-500 relative">
-                    {restaurant.coverUrl && (
+                  <div className="aspect-[4/3] bg-gradient-to-br from-green-400 to-green-500 relative">
+                    {restaurant.coverUrl ? (
                       <img src={restaurant.coverUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <span className="text-4xl opacity-50">🍽️</span>
+                      </div>
                     )}
-                    {/* Type badges */}
-                    <div className="absolute top-3 right-3 flex gap-1.5">
-                      {(restaurant.sellType === "package" || restaurant.sellType === "both") && (
-                        <span className="px-2 py-1 bg-blue-500 text-white text-xs font-medium rounded-full">📦 แพ็คเกจ</span>
-                      )}
-                      {(restaurant.sellType === "per_meal" || restaurant.sellType === "both") && (
-                        <span className="px-2 py-1 bg-orange-500 text-white text-xs font-medium rounded-full">🍽️ รายมื้อ</span>
-                      )}
-                    </div>
                   </div>
                   
-                  {/* Info */}
-                  <div className="p-4">
-                    <div className="flex items-start gap-3">
-                      {/* Logo */}
-                      <div className="w-14 h-14 -mt-10 rounded-xl bg-white shadow-lg flex items-center justify-center border-2 border-white overflow-hidden flex-shrink-0">
-                        {restaurant.logoUrl ? (
-                          <img src={restaurant.logoUrl} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-2xl">🏪</span>
-                        )}
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-gray-900">{restaurant.name}</h3>
-                        {restaurant.description && (
-                          <p className="text-sm text-gray-500 line-clamp-1">{restaurant.description}</p>
-                        )}
-                      </div>
-
-                      <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </div>
-                    
-                    {/* Stats */}
-                    <div className="mt-3 flex items-center gap-4 text-sm text-gray-600">
-                      <span className="flex items-center gap-1">
-                        🍽️ {restaurant._count.foods} เมนู
-                      </span>
-                      <span className="flex items-center gap-1">
-                        📦 {restaurant._count.packages} แพ็คเกจ
-                      </span>
-                      <span className="flex items-center gap-1">
-                        🚚 ฿{restaurant.deliveryFee}
-                      </span>
-                    </div>
+                  {/* Name */}
+                  <div className="p-3">
+                    <h3 className="font-semibold text-gray-900 text-sm truncate">{restaurant.name}</h3>
                   </div>
                 </button>
               ))}
