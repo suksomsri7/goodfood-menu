@@ -12,6 +12,13 @@ interface Category {
   slug: string;
   color: string;
   isActive: boolean;
+  restaurantId?: string;
+}
+
+interface Restaurant {
+  id: string;
+  name: string;
+  isActive: boolean;
 }
 
 interface Food {
@@ -49,11 +56,14 @@ export default function EditFoodPage({ params }: { params: Promise<{ id: string 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const additionalFileInputRef = useRef<HTMLInputElement>(null);
   
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   
   const [formData, setFormData] = useState({
     name: "",
+    restaurantId: "",
     categoryId: "",
     description: "",
     calories: "",
@@ -81,22 +91,32 @@ export default function EditFoodPage({ params }: { params: Promise<{ id: string 
   useEffect(() => {
     async function fetchData() {
       try {
-        const [foodRes, categoriesRes] = await Promise.all([
+        const [foodRes, restaurantsRes, categoriesRes] = await Promise.all([
           fetch(`/api/foods/${id}`),
+          fetch("/api/restaurants?active=true"),
           fetch("/api/categories"),
         ]);
         
         if (!foodRes.ok) throw new Error("Food not found");
-        if (!categoriesRes.ok) throw new Error("Failed to fetch categories");
         
-        const [food, categoriesData] = await Promise.all([
-          foodRes.json(),
-          categoriesRes.json(),
-        ]);
+        const food = await foodRes.json();
+        
+        if (restaurantsRes.ok) {
+          const restaurantsData = await restaurantsRes.json();
+          setRestaurants(restaurantsData.filter((r: Restaurant) => r.isActive));
+        }
+        
+        if (categoriesRes.ok) {
+          const categoriesData = await categoriesRes.json();
+          const activeCategories = categoriesData.filter((cat: Category) => cat.isActive);
+          setAllCategories(activeCategories);
+          setCategories(activeCategories);
+        }
         
         // Set form data
         setFormData({
           name: food.name || "",
+          restaurantId: food.restaurantId || "",
           categoryId: food.categoryId || "",
           description: food.description || "",
           calories: food.calories?.toString() || "",
@@ -117,7 +137,6 @@ export default function EditFoodPage({ params }: { params: Promise<{ id: string 
         setImagePreview(food.imageUrl || null);
         setAdditionalImages(food.images || []);
         setIngredients(food.ingredients?.length > 0 ? food.ingredients : [""]);
-        setCategories(categoriesData.filter((cat: Category) => cat.isActive));
       } catch (err) {
         console.error("Error loading data:", err);
         setError("ไม่สามารถโหลดข้อมูลเมนูได้");
@@ -127,6 +146,17 @@ export default function EditFoodPage({ params }: { params: Promise<{ id: string 
     }
     fetchData();
   }, [id]);
+
+  // กรองหมวดอาหารตามร้านที่เลือก
+  useEffect(() => {
+    if (formData.restaurantId) {
+      setCategories(allCategories.filter(
+        (cat) => cat.restaurantId === formData.restaurantId || !cat.restaurantId
+      ));
+    } else {
+      setCategories(allCategories);
+    }
+  }, [formData.restaurantId, allCategories]);
 
   // จัดการส่วนประกอบ
   const addIngredient = () => {
@@ -219,6 +249,7 @@ export default function EditFoodPage({ params }: { params: Promise<{ id: string 
           servingUnit: formData.servingUnit,
           warning: formData.warning || null,
           categoryId: formData.categoryId,
+          restaurantId: formData.restaurantId || null,
         }),
       });
       
@@ -384,6 +415,25 @@ export default function EditFoodPage({ params }: { params: Promise<{ id: string 
                       required
                       className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent"
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      ร้านอาหาร
+                    </label>
+                    <select
+                      name="restaurantId"
+                      value={formData.restaurantId}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent"
+                    >
+                      <option value="">ทุกร้าน</option>
+                      {restaurants.map((restaurant) => (
+                        <option key={restaurant.id} value={restaurant.id}>
+                          {restaurant.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div>

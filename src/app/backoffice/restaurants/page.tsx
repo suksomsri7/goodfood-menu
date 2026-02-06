@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Plus, Pencil, Trash2, Store, Package, Utensils, ToggleLeft, ToggleRight, GripVertical } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Plus, Pencil, Trash2, Store, Package, Utensils, ToggleLeft, ToggleRight, GripVertical, Upload, X, Image as ImageIcon } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -178,13 +178,15 @@ export default function RestaurantsPage() {
     name: "",
     slug: "",
     description: "",
-    logoUrl: "",
-    coverUrl: "",
     sellType: "both",
     deliveryFee: 0,
     deliveryPerMeal: 0,
     minOrder: 0,
   });
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   // DnD sensors
   const sensors = useSensors(
@@ -243,6 +245,39 @@ export default function RestaurantsPage() {
     }
   };
 
+  // Handle image upload
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCoverPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeLogo = () => {
+    setLogoPreview(null);
+    if (logoInputRef.current) logoInputRef.current.value = "";
+  };
+
+  const removeCover = () => {
+    setCoverPreview(null);
+    if (coverInputRef.current) coverInputRef.current.value = "";
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -254,7 +289,11 @@ export default function RestaurantsPage() {
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          logoUrl: logoPreview,
+          coverUrl: coverPreview,
+        }),
       });
 
       if (res.ok) {
@@ -301,26 +340,26 @@ export default function RestaurantsPage() {
         name: restaurant.name,
         slug: restaurant.slug,
         description: restaurant.description || "",
-        logoUrl: restaurant.logoUrl || "",
-        coverUrl: restaurant.coverUrl || "",
         sellType: restaurant.sellType,
         deliveryFee: restaurant.deliveryFee,
         deliveryPerMeal: restaurant.deliveryPerMeal,
         minOrder: restaurant.minOrder,
       });
+      setLogoPreview(restaurant.logoUrl || null);
+      setCoverPreview(restaurant.coverUrl || null);
     } else {
       setEditingRestaurant(null);
       setFormData({
         name: "",
         slug: "",
         description: "",
-        logoUrl: "",
-        coverUrl: "",
         sellType: "both",
         deliveryFee: 0,
         deliveryPerMeal: 0,
         minOrder: 0,
       });
+      setLogoPreview(null);
+      setCoverPreview(null);
     }
     setShowModal(true);
   };
@@ -457,28 +496,87 @@ export default function RestaurantsPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Logo URL
-                  </label>
+              {/* รูปภาพ Cover */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  รูปภาพ Cover
+                </label>
+                {coverPreview ? (
+                  <div className="relative">
+                    <img
+                      src={coverPreview}
+                      alt="Cover Preview"
+                      className="w-full h-32 object-cover rounded-lg"
+                    />
+                    <button
+                      type="button"
+                      onClick={removeCover}
+                      className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => coverInputRef.current?.click()}
+                    className="w-full h-32 border-2 border-dashed border-gray-200 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-green-500 hover:bg-green-50 transition-colors"
+                  >
+                    <ImageIcon className="w-8 h-8 text-gray-400" />
+                    <span className="text-sm text-gray-500">คลิกเพื่ออัพโหลด Cover</span>
+                  </button>
+                )}
+                <input
+                  ref={coverInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleCoverChange}
+                  className="hidden"
+                />
+              </div>
+
+              {/* รูปภาพ Logo */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  รูปภาพ Logo
+                </label>
+                <div className="flex items-start gap-4">
+                  {logoPreview ? (
+                    <div className="relative">
+                      <img
+                        src={logoPreview}
+                        alt="Logo Preview"
+                        className="w-24 h-24 object-cover rounded-lg border"
+                      />
+                      <button
+                        type="button"
+                        onClick={removeLogo}
+                        className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => logoInputRef.current?.click()}
+                      className="w-24 h-24 border-2 border-dashed border-gray-200 rounded-lg flex flex-col items-center justify-center gap-1 hover:border-green-500 hover:bg-green-50 transition-colors"
+                    >
+                      <Upload className="w-6 h-6 text-gray-400" />
+                      <span className="text-xs text-gray-500">Logo</span>
+                    </button>
+                  )}
                   <input
-                    type="text"
-                    value={formData.logoUrl}
-                    onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoChange}
+                    className="hidden"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Cover URL
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.coverUrl}
-                    onChange={(e) => setFormData({ ...formData, coverUrl: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
-                  />
+                  <p className="text-xs text-gray-400 mt-2">
+                    แนะนำขนาด 200x200 px<br/>
+                    PNG, JPG สูงสุด 2MB
+                  </p>
                 </div>
               </div>
 

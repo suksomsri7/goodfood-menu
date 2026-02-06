@@ -12,6 +12,13 @@ interface Category {
   slug: string;
   color: string;
   isActive: boolean;
+  restaurantId?: string;
+}
+
+interface Restaurant {
+  id: string;
+  name: string;
+  isActive: boolean;
 }
 
 const badgeOptions = [
@@ -25,12 +32,15 @@ export default function NewFoodPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const additionalFileInputRef = useRef<HTMLInputElement>(null);
   
-  // โหลดหมวดอาหารจาก DB
+  // โหลดร้านอาหารและหมวดอาหารจาก DB
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+  const [allCategories, setAllCategories] = useState<Category[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
   
   const [formData, setFormData] = useState({
     name: "",
+    restaurantId: "",
     categoryId: "",
     description: "",
     calories: "",
@@ -71,23 +81,56 @@ export default function NewFoodPage() {
     setIngredients(newIngredients);
   };
 
-  // ดึงหมวดอาหารจาก API
+  // ดึงร้านอาหารและหมวดอาหารจาก API
   useEffect(() => {
-    async function fetchCategories() {
+    async function fetchData() {
       try {
-        const res = await fetch("/api/categories");
-        if (!res.ok) throw new Error("Failed to fetch categories");
-        const data = await res.json();
-        // กรองเฉพาะหมวดที่เปิดใช้งาน
-        setCategories(data.filter((cat: Category) => cat.isActive));
+        const [restaurantsRes, categoriesRes] = await Promise.all([
+          fetch("/api/restaurants?active=true"),
+          fetch("/api/categories"),
+        ]);
+        
+        if (restaurantsRes.ok) {
+          const restaurantsData = await restaurantsRes.json();
+          setRestaurants(restaurantsData.filter((r: Restaurant) => r.isActive));
+        }
+        
+        if (categoriesRes.ok) {
+          const categoriesData = await categoriesRes.json();
+          const activeCategories = categoriesData.filter((cat: Category) => cat.isActive);
+          setAllCategories(activeCategories);
+          setCategories(activeCategories);
+        }
       } catch (err) {
-        console.error("Error loading categories:", err);
+        console.error("Error loading data:", err);
       } finally {
-        setIsLoadingCategories(false);
+        setIsLoadingData(false);
       }
     }
-    fetchCategories();
+    fetchData();
   }, []);
+
+  // กรองหมวดอาหารตามร้านที่เลือก
+  useEffect(() => {
+    if (formData.restaurantId) {
+      // กรองเฉพาะหมวดของร้านนี้ หรือหมวดที่ไม่ได้ระบุร้าน
+      setCategories(allCategories.filter(
+        (cat) => cat.restaurantId === formData.restaurantId || !cat.restaurantId
+      ));
+    } else {
+      setCategories(allCategories);
+    }
+    // Reset category if restaurant changes
+    if (formData.categoryId) {
+      const catExists = allCategories.find(
+        (c) => c.id === formData.categoryId && 
+        (!formData.restaurantId || c.restaurantId === formData.restaurantId || !c.restaurantId)
+      );
+      if (!catExists) {
+        setFormData((prev) => ({ ...prev, categoryId: "" }));
+      }
+    }
+  }, [formData.restaurantId, allCategories]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -163,6 +206,7 @@ export default function NewFoodPage() {
           servingUnit: formData.servingUnit,
           warning: formData.warning || null,
           categoryId: formData.categoryId,
+          restaurantId: formData.restaurantId || null,
         }),
       });
       
@@ -322,9 +366,35 @@ export default function NewFoodPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
+                      ร้านอาหาร
+                    </label>
+                    {isLoadingData ? (
+                      <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-400">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        กำลังโหลด...
+                      </div>
+                    ) : (
+                      <select
+                        name="restaurantId"
+                        value={formData.restaurantId}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent"
+                      >
+                        <option value="">ทุกร้าน</option>
+                        {restaurants.map((restaurant) => (
+                          <option key={restaurant.id} value={restaurant.id}>
+                            {restaurant.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       หมวดหมู่ <span className="text-red-500">*</span>
                     </label>
-                    {isLoadingCategories ? (
+                    {isLoadingData ? (
                       <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-400">
                         <Loader2 className="w-4 h-4 animate-spin" />
                         กำลังโหลดหมวดหมู่...
@@ -345,7 +415,7 @@ export default function NewFoodPage() {
                         ))}
                       </select>
                     )}
-                    {categories.length === 0 && !isLoadingCategories && (
+                    {categories.length === 0 && !isLoadingData && (
                       <p className="text-xs text-amber-600 mt-1">
                         ยังไม่มีหมวดอาหาร กรุณา<Link href="/backoffice/categories" className="underline">เพิ่มหมวดอาหาร</Link>ก่อน
                       </p>

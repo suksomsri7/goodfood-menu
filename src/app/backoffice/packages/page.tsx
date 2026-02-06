@@ -31,6 +31,14 @@ interface FoodPackage {
   discountValue: number;
   isActive: boolean;
   order: number;
+  restaurantId?: string;
+  restaurant?: { id: string; name: string };
+}
+
+interface Restaurant {
+  id: string;
+  name: string;
+  isActive: boolean;
 }
 
 // Sortable row component
@@ -139,6 +147,7 @@ function SortableRow({
 
 export default function PackagesPage() {
   const [packages, setPackages] = useState<FoodPackage[]>([]);
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -155,6 +164,7 @@ export default function PackagesPage() {
     requiredItems: "1",
     discountType: "percent" as "percent" | "fixed",
     discountValue: "",
+    restaurantId: "",
   });
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
@@ -170,10 +180,19 @@ export default function PackagesPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const res = await fetch("/api/packages");
-        if (res.ok) {
-          const data = await res.json();
+        const [packagesRes, restaurantsRes] = await Promise.all([
+          fetch("/api/packages"),
+          fetch("/api/restaurants?active=true"),
+        ]);
+        
+        if (packagesRes.ok) {
+          const data = await packagesRes.json();
           setPackages(data);
+        }
+        
+        if (restaurantsRes.ok) {
+          const restaurantsData = await restaurantsRes.json();
+          setRestaurants(restaurantsData.filter((r: Restaurant) => r.isActive));
         }
       } catch (err) {
         console.error("Error loading data:", err);
@@ -248,6 +267,7 @@ export default function PackagesPage() {
       requiredItems: "1",
       discountType: "percent",
       discountValue: "",
+      restaurantId: "",
     });
     setImagePreview(null);
     setShowModal(true);
@@ -262,6 +282,7 @@ export default function PackagesPage() {
       requiredItems: pkg.requiredItems.toString(),
       discountType: pkg.discountType,
       discountValue: pkg.discountValue.toString(),
+      restaurantId: pkg.restaurantId || "",
     });
     setImagePreview(pkg.imageUrl || null);
     setShowModal(true);
@@ -292,6 +313,7 @@ export default function PackagesPage() {
           discountType: formData.discountType,
           discountValue: parseFloat(formData.discountValue) || 0,
           imageUrl: imagePreview,
+          restaurantId: formData.restaurantId || null,
         }),
       });
 
@@ -493,6 +515,25 @@ export default function PackagesPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* ร้านอาหาร */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  ร้านอาหาร
+                </label>
+                <select
+                  value={formData.restaurantId}
+                  onChange={(e) => setFormData({ ...formData, restaurantId: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent"
+                >
+                  <option value="">ทุกร้าน</option>
+                  {restaurants.map((restaurant) => (
+                    <option key={restaurant.id} value={restaurant.id}>
+                      {restaurant.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {/* รูปภาพ */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
