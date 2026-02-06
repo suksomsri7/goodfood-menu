@@ -392,19 +392,43 @@ model PromotionGift {
   @@map("promotion_gifts")
 }
 
+// ==================== หมวดบทความ ====================
+model ArticleCategory {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  color       String    @default("#4CAF50")
+  icon        String?   // emoji or icon name
+  order       Int       @default(0)
+  isActive    Boolean   @default(true)
+  articles    Article[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("article_categories")
+}
+
 // ==================== บทความ ====================
 model Article {
-  id        String   @id @default(cuid())
-  title     String
-  slug      String   @unique
-  excerpt   String?
-  content   String?  @db.Text
-  imageUrl  String?
-  category  String?
-  status    String   @default("draft") // draft, published
-  views     Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String           @id @default(cuid())
+  title       String
+  slug        String           @unique
+  excerpt     String?
+  content     String?          @db.Text
+  imageUrl    String?
+  categoryId  String?
+  category    ArticleCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tags        String?          // comma-separated tags
+  author      String?
+  isFeatured  Boolean          @default(false)
+  status      String           @default("draft") // draft, published, scheduled
+  publishedAt DateTime?
+  views       Int              @default(0)
+  readTime    Int              @default(5) // estimated read time in minutes
+  order       Int              @default(0)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   @@map("articles")
 }
