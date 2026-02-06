@@ -38,6 +38,7 @@
     "prisma": "^6.19.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-easy-crop": "^5.5.6",
     "recharts": "^3.7.0",
     "tailwind-merge": "^3.4.0"
   },

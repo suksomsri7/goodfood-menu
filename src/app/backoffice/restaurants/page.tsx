@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Plus, Pencil, Trash2, Store, Package, Utensils, ToggleLeft, ToggleRight, GripVertical, Upload, X, Image as ImageIcon } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Plus, Pencil, Trash2, Store, Package, Utensils, ToggleLeft, ToggleRight, GripVertical, X, Image as ImageIcon, Crop, Check, RotateCw } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -19,13 +19,13 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import Cropper, { Area, Point } from "react-easy-crop";
 
 interface Restaurant {
   id: string;
   name: string;
   slug: string;
   description: string | null;
-  logoUrl: string | null;
   coverUrl: string | null;
   sellType: string;
   deliveryFee: number;
@@ -38,6 +38,103 @@ interface Restaurant {
     packages: number;
     categories: number;
   };
+}
+
+// Helper function to create cropped image
+const createImage = (url: string): Promise<HTMLImageElement> =>
+  new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener("load", () => resolve(image));
+    image.addEventListener("error", (error) => reject(error));
+    image.setAttribute("crossOrigin", "anonymous");
+    image.src = url;
+  });
+
+async function getCroppedImg(
+  imageSrc: string,
+  pixelCrop: Area,
+  rotation = 0
+): Promise<string> {
+  const image = await createImage(imageSrc);
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  if (!ctx) {
+    return imageSrc;
+  }
+
+  const rotRad = (rotation * Math.PI) / 180;
+
+  // Calculate bounding box of the rotated image
+  const sin = Math.abs(Math.sin(rotRad));
+  const cos = Math.abs(Math.cos(rotRad));
+  const newWidth = image.width * cos + image.height * sin;
+  const newHeight = image.width * sin + image.height * cos;
+
+  // Set canvas size to fit the rotated crop
+  canvas.width = pixelCrop.width;
+  canvas.height = pixelCrop.height;
+
+  ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.rotate(rotRad);
+  ctx.translate(-canvas.width / 2, -canvas.height / 2);
+
+  // Draw the image offset by the crop position
+  ctx.drawImage(
+    image,
+    pixelCrop.x - (newWidth - image.width) / 2,
+    pixelCrop.y - (newHeight - image.height) / 2,
+    image.width,
+    image.height,
+    0,
+    0,
+    image.width,
+    image.height
+  );
+
+  // Reset transform
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+  // Re-draw just the cropped area
+  const croppedCanvas = document.createElement("canvas");
+  const croppedCtx = croppedCanvas.getContext("2d");
+  if (!croppedCtx) return imageSrc;
+
+  croppedCanvas.width = pixelCrop.width;
+  croppedCanvas.height = pixelCrop.height;
+
+  const tempCanvas = document.createElement("canvas");
+  const tempCtx = tempCanvas.getContext("2d");
+  if (!tempCtx) return imageSrc;
+
+  // Set temp canvas to new dimensions
+  const maxDim = Math.max(newWidth, newHeight);
+  tempCanvas.width = maxDim;
+  tempCanvas.height = maxDim;
+
+  // Move origin to center
+  tempCtx.translate(maxDim / 2, maxDim / 2);
+  tempCtx.rotate(rotRad);
+  tempCtx.translate(-image.width / 2, -image.height / 2);
+  tempCtx.drawImage(image, 0, 0);
+
+  // Calculate the offset for center cropping
+  const offsetX = (maxDim - newWidth) / 2;
+  const offsetY = (maxDim - newHeight) / 2;
+
+  croppedCtx.drawImage(
+    tempCanvas,
+    offsetX + pixelCrop.x,
+    offsetY + pixelCrop.y,
+    pixelCrop.width,
+    pixelCrop.height,
+    0,
+    0,
+    pixelCrop.width,
+    pixelCrop.height
+  );
+
+  return croppedCanvas.toDataURL("image/jpeg", 0.9);
 }
 
 // Sortable Card Component
@@ -87,7 +184,7 @@ function SortableRestaurantCard({
           <GripVertical className="w-5 h-5 text-gray-400" />
         </div>
 
-        {/* Cover/Logo */}
+        {/* Cover */}
         <div className="w-28 h-28 bg-gray-100 flex-shrink-0 relative">
           {restaurant.coverUrl ? (
             <img
@@ -99,13 +196,6 @@ function SortableRestaurantCard({
             <div className="w-full h-full flex items-center justify-center">
               <Store className="w-10 h-10 text-gray-300" />
             </div>
-          )}
-          {restaurant.logoUrl && (
-            <img
-              src={restaurant.logoUrl}
-              alt={restaurant.name}
-              className="absolute bottom-2 left-2 w-10 h-10 rounded-lg border-2 border-white shadow object-cover"
-            />
           )}
         </div>
 
@@ -183,10 +273,16 @@ export default function RestaurantsPage() {
     deliveryPerMeal: 0,
     minOrder: 0,
   });
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
-  const logoInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
+
+  // Cropper state
+  const [showCropper, setShowCropper] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
 
   // DnD sensors
   const sensors = useSensors(
@@ -245,32 +341,43 @@ export default function RestaurantsPage() {
     }
   };
 
-  // Handle image upload
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLogoPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
+  // Handle image upload - opens cropper
   const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setCoverPreview(reader.result as string);
+        setImageToCrop(reader.result as string);
+        setShowCropper(true);
+        setCrop({ x: 0, y: 0 });
+        setZoom(1);
+        setRotation(0);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const removeLogo = () => {
-    setLogoPreview(null);
-    if (logoInputRef.current) logoInputRef.current.value = "";
+  const onCropComplete = useCallback((_croppedArea: Area, croppedAreaPixels: Area) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
+
+  const handleCropConfirm = async () => {
+    if (imageToCrop && croppedAreaPixels) {
+      try {
+        const croppedImage = await getCroppedImg(imageToCrop, croppedAreaPixels, rotation);
+        setCoverPreview(croppedImage);
+        setShowCropper(false);
+        setImageToCrop(null);
+      } catch (e) {
+        console.error("Error cropping image:", e);
+      }
+    }
+  };
+
+  const handleCropCancel = () => {
+    setShowCropper(false);
+    setImageToCrop(null);
+    if (coverInputRef.current) coverInputRef.current.value = "";
   };
 
   const removeCover = () => {
@@ -291,7 +398,6 @@ export default function RestaurantsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
-          logoUrl: logoPreview,
           coverUrl: coverPreview,
         }),
       });
@@ -345,7 +451,6 @@ export default function RestaurantsPage() {
         deliveryPerMeal: restaurant.deliveryPerMeal,
         minOrder: restaurant.minOrder,
       });
-      setLogoPreview(restaurant.logoUrl || null);
       setCoverPreview(restaurant.coverUrl || null);
     } else {
       setEditingRestaurant(null);
@@ -358,9 +463,10 @@ export default function RestaurantsPage() {
         deliveryPerMeal: 0,
         minOrder: 0,
       });
-      setLogoPreview(null);
       setCoverPreview(null);
     }
+    setShowCropper(false);
+    setImageToCrop(null);
     setShowModal(true);
   };
 
@@ -513,24 +619,36 @@ export default function RestaurantsPage() {
                     <img
                       src={coverPreview}
                       alt="Cover Preview"
-                      className="w-full h-32 object-cover rounded-lg"
+                      className="w-full h-40 object-cover rounded-lg"
                     />
-                    <button
-                      type="button"
-                      onClick={removeCover}
-                      className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+                    <div className="absolute top-2 right-2 flex gap-1">
+                      <button
+                        type="button"
+                        onClick={() => coverInputRef.current?.click()}
+                        className="p-1.5 bg-blue-500 text-white rounded-full hover:bg-blue-600"
+                        title="เปลี่ยนรูป"
+                      >
+                        <Crop className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={removeCover}
+                        className="p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600"
+                        title="ลบรูป"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <button
                     type="button"
                     onClick={() => coverInputRef.current?.click()}
-                    className="w-full h-32 border-2 border-dashed border-gray-200 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-green-500 hover:bg-green-50 transition-colors"
+                    className="w-full h-40 border-2 border-dashed border-gray-200 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-green-500 hover:bg-green-50 transition-colors"
                   >
                     <ImageIcon className="w-8 h-8 text-gray-400" />
                     <span className="text-sm text-gray-500">คลิกเพื่ออัพโหลด Cover</span>
+                    <span className="text-xs text-gray-400">แนะนำขนาด 1200x600 px (2:1)</span>
                   </button>
                 )}
                 <input
@@ -540,51 +658,6 @@ export default function RestaurantsPage() {
                   onChange={handleCoverChange}
                   className="hidden"
                 />
-              </div>
-
-              {/* รูปภาพ Logo */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  รูปภาพ Logo
-                </label>
-                <div className="flex items-start gap-4">
-                  {logoPreview ? (
-                    <div className="relative">
-                      <img
-                        src={logoPreview}
-                        alt="Logo Preview"
-                        className="w-24 h-24 object-cover rounded-lg border"
-                      />
-                      <button
-                        type="button"
-                        onClick={removeLogo}
-                        className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => logoInputRef.current?.click()}
-                      className="w-24 h-24 border-2 border-dashed border-gray-200 rounded-lg flex flex-col items-center justify-center gap-1 hover:border-green-500 hover:bg-green-50 transition-colors"
-                    >
-                      <Upload className="w-6 h-6 text-gray-400" />
-                      <span className="text-xs text-gray-500">Logo</span>
-                    </button>
-                  )}
-                  <input
-                    ref={logoInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleLogoChange}
-                    className="hidden"
-                  />
-                  <p className="text-xs text-gray-400 mt-2">
-                    แนะนำขนาด 200x200 px<br/>
-                    PNG, JPG สูงสุด 2MB
-                  </p>
-                </div>
               </div>
 
               <div>
@@ -657,6 +730,96 @@ export default function RestaurantsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Image Cropper Modal */}
+      {showCropper && imageToCrop && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80">
+          <div className="bg-white rounded-2xl w-full max-w-2xl m-4 overflow-hidden">
+            <div className="p-4 border-b flex items-center justify-between">
+              <h3 className="font-semibold text-gray-900">ปรับขนาดรูปภาพ</h3>
+              <button
+                type="button"
+                onClick={handleCropCancel}
+                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="relative h-[400px] bg-gray-900">
+              <Cropper
+                image={imageToCrop}
+                crop={crop}
+                zoom={zoom}
+                rotation={rotation}
+                aspect={2 / 1}
+                onCropChange={setCrop}
+                onCropComplete={onCropComplete}
+                onZoomChange={setZoom}
+              />
+            </div>
+
+            <div className="p-4 space-y-4 bg-gray-50">
+              {/* Zoom Control */}
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-gray-600 w-16">ซูม:</span>
+                <input
+                  type="range"
+                  value={zoom}
+                  min={1}
+                  max={3}
+                  step={0.1}
+                  onChange={(e) => setZoom(Number(e.target.value))}
+                  className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-500"
+                />
+                <span className="text-sm text-gray-500 w-12">{zoom.toFixed(1)}x</span>
+              </div>
+
+              {/* Rotation Control */}
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-gray-600 w-16">หมุน:</span>
+                <input
+                  type="range"
+                  value={rotation}
+                  min={0}
+                  max={360}
+                  step={1}
+                  onChange={(e) => setRotation(Number(e.target.value))}
+                  className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setRotation((r) => (r + 90) % 360)}
+                  className="p-2 text-gray-500 hover:bg-gray-200 rounded-lg"
+                  title="หมุน 90°"
+                >
+                  <RotateCw className="w-4 h-4" />
+                </button>
+                <span className="text-sm text-gray-500 w-12">{rotation}°</span>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={handleCropCancel}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCropConfirm}
+                  className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-2"
+                >
+                  <Check className="w-4 h-4" />
+                  ใช้รูปนี้
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
