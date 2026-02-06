@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { uploadToBunny, deleteFromBunny, isBase64Image } from "@/lib/bunny";
 
 // GET /api/restaurants/[id] - Get restaurant by ID with all data
 export async function GET(
@@ -62,14 +63,49 @@ export async function PUT(
     const { id } = await params;
     const data = await request.json();
 
+    // Get existing restaurant for image cleanup
+    const existing = await prisma.restaurant.findUnique({ where: { id } });
+
+    // Handle logo upload/delete
+    let logoUrl = data.logoUrl;
+    if (data.logoUrl !== undefined) {
+      if (data.logoUrl && isBase64Image(data.logoUrl)) {
+        // Delete old logo and upload new one
+        if (existing?.logoUrl) {
+          await deleteFromBunny(existing.logoUrl);
+        }
+        logoUrl = await uploadToBunny(data.logoUrl, "restaurants/logos", `logo-${Date.now()}.jpg`);
+      } else if (!data.logoUrl && existing?.logoUrl) {
+        // Delete old logo
+        await deleteFromBunny(existing.logoUrl);
+        logoUrl = null;
+      }
+    }
+
+    // Handle cover upload/delete
+    let coverUrl = data.coverUrl;
+    if (data.coverUrl !== undefined) {
+      if (data.coverUrl && isBase64Image(data.coverUrl)) {
+        // Delete old cover and upload new one
+        if (existing?.coverUrl) {
+          await deleteFromBunny(existing.coverUrl);
+        }
+        coverUrl = await uploadToBunny(data.coverUrl, "restaurants/covers", `cover-${Date.now()}.jpg`);
+      } else if (!data.coverUrl && existing?.coverUrl) {
+        // Delete old cover
+        await deleteFromBunny(existing.coverUrl);
+        coverUrl = null;
+      }
+    }
+
     const restaurant = await prisma.restaurant.update({
       where: { id },
       data: {
         name: data.name,
         slug: data.slug,
         description: data.description,
-        logoUrl: data.logoUrl,
-        coverUrl: data.coverUrl,
+        logoUrl,
+        coverUrl,
         sellType: data.sellType,
         deliveryFee: data.deliveryFee,
         deliveryPerMeal: data.deliveryPerMeal,
@@ -96,6 +132,17 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+
+    // Get existing restaurant for image cleanup
+    const existing = await prisma.restaurant.findUnique({ where: { id } });
+
+    // Delete images from Bunny CDN
+    if (existing?.logoUrl) {
+      await deleteFromBunny(existing.logoUrl);
+    }
+    if (existing?.coverUrl) {
+      await deleteFromBunny(existing.coverUrl);
+    }
 
     await prisma.restaurant.delete({
       where: { id },

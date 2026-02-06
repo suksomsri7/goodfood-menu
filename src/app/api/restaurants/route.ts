@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { uploadToBunny, isBase64Image } from "@/lib/bunny";
 
 // GET /api/restaurants - Get all restaurants
 export async function GET(request: NextRequest) {
@@ -45,13 +46,33 @@ export async function POST(request: NextRequest) {
         .replace(/^-|-$/g, "");
     }
 
+    // Upload logo to Bunny CDN if it's base64
+    let logoUrl = data.logoUrl || null;
+    if (data.logoUrl && isBase64Image(data.logoUrl)) {
+      try {
+        logoUrl = await uploadToBunny(data.logoUrl, "restaurants/logos", `logo-${Date.now()}.jpg`);
+      } catch (uploadError) {
+        console.error("Failed to upload restaurant logo:", uploadError);
+      }
+    }
+
+    // Upload cover to Bunny CDN if it's base64
+    let coverUrl = data.coverUrl || null;
+    if (data.coverUrl && isBase64Image(data.coverUrl)) {
+      try {
+        coverUrl = await uploadToBunny(data.coverUrl, "restaurants/covers", `cover-${Date.now()}.jpg`);
+      } catch (uploadError) {
+        console.error("Failed to upload restaurant cover:", uploadError);
+      }
+    }
+
     const restaurant = await prisma.restaurant.create({
       data: {
         name: data.name,
         slug: data.slug,
         description: data.description,
-        logoUrl: data.logoUrl,
-        coverUrl: data.coverUrl,
+        logoUrl,
+        coverUrl,
         sellType: data.sellType || "both",
         deliveryFee: data.deliveryFee || 0,
         deliveryPerMeal: data.deliveryPerMeal || 0,
