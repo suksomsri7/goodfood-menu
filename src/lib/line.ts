@@ -228,6 +228,9 @@ export function createOrderFlexMessage(order: {
   finalPrice?: number;
   restaurantName?: string | null;
   deliveryFee?: number;
+  deliveryName?: string | null;
+  deliveryPhone?: string | null;
+  deliveryAddress?: string | null;
 }): LineFlexMessage {
   const statusLabels: Record<string, string> = {
     pending: "⏳ รอดำเนินการ",
@@ -441,6 +444,51 @@ export function createOrderFlexMessage(order: {
                     align: "end" as const,
                   },
                 ],
+              },
+            ]
+          : []),
+        // ที่อยู่จัดส่ง (ถ้ามี)
+        ...(order.deliveryName || order.deliveryAddress
+          ? [
+              {
+                type: "separator" as const,
+                margin: "lg" as const,
+              },
+              {
+                type: "text" as const,
+                text: "📍 ที่อยู่จัดส่ง",
+                size: "sm" as const,
+                color: "#555555",
+                weight: "bold" as const,
+                margin: "lg" as const,
+              },
+              ...(order.deliveryName
+                ? [
+                    {
+                      type: "text" as const,
+                      text: `${order.deliveryName}${order.deliveryPhone ? ` (${order.deliveryPhone})` : ""}`,
+                      size: "sm" as const,
+                      color: "#111111",
+                      margin: "sm" as const,
+                      wrap: true,
+                    },
+                  ]
+                : []),
+              ...(order.deliveryAddress
+                ? [
+                    {
+                      type: "text" as const,
+                      text: order.deliveryAddress,
+                      size: "xs" as const,
+                      color: "#666666",
+                      margin: "xs" as const,
+                      wrap: true,
+                    },
+                  ]
+                : []),
+              {
+                type: "separator" as const,
+                margin: "lg" as const,
               },
             ]
           : []),

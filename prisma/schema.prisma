@@ -48,6 +48,7 @@ model Member {
   exerciseLogs     ExerciseLog[]
   cartItems        CartItem[]
   orders           Order[]
+  addresses        Address[]
   aiRecommendation AiRecommendation?
 
   @@map("members")
@@ -156,6 +157,34 @@ model CartItem {
 }
 
 // ==================== คำสั่งซื้อ ====================
+// ==================== ที่อยู่จัดส่ง ====================
+model Address {
+  id          String   @id @default(cuid())
+  memberId    String
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  
+  label       String?  // ชื่อที่อยู่ (บ้าน, ที่ทำงาน)
+  name        String   // ชื่อผู้รับ
+  phone       String   // เบอร์โทร
+  address     String   // ที่อยู่ (บ้านเลขที่ ซอย ถนน)
+  subDistrict String?  // แขวง/ตำบล
+  district    String?  // เขต/อำเภอ
+  province    String   // จังหวัด
+  postalCode  String   // รหัสไปรษณีย์
+  note        String?  // หมายเหตุเพิ่มเติม (เช่น จุดสังเกต)
+  
+  isDefault   Boolean  @default(false) // ที่อยู่หลัก
+  isActive    Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  orders      Order[]
+  
+  @@index([memberId])
+  @@map("addresses")
+}
+
 model Order {
   id             String      @id @default(cuid())
   orderNumber    String      @unique
@@ -163,6 +192,14 @@ model Order {
   member         Member?     @relation(fields: [memberId], references: [id], onDelete: SetNull)
   restaurantId   String?
   restaurant     Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: SetNull)
+  addressId      String?
+  address        Address?    @relation(fields: [addressId], references: [id], onDelete: SetNull)
+  
+  // ข้อมูลที่อยู่ snapshot (กรณี address ถูกแก้ไข/ลบ)
+  deliveryName        String?  // ชื่อผู้รับ
+  deliveryPhone       String?  // เบอร์โทร
+  deliveryAddress     String?  // ที่อยู่เต็ม
+  
   coursePlan     String? // แผนอาหาร
   totalDays      Int? // จำนวนวัน
   totalPrice     Float       @default(0)

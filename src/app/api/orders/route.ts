@@ -95,7 +95,8 @@ export async function POST(request: NextRequest) {
       packageName,
       finalPrice,
       restaurantId,
-      deliveryFee
+      deliveryFee,
+      addressId, // ที่อยู่จัดส่ง
     } = body;
 
     if (!items || items.length === 0) {
@@ -126,6 +127,30 @@ export async function POST(request: NextRequest) {
       restaurantName = restaurant?.name || null;
     }
 
+    // Get address info and create snapshot
+    let deliveryName: string | null = null;
+    let deliveryPhone: string | null = null;
+    let deliveryAddress: string | null = null;
+    
+    if (addressId) {
+      const address = await prisma.address.findUnique({
+        where: { id: addressId },
+      });
+      if (address) {
+        deliveryName = address.name;
+        deliveryPhone = address.phone;
+        // สร้างที่อยู่เต็ม
+        const addressParts = [
+          address.address,
+          address.subDistrict ? `แขวง/ตำบล ${address.subDistrict}` : null,
+          address.district ? `เขต/อำเภอ ${address.district}` : null,
+          address.province,
+          address.postalCode,
+        ].filter(Boolean);
+        deliveryAddress = addressParts.join(" ");
+      }
+    }
+
     const order = await prisma.order.create({
       data: {
         orderNumber: generateOrderNumber(),
@@ -140,6 +165,10 @@ export async function POST(request: NextRequest) {
         finalPrice: finalPrice || totalPrice || 0,
         memberId: finalMemberId,
         restaurantId: restaurantId || null,
+        addressId: addressId || null,
+        deliveryName,
+        deliveryPhone,
+        deliveryAddress,
         note: note || null,
         items: {
           create: items.map((item: {
@@ -186,6 +215,9 @@ export async function POST(request: NextRequest) {
           finalPrice: order.finalPrice || order.totalPrice,
           restaurantName: restaurantName,
           deliveryFee: order.deliveryFee || 0,
+          deliveryName: order.deliveryName,
+          deliveryPhone: order.deliveryPhone,
+          deliveryAddress: order.deliveryAddress,
         });
 
         await pushMessage(lineUserId, [flexMessage]);

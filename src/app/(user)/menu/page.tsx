@@ -81,6 +81,20 @@ interface CartItem {
   quantity: number;
 }
 
+interface Address {
+  id: string;
+  label: string | null;
+  name: string;
+  phone: string;
+  address: string;
+  subDistrict: string | null;
+  district: string | null;
+  province: string;
+  postalCode: string;
+  note: string | null;
+  isDefault: boolean;
+}
+
 export default function MenuPage() {
   const { profile, isReady, isLoggedIn } = useLiff();
   
@@ -113,6 +127,26 @@ export default function MenuPage() {
   const [aiRecommendation, setAiRecommendation] = useState("");
   const [showAiResult, setShowAiResult] = useState(false);
 
+  // Address state
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
+  const [showAddressModal, setShowAddressModal] = useState(false);
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [editingAddress, setEditingAddress] = useState<Address | null>(null);
+  const [addressForm, setAddressForm] = useState({
+    label: "",
+    name: "",
+    phone: "",
+    address: "",
+    subDistrict: "",
+    district: "",
+    province: "",
+    postalCode: "",
+    note: "",
+    isDefault: false,
+  });
+  const [isSavingAddress, setIsSavingAddress] = useState(false);
+
   // Refs for scrolling
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
@@ -138,6 +172,28 @@ export default function MenuPage() {
       }
     } catch (error) {
       console.error("Failed to fetch cart:", error);
+    }
+  }, [lineUserId]);
+
+  // Fetch addresses from API
+  const fetchAddresses = useCallback(async () => {
+    if (!lineUserId) return;
+
+    try {
+      const res = await fetch(`/api/addresses?lineUserId=${lineUserId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setAddresses(data);
+        // Auto-select default address
+        const defaultAddr = data.find((a: Address) => a.isDefault);
+        if (defaultAddr) {
+          setSelectedAddress(defaultAddr);
+        } else if (data.length > 0) {
+          setSelectedAddress(data[0]);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch addresses:", error);
     }
   }, [lineUserId]);
 
@@ -218,6 +274,13 @@ export default function MenuPage() {
       fetchCart(selectedRestaurant.id);
     }
   }, [isReady, lineUserId, selectedRestaurant, fetchCart]);
+
+  // Fetch addresses when user is logged in
+  useEffect(() => {
+    if (isReady && lineUserId) {
+      fetchAddresses();
+    }
+  }, [isReady, lineUserId, fetchAddresses]);
 
   const addToCart = async (food: Food, quantity: number = 1) => {
     // Update local state immediately for responsiveness
@@ -316,8 +379,120 @@ export default function MenuPage() {
     }
   };
 
-  const handleCheckout = async () => {
+  // Open address selection modal (before checkout)
+  const handleProceedToCheckout = () => {
     if (cart.length === 0 || !selectedRestaurant) return;
+    setShowCart(false);
+    setShowAddressModal(true);
+  };
+
+  // Save address
+  const handleSaveAddress = async () => {
+    if (!addressForm.name || !addressForm.phone || !addressForm.address || !addressForm.province || !addressForm.postalCode) {
+      alert("กรุณากรอกข้อมูลที่จำเป็น");
+      return;
+    }
+
+    setIsSavingAddress(true);
+    try {
+      const method = editingAddress ? "PATCH" : "POST";
+      const body = {
+        lineUserId,
+        ...(editingAddress ? { id: editingAddress.id } : {}),
+        ...addressForm,
+      };
+
+      const res = await fetch("/api/addresses", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        const savedAddress = await res.json();
+        await fetchAddresses();
+        setSelectedAddress(savedAddress);
+        setShowAddressForm(false);
+        setEditingAddress(null);
+        resetAddressForm();
+      } else {
+        alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
+      }
+    } catch (error) {
+      console.error("Failed to save address:", error);
+      alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
+    } finally {
+      setIsSavingAddress(false);
+    }
+  };
+
+  // Delete address
+  const handleDeleteAddress = async (addressId: string) => {
+    if (!confirm("ต้องการลบที่อยู่นี้หรือไม่?")) return;
+
+    try {
+      const res = await fetch(`/api/addresses?id=${addressId}&lineUserId=${lineUserId}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        await fetchAddresses();
+        if (selectedAddress?.id === addressId) {
+          setSelectedAddress(addresses.find(a => a.id !== addressId) || null);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to delete address:", error);
+    }
+  };
+
+  // Edit address
+  const handleEditAddress = (address: Address) => {
+    setEditingAddress(address);
+    setAddressForm({
+      label: address.label || "",
+      name: address.name,
+      phone: address.phone,
+      address: address.address,
+      subDistrict: address.subDistrict || "",
+      district: address.district || "",
+      province: address.province,
+      postalCode: address.postalCode,
+      note: address.note || "",
+      isDefault: address.isDefault,
+    });
+    setShowAddressForm(true);
+  };
+
+  // Reset address form
+  const resetAddressForm = () => {
+    setAddressForm({
+      label: "",
+      name: "",
+      phone: "",
+      address: "",
+      subDistrict: "",
+      district: "",
+      province: "",
+      postalCode: "",
+      note: "",
+      isDefault: false,
+    });
+    setEditingAddress(null);
+  };
+
+  // Open add new address form
+  const handleAddNewAddress = () => {
+    resetAddressForm();
+    // Pre-fill name and phone from profile if available
+    if (profile?.displayName) {
+      setAddressForm(prev => ({ ...prev, name: profile.displayName || "" }));
+    }
+    setShowAddressForm(true);
+  };
+
+  const handleCheckout = async () => {
+    if (cart.length === 0 || !selectedRestaurant || !selectedAddress) return;
 
     setIsSubmitting(true);
     try {
@@ -328,6 +503,7 @@ export default function MenuPage() {
         body: JSON.stringify({
           lineUserId,
           restaurantId: selectedRestaurant.id,
+          addressId: selectedAddress.id,
           coursePlan: "single",
           totalDays: 1,
           totalPrice,
@@ -349,7 +525,7 @@ export default function MenuPage() {
 
       if (res.ok) {
         clearCart();
-        setShowCart(false);
+        setShowAddressModal(false);
         setShowSuccessModal(true);
       } else {
         alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
@@ -1217,11 +1393,10 @@ export default function MenuPage() {
                     ล้างตะกร้า
                   </button>
                   <button
-                    onClick={handleCheckout}
-                    disabled={isSubmitting}
-                    className="flex-[2] py-3 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition-colors disabled:opacity-50"
+                    onClick={handleProceedToCheckout}
+                    className="flex-[2] py-3 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition-colors"
                   >
-                    {isSubmitting ? "กำลังสั่งซื้อ..." : `สั่งซื้อ ฿${(finalPrice + (selectedRestaurant?.deliveryFee || 0)).toFixed(2)}`}
+                    ดำเนินการสั่งซื้อ
                   </button>
                 </div>
               </div>
@@ -1408,6 +1583,357 @@ export default function MenuPage() {
                 <span className="font-bold">฿{(selectedFood.price * modalQuantity).toFixed(2)}</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Address Selection Modal */}
+      {showAddressModal && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/50" onClick={() => !showAddressForm && setShowAddressModal(false)} />
+          
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[90vh] flex flex-col animate-slide-up">
+            {/* Handle */}
+            <div className="flex justify-center pt-3 pb-2 flex-shrink-0">
+              <div className="w-10 h-1 bg-gray-300 rounded-full" />
+            </div>
+
+            {!showAddressForm ? (
+              <>
+                {/* Header */}
+                <div className="px-4 pb-3 border-b border-gray-100 flex-shrink-0">
+                  <h2 className="text-lg font-bold text-gray-900">📍 เลือกที่อยู่จัดส่ง</h2>
+                </div>
+
+                {/* Address List */}
+                <div className="flex-1 overflow-y-auto p-4 min-h-0">
+                  {addresses.length === 0 ? (
+                    <div className="text-center py-8">
+                      <span className="text-5xl">📍</span>
+                      <p className="text-gray-500 mt-4">ยังไม่มีที่อยู่จัดส่ง</p>
+                      <button
+                        onClick={handleAddNewAddress}
+                        className="mt-4 px-6 py-2 bg-green-500 text-white rounded-lg font-medium"
+                      >
+                        เพิ่มที่อยู่ใหม่
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {addresses.map((addr) => (
+                        <div
+                          key={addr.id}
+                          onClick={() => setSelectedAddress(addr)}
+                          className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                            selectedAddress?.id === addr.id
+                              ? "border-green-500 bg-green-50"
+                              : "border-gray-200 hover:border-gray-300"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                selectedAddress?.id === addr.id
+                                  ? "border-green-500 bg-green-500"
+                                  : "border-gray-300"
+                              }`}>
+                                {selectedAddress?.id === addr.id && (
+                                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                )}
+                              </div>
+                              <span className="font-semibold text-gray-900">
+                                {addr.label || "ที่อยู่"}
+                                {addr.isDefault && (
+                                  <span className="ml-2 text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full">
+                                    ค่าเริ่มต้น
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditAddress(addr);
+                              }}
+                              className="text-sm text-green-600 hover:text-green-700"
+                            >
+                              แก้ไข
+                            </button>
+                          </div>
+                          
+                          <div className="mt-2 pl-7">
+                            <p className="text-gray-900">{addr.name}</p>
+                            <p className="text-sm text-gray-500">📞 {addr.phone}</p>
+                            <p className="text-sm text-gray-600 mt-1">
+                              {addr.address}
+                              {addr.subDistrict && ` แขวง/ตำบล ${addr.subDistrict}`}
+                              {addr.district && ` เขต/อำเภอ ${addr.district}`}
+                              {` ${addr.province} ${addr.postalCode}`}
+                            </p>
+                            {addr.note && (
+                              <p className="text-xs text-gray-400 mt-1">📝 {addr.note}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Add new address button */}
+                      <button
+                        onClick={handleAddNewAddress}
+                        className="w-full p-4 rounded-xl border-2 border-dashed border-gray-300 text-gray-500 hover:border-green-400 hover:text-green-600 transition-all flex items-center justify-center gap-2"
+                      >
+                        <span className="text-xl">➕</span>
+                        <span>เพิ่มที่อยู่ใหม่</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer */}
+                {addresses.length > 0 && (
+                  <div className="border-t border-gray-100 p-4 bg-white flex-shrink-0">
+                    {/* Summary */}
+                    <div className="space-y-2 mb-4">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">ราคาสินค้า ({totalItems} ชิ้น)</span>
+                        <span>฿{totalPrice.toFixed(2)}</span>
+                      </div>
+                      {packageDiscount > 0 && (
+                        <div className="flex justify-between text-sm text-green-600">
+                          <span>ส่วนลดแพ็คเกจ</span>
+                          <span>-฿{packageDiscount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {selectedRestaurant && selectedRestaurant.deliveryFee > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">ค่าจัดส่ง</span>
+                          <span>฿{selectedRestaurant.deliveryFee.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between pt-2 border-t">
+                        <span className="font-semibold">รวมทั้งหมด</span>
+                        <span className="text-xl font-bold text-green-600">
+                          ฿{(finalPrice + (selectedRestaurant?.deliveryFee || 0)).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => {
+                          setShowAddressModal(false);
+                          setShowCart(true);
+                        }}
+                        className="flex-1 py-3 border border-gray-200 text-gray-600 rounded-xl font-medium"
+                      >
+                        ย้อนกลับ
+                      </button>
+                      <button
+                        onClick={handleCheckout}
+                        disabled={!selectedAddress || isSubmitting}
+                        className="flex-[2] py-3 bg-green-500 text-white rounded-xl font-semibold disabled:opacity-50"
+                      >
+                        {isSubmitting ? "กำลังสั่งซื้อ..." : "ยืนยันสั่งซื้อ"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              /* Address Form */
+              <>
+                {/* Header */}
+                <div className="px-4 pb-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+                  <h2 className="text-lg font-bold text-gray-900">
+                    {editingAddress ? "แก้ไขที่อยู่" : "เพิ่มที่อยู่ใหม่"}
+                  </h2>
+                  <button
+                    onClick={() => {
+                      setShowAddressForm(false);
+                      resetAddressForm();
+                    }}
+                    className="text-gray-500"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Form */}
+                <div className="flex-1 overflow-y-auto p-4 min-h-0">
+                  <div className="space-y-4">
+                    {/* Name */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        ชื่อผู้รับ <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={addressForm.name}
+                        onChange={(e) => setAddressForm(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="ชื่อ-นามสกุล"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-green-500"
+                      />
+                    </div>
+
+                    {/* Phone */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        เบอร์โทรศัพท์ <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="tel"
+                        value={addressForm.phone}
+                        onChange={(e) => setAddressForm(prev => ({ ...prev, phone: e.target.value }))}
+                        placeholder="08X-XXX-XXXX"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-green-500"
+                      />
+                    </div>
+
+                    {/* Address */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        ที่อยู่ (บ้านเลขที่ ซอย ถนน) <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        value={addressForm.address}
+                        onChange={(e) => setAddressForm(prev => ({ ...prev, address: e.target.value }))}
+                        placeholder="123/45 ซ.สุขุมวิท 55 ถ.สุขุมวิท"
+                        rows={2}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-green-500 resize-none"
+                      />
+                    </div>
+
+                    {/* Sub-district & District */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          แขวง/ตำบล
+                        </label>
+                        <input
+                          type="text"
+                          value={addressForm.subDistrict}
+                          onChange={(e) => setAddressForm(prev => ({ ...prev, subDistrict: e.target.value }))}
+                          placeholder="คลองตัน"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-green-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          เขต/อำเภอ
+                        </label>
+                        <input
+                          type="text"
+                          value={addressForm.district}
+                          onChange={(e) => setAddressForm(prev => ({ ...prev, district: e.target.value }))}
+                          placeholder="วัฒนา"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-green-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Province & Postal Code */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          จังหวัด <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={addressForm.province}
+                          onChange={(e) => setAddressForm(prev => ({ ...prev, province: e.target.value }))}
+                          placeholder="กรุงเทพฯ"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-green-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          รหัสไปรษณีย์ <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={addressForm.postalCode}
+                          onChange={(e) => setAddressForm(prev => ({ ...prev, postalCode: e.target.value }))}
+                          placeholder="10110"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-green-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Label */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        ชื่อที่อยู่ (ไม่บังคับ)
+                      </label>
+                      <input
+                        type="text"
+                        value={addressForm.label}
+                        onChange={(e) => setAddressForm(prev => ({ ...prev, label: e.target.value }))}
+                        placeholder="เช่น บ้าน, ที่ทำงาน, คอนโด"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-green-500"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">💡 ช่วยให้เลือกที่อยู่ได้ง่ายขึ้น</p>
+                    </div>
+
+                    {/* Note */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        หมายเหตุ/จุดสังเกต
+                      </label>
+                      <input
+                        type="text"
+                        value={addressForm.note}
+                        onChange={(e) => setAddressForm(prev => ({ ...prev, note: e.target.value }))}
+                        placeholder="เช่น ตึกสีฟ้า, ตรงข้าม 7-11"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-green-500"
+                      />
+                    </div>
+
+                    {/* Set as default */}
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={addressForm.isDefault}
+                        onChange={(e) => setAddressForm(prev => ({ ...prev, isDefault: e.target.checked }))}
+                        className="w-5 h-5 text-green-500 border-gray-300 rounded focus:ring-green-500"
+                      />
+                      <span className="text-gray-700">ตั้งเป็นที่อยู่หลัก</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="border-t border-gray-100 p-4 bg-white flex-shrink-0">
+                  <div className="flex gap-3">
+                    {editingAddress && (
+                      <button
+                        onClick={() => handleDeleteAddress(editingAddress.id)}
+                        className="px-4 py-3 text-red-500 border border-red-200 rounded-xl font-medium"
+                      >
+                        🗑️
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        setShowAddressForm(false);
+                        resetAddressForm();
+                      }}
+                      className="flex-1 py-3 border border-gray-200 text-gray-600 rounded-xl font-medium"
+                    >
+                      ยกเลิก
+                    </button>
+                    <button
+                      onClick={handleSaveAddress}
+                      disabled={isSavingAddress}
+                      className="flex-[2] py-3 bg-green-500 text-white rounded-xl font-semibold disabled:opacity-50"
+                    >
+                      {isSavingAddress ? "กำลังบันทึก..." : "บันทึกที่อยู่"}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
