@@ -615,11 +615,11 @@ export default function RestaurantsPage() {
                   รูปภาพ Cover
                 </label>
                 {coverPreview ? (
-                  <div className="relative">
+                  <div className="relative aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden">
                     <img
                       src={coverPreview}
                       alt="Cover Preview"
-                      className="w-full h-40 object-cover rounded-lg"
+                      className="w-full h-full object-cover"
                     />
                     <div className="absolute top-2 right-2 flex gap-1">
                       <button
@@ -644,11 +644,11 @@ export default function RestaurantsPage() {
                   <button
                     type="button"
                     onClick={() => coverInputRef.current?.click()}
-                    className="w-full h-40 border-2 border-dashed border-gray-200 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-green-500 hover:bg-green-50 transition-colors"
+                    className="w-full aspect-[4/3] border-2 border-dashed border-gray-200 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-green-500 hover:bg-green-50 transition-colors"
                   >
                     <ImageIcon className="w-8 h-8 text-gray-400" />
                     <span className="text-sm text-gray-500">คลิกเพื่ออัพโหลด Cover</span>
-                    <span className="text-xs text-gray-400">แนะนำขนาด 1200x600 px (2:1)</span>
+                    <span className="text-xs text-gray-400">แนะนำขนาด 800x600 px (4:3)</span>
                   </button>
                 )}
                 <input
@@ -755,7 +755,7 @@ export default function RestaurantsPage() {
                 crop={crop}
                 zoom={zoom}
                 rotation={rotation}
-                aspect={2 / 1}
+                aspect={4 / 3}
                 onCropChange={setCrop}
                 onCropComplete={onCropComplete}
                 onZoomChange={setZoom}
