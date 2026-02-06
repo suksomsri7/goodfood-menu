@@ -3,10 +3,24 @@ import { NextResponse } from "next/server";
 import { uploadToBunny, isBase64Image } from "@/lib/bunny";
 
 // GET - ดึงรายการแพ็คเกจทั้งหมด
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const restaurantId = searchParams.get("restaurantId");
+
     const packages = await prisma.package.findMany({
+      where: {
+        ...(restaurantId && { restaurantId }),
+      },
       orderBy: [{ order: "asc" }, { createdAt: "desc" }],
+      include: {
+        restaurant: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     });
     return NextResponse.json(packages);
   } catch (error) {
@@ -22,7 +36,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, description, requiredItems, discountType, discountValue, imageUrl } = body;
+    const { name, description, requiredItems, discountType, discountValue, imageUrl, restaurantId } = body;
 
     if (!name || discountValue === undefined) {
       return NextResponse.json(
@@ -49,6 +63,15 @@ export async function POST(request: Request) {
         discountType: discountType || "percent",
         discountValue: parseFloat(discountValue) || 0,
         imageUrl: finalImageUrl,
+        restaurantId: restaurantId || null,
+      },
+      include: {
+        restaurant: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
 

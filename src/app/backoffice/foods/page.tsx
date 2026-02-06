@@ -29,6 +29,12 @@ interface Category {
   color: string;
 }
 
+interface Restaurant {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
 interface Food {
   id: string;
   name: string;
@@ -45,6 +51,7 @@ interface Food {
   isActive: boolean;
   order: number;
   category: Category;
+  restaurant?: { id: string; name: string } | null;
 }
 
 const badgeLabels: Record<string, { label: string; color: string }> = {
@@ -121,6 +128,15 @@ function SortableFoodRow({
         </div>
       </td>
       <td className="py-3 px-4">
+        {food.restaurant ? (
+          <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-50 text-purple-700">
+            {food.restaurant.name}
+          </span>
+        ) : (
+          <span className="text-xs text-gray-400">-</span>
+        )}
+      </td>
+      <td className="py-3 px-4">
         <span
           className="px-2 py-1 rounded-full text-xs font-medium"
           style={{
@@ -192,11 +208,13 @@ function SortableFoodRow({
 export default function FoodsPage() {
   const [foods, setFoods] = useState<Food[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedRestaurant, setSelectedRestaurant] = useState<string | null>(null);
   
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
@@ -216,9 +234,10 @@ export default function FoodsPage() {
   // โหลดข้อมูลเมนูและหมวดอาหาร
   const fetchData = async () => {
     try {
-      const [foodsRes, categoriesRes] = await Promise.all([
+      const [foodsRes, categoriesRes, restaurantsRes] = await Promise.all([
         fetch("/api/foods"),
         fetch("/api/categories"),
+        fetch("/api/restaurants"),
       ]);
       
       if (!foodsRes.ok || !categoriesRes.ok) {
@@ -229,6 +248,11 @@ export default function FoodsPage() {
         foodsRes.json(),
         categoriesRes.json(),
       ]);
+      
+      if (restaurantsRes.ok) {
+        const restaurantsData = await restaurantsRes.json();
+        setRestaurants(restaurantsData);
+      }
       
       // Sort by order field
       const sortedFoods = foodsData.sort((a: Food, b: Food) => (a.order || 0) - (b.order || 0));
@@ -250,7 +274,8 @@ export default function FoodsPage() {
   const filtered = foods.filter((f) => {
     const matchSearch = f.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchCat = !selectedCategory || f.category.id === selectedCategory;
-    return matchSearch && matchCat;
+    const matchRestaurant = !selectedRestaurant || f.restaurant?.id === selectedRestaurant;
+    return matchSearch && matchCat && matchRestaurant;
   });
 
   // Handle drag end
@@ -396,9 +421,19 @@ export default function FoodsPage() {
             />
           </div>
           <select
+            value={selectedRestaurant || ""}
+            onChange={(e) => setSelectedRestaurant(e.target.value || null)}
+            className="px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm min-w-[140px]"
+          >
+            <option value="">ทุกร้าน</option>
+            {restaurants.map((restaurant) => (
+              <option key={restaurant.id} value={restaurant.id}>{restaurant.name}</option>
+            ))}
+          </select>
+          <select
             value={selectedCategory || ""}
             onChange={(e) => setSelectedCategory(e.target.value || null)}
-            className="px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm"
+            className="px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm min-w-[140px]"
           >
             <option value="">ทุกหมวด</option>
             {categories.map((cat) => (
@@ -407,7 +442,7 @@ export default function FoodsPage() {
           </select>
           <Link
             href="/backoffice/foods/new"
-            className="flex items-center gap-2 px-4 py-2.5 bg-[#4CAF50] text-white rounded-lg text-sm font-medium"
+            className="flex items-center gap-2 px-4 py-2.5 bg-[#4CAF50] text-white rounded-lg text-sm font-medium whitespace-nowrap"
           >
             <Plus className="w-4 h-4" />
             เพิ่มเมนู
@@ -452,6 +487,7 @@ export default function FoodsPage() {
                   <tr>
                     <th className="w-10 py-3 px-2"></th>
                     <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">เมนู</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">ร้าน</th>
                     <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">หมวด</th>
                     <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">แคล</th>
                     <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">P</th>

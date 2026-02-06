@@ -9,9 +9,12 @@ export async function GET(request: NextRequest) {
     const categoryId = searchParams.get("categoryId");
     const isActive = searchParams.get("isActive");
 
+    const restaurantId = searchParams.get("restaurantId");
+
     const foods = await prisma.food.findMany({
       where: {
         ...(categoryId && { categoryId }),
+        ...(restaurantId && { restaurantId }),
         ...(isActive !== null && { isActive: isActive === "true" }),
       },
       orderBy: { createdAt: "desc" },
@@ -22,6 +25,12 @@ export async function GET(request: NextRequest) {
             name: true,
             slug: true,
             color: true,
+          },
+        },
+        restaurant: {
+          select: {
+            id: true,
+            name: true,
           },
         },
       },
