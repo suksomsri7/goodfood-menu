@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// GET - Get cart items for a user
+// GET - Get cart items for a user (optionally filtered by restaurant)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const lineUserId = searchParams.get("lineUserId");
+    const restaurantId = searchParams.get("restaurantId");
 
     if (!lineUserId) {
       return NextResponse.json(
@@ -22,12 +23,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ items: [], total: 0 });
     }
 
+    // Build where clause - filter by restaurant if provided
+    const where: { memberId: string; restaurantId?: string } = { memberId: member.id };
+    if (restaurantId) {
+      where.restaurantId = restaurantId;
+    }
+
     const cartItems = await prisma.cartItem.findMany({
-      where: { memberId: member.id },
+      where,
       include: {
         food: {
           include: {
             category: true,
+          },
+        },
+        restaurant: {
+          select: {
+            id: true,
+            name: true,
           },
         },
       },
@@ -53,7 +66,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { lineUserId, foodId, quantity = 1 } = body;
+    const { lineUserId, foodId, quantity = 1, restaurantId } = body;
 
     if (!lineUserId || !foodId) {
       return NextResponse.json(
@@ -73,6 +86,26 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // If adding to a different restaurant, clear cart first
+    if (restaurantId) {
+      const existingItems = await prisma.cartItem.findMany({
+        where: { 
+          memberId: member.id,
+          restaurantId: { not: restaurantId },
+        },
+      });
+      
+      if (existingItems.length > 0) {
+        // Clear items from other restaurants
+        await prisma.cartItem.deleteMany({
+          where: { 
+            memberId: member.id,
+            restaurantId: { not: restaurantId },
+          },
+        });
+      }
+    }
+
     // Upsert cart item
     const cartItem = await prisma.cartItem.upsert({
       where: {
@@ -83,11 +116,13 @@ export async function POST(request: NextRequest) {
       },
       update: {
         quantity: { increment: quantity },
+        restaurantId: restaurantId || undefined,
       },
       create: {
         memberId: member.id,
         foodId,
         quantity,
+        restaurantId: restaurantId || null,
       },
       include: {
         food: true,
@@ -162,11 +197,12 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-// DELETE - Clear cart
+// DELETE - Clear cart (optionally for specific restaurant)
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const lineUserId = searchParams.get("lineUserId");
+    const restaurantId = searchParams.get("restaurantId");
 
     if (!lineUserId) {
       return NextResponse.json(
@@ -183,9 +219,13 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    await prisma.cartItem.deleteMany({
-      where: { memberId: member.id },
-    });
+    // Build where clause - clear only for specific restaurant if provided
+    const where: { memberId: string; restaurantId?: string } = { memberId: member.id };
+    if (restaurantId) {
+      where.restaurantId = restaurantId;
+    }
+
+    await prisma.cartItem.deleteMany({ where });
 
     return NextResponse.json({ success: true });
   } catch (error) {

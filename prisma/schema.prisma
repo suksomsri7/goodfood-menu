@@ -223,6 +223,7 @@ model Restaurant {
   packages   Package[]
   cartItems  CartItem[]
   orders     Order[]
+  promotions Promotion[]
 
   @@map("restaurants")
 }
@@ -312,12 +313,16 @@ model Promotion {
   name          String
   description   String?
   imageUrl      String?
-  type          String // "discount" | "bundle" | "gift"
+  type          String // "discount" | "bundle" | "gift" | "threshold"
   discountType  String? // "percent" | "fixed"
   discountValue Float?
+  minQuantity   Int             @default(1) // จำนวนขั้นต่ำสำหรับโปรฯ threshold
+  minAmount     Float?          // ยอดขั้นต่ำสำหรับโปรฯ (บาท)
   startDate     DateTime?
   endDate       DateTime?
   isActive      Boolean         @default(true)
+  restaurantId  String?
+  restaurant    Restaurant?     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   items         PromotionItem[]
   gifts         PromotionGift[]
   createdAt     DateTime        @default(now())

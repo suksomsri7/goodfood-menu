@@ -118,12 +118,15 @@ export default function MenuPage() {
 
   const lineUserId = profile?.userId;
 
-  // Fetch cart from API
-  const fetchCart = useCallback(async () => {
+  // Fetch cart from API (for specific restaurant)
+  const fetchCart = useCallback(async (restaurantId?: string) => {
     if (!lineUserId) return;
 
     try {
-      const res = await fetch(`/api/cart?lineUserId=${lineUserId}`);
+      const url = restaurantId 
+        ? `/api/cart?lineUserId=${lineUserId}&restaurantId=${restaurantId}`
+        : `/api/cart?lineUserId=${lineUserId}`;
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         // Transform cart items to match local CartItem interface
@@ -191,8 +194,12 @@ export default function MenuPage() {
   // Select restaurant handler
   const handleSelectRestaurant = (restaurant: Restaurant) => {
     setSelectedRestaurant(restaurant);
-    setCart([]); // Clear cart when switching restaurant
+    setCart([]); // Clear local cart first
     fetchRestaurantData(restaurant.id);
+    // Fetch cart for this restaurant
+    if (lineUserId) {
+      fetchCart(restaurant.id);
+    }
   };
 
   // Back to restaurant list
@@ -205,12 +212,12 @@ export default function MenuPage() {
     setActiveTab("");
   };
 
-  // Fetch cart when user is logged in
+  // Fetch cart when user is logged in and restaurant is selected
   useEffect(() => {
-    if (isReady && lineUserId) {
-      fetchCart();
+    if (isReady && lineUserId && selectedRestaurant) {
+      fetchCart(selectedRestaurant.id);
     }
-  }, [isReady, lineUserId, fetchCart]);
+  }, [isReady, lineUserId, selectedRestaurant, fetchCart]);
 
   const addToCart = async (food: Food, quantity: number = 1) => {
     // Update local state immediately for responsiveness
@@ -227,7 +234,7 @@ export default function MenuPage() {
     });
 
     // Sync with API if logged in
-    if (lineUserId) {
+    if (lineUserId && selectedRestaurant) {
       try {
         await fetch("/api/cart", {
           method: "POST",
@@ -236,6 +243,7 @@ export default function MenuPage() {
             lineUserId,
             foodId: food.id,
             quantity,
+            restaurantId: selectedRestaurant.id,
           }),
         });
       } catch (error) {

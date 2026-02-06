@@ -3,11 +3,21 @@ import { NextResponse } from "next/server";
 import { uploadToBunny, isBase64Image } from "@/lib/bunny";
 
 // GET - ดึงรายการโปรโมชั่นทั้งหมด
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const restaurantId = searchParams.get("restaurantId");
+
     const promotions = await prisma.promotion.findMany({
+      where: restaurantId ? { restaurantId } : {},
       orderBy: { createdAt: "desc" },
       include: {
+        restaurant: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
         items: {
           include: {
             food: {
@@ -55,8 +65,11 @@ export async function POST(request: Request) {
       type,
       discountType,
       discountValue,
+      minQuantity,
+      minAmount,
       startDate,
       endDate,
+      restaurantId,
       items,
       gifts,
     } = body;
@@ -86,8 +99,11 @@ export async function POST(request: Request) {
         type,
         discountType,
         discountValue: discountValue ? parseFloat(discountValue) : null,
+        minQuantity: minQuantity ? parseInt(minQuantity) : 1,
+        minAmount: minAmount ? parseFloat(minAmount) : null,
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
+        restaurantId: restaurantId || null,
         items: {
           create: items?.map((item: { foodId: string; quantity: number }) => ({
             foodId: item.foodId,
@@ -102,6 +118,12 @@ export async function POST(request: Request) {
         },
       },
       include: {
+        restaurant: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
         items: {
           include: {
             food: {

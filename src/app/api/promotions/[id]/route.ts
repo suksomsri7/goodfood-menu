@@ -71,8 +71,11 @@ export async function PATCH(
       type,
       discountType,
       discountValue,
+      minQuantity,
+      minAmount,
       startDate,
       endDate,
+      restaurantId,
       isActive,
       items,
       gifts,
@@ -126,12 +129,19 @@ export async function PATCH(
         ...(discountValue !== undefined && {
           discountValue: discountValue ? parseFloat(discountValue) : null,
         }),
+        ...(minQuantity !== undefined && {
+          minQuantity: minQuantity ? parseInt(minQuantity) : 1,
+        }),
+        ...(minAmount !== undefined && {
+          minAmount: minAmount ? parseFloat(minAmount) : null,
+        }),
         ...(startDate !== undefined && {
           startDate: startDate ? new Date(startDate) : null,
         }),
         ...(endDate !== undefined && {
           endDate: endDate ? new Date(endDate) : null,
         }),
+        ...(restaurantId !== undefined && { restaurantId: restaurantId || null }),
         ...(isActive !== undefined && { isActive }),
         ...(items !== undefined && {
           items: {
@@ -151,6 +161,12 @@ export async function PATCH(
         }),
       },
       include: {
+        restaurant: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
         items: {
           include: {
             food: {

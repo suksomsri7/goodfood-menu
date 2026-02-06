@@ -7,13 +7,11 @@ import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   UtensilsCrossed,
-  Users,
   ShoppingCart,
   MessageSquare,
   FileText,
   Youtube,
   Calendar,
-  Settings,
   UserCog,
   Shield,
   ChevronLeft,
@@ -21,7 +19,6 @@ import {
   Layers,
   Package,
   BadgePercent,
-  Table2,
   ScanBarcode,
   CreditCard,
   Crown,
@@ -51,7 +48,6 @@ const navGroups: NavGroup[] = [
   {
     title: "ลูกค้า",
     items: [
-      { href: "/backoffice/members", label: "สมาชิก", icon: <Users className="w-5 h-5" /> },
       { href: "/backoffice/orders", label: "ออเดอร์", icon: <ShoppingCart className="w-5 h-5" />, badgeKey: "orders" },
       { href: "/backoffice/chat", label: "แชท", icon: <MessageSquare className="w-5 h-5" />, badgeKey: "chat" },
     ],
@@ -63,7 +59,6 @@ const navGroups: NavGroup[] = [
       { href: "/backoffice/foods", label: "เมนูอาหาร", icon: <UtensilsCrossed className="w-5 h-5" /> },
       { href: "/backoffice/packages", label: "แพ็คเกจอาหาร", icon: <Package className="w-5 h-5" /> },
       { href: "/backoffice/promotions", label: "โปรโมชั่น", icon: <BadgePercent className="w-5 h-5" /> },
-      { href: "/backoffice/nutrition", label: "ตารางสารอาหาร", icon: <Table2 className="w-5 h-5" /> },
       { href: "/backoffice/barcode", label: "ข้อมูลจาก Scan Barcode", icon: <ScanBarcode className="w-5 h-5" /> },
       { href: "/backoffice/articles", label: "บทความ", icon: <FileText className="w-5 h-5" /> },
       { href: "/backoffice/youtube", label: "วีดีโอ", icon: <Youtube className="w-5 h-5" /> },
