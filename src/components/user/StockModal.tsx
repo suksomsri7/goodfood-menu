@@ -9,6 +9,8 @@ interface StockItemSource {
   quantity: number;
   orderId: string;
   orderNumber: string;
+  restaurantId?: string | null;
+  restaurantName?: string | null;
 }
 
 interface StockItem {
@@ -21,6 +23,8 @@ interface StockItem {
   fat: number;
   orderId: string;
   orderNumber: string;
+  restaurantId?: string | null;
+  restaurantName?: string | null;
   // For merged items - track all source items
   sources?: StockItemSource[];
 }
@@ -96,13 +100,16 @@ export function StockModal({ isOpen, onClose, lineUserId, dailyNutrition, onSele
             fat: item.food?.fat || 0,
             orderId: order.id,
             orderNumber: order.orderNumber,
+            restaurantId: order.restaurantId || null,
+            restaurantName: order.restaurant?.name || null,
           }))
         );
         
-        // Merge duplicate items by name
+        // Merge duplicate items by name + restaurantId (different restaurant = different item)
         const mergedMap = new Map<string, StockItem>();
         rawItems.forEach((item: StockItem) => {
-          const existing = mergedMap.get(item.name);
+          const key = `${item.name}__${item.restaurantId || 'unknown'}`;
+          const existing = mergedMap.get(key);
           if (existing) {
             existing.quantity += item.quantity;
             existing.sources = existing.sources || [];
@@ -111,15 +118,19 @@ export function StockModal({ isOpen, onClose, lineUserId, dailyNutrition, onSele
               quantity: item.quantity,
               orderId: item.orderId,
               orderNumber: item.orderNumber,
+              restaurantId: item.restaurantId,
+              restaurantName: item.restaurantName,
             });
           } else {
-            mergedMap.set(item.name, {
+            mergedMap.set(key, {
               ...item,
               sources: [{
                 id: item.id,
                 quantity: item.quantity,
                 orderId: item.orderId,
                 orderNumber: item.orderNumber,
+                restaurantId: item.restaurantId,
+                restaurantName: item.restaurantName,
               }],
             });
           }
@@ -253,7 +264,7 @@ export function StockModal({ isOpen, onClose, lineUserId, dailyNutrition, onSele
       const newTotalQuantity = selectedItem.quantity - selectQuantity;
       setStockItems(prevItems => 
         prevItems.map(item => 
-          item.name === selectedItem.name 
+          (item.name === selectedItem.name && item.restaurantId === selectedItem.restaurantId)
             ? { ...item, quantity: newTotalQuantity }
             : item
         ).filter(item => item.quantity > 0)
@@ -328,7 +339,7 @@ export function StockModal({ isOpen, onClose, lineUserId, dailyNutrition, onSele
                 <div className="space-y-3">
                   {availableItems.map((item) => (
                     <div
-                      key={`${item.orderId}-${item.id}`}
+                      key={`${item.orderId}-${item.id}-${item.restaurantId}`}
                       className="p-4 rounded-2xl border bg-white border-gray-200 hover:border-gray-300 transition-all"
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -337,6 +348,9 @@ export function StockModal({ isOpen, onClose, lineUserId, dailyNutrition, onSele
                           <h3 className="font-medium text-gray-800 truncate">
                             {item.name}
                           </h3>
+                          {item.restaurantName && (
+                            <p className="text-xs text-emerald-600 mt-0.5">🏪 {item.restaurantName}</p>
+                          )}
                           <p className="text-xs text-gray-500 mt-1">
                             {item.calories} Kcal • P {item.protein}g • C {item.carbs}g • F {item.fat}g
                           </p>
@@ -392,9 +406,12 @@ export function StockModal({ isOpen, onClose, lineUserId, dailyNutrition, onSele
                 >
                   <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4" />
                   
-                  <h3 className="text-lg font-semibold text-center mb-2">
+                  <h3 className="text-lg font-semibold text-center mb-1">
                     {selectedItem.name}
                   </h3>
+                  {selectedItem.restaurantName && (
+                    <p className="text-sm text-emerald-600 text-center mb-2">🏪 {selectedItem.restaurantName}</p>
+                  )}
                   <p className="text-sm text-gray-500 text-center mb-6">
                     คงเหลือ ×{selectedItem.quantity}
                   </p>

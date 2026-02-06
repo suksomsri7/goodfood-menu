@@ -35,6 +35,12 @@ interface OrderItem {
   food?: FoodInfo;
 }
 
+interface Restaurant {
+  id: string;
+  name: string;
+  logoUrl?: string | null;
+}
+
 interface Order {
   id: string;
   orderNumber: string;
@@ -42,6 +48,8 @@ interface Order {
   totalAmount: number;
   createdAt: string;
   items: OrderItem[];
+  restaurant?: Restaurant | null;
+  restaurantId?: string | null;
 }
 
 const statusConfig: Record<string, { label: string; color: string; bgColor: string; icon: React.ElementType }> = {
@@ -61,11 +69,15 @@ interface ItemSource {
   quantity: number;
   orderId: string;
   orderNumber: string;
+  restaurantId?: string | null;
+  restaurantName?: string | null;
 }
 
 interface SelectedFoodItem extends OrderItem {
   orderId: string;
   orderNumber: string;
+  restaurantId?: string | null;
+  restaurantName?: string | null;
   sources?: ItemSource[];
 }
 
@@ -250,13 +262,13 @@ export default function OrdersPage() {
     ["completed", "cancelled"].includes(o.status)
   );
 
-  // Calculate unique food count (merged by name)
+  // Calculate unique food count (merged by name + restaurant)
   const uniqueFoodCount = useMemo(() => {
     const rawItems = completedOrders.flatMap((order) =>
-      order.items.filter(item => item.quantity > 0).map((item) => item.foodName)
+      order.items.filter(item => item.quantity > 0).map((item) => `${item.foodName}__${order.restaurantId || 'unknown'}`)
     );
-    const uniqueNames = new Set(rawItems);
-    return uniqueNames.size;
+    const uniqueKeys = new Set(rawItems);
+    return uniqueKeys.size;
   }, [completedOrders]);
 
   const displayOrders = activeTab === "active" ? activeOrders : completedOrders;
@@ -481,20 +493,23 @@ export default function OrdersPage() {
       {/* Orders List */}
       <div className="px-4 pt-4 space-y-3">
         {activeTab === "completed" ? (
-          // อาหารของคุณ - แสดงเป็น flat list อาหารพร้อมสารอาหาร + ปุ่มเลือกทาน (merged duplicates)
+          // อาหารของคุณ - แสดงเป็น flat list อาหารพร้อมสารอาหาร + ปุ่มเลือกทาน (merged by name + restaurant)
           (() => {
             const rawFoodItems = completedOrders.flatMap((order) =>
               order.items.map((item) => ({
                 ...item,
                 orderId: order.id,
                 orderNumber: order.orderNumber,
+                restaurantId: order.restaurantId,
+                restaurantName: order.restaurant?.name || null,
               }))
             );
 
-            // Merge duplicate items by foodName
+            // Merge duplicate items by foodName + restaurantId (different restaurant = different item)
             const mergedMap = new Map<string, SelectedFoodItem>();
             rawFoodItems.forEach((item) => {
-              const existing = mergedMap.get(item.foodName);
+              const key = `${item.foodName}__${item.restaurantId || 'unknown'}`;
+              const existing = mergedMap.get(key);
               if (existing) {
                 existing.quantity += item.quantity;
                 existing.sources = existing.sources || [];
@@ -503,15 +518,19 @@ export default function OrdersPage() {
                   quantity: item.quantity,
                   orderId: item.orderId,
                   orderNumber: item.orderNumber,
+                  restaurantId: item.restaurantId,
+                  restaurantName: item.restaurantName,
                 });
               } else {
-                mergedMap.set(item.foodName, {
+                mergedMap.set(key, {
                   ...item,
                   sources: [{
                     id: item.id,
                     quantity: item.quantity,
                     orderId: item.orderId,
                     orderNumber: item.orderNumber,
+                    restaurantId: item.restaurantId,
+                    restaurantName: item.restaurantName,
                   }],
                 });
               }
@@ -539,7 +558,7 @@ export default function OrdersPage() {
               const food = item.food;
               return (
                 <motion.div
-                  key={`${item.orderId}-${item.id}`}
+                  key={`${item.orderId}-${item.id}-${item.restaurantId}`}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.03 }}
@@ -548,6 +567,9 @@ export default function OrdersPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-slate-900 truncate">{item.foodName}</h3>
+                      {item.restaurantName && (
+                        <p className="text-xs text-emerald-600 mt-0.5">🏪 {item.restaurantName}</p>
+                      )}
                       <p className="text-xs text-slate-500 mt-1">
                         {food?.calories || item.calories || 0} kcal • P {food?.protein || 0}g • C {food?.carbs || 0}g • F {food?.fat || 0}g
                       </p>
@@ -567,7 +589,7 @@ export default function OrdersPage() {
             });
           })()
         ) : (
-          // รายการสั่งซื้อ - ไม่แสดงยอดเงิน
+          // รายการสั่งซื้อ - แสดงร้านอาหารด้วย
           activeOrders.length > 0 ? (
             activeOrders.map((order, index) => {
               const config = statusConfig[order.status] || defaultStatusConfig;
@@ -586,7 +608,7 @@ export default function OrdersPage() {
                   className="bg-white rounded-2xl p-5 border border-slate-200"
                 >
                   {/* Order Header */}
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between mb-2">
                     <div>
                       <p className="font-semibold text-slate-900">
                         #{order.orderNumber}
@@ -602,6 +624,15 @@ export default function OrdersPage() {
                       {config.label}
                     </span>
                   </div>
+
+                  {/* Restaurant Name */}
+                  {order.restaurant?.name && (
+                    <div className="mb-3 px-3 py-2 bg-emerald-50 rounded-lg border border-emerald-100">
+                      <p className="text-sm text-emerald-700 font-medium">
+                        🏪 {order.restaurant.name}
+                      </p>
+                    </div>
+                  )}
 
                   {/* Order Items */}
                   <div className="space-y-2">

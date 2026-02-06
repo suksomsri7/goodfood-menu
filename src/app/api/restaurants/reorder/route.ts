@@ -1,29 +1,27 @@
-import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 
-// PUT - อัพเดทลำดับร้านอาหาร
+// PUT /api/restaurants/reorder - Reorder restaurants
 export async function PUT(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { items } = body;
+    const { items } = await request.json();
 
     if (!items || !Array.isArray(items)) {
       return NextResponse.json(
-        { error: "Invalid items array" },
+        { error: "Invalid items" },
         { status: 400 }
       );
     }
 
-    // Update order for each restaurant
-    const updatePromises = items.map(
-      (item: { id: string; order: number }) =>
+    // Update each restaurant's order
+    await Promise.all(
+      items.map((item: { id: string; order: number }) =>
         prisma.restaurant.update({
           where: { id: item.id },
           data: { order: item.order },
         })
+      )
     );
-
-    await Promise.all(updatePromises);
 
     return NextResponse.json({ success: true });
   } catch (error) {
