@@ -1,6 +1,5 @@
 "use client";
 
-import { OnboardingGuard } from "@/components/providers/OnboardingGuard";
 import { BottomNavBar } from "@/components/user/BottomNavBar";
 
 export default function UserLayout({
@@ -10,7 +9,7 @@ export default function UserLayout({
 }) {
   return (
     <div className="min-h-screen bg-white pb-20">
-      <OnboardingGuard>{children}</OnboardingGuard>
+      {children}
       <BottomNavBar />
     </div>
   );
