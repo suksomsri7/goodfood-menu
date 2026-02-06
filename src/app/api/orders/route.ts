@@ -86,7 +86,9 @@ export async function POST(request: NextRequest) {
       discountType,
       discountValue,
       packageName,
-      finalPrice
+      finalPrice,
+      restaurantId,
+      deliveryFee
     } = body;
 
     if (!items || items.length === 0) {
@@ -113,12 +115,14 @@ export async function POST(request: NextRequest) {
         coursePlan: coursePlan || "single",
         totalDays: totalDays || 1,
         totalPrice: totalPrice || 0,
+        deliveryFee: deliveryFee || 0,
         discount: discount || 0,
         discountType: discountType || null,
         discountValue: discountValue || null,
         packageName: packageName || null,
         finalPrice: finalPrice || totalPrice || 0,
         memberId: finalMemberId,
+        restaurantId: restaurantId || null,
         note: note || null,
         items: {
           create: items.map((item: {

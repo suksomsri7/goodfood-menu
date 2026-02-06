@@ -4,6 +4,23 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useLiff } from "@/components/providers/LiffProvider";
 import { closeWindow } from "@/lib/liff";
 
+interface Restaurant {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  logoUrl: string | null;
+  coverUrl: string | null;
+  sellType: string;
+  deliveryFee: number;
+  deliveryPerMeal: number;
+  minOrder: number;
+  _count: {
+    foods: number;
+    packages: number;
+  };
+}
+
 interface Food {
   id: string;
   name: string;
@@ -29,6 +46,7 @@ interface Category {
   id: string;
   name: string;
   slug: string;
+  foods?: Food[];
 }
 
 interface Package {
@@ -36,7 +54,10 @@ interface Package {
   name: string;
   description: string | null;
   imageUrl: string | null;
+  days: number;
+  mealsPerDay: number;
   requiredItems: number;
+  price: number;
   discountType: string;
   discountValue: number;
   isActive: boolean;
@@ -62,6 +83,11 @@ interface CartItem {
 
 export default function MenuPage() {
   const { profile, isReady, isLoggedIn } = useLiff();
+  
+  // Restaurant state
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
+  
   const [foods, setFoods] = useState<Food[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [packages, setPackages] = useState<Package[]>([]);
@@ -114,34 +140,70 @@ export default function MenuPage() {
 
   // Set page title
   useEffect(() => {
-    document.title = "เมนูอาหาร";
-  }, []);
+    document.title = selectedRestaurant ? selectedRestaurant.name : "เลือกร้านอาหาร";
+  }, [selectedRestaurant]);
 
+  // Fetch restaurants list
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchRestaurants = async () => {
       try {
-        const [foodRes, catRes, pkgRes, promoRes] = await Promise.all([
-          fetch("/api/foods"),
-          fetch("/api/categories"),
-          fetch("/api/packages"),
-          fetch("/api/promotions"),
-        ]);
-        const foodData = await foodRes.json();
-        const catData = await catRes.json();
-        const pkgData = await pkgRes.json();
-        const promoData = await promoRes.json();
-        setFoods(Array.isArray(foodData) ? foodData : []);
-        setCategories(Array.isArray(catData) ? catData : []);
-        setPackages(Array.isArray(pkgData) ? pkgData.filter((p: Package) => p.isActive) : []);
-        setPromotions(Array.isArray(promoData) ? promoData.filter((p: Promotion) => p.isActive) : []);
+        const res = await fetch("/api/restaurants?active=true");
+        const data = await res.json();
+        setRestaurants(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("Error:", error);
       } finally {
         setIsLoading(false);
       }
     };
-    fetchData();
+    fetchRestaurants();
   }, []);
+
+  // Fetch restaurant data when selected
+  const fetchRestaurantData = async (restaurantId: string) => {
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/restaurants/${restaurantId}`);
+      const data = await res.json();
+      
+      // Extract foods from categories
+      const allFoods: Food[] = [];
+      if (data.categories) {
+        data.categories.forEach((cat: Category) => {
+          if (cat.foods) {
+            cat.foods.forEach((food: Food) => {
+              allFoods.push({ ...food, category: { id: cat.id, name: cat.name } });
+            });
+          }
+        });
+      }
+      
+      setCategories(data.categories || []);
+      setFoods(allFoods);
+      setPackages(data.packages || []);
+    } catch (error) {
+      console.error("Error:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Select restaurant handler
+  const handleSelectRestaurant = (restaurant: Restaurant) => {
+    setSelectedRestaurant(restaurant);
+    setCart([]); // Clear cart when switching restaurant
+    fetchRestaurantData(restaurant.id);
+  };
+
+  // Back to restaurant list
+  const handleBackToRestaurants = () => {
+    setSelectedRestaurant(null);
+    setCart([]);
+    setFoods([]);
+    setCategories([]);
+    setPackages([]);
+    setActiveTab("");
+  };
 
   // Fetch cart when user is logged in
   useEffect(() => {
@@ -247,23 +309,26 @@ export default function MenuPage() {
   };
 
   const handleCheckout = async () => {
-    if (cart.length === 0) return;
+    if (cart.length === 0 || !selectedRestaurant) return;
 
     setIsSubmitting(true);
     try {
+      const deliveryFee = selectedRestaurant.deliveryFee || 0;
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           lineUserId,
+          restaurantId: selectedRestaurant.id,
           coursePlan: "single",
           totalDays: 1,
           totalPrice,
+          deliveryFee,
           discount: packageDiscount,
           discountType: activePackage?.discountType || null,
           discountValue: activePackage?.discountValue || null,
           packageName: activePackage?.name || null,
-          finalPrice,
+          finalPrice: finalPrice + deliveryFee,
           items: cart.map(item => ({
             foodId: item.food.id,
             foodName: item.food.name,
@@ -546,6 +611,110 @@ export default function MenuPage() {
 
   const selectedFoodImages = selectedFood ? getAllImages(selectedFood) : [];
 
+  // ==================== Restaurant Selection View ====================
+  if (!selectedRestaurant) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
+        {/* Header */}
+        <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-lg border-b border-gray-100">
+          <div className="px-4 py-4">
+            <h1 className="text-xl font-bold text-gray-900">เลือกร้านอาหาร</h1>
+            <p className="text-sm text-gray-500">เลือกร้านอาหารที่ต้องการสั่งซื้อ</p>
+          </div>
+        </header>
+
+        {/* Restaurant List */}
+        <div className="p-4">
+          {isLoading ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="bg-white rounded-2xl p-4 animate-pulse">
+                  <div className="flex gap-4">
+                    <div className="w-20 h-20 bg-gray-200 rounded-xl" />
+                    <div className="flex-1">
+                      <div className="h-5 bg-gray-200 rounded w-2/3 mb-2" />
+                      <div className="h-4 bg-gray-200 rounded w-1/2" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : restaurants.length === 0 ? (
+            <div className="text-center py-20">
+              <span className="text-5xl">🏪</span>
+              <p className="text-gray-500 mt-4">ยังไม่มีร้านอาหาร</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {restaurants.map((restaurant) => (
+                <button
+                  key={restaurant.id}
+                  onClick={() => handleSelectRestaurant(restaurant)}
+                  className="w-full bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden text-left active:scale-[0.98] transition-transform"
+                >
+                  {/* Cover */}
+                  <div className="h-28 bg-gradient-to-r from-green-400 to-green-500 relative">
+                    {restaurant.coverUrl && (
+                      <img src={restaurant.coverUrl} alt="" className="w-full h-full object-cover" />
+                    )}
+                    {/* Type badges */}
+                    <div className="absolute top-3 right-3 flex gap-1.5">
+                      {(restaurant.sellType === "package" || restaurant.sellType === "both") && (
+                        <span className="px-2 py-1 bg-blue-500 text-white text-xs font-medium rounded-full">📦 แพ็คเกจ</span>
+                      )}
+                      {(restaurant.sellType === "per_meal" || restaurant.sellType === "both") && (
+                        <span className="px-2 py-1 bg-orange-500 text-white text-xs font-medium rounded-full">🍽️ รายมื้อ</span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Info */}
+                  <div className="p-4">
+                    <div className="flex items-start gap-3">
+                      {/* Logo */}
+                      <div className="w-14 h-14 -mt-10 rounded-xl bg-white shadow-lg flex items-center justify-center border-2 border-white overflow-hidden flex-shrink-0">
+                        {restaurant.logoUrl ? (
+                          <img src={restaurant.logoUrl} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-2xl">🏪</span>
+                        )}
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-gray-900">{restaurant.name}</h3>
+                        {restaurant.description && (
+                          <p className="text-sm text-gray-500 line-clamp-1">{restaurant.description}</p>
+                        )}
+                      </div>
+
+                      <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                    
+                    {/* Stats */}
+                    <div className="mt-3 flex items-center gap-4 text-sm text-gray-600">
+                      <span className="flex items-center gap-1">
+                        🍽️ {restaurant._count.foods} เมนู
+                      </span>
+                      <span className="flex items-center gap-1">
+                        📦 {restaurant._count.packages} แพ็คเกจ
+                      </span>
+                      <span className="flex items-center gap-1">
+                        🚚 ฿{restaurant.deliveryFee}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ==================== Menu View (after selecting restaurant) ====================
   return (
     <div className="min-h-screen bg-white pb-24">
       {/* Header */}
@@ -575,30 +744,41 @@ export default function MenuPage() {
         )}
 
         <div className="flex items-center px-4 py-3 gap-3">
+          {/* Back Button */}
+          <button onClick={handleBackToRestaurants} className="flex-shrink-0 p-1">
+            <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+
+          {/* Restaurant Name */}
+          <div className="flex-1 min-w-0">
+            <h2 className="font-bold text-gray-900 truncate">{selectedRestaurant.name}</h2>
+          </div>
+
           {/* Search Button */}
           <button onClick={() => setShowSearch(!showSearch)} className="flex-shrink-0 p-1">
             <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </button>
+        </div>
 
-          <div className="flex-1 overflow-x-auto no-scrollbar -mr-4 pr-4">
-            <div className="flex gap-5">
-              {allTabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => scrollToSection(tab.id)}
-                  className={`flex-shrink-0 whitespace-nowrap pb-1 text-sm font-medium transition-colors ${
-                    activeTab === tab.id
-                      ? "text-green-600 border-b-2 border-green-500"
-                      : "text-gray-500"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
+        {/* Tabs */}
+        <div className="flex items-center px-4 pb-2 gap-3 overflow-x-auto no-scrollbar">
+          {allTabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => scrollToSection(tab.id)}
+              className={`flex-shrink-0 whitespace-nowrap pb-1 text-sm font-medium transition-colors ${
+                activeTab === tab.id
+                  ? "text-green-600 border-b-2 border-green-500"
+                  : "text-gray-500"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       </header>
 
@@ -1042,6 +1222,13 @@ export default function MenuPage() {
                       <span>-฿{packageDiscount.toFixed(2)}</span>
                     </div>
                   )}
+
+                  {selectedRestaurant && selectedRestaurant.deliveryFee > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">ค่าจัดส่ง</span>
+                      <span className="text-gray-700">฿{selectedRestaurant.deliveryFee.toFixed(2)}</span>
+                    </div>
+                  )}
                   
                   <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                     <span className="font-semibold text-gray-900">รวมทั้งหมด</span>
@@ -1049,7 +1236,7 @@ export default function MenuPage() {
                       {isPackageEligible && packageDiscount > 0 && (
                         <span className="text-sm text-gray-400 line-through mr-2">฿{totalPrice.toFixed(2)}</span>
                       )}
-                      <span className="text-2xl font-bold text-green-600">฿{finalPrice.toFixed(2)}</span>
+                      <span className="text-2xl font-bold text-green-600">฿{(finalPrice + (selectedRestaurant?.deliveryFee || 0)).toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
@@ -1067,7 +1254,7 @@ export default function MenuPage() {
                     disabled={isSubmitting}
                     className="flex-[2] py-3 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition-colors disabled:opacity-50"
                   >
-                    {isSubmitting ? "กำลังสั่งซื้อ..." : `สั่งซื้อ ฿${finalPrice.toFixed(2)}`}
+                    {isSubmitting ? "กำลังสั่งซื้อ..." : `สั่งซื้อ ฿${(finalPrice + (selectedRestaurant?.deliveryFee || 0)).toFixed(2)}`}
                   </button>
                 </div>
               </div>

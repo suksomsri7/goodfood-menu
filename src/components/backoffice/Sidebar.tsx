@@ -25,6 +25,7 @@ import {
   ScanBarcode,
   CreditCard,
   Crown,
+  Store,
 } from "lucide-react";
 import { useSidebar } from "./SidebarContext";
 
@@ -58,6 +59,7 @@ const navGroups: NavGroup[] = [
   {
     title: "จัดการ",
     items: [
+      { href: "/backoffice/restaurants", label: "ร้านอาหาร", icon: <Store className="w-5 h-5" /> },
       { href: "/backoffice/foods", label: "เมนูอาหาร", icon: <UtensilsCrossed className="w-5 h-5" /> },
       { href: "/backoffice/packages", label: "แพ็คเกจอาหาร", icon: <Package className="w-5 h-5" /> },
       { href: "/backoffice/promotions", label: "โปรโมชั่น", icon: <BadgePercent className="w-5 h-5" /> },

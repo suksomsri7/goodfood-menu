@@ -140,14 +140,16 @@ model ExerciseLog {
 
 // ==================== ตะกร้าสินค้า ====================
 model CartItem {
-  id        String   @id @default(cuid())
-  memberId  String
-  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  foodId    String
-  food      Food     @relation(fields: [foodId], references: [id], onDelete: Cascade)
-  quantity  Int      @default(1)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String      @id @default(cuid())
+  memberId     String
+  member       Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  foodId       String
+  food         Food        @relation(fields: [foodId], references: [id], onDelete: Cascade)
+  restaurantId String?
+  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  quantity     Int         @default(1)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
   @@unique([memberId, foodId])
   @@map("cart_items")
@@ -159,9 +161,12 @@ model Order {
   orderNumber    String      @unique
   memberId       String?
   member         Member?     @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  restaurantId   String?
+  restaurant     Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: SetNull)
   coursePlan     String? // แผนอาหาร
   totalDays      Int? // จำนวนวัน
   totalPrice     Float       @default(0)
+  deliveryFee    Float       @default(0) // ค่าจัดส่ง
   discount       Float       @default(0) // ส่วนลด
   discountType   String?     // percent, fixed
   discountValue  Float?      // ค่าส่วนลด (เช่น 10 สำหรับ 10%)
@@ -195,30 +200,59 @@ model OrderItem {
   @@map("order_items")
 }
 
+// ==================== ร้านอาหาร ====================
+model Restaurant {
+  id              String     @id @default(cuid())
+  name            String
+  slug            String     @unique
+  description     String?
+  logoUrl         String?
+  coverUrl        String?
+  sellType        String     @default("both") // "package", "per_meal", "both"
+  deliveryFee     Float      @default(0) // ค่าส่ง (แพ็คเกจ)
+  deliveryPerMeal Float      @default(0) // ค่าส่งต่อมื้อ
+  minOrder        Float      @default(0) // ขั้นต่ำในการสั่ง
+  isActive        Boolean    @default(true)
+  order           Int        @default(0)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  // Relations
+  categories Category[]
+  foods      Food[]
+  packages   Package[]
+  cartItems  CartItem[]
+  orders     Order[]
+
+  @@map("restaurants")
+}
+
 // ==================== หมวดอาหาร ====================
 model Category {
-  id          String   @id @default(cuid())
-  name        String
-  slug        String   @unique
-  description String?
-  color       String   @default("#4CAF50")
-  isActive    Boolean  @default(true)
-  order       Int      @default(0)
-  foods       Food[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String      @id @default(cuid())
+  name         String
+  slug         String      @unique
+  description  String?
+  color        String      @default("#4CAF50")
+  isActive     Boolean     @default(true)
+  order        Int         @default(0)
+  restaurantId String?
+  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  foods        Food[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
   @@map("categories")
 }
 
 // ==================== เมนูอาหาร ====================
 model Food {
-  id            String   @id @default(cuid())
+  id            String      @id @default(cuid())
   name          String
   description   String?
-  ingredients   String[] @default([]) // ส่วนประกอบ
+  ingredients   String[]    @default([]) // ส่วนประกอบ
   imageUrl      String?
-  images        String[] @default([]) // รูปภาพหลายรูป
+  images        String[]    @default([]) // รูปภาพหลายรูป
   price         Float
   discountPrice Float? // ราคาลด
   badge         String? // "discount" | "popular" | "bestseller"
@@ -232,12 +266,14 @@ model Food {
   servingSize   Float?
   servingUnit   String?
   warning       String? // คำเตือน เช่น แพ้อาหาร
-  isActive      Boolean  @default(true)
-  order         Int      @default(0)
+  isActive      Boolean     @default(true)
+  order         Int         @default(0)
   categoryId    String
-  category      Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  category      Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  restaurantId  String?
+  restaurant    Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
   // Relations
   promotionItems PromotionItem[]
@@ -250,17 +286,22 @@ model Food {
 
 // ==================== แพ็คเกจอาหาร ====================
 model Package {
-  id            String   @id @default(cuid())
+  id            String      @id @default(cuid())
   name          String
   description   String?
   imageUrl      String?
-  requiredItems Int      @default(1) // จำนวนรายการที่ต้องซื้อเพื่อรับส่วนลด
-  discountType  String   @default("percent") // "percent" | "fixed"
-  discountValue Float    @default(0) // ค่าส่วนลด (เป็น % หรือ จำนวนเงิน)
-  isActive      Boolean  @default(true)
-  order         Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  days          Int         @default(7) // จำนวนวัน
+  mealsPerDay   Int         @default(3) // จำนวนมื้อต่อวัน
+  requiredItems Int         @default(1) // จำนวนรายการที่ต้องซื้อเพื่อรับส่วนลด
+  price         Float       @default(0) // ราคาแพ็คเกจ
+  discountType  String      @default("percent") // "percent" | "fixed"
+  discountValue Float       @default(0) // ค่าส่วนลด (เป็น % หรือ จำนวนเงิน)
+  isActive      Boolean     @default(true)
+  order         Int         @default(0)
+  restaurantId  String?
+  restaurant    Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
   @@map("packages")
 }
