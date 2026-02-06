@@ -108,7 +108,7 @@ export function FloatingAddButton({ lineUserId, dailyNutrition, onAddMeal, onAdd
       {/* Options */}
       <AnimatePresence>
         {isOpen && (
-          <div className="fixed bottom-28 right-6 z-50 flex flex-col items-end gap-3">
+          <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3">
             {options.map((option, index) => (
               <motion.button
                 key={option.label}
@@ -122,12 +122,12 @@ export function FloatingAddButton({ lineUserId, dailyNutrition, onAddMeal, onAdd
                   option.action();
                 }}
               >
-                <span className="text-sm text-gray-600 bg-white px-4 py-2 rounded-full shadow-sm">
-                  {option.label}
-                </span>
                 <div className="w-11 h-11 rounded-full bg-white shadow-sm flex items-center justify-center">
                   <option.icon className={`w-5 h-5 ${"color" in option ? option.color : "text-gray-700"}`} strokeWidth={1.5} />
                 </div>
+                <span className="text-sm text-gray-600 bg-white px-4 py-2 rounded-full shadow-sm">
+                  {option.label}
+                </span>
               </motion.button>
             ))}
           </div>
@@ -136,7 +136,7 @@ export function FloatingAddButton({ lineUserId, dailyNutrition, onAddMeal, onAdd
 
       {/* FAB */}
       <motion.button
-        className="fixed bottom-8 right-6 z-50 w-14 h-14 rounded-full bg-gray-900 flex items-center justify-center shadow-lg"
+        className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 w-14 h-14 rounded-full bg-gray-900 flex items-center justify-center shadow-lg"
         onClick={() => setIsOpen(!isOpen)}
         whileTap={{ scale: 0.95 }}
         animate={{ rotate: isOpen ? 45 : 0 }}
