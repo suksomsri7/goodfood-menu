@@ -451,10 +451,17 @@ export default function RestaurantsPage() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto m-4">
-            <div className="p-6 border-b">
+            <div className="flex items-center justify-between p-6 border-b">
               <h2 className="text-lg font-semibold">
                 {editingRestaurant ? "แก้ไขร้านอาหาร" : "เพิ่มร้านอาหาร"}
               </h2>
+              <button
+                type="button"
+                onClick={closeModal}
+                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
