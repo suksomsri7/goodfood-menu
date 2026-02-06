@@ -226,6 +226,8 @@ export function createOrderFlexMessage(order: {
   discount?: number;
   packageName?: string | null;
   finalPrice?: number;
+  restaurantName?: string | null;
+  deliveryFee?: number;
 }): LineFlexMessage {
   const statusLabels: Record<string, string> = {
     pending: "⏳ รอดำเนินการ",
@@ -344,6 +346,18 @@ export function createOrderFlexMessage(order: {
           color: "#4CAF50",
           margin: "sm",
         },
+        // Restaurant name (if available)
+        ...(order.restaurantName
+          ? [
+              {
+                type: "text" as const,
+                text: `🏪 ${order.restaurantName}`,
+                size: "sm" as const,
+                color: "#555555",
+                margin: "sm" as const,
+              },
+            ]
+          : []),
         {
           type: "separator",
           margin: "lg",
@@ -399,6 +413,31 @@ export function createOrderFlexMessage(order: {
                     text: `-฿${order.discount.toLocaleString()}`,
                     size: "sm" as const,
                     color: "#4CAF50",
+                    align: "end" as const,
+                  },
+                ],
+              },
+            ]
+          : []),
+        // ค่าจัดส่ง (ถ้ามี)
+        ...(order.deliveryFee && order.deliveryFee > 0
+          ? [
+              {
+                type: "box" as const,
+                layout: "horizontal" as const,
+                margin: "sm" as const,
+                contents: [
+                  {
+                    type: "text" as const,
+                    text: "🚚 ค่าจัดส่ง",
+                    size: "sm" as const,
+                    color: "#555555",
+                  },
+                  {
+                    type: "text" as const,
+                    text: `฿${order.deliveryFee.toLocaleString()}`,
+                    size: "sm" as const,
+                    color: "#555555",
                     align: "end" as const,
                   },
                 ],

@@ -116,6 +116,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Get restaurant info for Flex message
+    let restaurantName: string | null = null;
+    if (restaurantId) {
+      const restaurant = await prisma.restaurant.findUnique({
+        where: { id: restaurantId },
+        select: { name: true },
+      });
+      restaurantName = restaurant?.name || null;
+    }
+
     const order = await prisma.order.create({
       data: {
         orderNumber: generateOrderNumber(),
@@ -174,6 +184,8 @@ export async function POST(request: NextRequest) {
           discount: order.discount || 0,
           packageName: order.packageName || null,
           finalPrice: order.finalPrice || order.totalPrice,
+          restaurantName: restaurantName,
+          deliveryFee: order.deliveryFee || 0,
         });
 
         await pushMessage(lineUserId, [flexMessage]);

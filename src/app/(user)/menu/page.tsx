@@ -305,9 +305,9 @@ export default function MenuPage() {
     setShowCart(false);
 
     // Sync with API if logged in
-    if (lineUserId) {
+    if (lineUserId && selectedRestaurant) {
       try {
-        await fetch(`/api/cart?lineUserId=${lineUserId}`, {
+        await fetch(`/api/cart?lineUserId=${lineUserId}&restaurantId=${selectedRestaurant.id}`, {
           method: "DELETE",
         });
       } catch (error) {
