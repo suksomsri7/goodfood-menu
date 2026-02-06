@@ -799,16 +799,8 @@ export default function MenuPage() {
   if (!selectedRestaurant) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
-        {/* Header */}
-        <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-lg border-b border-gray-100">
-          <div className="px-4 py-4">
-            <h1 className="text-xl font-bold text-gray-900">เลือกร้านอาหาร</h1>
-            <p className="text-sm text-gray-500">เลือกร้านอาหารที่ต้องการสั่งซื้อ</p>
-          </div>
-        </header>
-
         {/* Restaurant List */}
-        <div className="p-4">
+        <div className="p-4 pt-6">
           {isLoading ? (
             <div className="grid grid-cols-2 gap-3">
               {[...Array(4)].map((_, i) => (

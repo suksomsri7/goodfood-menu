@@ -272,23 +272,6 @@ export default function GoalPage() {
     );
   }
 
-  // Not logged in state
-  if (!isLoggedIn || !lineUserId) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-6">
-        <div className="text-center">
-          <div className="text-6xl mb-4">🔐</div>
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">
-            กรุณาเข้าสู่ระบบ
-          </h2>
-          <p className="text-gray-500 text-sm">
-            เปิดผ่าน LINE เพื่อดูเป้าหมายของคุณ
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
       {/* Reset Goal Modal */}
