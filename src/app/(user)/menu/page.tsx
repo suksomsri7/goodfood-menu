@@ -1187,7 +1187,7 @@ export default function MenuPage() {
       {totalItems > 0 && (
         <button
           onClick={() => setShowCart(true)}
-          className="fixed bottom-0 left-0 right-0 bg-green-500 text-white px-4 py-4 flex items-center justify-between shadow-lg z-40 hover:bg-green-600 transition-colors"
+          className="fixed bottom-16 left-0 right-0 bg-green-500 text-white px-4 py-4 flex items-center justify-between shadow-lg z-40 hover:bg-green-600 transition-colors"
         >
           <div className="flex items-center gap-3">
             <span className="w-7 h-7 rounded-full bg-green-400 flex items-center justify-center text-sm font-semibold">
