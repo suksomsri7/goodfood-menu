@@ -264,36 +264,40 @@ export function UserGuide({ isOpen, onClose }: UserGuideProps) {
       {isOpen && (
         <div className="fixed inset-0 z-[70]">
           {/* Dark overlay with spotlight hole */}
-          {hasTarget ? (
+          {hasTarget && spotlightStyle ? (
             <>
-              {/* Full overlay using clip-path to create hole */}
+              {/* Clickable backdrop behind spotlight */}
+              <div className="fixed inset-0" onClick={handleNext} />
+              {/* Spotlight: transparent box with huge box-shadow = dark overlay with hole */}
               <motion.div
-                className="fixed inset-0 bg-black/65"
+                className="fixed pointer-events-none"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
                 style={{
-                  clipPath: spotlightStyle
-                    ? `polygon(
-                        0% 0%, 0% 100%, 100% 100%, 100% 0%, 0% 0%,
-                        ${spotlightStyle.left}px ${spotlightStyle.top}px,
-                        ${spotlightStyle.left}px ${spotlightStyle.top + spotlightStyle.height}px,
-                        ${spotlightStyle.left + spotlightStyle.width}px ${spotlightStyle.top + spotlightStyle.height}px,
-                        ${spotlightStyle.left + spotlightStyle.width}px ${spotlightStyle.top}px,
-                        ${spotlightStyle.left}px ${spotlightStyle.top}px
-                      )`
-                    : undefined,
+                  top: spotlightStyle.top,
+                  left: spotlightStyle.left,
+                  width: spotlightStyle.width,
+                  height: spotlightStyle.height,
+                  borderRadius: spotlightStyle.borderRadius,
+                  boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.65), 0 0 15px 2px rgba(0, 0, 0, 0.3)",
                 }}
-                onClick={handleNext}
               />
-              {/* Spotlight ring */}
+              {/* Spotlight border ring */}
               <motion.div
-                className="fixed pointer-events-none border-2 border-white/40"
-                initial={{ opacity: 0, scale: 0.9 }}
+                className="fixed pointer-events-none border-2 border-white/30"
+                initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.3 }}
-                style={spotlightStyle!}
+                style={{
+                  top: spotlightStyle.top,
+                  left: spotlightStyle.left,
+                  width: spotlightStyle.width,
+                  height: spotlightStyle.height,
+                  borderRadius: spotlightStyle.borderRadius,
+                }}
               />
             </>
           ) : (

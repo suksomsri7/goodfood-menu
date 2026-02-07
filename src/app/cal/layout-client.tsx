@@ -29,10 +29,10 @@ export function CalLayoutClient({
       {guideReady && (
         <button
           onClick={() => setShowGuide(true)}
-          className="fixed top-4 left-3 z-[55] w-8 h-8 rounded-full bg-green-500 shadow-md flex items-center justify-center hover:bg-green-600 active:scale-95 transition-all"
+          className="fixed top-4 left-3 z-[55] w-8 h-8 rounded-full bg-white/80 shadow-sm border border-gray-200/80 flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-all backdrop-blur-sm"
           aria-label="คู่มือการใช้งาน"
         >
-          <HelpCircle className="w-4 h-4 text-white" />
+          <HelpCircle className="w-4 h-4 text-gray-400" />
         </button>
       )}
 
