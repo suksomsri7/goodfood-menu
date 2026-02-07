@@ -8,7 +8,7 @@ import { MealList } from "@/components/user/MealList";
 import { ExerciseList } from "@/components/user/ExerciseList";
 import { RecommendationCard } from "@/components/user/RecommendationCard";
 import { MealDetailModal } from "@/components/user/MealDetailModal";
-import { WaterIntakeButton } from "@/components/user/WaterIntakeButton";
+import { FitnessRings } from "@/components/user/FitnessRings";
 import { AnalysisModal } from "@/components/user/AnalysisModal";
 import { useLiff } from "@/components/providers/LiffProvider";
 import { Brain } from "lucide-react";
@@ -557,7 +557,7 @@ export default function CaloriePage() {
           />
         </div>
 
-        {/* Macros Row 2 - Sodium, Sugar, Water */}
+        {/* Macros Row 2 - Sodium, Sugar */}
         <div className="flex gap-4 px-2">
           <MacroProgressBar
             label="Sodium"
@@ -574,13 +574,16 @@ export default function CaloriePage() {
             color="#f472b6"
             delay={0.5}
           />
-          <WaterIntakeButton
-            current={waterIntake}
-            target={goals.targetWater}
-            onAddWater={handleAddWater}
-          />
         </div>
       </div>
+
+      {/* Fitness Rings - Calories, Water, Protein */}
+      <FitnessRings
+        calories={{ current: dailyData.consumed, target: goals.targetCalories }}
+        water={{ current: waterIntake, target: goals.targetWater }}
+        protein={{ current: dailyData.protein, target: goals.targetProtein }}
+        onAddWater={handleAddWater}
+      />
 
       {/* AI Recommendation - Disabled temporarily */}
       {/* <div className="px-6 mb-6">
