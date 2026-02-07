@@ -70,6 +70,7 @@ export async function POST(request: NextRequest) {
       servingUnit,
       warning,
       categoryId,
+      restaurantId,
     } = body;
 
     // Validation
@@ -143,6 +144,7 @@ export async function POST(request: NextRequest) {
         servingUnit: servingUnit || null,
         warning: warning || null,
         categoryId,
+        restaurantId: restaurantId || null,
       },
       include: {
         category: {
