@@ -235,13 +235,14 @@ export function BottomNavBar() {
       </AnimatePresence>
 
       {/* Bottom Navigation Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-50">
+      <div className="fixed bottom-0 left-0 right-0 z-50" data-guide="bottom-nav">
         {/* Background bar */}
         <div className="bg-white border-t border-gray-200 shadow-lg">
           <div className="flex items-center justify-around h-16 px-6">
             {/* Cal button */}
             <button
               onClick={() => router.push("/cal")}
+              data-guide="cal-tab"
               className={`flex flex-col items-center gap-1 px-6 py-2 rounded-xl transition-colors ${
                 isCalActive ? "text-green-600" : "text-gray-500 hover:text-gray-700"
               }`}
@@ -256,6 +257,7 @@ export function BottomNavBar() {
             {/* Menu button */}
             <button
               onClick={() => router.push("/menu")}
+              data-guide="menu-tab"
               className={`flex flex-col items-center gap-1 px-6 py-2 rounded-xl transition-colors ${
                 isMenuActive ? "text-green-600" : "text-gray-500 hover:text-gray-700"
               }`}
@@ -273,6 +275,7 @@ export function BottomNavBar() {
           whileTap={{ scale: 0.95 }}
           animate={{ rotate: isOpen ? 45 : 0 }}
           transition={{ duration: 0.2 }}
+          data-guide="fab-button"
         >
           <Plus className="w-6 h-6 text-white" strokeWidth={2} />
         </motion.button>

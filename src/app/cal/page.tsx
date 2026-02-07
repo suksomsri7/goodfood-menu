@@ -493,11 +493,13 @@ export default function CaloriePage() {
       <DaySelector selectedDate={selectedDate} onDateChange={setSelectedDate} showGoalIcon />
 
       {/* Fitness Rings - Calories, Water */}
-      <FitnessRings
-        calories={{ current: dailyData.consumed, target: goals.targetCalories }}
-        water={{ current: waterIntake, target: goals.targetWater }}
-        onAddWater={handleAddWater}
-      />
+      <div data-guide="fitness-rings">
+        <FitnessRings
+          calories={{ current: dailyData.consumed, target: goals.targetCalories }}
+          water={{ current: waterIntake, target: goals.targetWater }}
+          onAddWater={handleAddWater}
+        />
+      </div>
 
       {/* Macros & Details */}
       <div className="mx-6 mb-12">
@@ -520,7 +522,7 @@ export default function CaloriePage() {
         )}
 
         {/* AI Analysis Button */}
-        <div className="flex justify-center mb-8 mt-8">
+        <div className="flex justify-center mb-8 mt-8" data-guide="ai-button">
           <button
             onClick={fetchAnalysis}
             disabled={isLoadingAnalysis}
@@ -532,7 +534,7 @@ export default function CaloriePage() {
         </div>
 
         {/* Macros Row 1 - Carbs, Protein, Fat */}
-        <div className="flex gap-4 px-2 mb-3">
+        <div className="flex gap-4 px-2 mb-3" data-guide="macros">
           <MacroProgressBar
             label="Carbohydrates"
             current={dailyData.carbs}
