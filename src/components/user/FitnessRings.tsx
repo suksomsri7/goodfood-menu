@@ -81,6 +81,7 @@ export function FitnessRings({
               width={size}
               height={size}
               viewBox={`0 0 ${size} ${size}`}
+              className="-rotate-90"
             >
               {/* Background rings */}
               {rings.map((ring, i) => (
@@ -120,11 +121,6 @@ export function FitnessRings({
                       delay: 0.15 * i,
                       ease: "easeOut",
                     }}
-                    style={{
-                      transformOrigin: "center",
-                      transform: "rotate(-90deg)",
-                      filter: `drop-shadow(0 0 4px ${ring.color}40)`,
-                    }}
                   />
                 );
               })}
@@ -158,10 +154,6 @@ export function FitnessRings({
                       duration: 1,
                       delay: 1.2 + 0.15 * i,
                       ease: "easeOut",
-                    }}
-                    style={{
-                      transformOrigin: "center",
-                      transform: "rotate(-90deg)",
                     }}
                   />
                 );
