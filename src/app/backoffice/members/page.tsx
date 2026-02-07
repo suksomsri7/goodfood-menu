@@ -4,7 +4,6 @@ import { Header } from "@/components/backoffice/Header";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
-  Filter,
   Eye,
   MessageSquare,
   X,
@@ -18,8 +17,11 @@ import {
   Flame,
   TrendingUp,
   TrendingDown,
-  ChevronRight,
   Package,
+  MapPin,
+  Crown,
+  Save,
+  Edit2,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { formatDistanceToNow, format } from "date-fns";
@@ -30,6 +32,19 @@ interface MemberType {
   id: string;
   name: string;
   color: string;
+}
+
+interface Address {
+  id: string;
+  label: string | null;
+  name: string;
+  phone: string;
+  address: string;
+  subDistrict: string | null;
+  district: string | null;
+  province: string;
+  postalCode: string;
+  isDefault: boolean;
 }
 
 interface Member {
@@ -78,6 +93,8 @@ interface MemberDetail {
   dailyFat: number | null;
   isOnboarded: boolean;
   memberType: MemberType | null;
+  memberTypeId: string | null;
+  addresses: Address[];
   weightLogs: { id: string; weight: number; date: string }[];
   createdAt: string;
   updatedAt: string;
@@ -162,6 +179,9 @@ export default function MembersPage() {
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [showDetail, setShowDetail] = useState(false);
 
+  // Member types for dropdown
+  const [memberTypes, setMemberTypes] = useState<MemberType[]>([]);
+
   // Detail modal state
   const [activeTab, setActiveTab] = useState<"profile" | "meals" | "orders">("profile");
   const [memberDetail, setMemberDetail] = useState<MemberDetail | null>(null);
@@ -176,6 +196,16 @@ export default function MembersPage() {
     mealCount: 0,
   });
   const [detailLoading, setDetailLoading] = useState(false);
+
+  // Edit mode state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    memberTypeId: "",
+  });
+  const [saving, setSaving] = useState(false);
 
   // Fetch members
   const fetchMembers = async () => {
@@ -193,8 +223,22 @@ export default function MembersPage() {
     }
   };
 
+  // Fetch member types
+  const fetchMemberTypes = async () => {
+    try {
+      const res = await fetch("/api/member-types");
+      if (res.ok) {
+        const data = await res.json();
+        setMemberTypes(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch member types:", error);
+    }
+  };
+
   useEffect(() => {
     fetchMembers();
+    fetchMemberTypes();
   }, [searchQuery]);
 
   // Fetch member details
@@ -210,6 +254,13 @@ export default function MembersPage() {
       if (detailRes.ok) {
         const detail = await detailRes.json();
         setMemberDetail(detail);
+        // Set edit form values
+        setEditForm({
+          name: detail.name || "",
+          email: detail.email || "",
+          phone: detail.phone || "",
+          memberTypeId: detail.memberTypeId || "",
+        });
       }
 
       if (mealsRes.ok) {
@@ -234,6 +285,7 @@ export default function MembersPage() {
     setSelectedMember(member);
     setShowDetail(true);
     setActiveTab("profile");
+    setIsEditing(false);
     fetchMemberDetail(member.id);
   };
 
@@ -243,6 +295,31 @@ export default function MembersPage() {
     setMemberDetail(null);
     setMeals([]);
     setOrders([]);
+    setIsEditing(false);
+  };
+
+  // Save member updates
+  const handleSave = async () => {
+    if (!memberDetail) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/members/${memberDetail.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setMemberDetail(updated);
+        setIsEditing(false);
+        // Refresh members list
+        fetchMembers();
+      }
+    } catch (error) {
+      console.error("Failed to save member:", error);
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) {
@@ -331,6 +408,9 @@ export default function MembersPage() {
                       สมาชิก
                     </th>
                     <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase">
+                      ประเภท
+                    </th>
+                    <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase">
                       เป้าหมาย
                     </th>
                     <th className="text-center py-4 px-6 text-xs font-semibold text-gray-500 uppercase">
@@ -338,9 +418,6 @@ export default function MembersPage() {
                     </th>
                     <th className="text-center py-4 px-6 text-xs font-semibold text-gray-500 uppercase">
                       ออเดอร์
-                    </th>
-                    <th className="text-center py-4 px-6 text-xs font-semibold text-gray-500 uppercase">
-                      บันทึกอาหาร
                     </th>
                     <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase">
                       เข้าใช้ล่าสุด
@@ -377,10 +454,22 @@ export default function MembersPage() {
                               {member.displayName || member.name || "ไม่ระบุชื่อ"}
                             </p>
                             <p className="text-xs text-gray-400">
-                              เข้าร่วม {format(new Date(member.createdAt), "d MMM yyyy", { locale: th })}
+                              {member.phone || member.email || ""}
                             </p>
                           </div>
                         </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        {member.memberType ? (
+                          <span
+                            className="px-2.5 py-1 rounded-full text-xs font-medium"
+                            style={{ backgroundColor: `${member.memberType.color}20`, color: member.memberType.color }}
+                          >
+                            {member.memberType.name}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 text-sm">-</span>
+                        )}
                       </td>
                       <td className="py-4 px-6">
                         {member.goalType && goalLabels[member.goalType] ? (
@@ -398,9 +487,6 @@ export default function MembersPage() {
                       </td>
                       <td className="py-4 px-6 text-center font-medium text-gray-600">
                         {member.orderCount}
-                      </td>
-                      <td className="py-4 px-6 text-center font-medium text-gray-600">
-                        {member.mealLogCount}
                       </td>
                       <td className="py-4 px-6">
                         <span className="text-sm text-gray-500">{formatTimeAgo(member.updatedAt)}</span>
@@ -470,13 +556,23 @@ export default function MembersPage() {
                     <p className="text-sm text-gray-500">
                       เข้าร่วม {format(new Date(selectedMember.createdAt), "d MMMM yyyy", { locale: th })}
                     </p>
-                    {selectedMember.goalType && goalLabels[selectedMember.goalType] && (
-                      <span
-                        className={`inline-block mt-2 px-2.5 py-1 rounded-full text-xs font-medium ${goalLabels[selectedMember.goalType].color}`}
-                      >
-                        {goalLabels[selectedMember.goalType].label}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2 mt-2">
+                      {selectedMember.goalType && goalLabels[selectedMember.goalType] && (
+                        <span
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium ${goalLabels[selectedMember.goalType].color}`}
+                        >
+                          {goalLabels[selectedMember.goalType].label}
+                        </span>
+                      )}
+                      {memberDetail?.memberType && (
+                        <span
+                          className="px-2.5 py-1 rounded-full text-xs font-medium"
+                          style={{ backgroundColor: `${memberDetail.memberType.color}20`, color: memberDetail.memberType.color }}
+                        >
+                          {memberDetail.memberType.name}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <button
@@ -492,7 +588,7 @@ export default function MembersPage() {
                 <div className="flex gap-1 px-6">
                   {[
                     { id: "profile", label: "ข้อมูลทั่วไป", icon: User },
-                    { id: "meals", label: "บันทึกอาหาร", icon: Utensils },
+                    { id: "meals", label: "Stock อาหาร", icon: Utensils },
                     { id: "orders", label: "ประวัติออเดอร์", icon: ShoppingBag },
                   ].map((tab) => (
                     <button
@@ -522,6 +618,168 @@ export default function MembersPage() {
                     {/* Profile Tab */}
                     {activeTab === "profile" && memberDetail && (
                       <div className="space-y-6">
+                        {/* Edit Button */}
+                        <div className="flex justify-end">
+                          {isEditing ? (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setIsEditing(false)}
+                                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                              >
+                                ยกเลิก
+                              </button>
+                              <button
+                                onClick={handleSave}
+                                disabled={saving}
+                                className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-[#4CAF50] hover:bg-[#43A047] rounded-lg transition-colors disabled:opacity-50"
+                              >
+                                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                บันทึก
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setIsEditing(true)}
+                              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                              แก้ไข
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Basic Info - Editable */}
+                        <div className="bg-gray-50 rounded-xl p-6">
+                          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                            <User className="w-5 h-5" />
+                            ข้อมูลพื้นฐาน
+                          </h3>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm text-gray-500 mb-1">ชื่อ-นามสกุล</label>
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  value={editForm.name}
+                                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                                  placeholder="กรอกชื่อ-นามสกุล"
+                                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent outline-none"
+                                />
+                              ) : (
+                                <p className="text-gray-900">{memberDetail.name || "-"}</p>
+                              )}
+                            </div>
+                            <div>
+                              <label className="block text-sm text-gray-500 mb-1">ชื่อ LINE</label>
+                              <p className="text-gray-900">{memberDetail.displayName || "-"}</p>
+                            </div>
+                            <div>
+                              <label className="block text-sm text-gray-500 mb-1">อีเมล</label>
+                              {isEditing ? (
+                                <input
+                                  type="email"
+                                  value={editForm.email}
+                                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                                  placeholder="กรอกอีเมล"
+                                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent outline-none"
+                                />
+                              ) : (
+                                <p className="text-gray-900">{memberDetail.email || "-"}</p>
+                              )}
+                            </div>
+                            <div>
+                              <label className="block text-sm text-gray-500 mb-1">โทรศัพท์</label>
+                              {isEditing ? (
+                                <input
+                                  type="tel"
+                                  value={editForm.phone}
+                                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                                  placeholder="กรอกเบอร์โทรศัพท์"
+                                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent outline-none"
+                                />
+                              ) : (
+                                <p className="text-gray-900">{memberDetail.phone || "-"}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Member Type - Editable */}
+                        <div className="bg-gray-50 rounded-xl p-6">
+                          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                            <Crown className="w-5 h-5" />
+                            ประเภทสมาชิก
+                          </h3>
+                          {isEditing ? (
+                            <select
+                              value={editForm.memberTypeId}
+                              onChange={(e) => setEditForm({ ...editForm, memberTypeId: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent outline-none"
+                            >
+                              <option value="">-- ไม่ระบุ --</option>
+                              {memberTypes.map((type) => (
+                                <option key={type.id} value={type.id}>
+                                  {type.name}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              {memberDetail.memberType ? (
+                                <span
+                                  className="px-3 py-1.5 rounded-full text-sm font-medium"
+                                  style={{ backgroundColor: `${memberDetail.memberType.color}20`, color: memberDetail.memberType.color }}
+                                >
+                                  {memberDetail.memberType.name}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400">ไม่ได้กำหนด</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Addresses */}
+                        {memberDetail.addresses && memberDetail.addresses.length > 0 && (
+                          <div className="bg-gray-50 rounded-xl p-6">
+                            <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                              <MapPin className="w-5 h-5" />
+                              ที่อยู่ ({memberDetail.addresses.length})
+                            </h3>
+                            <div className="space-y-3">
+                              {memberDetail.addresses.map((addr) => (
+                                <div
+                                  key={addr.id}
+                                  className={`p-4 bg-white rounded-lg border ${addr.isDefault ? "border-[#4CAF50]" : "border-gray-200"}`}
+                                >
+                                  <div className="flex items-start justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium text-gray-900">{addr.name}</span>
+                                      {addr.label && (
+                                        <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">
+                                          {addr.label}
+                                        </span>
+                                      )}
+                                      {addr.isDefault && (
+                                        <span className="px-2 py-0.5 bg-[#E8F5E9] text-[#4CAF50] text-xs rounded">
+                                          ค่าเริ่มต้น
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <p className="text-sm text-gray-600">{addr.phone}</p>
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    {addr.address}
+                                    {addr.subDistrict && ` แขวง/ตำบล ${addr.subDistrict}`}
+                                    {addr.district && ` เขต/อำเภอ ${addr.district}`}
+                                    {` ${addr.province} ${addr.postalCode}`}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
                         {/* Goal Info */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                           <div className="bg-orange-50 rounded-xl p-4">
@@ -564,16 +822,8 @@ export default function MembersPage() {
 
                         {/* Personal Info */}
                         <div className="bg-gray-50 rounded-xl p-6">
-                          <h3 className="font-semibold text-gray-900 mb-4">ข้อมูลส่วนตัว</h3>
+                          <h3 className="font-semibold text-gray-900 mb-4">ข้อมูลร่างกาย</h3>
                           <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <span className="text-gray-500">อีเมล:</span>
-                              <span className="ml-2 text-gray-900">{memberDetail.email || "-"}</span>
-                            </div>
-                            <div>
-                              <span className="text-gray-500">โทรศัพท์:</span>
-                              <span className="ml-2 text-gray-900">{memberDetail.phone || "-"}</span>
-                            </div>
                             <div>
                               <span className="text-gray-500">เพศ:</span>
                               <span className="ml-2 text-gray-900">
@@ -659,7 +909,7 @@ export default function MembersPage() {
                       </div>
                     )}
 
-                    {/* Meals Tab */}
+                    {/* Meals Tab (Stock อาหาร) */}
                     {activeTab === "meals" && (
                       <div className="space-y-6">
                         {/* Today Stats */}

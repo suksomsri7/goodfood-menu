@@ -13,7 +13,9 @@ export async function GET(
       where: { id },
       include: {
         memberType: true,
-        addresses: true,
+        addresses: {
+          orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
+        },
         weightLogs: {
           orderBy: { date: "desc" },
           take: 30,
@@ -33,6 +35,46 @@ export async function GET(
     console.error("Error fetching member:", error);
     return NextResponse.json(
       { error: "Failed to fetch member" },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT - อัปเดตข้อมูลสมาชิก
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const { name, email, phone, memberTypeId } = body;
+
+    const member = await prisma.member.update({
+      where: { id },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(email !== undefined && { email }),
+        ...(phone !== undefined && { phone }),
+        ...(memberTypeId !== undefined && { memberTypeId }),
+      },
+      include: {
+        memberType: true,
+        addresses: {
+          orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
+        },
+        weightLogs: {
+          orderBy: { date: "desc" },
+          take: 30,
+        },
+      },
+    });
+
+    return NextResponse.json(member);
+  } catch (error) {
+    console.error("Error updating member:", error);
+    return NextResponse.json(
+      { error: "Failed to update member" },
       { status: 500 }
     );
   }
