@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { uploadToBunny, isBase64Image } from "@/lib/bunny";
 
+// Force dynamic - prevent caching
+export const dynamic = "force-dynamic";
+
 // GET /api/restaurants - Get all restaurants
 export async function GET(request: NextRequest) {
   try {

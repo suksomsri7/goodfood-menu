@@ -818,7 +818,7 @@ export default function MenuPage() {
       <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
         {/* #region agent log */}
         <div className="bg-yellow-100 p-2 text-xs font-mono border-b border-yellow-300">
-          DEBUG: loaded={String(restaurantsLoaded)} | count={restaurants.length} | isLoading={String(isLoading)}
+          v3 | loaded={String(restaurantsLoaded)} | count={restaurants.length} | loading={String(isLoading)}
         </div>
         {/* #endregion */}
         {/* Restaurant List */}
