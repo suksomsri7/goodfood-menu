@@ -128,6 +128,9 @@ export function BottomNavBar() {
     if (!lineUserId) return;
 
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'BottomNavBar.tsx:handleSaveMeal',message:'Creating meal inside BottomNavBar.handleSaveMeal',data:{mealName:meal.name,calories:meal.calories},timestamp:Date.now(),hypothesisId:'H-A'})}).catch(()=>{});
+      // #endregion
       await fetch("/api/meals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

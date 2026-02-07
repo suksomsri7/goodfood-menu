@@ -216,6 +216,9 @@ export function StockModal({ isOpen, onClose, lineUserId, dailyNutrition, onSele
 
     setIsSaving(true);
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StockModal.tsx:handleConfirmSelect',message:'Creating meal inside StockModal',data:{itemName:selectedItem.name,qty:selectQuantity},timestamp:Date.now(),hypothesisId:'H-A'})}).catch(()=>{});
+      // #endregion
       // Add to meal log
       await fetch("/api/meals", {
         method: "POST",
@@ -270,6 +273,9 @@ export function StockModal({ isOpen, onClose, lineUserId, dailyNutrition, onSele
         ).filter(item => item.quantity > 0)
       );
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StockModal.tsx:onSelectItem-callback',message:'About to call onSelectItem callback',data:{itemName:selectedItem.name,qty:selectQuantity},timestamp:Date.now(),hypothesisId:'H-A'})}).catch(()=>{});
+      // #endregion
       // Call callback if provided
       onSelectItem?.({
         name: selectedItem.name,
