@@ -25,12 +25,15 @@ import {
   Store,
 } from "lucide-react";
 import { useSidebar } from "./SidebarContext";
+import { useStaff } from "./StaffContext";
+import { MENU_PERMISSION_MAP } from "@/lib/permissions";
 
 interface NavItem {
   href: string;
   label: string;
   icon: React.ReactNode;
   badgeKey?: string; // Key to look up dynamic badge count
+  moduleId?: string; // Permission module ID for access control
 }
 
 interface NavGroup {
@@ -42,43 +45,129 @@ const navGroups: NavGroup[] = [
   {
     title: "หลัก",
     items: [
-      { href: "/backoffice", label: "Dashboard", icon: <LayoutDashboard className="w-5 h-5" /> },
+      {
+        href: "/backoffice",
+        label: "Dashboard",
+        icon: <LayoutDashboard className="w-5 h-5" />,
+        moduleId: "dashboard",
+      },
     ],
   },
   {
     title: "ลูกค้า",
     items: [
-      { href: "/backoffice/orders", label: "ออเดอร์", icon: <ShoppingCart className="w-5 h-5" />, badgeKey: "orders" },
-      { href: "/backoffice/chat", label: "แชท", icon: <MessageSquare className="w-5 h-5" />, badgeKey: "chat" },
+      {
+        href: "/backoffice/orders",
+        label: "ออเดอร์",
+        icon: <ShoppingCart className="w-5 h-5" />,
+        badgeKey: "orders",
+        moduleId: "orders",
+      },
+      {
+        href: "/backoffice/chat",
+        label: "แชท",
+        icon: <MessageSquare className="w-5 h-5" />,
+        badgeKey: "chat",
+        moduleId: "chat",
+      },
     ],
   },
   {
     title: "จัดการ",
     items: [
-      { href: "/backoffice/restaurants", label: "ร้านอาหาร", icon: <Store className="w-5 h-5" /> },
-      { href: "/backoffice/foods", label: "เมนูอาหาร", icon: <UtensilsCrossed className="w-5 h-5" /> },
-      { href: "/backoffice/packages", label: "แพ็คเกจอาหาร", icon: <Package className="w-5 h-5" /> },
-      { href: "/backoffice/promotions", label: "โปรโมชั่น", icon: <BadgePercent className="w-5 h-5" /> },
-      { href: "/backoffice/barcode", label: "ข้อมูลจาก Scan Barcode", icon: <ScanBarcode className="w-5 h-5" /> },
-      { href: "/backoffice/articles", label: "บทความ", icon: <FileText className="w-5 h-5" /> },
-      { href: "/backoffice/article-categories", label: "หมวดบทความ", icon: <Layers className="w-5 h-5" /> },
-      { href: "/backoffice/youtube", label: "วีดีโอ", icon: <Youtube className="w-5 h-5" /> },
+      {
+        href: "/backoffice/restaurants",
+        label: "ร้านอาหาร",
+        icon: <Store className="w-5 h-5" />,
+        moduleId: "restaurants",
+      },
+      {
+        href: "/backoffice/foods",
+        label: "เมนูอาหาร",
+        icon: <UtensilsCrossed className="w-5 h-5" />,
+        moduleId: "foods",
+      },
+      {
+        href: "/backoffice/packages",
+        label: "แพ็คเกจอาหาร",
+        icon: <Package className="w-5 h-5" />,
+        moduleId: "packages",
+      },
+      {
+        href: "/backoffice/promotions",
+        label: "โปรโมชั่น",
+        icon: <BadgePercent className="w-5 h-5" />,
+        moduleId: "promotions",
+      },
+      {
+        href: "/backoffice/barcode",
+        label: "ข้อมูลจาก Scan Barcode",
+        icon: <ScanBarcode className="w-5 h-5" />,
+        moduleId: "barcode",
+      },
+      {
+        href: "/backoffice/articles",
+        label: "บทความ",
+        icon: <FileText className="w-5 h-5" />,
+        moduleId: "articles",
+      },
+      {
+        href: "/backoffice/article-categories",
+        label: "หมวดบทความ",
+        icon: <Layers className="w-5 h-5" />,
+        moduleId: "article-categories",
+      },
+      {
+        href: "/backoffice/youtube",
+        label: "วีดีโอ",
+        icon: <Youtube className="w-5 h-5" />,
+        moduleId: "youtube",
+      },
     ],
   },
   {
     title: "ตั้งค่า",
     items: [
-      { href: "/backoffice/categories", label: "หมวดอาหาร", icon: <Layers className="w-5 h-5" /> },
-      { href: "/backoffice/settings", label: "บัญชีรับชำระเงิน", icon: <CreditCard className="w-5 h-5" /> },
+      {
+        href: "/backoffice/categories",
+        label: "หมวดอาหาร",
+        icon: <Layers className="w-5 h-5" />,
+        moduleId: "categories",
+      },
+      {
+        href: "/backoffice/settings",
+        label: "บัญชีรับชำระเงิน",
+        icon: <CreditCard className="w-5 h-5" />,
+        moduleId: "settings",
+      },
     ],
   },
   {
     title: "ระบบ",
     items: [
-      { href: "/backoffice/member-types", label: "ประเภทสมาชิก", icon: <Crown className="w-5 h-5" /> },
-      { href: "/backoffice/schedule", label: "ตั้งเวลา", icon: <Calendar className="w-5 h-5" /> },
-      { href: "/backoffice/staff", label: "พนักงาน", icon: <UserCog className="w-5 h-5" /> },
-      { href: "/backoffice/roles", label: "สิทธิ์", icon: <Shield className="w-5 h-5" /> },
+      {
+        href: "/backoffice/member-types",
+        label: "ประเภทสมาชิก",
+        icon: <Crown className="w-5 h-5" />,
+        moduleId: "member-types",
+      },
+      {
+        href: "/backoffice/schedule",
+        label: "ตั้งเวลา",
+        icon: <Calendar className="w-5 h-5" />,
+      },
+      {
+        href: "/backoffice/staff",
+        label: "พนักงาน",
+        icon: <UserCog className="w-5 h-5" />,
+        moduleId: "staff",
+      },
+      {
+        href: "/backoffice/roles",
+        label: "สิทธิ์",
+        icon: <Shield className="w-5 h-5" />,
+        moduleId: "roles",
+      },
     ],
   },
 ];
@@ -86,6 +175,7 @@ const navGroups: NavGroup[] = [
 export function Sidebar() {
   const pathname = usePathname();
   const { collapsed, toggleCollapsed } = useSidebar();
+  const { staff, canViewModule, logout, isAuthenticated, permissions } = useStaff();
   const [badges, setBadges] = useState<Record<string, number>>({});
 
   // Fetch badge counts
@@ -117,6 +207,31 @@ export function Sidebar() {
     return () => clearInterval(interval);
   }, []);
 
+  // Check if user can access menu item
+  const canAccessMenu = (item: NavItem): boolean => {
+    // If no moduleId defined, allow access
+    if (!item.moduleId) return true;
+
+    // If not authenticated or no staff, show all menus (for initial state)
+    if (!isAuthenticated || !staff) return true;
+
+    // Check permission
+    return canViewModule(item.moduleId);
+  };
+
+  // Filter nav items based on permissions
+  const filteredNavGroups = navGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(canAccessMenu),
+    }))
+    .filter((group) => group.items.length > 0);
+
+  // Get staff display info
+  const staffName = staff?.name || "Admin";
+  const staffEmail = staff?.email || "admin@goodfood.menu";
+  const staffInitial = staffName.charAt(0).toUpperCase();
+
   return (
     <aside
       className={cn(
@@ -144,7 +259,7 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-2">
-        {navGroups.map((group, groupIndex) => (
+        {filteredNavGroups.map((group, groupIndex) => (
           <div key={group.title} className={cn(groupIndex > 0 && "mt-6")}>
             {!collapsed && (
               <p className="px-3 mb-2 text-xs font-medium text-gray-400 uppercase">
@@ -153,7 +268,8 @@ export function Sidebar() {
             )}
             <div className="space-y-1">
               {group.items.map((item) => {
-                const isActive = pathname === item.href;
+                const isActive = pathname === item.href || 
+                  (item.href !== "/backoffice" && pathname.startsWith(item.href));
                 const badgeCount = item.badgeKey ? badges[item.badgeKey] : 0;
                 return (
                   <Link
@@ -196,17 +312,23 @@ export function Sidebar() {
       <div className="p-3 border-t border-gray-100">
         <div className={cn("flex items-center gap-2 p-2 rounded-lg bg-gray-50", collapsed && "justify-center")}>
           <div className="w-8 h-8 rounded-full bg-[#4CAF50] flex items-center justify-center text-white text-sm font-medium">
-            A
+            {staffInitial}
           </div>
           {!collapsed && (
             <>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">Admin</p>
-                <p className="text-xs text-gray-500 truncate">admin@goodfood.menu</p>
+                <p className="text-sm font-medium text-gray-900 truncate">{staffName}</p>
+                <p className="text-xs text-gray-500 truncate">{staffEmail}</p>
               </div>
-              <button className="p-1 rounded hover:bg-gray-200">
-                <LogOut className="w-4 h-4 text-gray-400" />
-              </button>
+              {staff && (
+                <button 
+                  onClick={logout}
+                  className="p-1 rounded hover:bg-gray-200"
+                  title="ออกจากระบบ"
+                >
+                  <LogOut className="w-4 h-4 text-gray-400" />
+                </button>
+              )}
             </>
           )}
         </div>
