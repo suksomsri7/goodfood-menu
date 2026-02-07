@@ -577,11 +577,10 @@ export default function CaloriePage() {
         </div>
       </div>
 
-      {/* Fitness Rings - Calories, Water, Protein */}
+      {/* Fitness Rings - Calories, Water */}
       <FitnessRings
         calories={{ current: dailyData.consumed, target: goals.targetCalories }}
         water={{ current: waterIntake, target: goals.targetWater }}
-        protein={{ current: dailyData.protein, target: goals.targetProtein }}
         onAddWater={handleAddWater}
       />
 

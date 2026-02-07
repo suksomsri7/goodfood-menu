@@ -16,7 +16,6 @@ interface RingData {
 interface FitnessRingsProps {
   calories: { current: number; target: number };
   water: { current: number; target: number };
-  protein: { current: number; target: number };
   onAddWater: (amount: number) => Promise<void>;
 }
 
@@ -25,7 +24,6 @@ const WATER_OPTIONS = [100, 200, 250, 500];
 export function FitnessRings({
   calories,
   water,
-  protein,
   onAddWater,
 }: FitnessRingsProps) {
   const [isWaterModalOpen, setIsWaterModalOpen] = useState(false);
@@ -39,29 +37,21 @@ export function FitnessRings({
       target: calories.target,
       unit: "kcal",
       color: "#FF2D55",
-      bgColor: "rgba(255, 45, 85, 0.15)",
+      bgColor: "rgba(255, 45, 85, 0.12)",
     },
     {
       label: "Water",
       current: water.current,
       target: water.target,
       unit: "ml",
-      color: "#30D158",
-      bgColor: "rgba(48, 209, 88, 0.15)",
-    },
-    {
-      label: "Protein",
-      current: protein.current,
-      target: protein.target,
-      unit: "g",
-      color: "#0AF",
-      bgColor: "rgba(0, 170, 255, 0.15)",
+      color: "#00AAFF",
+      bgColor: "rgba(0, 170, 255, 0.12)",
     },
   ];
 
-  const radii = [85, 68, 51];
-  const strokeWidth = 13;
-  const size = 200;
+  const radii = [78, 60];
+  const strokeWidth = 14;
+  const size = 190;
   const center = size / 2;
 
   const handleAddWater = async (amount: number) => {
@@ -79,7 +69,7 @@ export function FitnessRings({
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5 }}
-        className="bg-gray-950 rounded-2xl p-5 mx-6 mb-6"
+        className="bg-white rounded-2xl p-5 mx-6 mb-6 border border-gray-100 shadow-sm"
       >
         <div className="flex items-center gap-5">
           {/* Rings SVG */}
@@ -91,7 +81,6 @@ export function FitnessRings({
               width={size}
               height={size}
               viewBox={`0 0 ${size} ${size}`}
-              className="drop-shadow-lg"
             >
               {/* Background rings */}
               {rings.map((ring, i) => (
@@ -134,7 +123,7 @@ export function FitnessRings({
                     style={{
                       transformOrigin: "center",
                       transform: "rotate(-90deg)",
-                      filter: `drop-shadow(0 0 6px ${ring.color}50)`,
+                      filter: `drop-shadow(0 0 4px ${ring.color}40)`,
                     }}
                   />
                 );
@@ -162,7 +151,7 @@ export function FitnessRings({
                     strokeWidth={strokeWidth}
                     strokeLinecap="round"
                     strokeDasharray={circumference}
-                    opacity={0.4}
+                    opacity={0.35}
                     initial={{ strokeDashoffset: circumference }}
                     animate={{ strokeDashoffset: offset }}
                     transition={{
@@ -182,14 +171,14 @@ export function FitnessRings({
             {/* Center tap hint */}
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="flex flex-col items-center">
-                <Droplets className="w-5 h-5 text-emerald-400 mb-0.5" />
+                <Droplets className="w-5 h-5 text-blue-400 mb-0.5" />
                 <span className="text-[10px] text-gray-400">+ น้ำ</span>
               </div>
             </div>
           </button>
 
           {/* Legend */}
-          <div className="flex-1 space-y-3">
+          <div className="flex-1 space-y-4">
             {rings.map((ring, i) => {
               const pct = Math.round(
                 (ring.current / ring.target) * 100
@@ -197,10 +186,10 @@ export function FitnessRings({
               return (
                 <div key={i} className="flex items-center gap-3">
                   <div
-                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                    className="w-3 h-3 rounded-full flex-shrink-0"
                     style={{
                       backgroundColor: ring.color,
-                      boxShadow: `0 0 8px ${ring.color}60`,
+                      boxShadow: `0 0 6px ${ring.color}50`,
                     }}
                   />
                   <div className="flex-1 min-w-0">
@@ -208,13 +197,13 @@ export function FitnessRings({
                       <span className="text-xs text-gray-400">
                         {ring.label}
                       </span>
-                      <span className="text-xs font-medium text-white tabular-nums">
+                      <span className="text-xs font-medium text-gray-600 tabular-nums">
                         {pct}%
                       </span>
                     </div>
-                    <p className="text-sm font-semibold text-white tabular-nums">
+                    <p className="text-sm font-semibold text-gray-900 tabular-nums">
                       {ring.current.toLocaleString()}
-                      <span className="text-gray-500 font-normal">
+                      <span className="text-gray-400 font-normal">
                         {" "}/ {ring.target.toLocaleString()} {ring.unit}
                       </span>
                     </p>
@@ -251,8 +240,8 @@ export function FitnessRings({
 
               {/* Header */}
               <div className="text-center mb-6">
-                <div className="w-16 h-16 mx-auto mb-3 bg-emerald-100 rounded-full flex items-center justify-center">
-                  <Droplets className="w-8 h-8 text-emerald-500" />
+                <div className="w-16 h-16 mx-auto mb-3 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Droplets className="w-8 h-8 text-blue-500" />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900">
                   บันทึกการดื่มน้ำ
@@ -266,7 +255,7 @@ export function FitnessRings({
               <div className="mb-6">
                 <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
                   <motion.div
-                    className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full"
+                    className="h-full bg-gradient-to-r from-blue-400 to-blue-500 rounded-full"
                     initial={{ width: 0 }}
                     animate={{
                       width: `${Math.min((water.current / water.target) * 100, 100)}%`,
@@ -287,7 +276,7 @@ export function FitnessRings({
                     key={amount}
                     onClick={() => handleAddWater(amount)}
                     disabled={isAdding}
-                    className="py-3 bg-emerald-50 hover:bg-emerald-100 rounded-xl text-emerald-700 font-semibold transition-colors disabled:opacity-50"
+                    className="py-3 bg-blue-50 hover:bg-blue-100 rounded-xl text-blue-700 font-semibold transition-colors disabled:opacity-50"
                   >
                     +{amount}
                   </button>
@@ -330,7 +319,7 @@ export function FitnessRings({
                   setIsWaterModalOpen(false);
                 }}
                 disabled={isAdding}
-                className="w-full py-4 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 transition-colors disabled:opacity-50"
+                className="w-full py-4 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50"
               >
                 {isAdding
                   ? "กำลังบันทึก..."
