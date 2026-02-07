@@ -480,21 +480,21 @@ export function OnboardingModal({
                     <div className="grid grid-cols-3 gap-3">
                       <MacroBox
                         emoji="🍞"
-                        label="Carbs"
+                        label="คาร์โบไฮเดรต"
                         value={healthProfile.macros.carbs}
                         unit="g"
                         color="green"
                       />
                       <MacroBox
                         emoji="🥩"
-                        label="Protein"
+                        label="โปรตีน"
                         value={healthProfile.macros.protein}
                         unit="g"
                         color="blue"
                       />
                       <MacroBox
                         emoji="🧀"
-                        label="Fat"
+                        label="ไขมัน"
                         value={healthProfile.macros.fat}
                         unit="g"
                         color="yellow"
