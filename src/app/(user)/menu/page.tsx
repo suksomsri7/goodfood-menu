@@ -1211,7 +1211,7 @@ export default function MenuPage() {
 
       {/* Cart Modal */}
       {showCart && (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-[60]">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowCart(false)} />
           
           <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[85vh] flex flex-col animate-slide-up">
@@ -1399,7 +1399,7 @@ export default function MenuPage() {
 
       {/* Food Detail Modal */}
       {selectedFood && (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-[60]">
           <div className="absolute inset-0 bg-black/50" onClick={closeModal} />
           
           <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[90vh] overflow-y-auto animate-slide-up">
@@ -1581,7 +1581,7 @@ export default function MenuPage() {
 
       {/* Address Selection Modal */}
       {showAddressModal && (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-[60]">
           <div className="absolute inset-0 bg-black/50" onClick={() => !showAddressForm && setShowAddressModal(false)} />
           
           <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[90vh] flex flex-col animate-slide-up">
@@ -1949,7 +1949,7 @@ export default function MenuPage() {
 
       {/* Package Detail Modal */}
       {selectedPackage && (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-[60]">
           <div className="absolute inset-0 bg-black/50" onClick={closePackageModal} />
           
           <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[90vh] overflow-y-auto animate-slide-up">
