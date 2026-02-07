@@ -8,6 +8,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const active = searchParams.get("active");
 
+    // #region agent log
+    console.log(`[DEBUG-H2H3] restaurants API called, active=${active}, time=${new Date().toISOString()}`);
+    // #endregion
+
     const restaurants = await prisma.restaurant.findMany({
       where: active === "true" ? { isActive: true } : undefined,
       orderBy: { order: "asc" },
@@ -22,8 +26,15 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // #region agent log
+    console.log(`[DEBUG-H2H3] restaurants found: count=${restaurants.length}, names=${restaurants.map(r => r.name).join(',')}`);
+    // #endregion
+
     return NextResponse.json(restaurants);
   } catch (error) {
+    // #region agent log
+    console.error(`[DEBUG-H2H3] restaurants API ERROR:`, error);
+    // #endregion
     console.error("Error fetching restaurants:", error);
     return NextResponse.json(
       { error: "Failed to fetch restaurants" },

@@ -205,14 +205,29 @@ export default function MenuPage() {
 
   // Fetch restaurants list
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'menu/page.tsx:useEffect',message:'fetchRestaurants START',data:{isLoading,restaurantsLoaded,restaurantsLen:restaurants.length},timestamp:Date.now(),hypothesisId:'H1-H4'})}).catch(()=>{});
+    // #endregion
     const fetchRestaurants = async () => {
       try {
         const res = await fetch("/api/restaurants?active=true");
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'menu/page.tsx:fetchRestaurants',message:'API response received',data:{status:res.status,ok:res.ok},timestamp:Date.now(),hypothesisId:'H2-H3'})}).catch(()=>{});
+        // #endregion
         const data = await res.json();
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'menu/page.tsx:fetchRestaurants',message:'API data parsed',data:{isArray:Array.isArray(data),dataLength:Array.isArray(data)?data.length:'N/A',dataKeys:typeof data==='object'&&data?Object.keys(data):null,firstItem:Array.isArray(data)&&data[0]?{id:data[0].id,name:data[0].name}:null},timestamp:Date.now(),hypothesisId:'H2-H3'})}).catch(()=>{});
+        // #endregion
         setRestaurants(Array.isArray(data) ? data : []);
       } catch (error) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'menu/page.tsx:fetchRestaurants',message:'CATCH error',data:{error:String(error)},timestamp:Date.now(),hypothesisId:'H2-H3'})}).catch(()=>{});
+        // #endregion
         console.error("Error:", error);
       } finally {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'menu/page.tsx:fetchRestaurants',message:'FINALLY - setting restaurantsLoaded=true',data:{},timestamp:Date.now(),hypothesisId:'H1-H5'})}).catch(()=>{});
+        // #endregion
         setIsLoading(false);
         setRestaurantsLoaded(true);
       }
@@ -801,6 +816,11 @@ export default function MenuPage() {
   if (!selectedRestaurant) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
+        {/* #region agent log */}
+        <div className="bg-yellow-100 p-2 text-xs font-mono border-b border-yellow-300">
+          DEBUG: loaded={String(restaurantsLoaded)} | count={restaurants.length} | isLoading={String(isLoading)}
+        </div>
+        {/* #endregion */}
         {/* Restaurant List */}
         <div className="p-4 pt-6">
           {!restaurantsLoaded ? (
