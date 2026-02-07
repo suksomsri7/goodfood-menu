@@ -48,53 +48,67 @@ export default function GoalPage() {
 
   const lineUserId = profile?.userId;
 
-  // Fetch member data
+  // Fetch member data (with retry for LINE WebView network errors)
   const fetchMember = useCallback(async () => {
     if (!lineUserId) return;
 
-    try {
-      const res = await fetch(`/api/members/me?lineUserId=${lineUserId}`);
-      if (res.ok) {
-        const data = await res.json();
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const res = await fetch(`/api/members/me?lineUserId=${lineUserId}`);
+        if (res.ok) {
+          const data = await res.json();
+          // #region agent log
+          addDebugLog(`API member OK(${attempt}): gw=${data.goalWeight} w=${data.weight} cal=${data.dailyCalories}`);
+          // #endregion
+          setMember(data);
+          if (data.weight) setCurrentWeight(data.weight);
+          return; // Success - exit retry loop
+        } else {
+          // #region agent log
+          addDebugLog(`API member FAIL(${attempt}): status=${res.status}`);
+          // #endregion
+        }
+      } catch (error) {
         // #region agent log
-        addDebugLog(`API member: gw=${data.goalWeight} w=${data.weight} cal=${data.dailyCalories}`);
+        addDebugLog(`API member ERROR(${attempt}): ${error}`);
         // #endregion
-        setMember(data);
-        if (data.weight) setCurrentWeight(data.weight);
-      } else {
-        // #region agent log
-        addDebugLog(`API member FAIL: status=${res.status}`);
-        // #endregion
+        if (attempt < 3) {
+          await new Promise(r => setTimeout(r, 500 * attempt));
+          continue;
+        }
+        console.error("Failed to fetch member after 3 attempts:", error);
       }
-    } catch (error) {
-      console.error("Failed to fetch member:", error);
-      // #region agent log
-      addDebugLog(`API member ERROR: ${error}`);
-      // #endregion
     }
   }, [lineUserId, addDebugLog]);
 
-  // Fetch weight logs
+  // Fetch weight logs (with retry)
   const fetchWeightLogs = useCallback(async () => {
     if (!lineUserId) return;
 
-    try {
-      const res = await fetch(`/api/weight?lineUserId=${lineUserId}&days=14`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.length > 0) {
-          const transformed: WeightData[] = data.map((log: any) => ({
-            date: log.date,
-            weight: log.weight,
-            label: new Date(log.date).getDate().toString(),
-          }));
-          setWeightData(transformed);
-          setStartWeight(transformed[0]?.weight || 0);
-          setCurrentWeight(transformed[transformed.length - 1]?.weight || 0);
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const res = await fetch(`/api/weight?lineUserId=${lineUserId}&days=14`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.length > 0) {
+            const transformed: WeightData[] = data.map((log: any) => ({
+              date: log.date,
+              weight: log.weight,
+              label: new Date(log.date).getDate().toString(),
+            }));
+            setWeightData(transformed);
+            setStartWeight(transformed[0]?.weight || 0);
+            setCurrentWeight(transformed[transformed.length - 1]?.weight || 0);
+          }
+          return; // Success
         }
+      } catch (error) {
+        if (attempt < 3) {
+          await new Promise(r => setTimeout(r, 500 * attempt));
+          continue;
+        }
+        console.error("Failed to fetch weight logs:", error);
       }
-    } catch (error) {
-      console.error("Failed to fetch weight logs:", error);
     }
   }, [lineUserId]);
 
@@ -303,8 +317,8 @@ export default function GoalPage() {
   };
   // #endregion
 
-  // Loading state - show while LIFF initializing, data loading, or waiting for login redirect
-  if (!isReady || isLoading || !lineUserId) {
+  // Loading state - show while LIFF initializing, data loading, waiting for login redirect, or member not loaded
+  if (!isReady || isLoading || !lineUserId || !member) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">

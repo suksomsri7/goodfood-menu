@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 
 // Cache version - change this on each deployment to bust LINE browser cache
 // This forces a redirect to a new URL that has never been cached
-const CACHE_VERSION = "4";
+const CACHE_VERSION = "5";
 
 export function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
