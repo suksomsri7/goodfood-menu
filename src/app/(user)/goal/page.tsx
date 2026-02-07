@@ -147,7 +147,7 @@ export default function GoalPage() {
     document.title = "เป้าหมาย";
   }, []);
 
-  // Initial data fetch
+  // Initial data fetch - only when LIFF ready and user is identified
   useEffect(() => {
     if (isReady && lineUserId) {
       setIsLoading(true);
@@ -159,13 +159,11 @@ export default function GoalPage() {
       ]).finally(() => {
         setIsLoading(false);
       });
-    } else if (isReady && !isLoggedIn) {
-      setIsLoading(false);
     }
+    // Do NOT set isLoading=false when !isLoggedIn - LIFF login redirect is about to happen
   }, [
     isReady,
     lineUserId,
-    isLoggedIn,
     fetchMember,
     fetchWeightLogs,
     fetchTodayData,
@@ -260,8 +258,8 @@ export default function GoalPage() {
     ? currentWeight - weekAgoWeight
     : 0;
 
-  // Loading state
-  if (!isReady || isLoading) {
+  // Loading state - show while LIFF initializing, data loading, or waiting for login redirect
+  if (!isReady || isLoading || !lineUserId) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
