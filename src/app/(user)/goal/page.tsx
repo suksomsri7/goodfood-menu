@@ -262,11 +262,6 @@ export default function GoalPage() {
   if (!isReady || isLoading || !lineUserId) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        {/* #region agent log */}
-        <div className="fixed top-0 left-0 right-0 bg-yellow-100 p-2 text-xs font-mono border-b border-yellow-300 z-50">
-          goal-v2 | ready={String(isReady)} | loading={String(isLoading)} | uid={lineUserId ? 'yes' : 'no'} | loggedIn={String(isLoggedIn)}
-        </div>
-        {/* #endregion */}
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-gray-500">กำลังโหลด...</p>
