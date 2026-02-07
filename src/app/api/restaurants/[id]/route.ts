@@ -44,6 +44,10 @@ export async function GET(
       );
     }
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'restaurants/[id]/route.ts:GET',message:'Restaurant data returned',data:{restaurantId:id,categoriesCount:restaurant.categories?.length||0,categoryNames:restaurant.categories?.map((c:any)=>c.name),totalFoodsInCategories:restaurant.categories?.reduce((sum:number,c:any)=>sum+(c.foods?.length||0),0)||0,packagesCount:restaurant.packages?.length||0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
+
     return NextResponse.json(restaurant);
   } catch (error) {
     console.error("Error fetching restaurant:", error);
