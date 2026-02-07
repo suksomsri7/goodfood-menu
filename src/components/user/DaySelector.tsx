@@ -24,7 +24,7 @@ export function DaySelector({ selectedDate, onDateChange, showGoalIcon = false }
 
   const getDateLabel = () => {
     if (isToday(selectedDate)) {
-      return "Today";
+      return "วันนี้";
     }
     return format(selectedDate, "d MMM", { locale: th });
   };

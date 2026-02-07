@@ -32,7 +32,7 @@ export function FitnessRings({
 
   const rings: RingData[] = [
     {
-      label: "Calories",
+      label: "แคลอรี่",
       current: calories.current,
       target: calories.target,
       unit: "kcal",
@@ -40,7 +40,7 @@ export function FitnessRings({
       bgColor: "rgba(255, 45, 85, 0.12)",
     },
     {
-      label: "Water",
+      label: "น้ำ",
       current: water.current,
       target: water.target,
       unit: "ml",

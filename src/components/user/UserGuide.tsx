@@ -86,8 +86,8 @@ const STEPS: TooltipStep[] = [
       <div className="flex flex-wrap gap-1.5 mt-2">
         {[
           { icon: Camera, label: "ถ่ายรูป", bg: "bg-blue-100", fg: "text-blue-600" },
-          { icon: Barcode, label: "Barcode", bg: "bg-purple-100", fg: "text-purple-600" },
-          { icon: Package, label: "Stock", bg: "bg-green-100", fg: "text-green-600" },
+          { icon: Barcode, label: "สแกนบาร์โค้ด", bg: "bg-purple-100", fg: "text-purple-600" },
+          { icon: Package, label: "คลังอาหาร", bg: "bg-green-100", fg: "text-green-600" },
           { icon: PenLine, label: "กรอกเอง", bg: "bg-orange-100", fg: "text-orange-600" },
           { icon: Dumbbell, label: "ออกกำลังกาย", bg: "bg-red-100", fg: "text-red-600" },
         ].map((item) => (

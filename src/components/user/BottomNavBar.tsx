@@ -106,10 +106,10 @@ export function BottomNavBar() {
 
   const options = [
     { icon: Dumbbell, label: "ออกกำลังกาย", action: () => setShowExercise(true), color: "text-orange-500" },
-    { icon: Package, label: "Stock", action: () => setShowStock(true) },
-    { icon: Barcode, label: "Scan barcode", action: () => setShowBarcode(true) },
-    { icon: Camera, label: "Take photo", action: () => setShowCamera(true) },
-    { icon: PenLine, label: "Manual entry", action: () => setShowManualEntry(true) },
+    { icon: Package, label: "คลังอาหาร", action: () => setShowStock(true) },
+    { icon: Barcode, label: "สแกนบาร์โค้ด", action: () => setShowBarcode(true) },
+    { icon: Camera, label: "ถ่ายรูปอาหาร", action: () => setShowCamera(true) },
+    { icon: PenLine, label: "กรอกเอง", action: () => setShowManualEntry(true) },
   ];
 
   const handleSaveMeal = async (meal: {

@@ -538,21 +538,21 @@ export default function CaloriePage() {
           {/* Row 1 - Carbs, Protein, Fat */}
           <div className="flex gap-4 px-2 mb-3">
             <MacroProgressBar
-              label="Carbohydrates"
+              label="คาร์โบไฮเดรต"
               current={dailyData.carbs}
               target={goals.targetCarbs}
               color="#fbbf24"
               delay={0.1}
             />
             <MacroProgressBar
-              label="Protein"
+              label="โปรตีน"
               current={dailyData.protein}
               target={goals.targetProtein}
               color="#f87171"
               delay={0.2}
             />
             <MacroProgressBar
-              label="Fat"
+              label="ไขมัน"
               current={dailyData.fat}
               target={goals.targetFat}
               color="#60a5fa"
@@ -563,7 +563,7 @@ export default function CaloriePage() {
           {/* Row 2 - Sodium, Sugar, Burned */}
           <div className="flex gap-4 px-2">
           <MacroProgressBar
-            label="Sodium"
+            label="โซเดียม"
             current={dailyData.sodium}
             target={goals.targetSodium}
             color="#a78bfa"
@@ -571,14 +571,14 @@ export default function CaloriePage() {
             delay={0.4}
           />
           <MacroProgressBar
-            label="Sugar"
+            label="น้ำตาล"
             current={dailyData.sugar}
             target={goals.targetSugar}
             color="#f472b6"
             delay={0.5}
           />
           <MacroProgressBar
-            label="Burned"
+            label="เผาผลาญ"
             current={exerciseBurned}
             target={goals.targetCalories}
             color="#34d399"
