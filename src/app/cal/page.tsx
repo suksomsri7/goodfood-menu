@@ -533,33 +533,35 @@ export default function CaloriePage() {
           </button>
         </div>
 
-        {/* Macros Row 1 - Carbs, Protein, Fat */}
-        <div className="flex gap-4 px-2 mb-3" data-guide="macros">
-          <MacroProgressBar
-            label="Carbohydrates"
-            current={dailyData.carbs}
-            target={goals.targetCarbs}
-            color="#fbbf24"
-            delay={0.1}
-          />
-          <MacroProgressBar
-            label="Protein"
-            current={dailyData.protein}
-            target={goals.targetProtein}
-            color="#f87171"
-            delay={0.2}
-          />
-          <MacroProgressBar
-            label="Fat"
-            current={dailyData.fat}
-            target={goals.targetFat}
-            color="#60a5fa"
-            delay={0.3}
-          />
-        </div>
+        {/* Macros - both rows */}
+        <div data-guide="macros">
+          {/* Row 1 - Carbs, Protein, Fat */}
+          <div className="flex gap-4 px-2 mb-3">
+            <MacroProgressBar
+              label="Carbohydrates"
+              current={dailyData.carbs}
+              target={goals.targetCarbs}
+              color="#fbbf24"
+              delay={0.1}
+            />
+            <MacroProgressBar
+              label="Protein"
+              current={dailyData.protein}
+              target={goals.targetProtein}
+              color="#f87171"
+              delay={0.2}
+            />
+            <MacroProgressBar
+              label="Fat"
+              current={dailyData.fat}
+              target={goals.targetFat}
+              color="#60a5fa"
+              delay={0.3}
+            />
+          </div>
 
-        {/* Macros Row 2 - Sodium, Sugar, Burned */}
-        <div className="flex gap-4 px-2">
+          {/* Row 2 - Sodium, Sugar, Burned */}
+          <div className="flex gap-4 px-2">
           <MacroProgressBar
             label="Sodium"
             current={dailyData.sodium}
@@ -584,6 +586,7 @@ export default function CaloriePage() {
             delay={0.6}
             hideTarget
           />
+          </div>
         </div>
       </div>
 
