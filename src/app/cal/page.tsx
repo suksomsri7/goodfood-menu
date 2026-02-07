@@ -493,6 +493,13 @@ export default function CaloriePage() {
       {/* Header - Sticky */}
       <DaySelector selectedDate={selectedDate} onDateChange={setSelectedDate} showGoalIcon />
 
+      {/* Fitness Rings - Calories, Water */}
+      <FitnessRings
+        calories={{ current: dailyData.consumed, target: goals.targetCalories }}
+        water={{ current: waterIntake, target: goals.targetWater }}
+        onAddWater={handleAddWater}
+      />
+
       {/* Calories Card */}
       <div className="mx-6 mb-12">
         <CalorieRing
@@ -557,7 +564,7 @@ export default function CaloriePage() {
           />
         </div>
 
-        {/* Macros Row 2 - Sodium, Sugar */}
+        {/* Macros Row 2 - Sodium, Sugar, Burned */}
         <div className="flex gap-4 px-2">
           <MacroProgressBar
             label="Sodium"
@@ -574,15 +581,16 @@ export default function CaloriePage() {
             color="#f472b6"
             delay={0.5}
           />
+          <MacroProgressBar
+            label="Burned"
+            current={exerciseBurned}
+            target={goals.targetCalories}
+            color="#34d399"
+            unit="kcal"
+            delay={0.6}
+          />
         </div>
       </div>
-
-      {/* Fitness Rings - Calories, Water */}
-      <FitnessRings
-        calories={{ current: dailyData.consumed, target: goals.targetCalories }}
-        water={{ current: waterIntake, target: goals.targetWater }}
-        onAddWater={handleAddWater}
-      />
 
       {/* AI Recommendation - Disabled temporarily */}
       {/* <div className="px-6 mb-6">
