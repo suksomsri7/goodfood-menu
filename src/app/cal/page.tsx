@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { DaySelector } from "@/components/user/DaySelector";
-import { CalorieRing } from "@/components/user/CalorieRing";
 import { MacroProgressBar } from "@/components/user/MacroProgressBar";
 import { MealList } from "@/components/user/MealList";
 import { ExerciseList } from "@/components/user/ExerciseList";
@@ -500,15 +499,8 @@ export default function CaloriePage() {
         onAddWater={handleAddWater}
       />
 
-      {/* Calories Card */}
+      {/* Macros & Details */}
       <div className="mx-6 mb-12">
-        <CalorieRing
-          remaining={remaining + exerciseBurned}
-          consumed={dailyData.consumed}
-          burnt={exerciseBurned}
-          target={goals.targetCalories}
-        />
-
         {/* BMR/TDEE Info */}
         {(member?.bmr || member?.tdee) && (
           <div className="flex justify-center gap-6 mb-4 text-xs text-gray-400">

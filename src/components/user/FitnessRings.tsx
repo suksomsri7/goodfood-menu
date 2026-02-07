@@ -69,7 +69,7 @@ export function FitnessRings({
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5 }}
-        className="bg-white rounded-2xl p-5 mx-6 mb-6 border border-gray-100 shadow-sm"
+        className="bg-white rounded-2xl p-5 mx-6 mb-6"
       >
         <div className="flex items-center gap-5">
           {/* Rings SVG */}
