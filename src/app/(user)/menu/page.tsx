@@ -108,6 +108,7 @@ export default function MenuPage() {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [restaurantsLoaded, setRestaurantsLoaded] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<string>("");
@@ -213,6 +214,7 @@ export default function MenuPage() {
         console.error("Error:", error);
       } finally {
         setIsLoading(false);
+        setRestaurantsLoaded(true);
       }
     };
     fetchRestaurants();
@@ -801,7 +803,7 @@ export default function MenuPage() {
       <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
         {/* Restaurant List */}
         <div className="p-4 pt-6">
-          {isLoading ? (
+          {!restaurantsLoaded ? (
             <div className="grid grid-cols-2 gap-3">
               {[...Array(4)].map((_, i) => (
                 <div key={i} className="bg-white rounded-2xl overflow-hidden animate-pulse">
