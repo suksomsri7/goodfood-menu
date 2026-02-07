@@ -210,16 +210,9 @@ export default function MenuPage() {
       const data = await res.json();
       const list = Array.isArray(data) ? data : [];
       setRestaurants(list);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'menu/page.tsx:fetchRestaurants',message:'SUCCESS',data:{count:list.length},timestamp:Date.now(),hypothesisId:'H2-fix'})}).catch(()=>{});
-      // #endregion
-      setRestaurantsLoaded(true); // Only mark loaded on SUCCESS
+      setRestaurantsLoaded(true);
     } catch (error) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'menu/page.tsx:fetchRestaurants',message:'CATCH - NOT marking loaded',data:{error:String(error)},timestamp:Date.now(),hypothesisId:'H3-fix'})}).catch(()=>{});
-      // #endregion
       console.error("Error fetching restaurants:", error);
-      // Do NOT set restaurantsLoaded on error - keep showing skeleton
     } finally {
       setIsLoading(false);
     }
@@ -233,9 +226,6 @@ export default function MenuPage() {
   // Retry fetch when LIFF becomes ready (in case first fetch was aborted by login redirect)
   useEffect(() => {
     if (isReady && !restaurantsLoaded) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'menu/page.tsx:retryFetch',message:'LIFF ready, retrying fetch',data:{isReady,restaurantsLoaded,count:restaurants.length},timestamp:Date.now(),hypothesisId:'H3-retry'})}).catch(()=>{});
-      // #endregion
       fetchRestaurantsData();
     }
   }, [isReady, restaurantsLoaded, fetchRestaurantsData]);
@@ -821,11 +811,6 @@ export default function MenuPage() {
   if (!selectedRestaurant) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
-        {/* #region agent log */}
-        <div className="bg-yellow-100 p-2 text-xs font-mono border-b border-yellow-300">
-          v4 | loaded={String(restaurantsLoaded)} | count={restaurants.length} | ready={String(isReady)}
-        </div>
-        {/* #endregion */}
         {/* Restaurant List */}
         <div className="p-4 pt-6">
           {!restaurantsLoaded ? (
