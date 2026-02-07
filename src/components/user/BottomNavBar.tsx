@@ -128,9 +128,6 @@ export function BottomNavBar() {
     if (!lineUserId) return;
 
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'BottomNavBar.tsx:handleSaveMeal',message:'Creating meal inside BottomNavBar.handleSaveMeal',data:{mealName:meal.name,calories:meal.calories},timestamp:Date.now(),hypothesisId:'H-A'})}).catch(()=>{});
-      // #endregion
       await fetch("/api/meals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -301,18 +298,16 @@ export function BottomNavBar() {
         onClose={() => setShowStock(false)}
         lineUserId={lineUserId || ""}
         dailyNutrition={dailyNutrition || undefined}
-        onSelectItem={async (item) => {
-          await handleSaveMeal({
-            name: item.name,
-            calories: item.calories,
-            protein: item.protein,
-            carbs: item.carbs,
-            fat: item.fat,
-            sodium: 0,
-            sugar: 0,
-            multiplier: item.multiplier,
-          });
+        onSelectItem={() => {
+          // StockModal already creates the meal via POST /api/meals
+          // So we only need to close and refresh here
           setShowStock(false);
+          // Redirect to /cal to see the added meal
+          if (pathname !== "/cal") {
+            router.push("/cal");
+          } else {
+            window.location.reload();
+          }
         }}
       />
 

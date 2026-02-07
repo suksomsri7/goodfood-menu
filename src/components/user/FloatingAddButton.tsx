@@ -165,17 +165,10 @@ export function FloatingAddButton({ lineUserId, dailyNutrition, onAddMeal, onAdd
         onClose={() => setShowStock(false)}
         lineUserId={lineUserId}
         dailyNutrition={dailyNutrition}
-        onSelectItem={(item) => {
-          onAddMeal?.({
-            name: item.name,
-            calories: item.calories,
-            protein: item.protein,
-            carbs: item.carbs,
-            fat: item.fat,
-            sodium: 0,
-            sugar: 0,
-            multiplier: item.multiplier,
-          });
+        onSelectItem={() => {
+          // StockModal already creates the meal via POST /api/meals
+          // Just close the stock modal; no need to call onAddMeal again
+          setShowStock(false);
         }}
       />
 
