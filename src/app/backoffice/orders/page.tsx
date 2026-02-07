@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Header } from "@/components/backoffice/Header";
-import { User, Phone, Mail, MessageCircle, Package, Truck, Trash2 } from "lucide-react";
+import { User, Phone, Mail, MessageCircle, Package, Truck, Trash2, Store, MapPin, Calendar, Clock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Member {
@@ -24,14 +24,23 @@ interface OrderItem {
   price: number;
 }
 
+interface Restaurant {
+  id: string;
+  name: string;
+  logoUrl: string | null;
+}
+
 interface Order {
   id: string;
   orderNumber: string;
   memberId: string | null;
   member: Member | null;
+  restaurantId: string | null;
+  restaurant: Restaurant | null;
   coursePlan: string;
   totalDays: number;
   totalPrice: number;
+  deliveryFee: number;
   discount: number;
   discountType: string | null;
   discountValue: number | null;
@@ -41,6 +50,9 @@ interface Order {
   note: string | null;
   trackingNumber: string | null;
   carrier: string | null;
+  deliveryName: string | null;
+  deliveryPhone: string | null;
+  deliveryAddress: string | null;
   items: OrderItem[];
   createdAt: string;
   updatedAt: string;
@@ -258,6 +270,7 @@ export default function OrdersPage() {
                   <tr>
                     <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">ลูกค้า</th>
                     <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">เลขออเดอร์</th>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">ร้านค้า</th>
                     <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">แพ็คเกจ</th>
                     <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">จำนวนเมนู</th>
                     <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">ราคารวม</th>
@@ -294,6 +307,13 @@ export default function OrdersPage() {
                       </td>
                       <td className="px-6 py-4">
                         <span className="font-mono font-semibold text-green-600">{order.orderNumber}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {order.restaurant ? (
+                          <span className="text-gray-800">{order.restaurant.name}</span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <span className="text-gray-800">{planLabels[order.coursePlan] || order.coursePlan}</span>
@@ -382,6 +402,58 @@ export default function OrdersPage() {
 
               {/* Modal Body */}
               <div className="p-6 overflow-y-auto max-h-[60vh]">
+                {/* Order Info: Date & Restaurant */}
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  {/* Date/Time */}
+                  <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+                    <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-blue-600" />
+                      วันที่สั่งซื้อ
+                    </h3>
+                    <p className="text-lg font-semibold text-gray-800">
+                      {new Date(selectedOrder.createdAt).toLocaleDateString("th-TH", {
+                        weekday: "long",
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </p>
+                    <p className="text-sm text-gray-600 flex items-center gap-2 mt-1">
+                      <Clock className="w-4 h-4" />
+                      {new Date(selectedOrder.createdAt).toLocaleTimeString("th-TH", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })} น.
+                    </p>
+                  </div>
+
+                  {/* Restaurant */}
+                  <div className="p-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border border-orange-100">
+                    <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                      <Store className="w-4 h-4 text-orange-600" />
+                      ร้านค้า
+                    </h3>
+                    {selectedOrder.restaurant ? (
+                      <div className="flex items-center gap-3">
+                        {selectedOrder.restaurant.logoUrl ? (
+                          <img
+                            src={selectedOrder.restaurant.logoUrl}
+                            alt={selectedOrder.restaurant.name}
+                            className="w-12 h-12 rounded-lg object-cover border border-orange-200"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-lg bg-orange-100 flex items-center justify-center">
+                            <Store className="w-6 h-6 text-orange-400" />
+                          </div>
+                        )}
+                        <p className="font-semibold text-gray-800">{selectedOrder.restaurant.name}</p>
+                      </div>
+                    ) : (
+                      <p className="text-gray-500">ไม่ระบุร้านค้า</p>
+                    )}
+                  </div>
+                </div>
+
                 {/* Customer Info */}
                 <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-100">
                   <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
@@ -425,6 +497,30 @@ export default function OrdersPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Delivery Address */}
+                {(selectedOrder.deliveryName || selectedOrder.deliveryAddress) && (
+                  <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-100">
+                    <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-purple-600" />
+                      ที่อยู่จัดส่ง
+                    </h3>
+                    <div className="space-y-2">
+                      {selectedOrder.deliveryName && (
+                        <p className="font-semibold text-gray-800">{selectedOrder.deliveryName}</p>
+                      )}
+                      {selectedOrder.deliveryPhone && (
+                        <p className="text-sm text-gray-600 flex items-center gap-2">
+                          <Phone className="w-4 h-4" />
+                          {selectedOrder.deliveryPhone}
+                        </p>
+                      )}
+                      {selectedOrder.deliveryAddress && (
+                        <p className="text-sm text-gray-600">{selectedOrder.deliveryAddress}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Tracking Info (if shipping or completed) */}
                 {(selectedOrder.status === "shipping" || selectedOrder.status === "completed") && (selectedOrder.trackingNumber || selectedOrder.carrier) && (
@@ -500,9 +596,17 @@ export default function OrdersPage() {
                   <div className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-100 mt-4">
                     {/* ยอดรวมก่อนส่วนลด */}
                     <div className="flex items-center justify-between py-2">
-                      <span className="text-gray-600">ยอดรวมก่อนส่วนลด</span>
+                      <span className="text-gray-600">ยอดรวมอาหาร</span>
                       <span className="font-semibold text-gray-800">฿{selectedOrder.totalPrice.toLocaleString()}</span>
                     </div>
+
+                    {/* ค่าจัดส่ง */}
+                    {selectedOrder.deliveryFee > 0 && (
+                      <div className="flex items-center justify-between py-2 border-t border-green-200">
+                        <span className="text-gray-600">ค่าจัดส่ง</span>
+                        <span className="font-semibold text-gray-800">฿{selectedOrder.deliveryFee.toLocaleString()}</span>
+                      </div>
+                    )}
 
                     {/* ส่วนลด */}
                     {selectedOrder.discount > 0 && (
