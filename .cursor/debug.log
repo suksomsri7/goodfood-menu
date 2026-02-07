@@ -1,0 +1,15 @@
+{"location":"AuthGuard:useEffect","message":"Auth check","data":{"pathname":"/backoffice/login","isLoading":true,"checkingStaff":true,"hasAnyStaff":null,"hasStaff":false},"timestamp":1770461565128,"hypothesisId":"C"}
+{"location":"StaffContext:load","message":"Loading localStorage","data":{"hasData":true},"timestamp":1770461565131,"hypothesisId":"D"}
+{"location":"StaffContext:parsed","message":"Staff parsed","data":{"id":"cmlc5cx740004rznsssuydsjo","hasRole":true},"timestamp":1770461565132,"hypothesisId":"D"}
+{"location":"AuthGuard:useEffect","message":"Auth check","data":{"pathname":"/backoffice/login","isLoading":false,"checkingStaff":true,"hasAnyStaff":null,"hasStaff":true,"staffId":"cmlc5cx740004rznsssuydsjo"},"timestamp":1770461565140,"hypothesisId":"C"}
+{"location":"AuthGuard:useEffect","message":"Auth check","data":{"pathname":"/backoffice/login","isLoading":false,"checkingStaff":false,"hasAnyStaff":true,"hasStaff":true,"staffId":"cmlc5cx740004rznsssuydsjo"},"timestamp":1770461566947,"hypothesisId":"C"}
+{"location":"login:response","message":"API response","data":{"ok":true,"success":true,"hasStaff":true},"timestamp":1770461605032,"hypothesisId":"A"}
+{"location":"login:calledLogin","message":"Called login() from StaffContext","data":{"staffId":"cmlc5cx740004rznsssuydsjo"},"timestamp":1770461605033,"hypothesisId":"FIX"}
+{"location":"AuthGuard:useEffect","message":"Auth check","data":{"pathname":"/backoffice/login","isLoading":false,"checkingStaff":false,"hasAnyStaff":true,"hasStaff":true,"staffId":"cmlc5cx740004rznsssuydsjo"},"timestamp":1770461605041,"hypothesisId":"C"}
+{"location":"AuthGuard:useEffect","message":"Auth check","data":{"pathname":"/backoffice","isLoading":false,"checkingStaff":false,"hasAnyStaff":true,"hasStaff":true,"staffId":"cmlc5cx740004rznsssuydsjo"},"timestamp":1770461606568,"hypothesisId":"C"}
+{"location":"AuthGuard:useEffect","message":"Auth check","data":{"pathname":"/backoffice","isLoading":false,"checkingStaff":false,"hasAnyStaff":true,"hasStaff":false},"timestamp":1770461611602,"hypothesisId":"C"}
+{"location":"AuthGuard:redirect","message":"Redirecting to login","data":{"reason":"staff null but hasAnyStaff true"},"timestamp":1770461611603,"hypothesisId":"C"}
+{"location":"AuthGuard:useEffect","message":"Auth check","data":{"pathname":"/backoffice/login","isLoading":false,"checkingStaff":false,"hasAnyStaff":true,"hasStaff":false},"timestamp":1770461611853,"hypothesisId":"C"}
+{"location":"AuthGuard:useEffect","message":"Auth check","data":{"pathname":"/backoffice/login","isLoading":false,"checkingStaff":true,"hasAnyStaff":null,"hasStaff":false},"timestamp":1770461645560,"hypothesisId":"C"}
+{"location":"AuthGuard:useEffect","message":"Auth check","data":{"pathname":"/backoffice/login","isLoading":false,"checkingStaff":true,"hasAnyStaff":null,"hasStaff":false},"timestamp":1770461645561,"hypothesisId":"C"}
+{"location":"AuthGuard:useEffect","message":"Auth check","data":{"pathname":"/backoffice/login","isLoading":false,"checkingStaff":false,"hasAnyStaff":true,"hasStaff":false},"timestamp":1770461645748,"hypothesisId":"C"}

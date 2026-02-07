@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 interface HeaderProps {
   title: string;
   subtitle?: string;
+  actions?: React.ReactNode;
 }
 
 interface Notification {
@@ -17,7 +18,7 @@ interface Notification {
   type: "order" | "chat" | "system";
 }
 
-export function Header({ title, subtitle }: HeaderProps) {
+export function Header({ title, subtitle, actions }: HeaderProps) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [stats, setStats] = useState({ pendingOrders: 0, unreadChats: 0 });
@@ -86,6 +87,9 @@ export function Header({ title, subtitle }: HeaderProps) {
 
       {/* Actions */}
       <div className="flex items-center gap-3">
+        {/* Custom Actions */}
+        {actions}
+
         {/* Search */}
         <div className="hidden md:flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
           <Search className="w-4 h-4 text-gray-400" />

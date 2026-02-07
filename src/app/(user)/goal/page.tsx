@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import { WeightChart } from "@/components/user/WeightChart";
 import { GoalSummary } from "@/components/user/GoalSummary";
@@ -37,6 +37,14 @@ export default function GoalPage() {
   const [weeklyCalories, setWeeklyCalories] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [showResetGoal, setShowResetGoal] = useState(false);
+  // #region agent log
+  const renderCount = useRef(0);
+  renderCount.current++;
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  const addDebugLog = useCallback((msg: string) => {
+    setDebugLogs(prev => [...prev.slice(-10), `${new Date().toISOString().slice(11,19)} ${msg}`]);
+  }, []);
+  // #endregion
 
   const lineUserId = profile?.userId;
 
@@ -48,13 +56,23 @@ export default function GoalPage() {
       const res = await fetch(`/api/members/me?lineUserId=${lineUserId}`);
       if (res.ok) {
         const data = await res.json();
+        // #region agent log
+        addDebugLog(`API member: gw=${data.goalWeight} w=${data.weight} cal=${data.dailyCalories}`);
+        // #endregion
         setMember(data);
         if (data.weight) setCurrentWeight(data.weight);
+      } else {
+        // #region agent log
+        addDebugLog(`API member FAIL: status=${res.status}`);
+        // #endregion
       }
     } catch (error) {
       console.error("Failed to fetch member:", error);
+      // #region agent log
+      addDebugLog(`API member ERROR: ${error}`);
+      // #endregion
     }
-  }, [lineUserId]);
+  }, [lineUserId, addDebugLog]);
 
   // Fetch weight logs
   const fetchWeightLogs = useCallback(async () => {
@@ -149,8 +167,14 @@ export default function GoalPage() {
 
   // Initial data fetch - only when LIFF ready and user is identified
   useEffect(() => {
+    // #region agent log
+    addDebugLog(`useEffect: isReady=${isReady} lineUserId=${lineUserId ? lineUserId.slice(0,6) : 'null'} isLoggedIn=${isLoggedIn}`);
+    // #endregion
     if (isReady && lineUserId) {
       setIsLoading(true);
+      // #region agent log
+      addDebugLog('FETCHING data...');
+      // #endregion
       Promise.all([
         fetchMember(),
         fetchWeightLogs(),
@@ -158,12 +182,17 @@ export default function GoalPage() {
         fetchWeeklyData(),
       ]).finally(() => {
         setIsLoading(false);
+        // #region agent log
+        addDebugLog('FETCH DONE, isLoading=false');
+        // #endregion
       });
     }
     // Do NOT set isLoading=false when !isLoggedIn - LIFF login redirect is about to happen
   }, [
     isReady,
     lineUserId,
+    isLoggedIn,
+    addDebugLog,
     fetchMember,
     fetchWeightLogs,
     fetchTodayData,
@@ -258,6 +287,22 @@ export default function GoalPage() {
     ? currentWeight - weekAgoWeight
     : 0;
 
+  // #region agent log
+  const debugInfo = {
+    render: renderCount.current,
+    isReady,
+    isLoading,
+    isLoggedIn,
+    hasLineUserId: !!lineUserId,
+    memberNull: member === null,
+    goalWeight: member?.goalWeight,
+    memberWeight: member?.weight,
+    currentWeight,
+    targetWeight: member?.goalWeight || 70,
+    url: typeof window !== 'undefined' ? window.location.href : '',
+  };
+  // #endregion
+
   // Loading state - show while LIFF initializing, data loading, or waiting for login redirect
   if (!isReady || isLoading || !lineUserId) {
     return (
@@ -266,12 +311,27 @@ export default function GoalPage() {
           <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-gray-500">กำลังโหลด...</p>
         </div>
+        {/* #region agent log */}
+        <div className="fixed top-0 left-0 right-0 bg-black/80 text-green-400 text-[10px] p-2 z-[9999] font-mono">
+          <div>LOADING | R:{debugInfo.render} ready:{String(debugInfo.isReady)} loading:{String(debugInfo.isLoading)} uid:{String(debugInfo.hasLineUserId)} loggedIn:{String(debugInfo.isLoggedIn)}</div>
+          <div>member:{debugInfo.memberNull?'NULL':'SET'} gw:{String(debugInfo.goalWeight)} w:{String(debugInfo.memberWeight)} cw:{debugInfo.currentWeight}</div>
+          {debugLogs.map((l,i) => <div key={i}>{l}</div>)}
+        </div>
+        {/* #endregion */}
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
+      {/* #region agent log */}
+      <div className="fixed top-0 left-0 right-0 bg-black/80 text-green-400 text-[10px] p-2 z-[9999] font-mono">
+        <div>CONTENT | R:{debugInfo.render} ready:{String(debugInfo.isReady)} loading:{String(debugInfo.isLoading)} uid:{String(debugInfo.hasLineUserId)}</div>
+        <div>member:{debugInfo.memberNull?'NULL':'SET'} gw:{String(debugInfo.goalWeight)} w:{String(debugInfo.memberWeight)} cw:{debugInfo.currentWeight} tw:{debugInfo.targetWeight}</div>
+        <div className="text-yellow-400">url:{debugInfo.url.slice(-40)}</div>
+        {debugLogs.map((l,i) => <div key={i}>{l}</div>)}
+      </div>
+      {/* #endregion */}
       {/* Reset Goal Modal */}
       {showResetGoal && lineUserId && (
         <OnboardingModal
