@@ -248,7 +248,7 @@ export function BottomNavBar() {
               }`}
             >
               <PieChart className="w-6 h-6" strokeWidth={isCalActive ? 2 : 1.5} />
-              <span className="text-xs font-medium">Cal</span>
+              <span className="text-xs font-medium">แคลอรี่</span>
             </button>
 
             {/* Spacer for center button */}
