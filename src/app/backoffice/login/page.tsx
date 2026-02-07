@@ -4,9 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
+import { useStaff } from "@/components/backoffice/StaffContext";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useStaff();
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,8 +31,8 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        // Store staff data in localStorage
-        localStorage.setItem("goodfood_staff", JSON.stringify(data.staff));
+        // Use login function from StaffContext to update state AND localStorage
+        login(data.staff);
         router.push("/backoffice");
       } else {
         setError(data.error || "เข้าสู่ระบบไม่สำเร็จ");
