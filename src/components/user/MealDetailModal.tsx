@@ -36,7 +36,7 @@ export function MealDetailModal({ meal, isOpen, onClose, onDelete }: MealDetailM
         <>
           {/* Backdrop */}
           <motion.div
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -45,7 +45,7 @@ export function MealDetailModal({ meal, isOpen, onClose, onDelete }: MealDetailM
 
           {/* Modal */}
           <motion.div
-            className="fixed inset-x-4 bottom-4 z-50 bg-white rounded-3xl overflow-hidden max-h-[85vh]"
+            className="fixed inset-x-4 bottom-4 z-[60] bg-white rounded-3xl overflow-hidden max-h-[85vh]"
             initial={{ y: "100%", opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: "100%", opacity: 0 }}

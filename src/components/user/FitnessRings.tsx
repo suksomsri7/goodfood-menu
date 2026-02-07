@@ -218,7 +218,7 @@ export function FitnessRings({
       {/* Water Modal */}
       <AnimatePresence>
         {isWaterModalOpen && (
-          <div className="fixed inset-0 z-50">
+          <div className="fixed inset-0 z-[60]">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -231,7 +231,7 @@ export function FitnessRings({
               initial={{ opacity: 0, y: 100 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 100 }}
-              className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl p-6 pb-10"
+              className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl p-6 pb-24"
             >
               {/* Handle */}
               <div className="flex justify-center mb-4">
