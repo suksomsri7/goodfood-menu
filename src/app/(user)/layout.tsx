@@ -1,16 +1,12 @@
-"use client";
+import { UserLayoutClient } from "./layout-client";
 
-import { BottomNavBar } from "@/components/user/BottomNavBar";
+// Force dynamic rendering - prevent Vercel CDN from caching stale HTML
+export const dynamic = "force-dynamic";
 
 export default function UserLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <div className="min-h-screen bg-white pb-20">
-      {children}
-      <BottomNavBar />
-    </div>
-  );
+  return <UserLayoutClient>{children}</UserLayoutClient>;
 }
