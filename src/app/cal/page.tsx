@@ -580,6 +580,7 @@ export default function CaloriePage() {
             color="#34d399"
             unit="kcal"
             delay={0.6}
+            hideTarget
           />
         </div>
       </div>

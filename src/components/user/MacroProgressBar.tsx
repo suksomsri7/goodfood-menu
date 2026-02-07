@@ -9,6 +9,7 @@ interface MacroProgressBarProps {
   color: string;
   unit?: string;
   delay?: number;
+  hideTarget?: boolean;
 }
 
 export function MacroProgressBar({
@@ -18,6 +19,7 @@ export function MacroProgressBar({
   color,
   unit = "g",
   delay = 0,
+  hideTarget = false,
 }: MacroProgressBarProps) {
   const percentage = Math.min((current / target) * 100, 100);
   const isOver = current > target;
@@ -42,7 +44,7 @@ export function MacroProgressBar({
       </div>
       
       <span className={`text-xs mt-2 tabular-nums ${isOver ? 'text-red-400' : 'text-gray-500'}`}>
-        {current} / {target} {unit}
+        {hideTarget ? `${current} ${unit}` : `${current} / ${target} ${unit}`}
       </span>
     </motion.div>
   );
