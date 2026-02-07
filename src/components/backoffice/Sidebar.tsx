@@ -99,12 +99,12 @@ export function Sidebar() {
           setBadges((prev) => ({ ...prev, chat: chatData.unreadCount || 0 }));
         }
 
-        // Fetch pending orders count (if API exists)
-        // const ordersRes = await fetch("/api/orders/pending-count");
-        // if (ordersRes.ok) {
-        //   const ordersData = await ordersRes.json();
-        //   setBadges((prev) => ({ ...prev, orders: ordersData.count || 0 }));
-        // }
+        // Fetch pending orders count
+        const ordersRes = await fetch("/api/orders/pending-count");
+        if (ordersRes.ok) {
+          const ordersData = await ordersRes.json();
+          setBadges((prev) => ({ ...prev, orders: ordersData.count || 0 }));
+        }
       } catch (error) {
         console.error("Error fetching badges:", error);
       }
