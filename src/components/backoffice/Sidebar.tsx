@@ -23,6 +23,7 @@ import {
   CreditCard,
   Crown,
   Store,
+  Users,
 } from "lucide-react";
 import { useSidebar } from "./SidebarContext";
 import { useStaff } from "./StaffContext";
@@ -56,6 +57,12 @@ const navGroups: NavGroup[] = [
   {
     title: "ลูกค้า",
     items: [
+      {
+        href: "/backoffice/members",
+        label: "สมาชิก",
+        icon: <Users className="w-5 h-5" />,
+        moduleId: "members",
+      },
       {
         href: "/backoffice/orders",
         label: "ออเดอร์",

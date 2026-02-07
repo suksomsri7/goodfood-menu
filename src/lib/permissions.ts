@@ -19,6 +19,14 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     permissions: [{ code: "dashboard.view", label: "ดู Dashboard" }],
   },
   {
+    id: "members",
+    label: "สมาชิก",
+    permissions: [
+      { code: "members.view", label: "ดูรายการ" },
+      { code: "members.update", label: "แก้ไข" },
+    ],
+  },
+  {
     id: "orders",
     label: "ออเดอร์",
     permissions: [
@@ -170,6 +178,7 @@ export const PERMISSION_MODULES: PermissionModule[] = [
 // Map menu paths to permission modules
 export const MENU_PERMISSION_MAP: Record<string, string> = {
   "/backoffice": "dashboard",
+  "/backoffice/members": "members",
   "/backoffice/orders": "orders",
   "/backoffice/chat": "chat",
   "/backoffice/restaurants": "restaurants",
