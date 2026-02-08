@@ -55,8 +55,8 @@ export function LiffProvider({ children }: LiffProviderProps) {
   useEffect(() => {
     const init = async () => {
       try {
-        // BACKOFFICE: Skip LIFF completely - uses separate staff authentication
-        if (pathname.startsWith('/backoffice')) {
+        // BACKOFFICE & PUBLIC pages: Skip LIFF completely
+        if (pathname.startsWith('/backoffice') || pathname.startsWith('/tip') || pathname.startsWith('/login')) {
           setIsReady(true);
           return;
         }
