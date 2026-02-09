@@ -478,13 +478,20 @@ export function buildPrompt(type: CoachingType, context: MemberContext): string 
       ? "เพิ่มน้ำหนัก"
       : "รักษาน้ำหนัก";
 
+  // AI Coach status text
+  const aiCoachStatusText = context.aiCoach.isUnlimited 
+    ? "ไม่จำกัดระยะเวลา" 
+    : context.aiCoach.daysRemaining 
+      ? `เหลือ ${context.aiCoach.daysRemaining} วัน` 
+      : "หมดอายุ";
+
   const baseInfo = `
 ข้อมูลลูกค้า:
 - ชื่อ: ${context.name}
 - เป้าหมาย: ${goalText}
 - น้ำหนักปัจจุบัน: ${context.goal.currentWeight || "ไม่ระบุ"} kg
 - น้ำหนักเป้าหมาย: ${context.goal.targetWeight || "ไม่ระบุ"} kg
-- คอร์ส: วันที่ ${context.course.day}/${context.course.total} (${context.course.progress}%)
+- AI Coach: ${aiCoachStatusText}
 - Streak บันทึกอาหาร: ${context.streakDays} วันติด
 
 เป้าหมายวันนี้:
@@ -595,13 +602,12 @@ ${context.exerciseToday ? `- ออกกำลังกาย: ${context.exerci
     case "inactive":
       return `${baseInfo}
 
-สถานะ: ไม่ได้บันทึกอาหาร ${context.course.day > 0 ? `มา ${Math.min(3, context.course.total - context.course.day + context.streakDays)} วันแล้ว` : ""}
-ความคืบหน้าคอร์ส: ${context.course.progress}%
-วันที่เหลือ: ${context.course.total - context.course.day} วัน
+สถานะ: ไม่ได้บันทึกอาหารมาหลายวันแล้ว
+${context.aiCoach.daysRemaining ? `AI Coach เหลือ: ${context.aiCoach.daysRemaining} วัน` : ""}
 
 กรุณาส่งข้อความติดตาม:
 1. แสดงความเป็นห่วง (ไม่ตำหนิ)
-2. ย้ำความคืบหน้าที่ทำได้
+2. ย้ำ Streak ที่ทำได้ (${context.streakDays} วัน)
 3. ให้กำลังใจกลับมา
 4. แนะนำว่าถ่ายรูปไว้ก่อนแล้วค่อยบันทึกทีหลังก็ได้
 
@@ -610,7 +616,7 @@ ${context.exerciseToday ? `- ออกกำลังกาย: ${context.exerci
     case "milestone":
       return `${baseInfo}
 
-Milestone: ผ่าน ${context.course.progress}% ของคอร์สแล้ว!
+Milestone: บันทึกอาหารติดต่อกัน ${context.streakDays} วันแล้ว!
 ${context.weightChange !== null ? `น้ำหนักเปลี่ยนแปลง: ${context.weightChange > 0 ? "+" : ""}${context.weightChange.toFixed(1)} kg` : ""}
 
 กรุณาส่งข้อความฉลอง:
@@ -686,10 +692,11 @@ export async function generateCoachingMessage(
 // Fallback messages when AI is unavailable
 function getFallbackMessage(type: CoachingType, context: MemberContext): string {
   const name = context.name;
+  const daysText = context.aiCoach.daysRemaining ? `(เหลือ ${context.aiCoach.daysRemaining} วัน)` : "";
   
   switch (type) {
     case "morning":
-      return `สวัสดีตอนเช้าครับ${name}! 🌅 วันนี้วันที่ ${context.course.day} ของคอร์ส มาทำให้ดีกันต่อนะครับ 💪`;
+      return `สวัสดีตอนเช้าครับ${name}! 🌅 มาทำให้ดีกันต่อนะครับ ${daysText} 💪`;
     case "lunch":
       return `ใกล้เที่ยงแล้วครับ${name} 🍽️ อย่าลืมบันทึกมื้อกลางวันนะครับ เหลือแคลอรี่อีก ${context.targets.calories - context.today.calories} kcal`;
     case "dinner":
@@ -699,9 +706,9 @@ function getFallbackMessage(type: CoachingType, context: MemberContext): string 
     case "water":
       return `อย่าลืมดื่มน้ำนะครับ${name}! 💧 ตอนนี้ ${context.water.current}/${context.water.target} แก้ว`;
     case "inactive":
-      return `คิดถึงนะครับ${name}! 😊 กลับมาบันทึกอาหารกันต่อนะครับ เหลืออีก ${context.course.total - context.course.day} วัน`;
+      return `คิดถึงนะครับ${name}! 😊 กลับมาบันทึกอาหารกันต่อนะครับ`;
     case "milestone":
-      return `ยินดีด้วยครับ${name}! 🎉 ผ่าน ${context.course.progress}% ของคอร์สแล้ว! ไปต่อกันเลย 💪`;
+      return `ยินดีด้วยครับ${name}! 🎉 บันทึกติดต่อกัน ${context.streakDays} วันแล้ว! ไปต่อกันเลย 💪`;
     case "exercise":
       return `เยี่ยมเลยครับ${name}! 🏃 ออกกำลังกายเผาไป ${context.exerciseToday?.calories || 0} kcal อย่าลืมเติมโปรตีนนะครับ`;
     default:
@@ -744,10 +751,12 @@ export function createCoachingFlexMessage(
   const icon = iconMap[type];
   const title = titleMap[type];
 
-  // Build progress bar for course
-  const progressBar = context.course.progress > 0
-    ? `${"█".repeat(Math.floor(context.course.progress / 10))}${"░".repeat(10 - Math.floor(context.course.progress / 10))} ${context.course.progress}%`
-    : "";
+  // Build AI Coach status text
+  const aiCoachStatusText = context.aiCoach.isUnlimited 
+    ? "∞ ไม่จำกัด" 
+    : context.aiCoach.daysRemaining 
+      ? `เหลือ ${context.aiCoach.daysRemaining} วัน`
+      : "";
 
   return createFlexMessage(`${icon} ${title}`, {
     type: "bubble",
@@ -776,7 +785,7 @@ export function createCoachingFlexMessage(
             },
           ],
         },
-        ...(context.course.day > 0
+        ...(aiCoachStatusText
           ? [
               {
                 type: "box" as const,
@@ -785,16 +794,9 @@ export function createCoachingFlexMessage(
                 contents: [
                   {
                     type: "text" as const,
-                    text: `วันที่ ${context.course.day}/${context.course.total}`,
+                    text: `AI Coach: ${aiCoachStatusText}`,
                     size: "sm" as const,
                     color: "#888888",
-                  },
-                  {
-                    type: "text" as const,
-                    text: progressBar,
-                    size: "xs" as const,
-                    color: "#1DB446",
-                    margin: "xs" as const,
                   },
                 ],
               },
