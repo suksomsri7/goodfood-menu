@@ -94,6 +94,7 @@ interface MemberDetail {
   isOnboarded: boolean;
   memberType: MemberType | null;
   memberTypeId: string | null;
+  courseStartDate: string | null;
   addresses: Address[];
   weightLogs: { id: string; weight: number; date: string }[];
   createdAt: string;
@@ -204,6 +205,7 @@ export default function MembersPage() {
     email: "",
     phone: "",
     memberTypeId: "",
+    courseStartDate: "",
   });
   const [saving, setSaving] = useState(false);
 
@@ -260,6 +262,7 @@ export default function MembersPage() {
           email: detail.email || "",
           phone: detail.phone || "",
           memberTypeId: detail.memberTypeId || "",
+          courseStartDate: detail.courseStartDate ? detail.courseStartDate.split("T")[0] : "",
         });
       }
 
@@ -734,6 +737,35 @@ export default function MembersPage() {
                                 </span>
                               ) : (
                                 <span className="text-gray-400">ไม่ได้กำหนด</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* AI Coach Course Start Date */}
+                        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-6 border border-purple-100">
+                          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                            <Calendar className="w-5 h-5 text-purple-600" />
+                            AI Coach - วันเริ่มคอร์ส
+                          </h3>
+                          <p className="text-sm text-gray-500 mb-3">
+                            กำหนดวันเริ่มต้นคอร์สเพื่อเปิดใช้งานระบบ AI Coach แจ้งเตือนอัตโนมัติ
+                          </p>
+                          {isEditing ? (
+                            <input
+                              type="date"
+                              value={editForm.courseStartDate}
+                              onChange={(e) => setEditForm({ ...editForm, courseStartDate: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                            />
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              {memberDetail.courseStartDate ? (
+                                <span className="px-3 py-1.5 rounded-full text-sm font-medium bg-purple-100 text-purple-700">
+                                  {format(new Date(memberDetail.courseStartDate), "d MMMM yyyy", { locale: th })}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400">ยังไม่ได้กำหนด - AI Coach ยังไม่เปิดใช้งาน</span>
                               )}
                             </div>
                           )}

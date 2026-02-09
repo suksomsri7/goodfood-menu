@@ -25,6 +25,8 @@ type MemberWithType = Prisma.MemberGetPayload<{
 }>;
 
 export async function GET(request: NextRequest) {
+  console.log("[Coaching Cron] Called:", request.url);
+
   // Verify secret
   if (!verifyCronSecret(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -74,6 +76,7 @@ export async function GET(request: NextRequest) {
 
         // Check notification preference
         const shouldSend = await shouldSendNotification(member.id, type);
+        
         if (!shouldSend) {
           skipped++;
           continue;

@@ -98,6 +98,8 @@ export async function shouldSendNotification(
     include: { memberType: true },
   });
 
+  console.log("[Coaching] shouldSendNotification:", { memberId, type, found: !!member });
+
   if (!member) return false;
 
   // Check if notifications are paused
@@ -792,7 +794,7 @@ export function createCoachingFlexMessage(
           action: {
             type: "uri",
             label: "เปิดแอป",
-            uri: process.env.LIFF_URL || "https://liff.line.me/",
+            uri: process.env.LIFF_URL || "https://liff.line.me/2009033721-Ou7cdCtC",
           },
         },
       ],

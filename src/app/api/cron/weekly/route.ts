@@ -285,7 +285,7 @@ function createWeeklyInsightsFlexMessage(
           action: {
             type: "uri",
             label: "ดูรายละเอียด",
-            uri: process.env.LIFF_URL || "https://liff.line.me/",
+            uri: process.env.LIFF_URL || "https://liff.line.me/2009033721-Ou7cdCtC",
           },
         },
       ],
@@ -368,7 +368,7 @@ function createProgressPhotoReminderFlexMessage(
           action: {
             type: "uri",
             label: "📷 ถ่ายรูปเลย",
-            uri: `${process.env.LIFF_URL || "https://liff.line.me/"}/progress-photo`,
+            uri: `${process.env.LIFF_URL || "https://liff.line.me/2009033721-Ou7cdCtC"}/progress-photo`,
           },
         },
         {

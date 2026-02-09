@@ -107,6 +107,13 @@ export async function replyMessage(replyToken: string, messages: LineMessage[]):
 // Send push message (ส่งข้อความหาผู้ใช้โดยตรง)
 export async function pushMessage(userId: string, messages: LineMessage[]): Promise<boolean> {
   try {
+    console.log("[LINE] Pushing message:", { userId, hasToken: !!LINE_CHANNEL_ACCESS_TOKEN, messageCount: messages.length });
+
+    if (!LINE_CHANNEL_ACCESS_TOKEN) {
+      console.error("[LINE] No access token configured");
+      return false;
+    }
+
     const response = await fetch(`${LINE_API_BASE}/bot/message/push`, {
       method: "POST",
       headers: {
@@ -121,13 +128,14 @@ export async function pushMessage(userId: string, messages: LineMessage[]): Prom
 
     if (!response.ok) {
       const error = await response.text();
-      console.error("Failed to push message:", error);
+      console.error("[LINE] Push failed:", { userId, status: response.status, error });
       return false;
     }
 
+    console.log("[LINE] Push success:", { userId });
     return true;
   } catch (error) {
-    console.error("Error pushing message:", error);
+    console.error("[LINE] Push exception:", { userId, error: String(error) });
     return false;
   }
 }

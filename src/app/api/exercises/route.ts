@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { sendCoachingMessage } from "@/lib/coaching";
 
 // Common exercise types with estimated calories per minute
 const EXERCISE_CALORIES: Record<string, number> = {
@@ -155,6 +156,15 @@ export async function POST(request: NextRequest) {
         note,
         date: date ? new Date(date) : new Date(),
       },
+    });
+
+    console.log("[Exercise] Created:", { memberId: member.id, exerciseId: exercise.id, name, calories: calculatedCalories });
+
+    // Send post-exercise coaching notification (async, don't block response)
+    sendCoachingMessage(member.id, "exercise").then(sent => {
+      console.log("[Exercise] Coaching notification result:", { memberId: member.id, sent });
+    }).catch(err => {
+      console.error("[Exercise] Failed to send coaching:", err);
     });
 
     return NextResponse.json(exercise);
