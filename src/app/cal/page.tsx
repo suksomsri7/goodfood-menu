@@ -10,7 +10,8 @@ import { MealDetailModal } from "@/components/user/MealDetailModal";
 import { FitnessRings } from "@/components/user/FitnessRings";
 import { AnalysisModal } from "@/components/user/AnalysisModal";
 import { useLiff } from "@/components/providers/LiffProvider";
-import { Brain } from "lucide-react";
+import { NotificationSettings } from "@/components/user/NotificationSettings";
+import { Brain, Bell } from "lucide-react";
 
 // Types
 interface Meal {
@@ -86,6 +87,9 @@ export default function CaloriePage() {
     recommendations?: string | string[] | null;
   } | null>(null);
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
+  
+  // Notification Settings state
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
 
   const lineUserId = profile?.userId;
 
@@ -521,8 +525,8 @@ export default function CaloriePage() {
           </div>
         )}
 
-        {/* AI Analysis Button */}
-        <div className="flex justify-center mb-8 mt-8" data-guide="ai-button">
+        {/* AI Analysis & Notification Settings Buttons */}
+        <div className="flex justify-center gap-3 mb-8 mt-8" data-guide="ai-button">
           <button
             onClick={fetchAnalysis}
             disabled={isLoadingAnalysis}
@@ -530,6 +534,13 @@ export default function CaloriePage() {
           >
             <Brain className={`w-4 h-4 ${isLoadingAnalysis ? 'animate-pulse' : ''}`} />
             <span>{isLoadingAnalysis ? 'กำลังวิเคราะห์...' : 'AI วิเคราะห์'}</span>
+          </button>
+          <button
+            onClick={() => setShowNotificationSettings(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-full text-sm font-medium shadow-sm hover:bg-gray-50 transition-all active:scale-95"
+          >
+            <Bell className="w-4 h-4 text-green-500" />
+            <span>แจ้งเตือน</span>
           </button>
         </div>
 
@@ -644,6 +655,13 @@ export default function CaloriePage() {
         analysis={analysisResult}
         isLoading={isLoadingAnalysis}
         onRefresh={fetchAnalysis}
+      />
+
+      {/* Notification Settings Modal */}
+      <NotificationSettings
+        isOpen={showNotificationSettings}
+        onClose={() => setShowNotificationSettings(false)}
+        lineUserId={lineUserId}
       />
     </div>
   );

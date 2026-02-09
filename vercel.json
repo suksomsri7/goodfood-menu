@@ -1,0 +1,36 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/coaching?type=morning",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/coaching?type=lunch",
+      "schedule": "30 4 * * *"
+    },
+    {
+      "path": "/api/cron/coaching?type=dinner",
+      "schedule": "30 10 * * *"
+    },
+    {
+      "path": "/api/cron/coaching?type=evening",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/water",
+      "schedule": "0 2,4,7,9 * * *"
+    },
+    {
+      "path": "/api/cron/weekly",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/check-inactive",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/check-milestones",
+      "schedule": "0 14 * * *"
+    }
+  ]
+}

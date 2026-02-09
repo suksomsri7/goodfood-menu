@@ -53,6 +53,15 @@ export async function PATCH(
       dailyScanLimit,
       isDefault,
       isActive,
+      // AI Coach settings
+      courseDuration,
+      morningCoachTime,
+      lunchReminderTime,
+      dinnerReminderTime,
+      eveningSummaryTime,
+      waterReminderTimes,
+      weeklyInsightsTime,
+      inactiveReminderDays,
     } = body;
 
     // ถ้าตั้งเป็น default ต้อง unset default อื่นก่อน
@@ -75,21 +84,30 @@ export async function PATCH(
         ...(dailyScanLimit !== undefined && { dailyScanLimit }),
         ...(isDefault !== undefined && { isDefault }),
         ...(isActive !== undefined && { isActive }),
+        // AI Coach settings
+        ...(courseDuration !== undefined && { courseDuration }),
+        ...(morningCoachTime !== undefined && { morningCoachTime }),
+        ...(lunchReminderTime !== undefined && { lunchReminderTime }),
+        ...(dinnerReminderTime !== undefined && { dinnerReminderTime }),
+        ...(eveningSummaryTime !== undefined && { eveningSummaryTime }),
+        ...(waterReminderTimes !== undefined && { waterReminderTimes }),
+        ...(weeklyInsightsTime !== undefined && { weeklyInsightsTime }),
+        ...(inactiveReminderDays !== undefined && { inactiveReminderDays }),
       },
     });
 
     return NextResponse.json(memberType);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating member type:", error);
     
-    if (error.code === "P2002") {
+    if (error && typeof error === 'object' && 'code' in error && error.code === "P2002") {
       return NextResponse.json(
         { error: "ชื่อประเภทสมาชิกนี้มีอยู่แล้ว" },
         { status: 400 }
       );
     }
     
-    if (error.code === "P2025") {
+    if (error && typeof error === 'object' && 'code' in error && error.code === "P2025") {
       return NextResponse.json(
         { error: "Member type not found" },
         { status: 404 }

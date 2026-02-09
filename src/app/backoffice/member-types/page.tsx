@@ -30,6 +30,15 @@ interface MemberType {
   isDefault: boolean;
   isActive: boolean;
   order: number;
+  // AI Coach settings
+  courseDuration: number;
+  morningCoachTime: string;
+  lunchReminderTime: string;
+  dinnerReminderTime: string;
+  eveningSummaryTime: string;
+  waterReminderTimes: string;
+  weeklyInsightsTime: string;
+  inactiveReminderDays: number;
   _count?: {
     members: number;
   };
@@ -67,6 +76,15 @@ export default function MemberTypesPage() {
     dailyScanLimit: 5,
     isDefault: false,
     isActive: true,
+    // AI Coach settings
+    courseDuration: 7,
+    morningCoachTime: "07:00",
+    lunchReminderTime: "11:30",
+    dinnerReminderTime: "17:30",
+    eveningSummaryTime: "20:00",
+    waterReminderTimes: "09:00,11:00,14:00,16:00",
+    weeklyInsightsTime: "09:00",
+    inactiveReminderDays: 2,
   });
 
   useEffect(() => {
@@ -99,6 +117,14 @@ export default function MemberTypesPage() {
       dailyScanLimit: 5,
       isDefault: false,
       isActive: true,
+      courseDuration: 7,
+      morningCoachTime: "07:00",
+      lunchReminderTime: "11:30",
+      dinnerReminderTime: "17:30",
+      eveningSummaryTime: "20:00",
+      waterReminderTimes: "09:00,11:00,14:00,16:00",
+      weeklyInsightsTime: "09:00",
+      inactiveReminderDays: 2,
     });
     setError("");
     setShowModal(true);
@@ -116,6 +142,14 @@ export default function MemberTypesPage() {
       dailyScanLimit: type.dailyScanLimit,
       isDefault: type.isDefault,
       isActive: type.isActive,
+      courseDuration: type.courseDuration || 7,
+      morningCoachTime: type.morningCoachTime || "07:00",
+      lunchReminderTime: type.lunchReminderTime || "11:30",
+      dinnerReminderTime: type.dinnerReminderTime || "17:30",
+      eveningSummaryTime: type.eveningSummaryTime || "20:00",
+      waterReminderTimes: type.waterReminderTimes || "09:00,11:00,14:00,16:00",
+      weeklyInsightsTime: type.weeklyInsightsTime || "09:00",
+      inactiveReminderDays: type.inactiveReminderDays || 2,
     });
     setError("");
     setShowModal(true);
@@ -537,6 +571,114 @@ export default function MemberTypesPage() {
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
                     />
                     <p className="text-xs text-gray-400 mt-1">0 = ไม่จำกัด</p>
+                  </div>
+                </div>
+
+                {/* AI Coach Settings */}
+                <div className="border-t border-gray-200 pt-5 mt-5">
+                  <h4 className="font-medium text-gray-800 mb-4 flex items-center gap-2">
+                    🤖 ตั้งค่า AI Coach
+                  </h4>
+                  
+                  {/* Course Duration */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      ระยะเวลาคอร์ส
+                    </label>
+                    <div className="flex gap-2">
+                      {[7, 15, 30].map((days) => (
+                        <button
+                          key={days}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, courseDuration: days })}
+                          className={`flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all ${
+                            formData.courseDuration === days
+                              ? "bg-green-500 text-white"
+                              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                          }`}
+                        >
+                          {days === 7 ? "🌱" : days === 15 ? "🌿" : "🌳"} {days} วัน
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Coaching Times */}
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        🌅 กำลังใจเช้า
+                      </label>
+                      <input
+                        type="time"
+                        value={formData.morningCoachTime}
+                        onChange={(e) => setFormData({ ...formData, morningCoachTime: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        🍽️ แนะนำมื้อกลางวัน
+                      </label>
+                      <input
+                        type="time"
+                        value={formData.lunchReminderTime}
+                        onChange={(e) => setFormData({ ...formData, lunchReminderTime: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        🍽️ แนะนำมื้อเย็น
+                      </label>
+                      <input
+                        type="time"
+                        value={formData.dinnerReminderTime}
+                        onChange={(e) => setFormData({ ...formData, dinnerReminderTime: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        🌙 สรุปท้ายวัน
+                      </label>
+                      <input
+                        type="time"
+                        value={formData.eveningSummaryTime}
+                        onChange={(e) => setFormData({ ...formData, eveningSummaryTime: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Water Reminder Times */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      💧 เตือนดื่มน้ำ (คั่นด้วยเครื่องหมายจุลภาค)
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.waterReminderTimes}
+                      onChange={(e) => setFormData({ ...formData, waterReminderTimes: e.target.value })}
+                      placeholder="09:00,11:00,14:00,16:00"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">เช่น 09:00,11:00,14:00,16:00</p>
+                  </div>
+
+                  {/* Inactive Reminder */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      ⚠️ เตือนเมื่อไม่ active (วัน)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="7"
+                      value={formData.inactiveReminderDays}
+                      onChange={(e) => setFormData({ ...formData, inactiveReminderDays: parseInt(e.target.value) || 2 })}
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                    />
                   </div>
                 </div>
 

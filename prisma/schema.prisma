@@ -38,6 +38,21 @@ model Member {
   isActive         Boolean           @default(true)
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
+  
+  // Course tracking
+  courseStartDate  DateTime?
+  
+  // Notification Preferences
+  notifyMorningCoach     Boolean   @default(true)
+  notifyEveningSummary   Boolean   @default(true)
+  notifyWeeklyInsights   Boolean   @default(true)
+  notifyLunchSuggestion  Boolean   @default(true)
+  notifyDinnerSuggestion Boolean   @default(true)
+  notifyWaterReminder    Boolean   @default(true)
+  notifyProgressPhoto    Boolean   @default(true)
+  notifyPostExercise     Boolean   @default(true)
+  notificationsPausedUntil DateTime?
+  
   addresses        Address[]
   aiRecommendation AiRecommendation?
   cartItems        CartItem[]
@@ -45,6 +60,7 @@ model Member {
   mealLogs         MealLog[]
   memberType       MemberType?       @relation(fields: [memberTypeId], references: [id])
   orders           Order[]
+  progressPhotos   ProgressPhoto[]
   waterLogs        WaterLog[]
   weightLogs       WeightLog[]
 
@@ -463,9 +479,43 @@ model MemberType {
   order                 Int      @default(0)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
+  
+  // Course Duration
+  courseDuration        Int      @default(7)
+  
+  // Coaching Times
+  morningCoachTime      String   @default("07:00")
+  lunchReminderTime     String   @default("11:30")
+  dinnerReminderTime    String   @default("17:30")
+  eveningSummaryTime    String   @default("20:00")
+  
+  // Water Reminder
+  waterReminderTimes    String   @default("09:00,11:00,14:00,16:00")
+  
+  // Weekly
+  weeklyInsightsTime    String   @default("09:00")
+  
+  // Inactive threshold (days)
+  inactiveReminderDays  Int      @default(2)
+  
   members               Member[]
 
   @@map("member_types")
+}
+
+model ProgressPhoto {
+  id          String   @id @default(cuid())
+  memberId    String
+  imageUrl    String
+  weight      Float?
+  weekNumber  Int
+  note        String?
+  takenAt     DateTime @default(now())
+  createdAt   DateTime @default(now())
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, weekNumber])
+  @@map("progress_photos")
 }
 
 model LineConversation {

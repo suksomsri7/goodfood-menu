@@ -37,6 +37,15 @@ export async function POST(request: NextRequest) {
       dailyScanLimit,
       isDefault,
       isActive,
+      // AI Coach settings
+      courseDuration,
+      morningCoachTime,
+      lunchReminderTime,
+      dinnerReminderTime,
+      eveningSummaryTime,
+      waterReminderTimes,
+      weeklyInsightsTime,
+      inactiveReminderDays,
     } = body;
 
     if (!name) {
@@ -71,14 +80,23 @@ export async function POST(request: NextRequest) {
         isDefault: isDefault || false,
         isActive: isActive !== false,
         order: (maxOrder._max.order || 0) + 1,
+        // AI Coach settings
+        courseDuration: courseDuration ?? 7,
+        morningCoachTime: morningCoachTime ?? "07:00",
+        lunchReminderTime: lunchReminderTime ?? "11:30",
+        dinnerReminderTime: dinnerReminderTime ?? "17:30",
+        eveningSummaryTime: eveningSummaryTime ?? "20:00",
+        waterReminderTimes: waterReminderTimes ?? "09:00,11:00,14:00,16:00",
+        weeklyInsightsTime: weeklyInsightsTime ?? "09:00",
+        inactiveReminderDays: inactiveReminderDays ?? 2,
       },
     });
 
     return NextResponse.json(memberType, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error creating member type:", error);
     
-    if (error.code === "P2002") {
+    if (error && typeof error === 'object' && 'code' in error && error.code === "P2002") {
       return NextResponse.json(
         { error: "ชื่อประเภทสมาชิกนี้มีอยู่แล้ว" },
         { status: 400 }
