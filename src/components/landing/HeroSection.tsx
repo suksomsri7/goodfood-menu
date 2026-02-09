@@ -6,7 +6,7 @@ import Link from "next/link";
 
 export function HeroSection() {
   return (
-    <section className="relative min-h-screen flex items-center overflow-hidden">
+    <section className="relative lg:min-h-screen flex items-center overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-primary-50/50 via-white to-white" />
 
@@ -14,10 +14,10 @@ export function HeroSection() {
       <div className="absolute top-20 right-10 w-72 h-72 bg-primary-100/30 rounded-full blur-3xl" />
       <div className="absolute bottom-20 left-10 w-96 h-96 bg-primary-50/50 rounded-full blur-3xl" />
 
-      <div className="relative max-w-7xl mx-auto px-6 py-32 md:py-40">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
+      <div className="relative max-w-7xl mx-auto px-6 py-24 md:py-32 lg:py-40">
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Left - Content */}
-          <div>
+          <div className="text-center lg:text-left">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -47,7 +47,7 @@ export function HeroSection() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="mt-6 text-lg text-gray-500 leading-relaxed max-w-lg"
+              className="mt-6 text-lg text-gray-500 leading-relaxed max-w-lg mx-auto lg:mx-0"
             >
               แอปนับแคลอรี่อัจฉริยะ ถ่ายรูปอาหาร AI วิเคราะห์โภชนาการทันที
               สั่งอาหารเพื่อสุขภาพ พร้อมโค้ชส่วนตัวตลอด 24 ชั่วโมง
@@ -57,7 +57,7 @@ export function HeroSection() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
-              className="mt-10 flex flex-wrap gap-4"
+              className="mt-10 flex flex-wrap justify-center lg:justify-start gap-4"
             >
               <a
                 href="https://line.me/R/ti/p/@goodfood.menu"
@@ -85,7 +85,7 @@ export function HeroSection() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.5 }}
-              className="mt-12 flex flex-wrap items-center gap-4 md:gap-6 text-sm text-gray-400"
+              className="mt-12 flex flex-wrap justify-center lg:justify-start items-center gap-4 md:gap-6 text-sm text-gray-400"
             >
               <span>ฟรี ไม่มีค่าใช้จ่าย</span>
               <span className="w-1 h-1 bg-gray-300 rounded-full hidden md:block" />
@@ -100,9 +100,9 @@ export function HeroSection() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, delay: 0.3 }}
-            className="hidden lg:flex justify-center"
+            className="flex justify-center"
           >
-            <div className="relative">
+            <div className="relative scale-[0.85] md:scale-100 origin-top">
               {/* Phone frame */}
               <div className="w-[280px] h-[580px] bg-gray-900 rounded-[3rem] p-3 shadow-2xl shadow-gray-900/20">
                 <div className="w-full h-full bg-white rounded-[2.4rem] overflow-hidden relative">
@@ -176,12 +176,12 @@ export function HeroSection() {
                 </div>
               </div>
 
-              {/* Floating card - left */}
+              {/* Floating card - left (hidden on mobile to prevent overflow) */}
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.6, delay: 1 }}
-                className="absolute -left-20 top-32 bg-white rounded-2xl shadow-xl shadow-gray-200/50 p-4 border border-gray-100"
+                className="hidden md:block absolute -left-20 top-32 bg-white rounded-2xl shadow-xl shadow-gray-200/50 p-4 border border-gray-100"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-primary-50 rounded-xl flex items-center justify-center">
@@ -198,12 +198,12 @@ export function HeroSection() {
                 </div>
               </motion.div>
 
-              {/* Floating card - right */}
+              {/* Floating card - right (hidden on mobile to prevent overflow) */}
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.6, delay: 1.2 }}
-                className="absolute -right-16 bottom-40 bg-white rounded-2xl shadow-xl shadow-gray-200/50 p-4 border border-gray-100"
+                className="hidden md:block absolute -right-16 bottom-40 bg-white rounded-2xl shadow-xl shadow-gray-200/50 p-4 border border-gray-100"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">

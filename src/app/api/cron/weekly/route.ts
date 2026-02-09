@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
 
     let insightsSent = 0;
     let photoRemindersSent = 0;
+    let weightRemindersSent = 0;
     let skipped = 0;
     let failed = 0;
 
@@ -98,6 +99,17 @@ export async function GET(request: NextRequest) {
           if (success) photoRemindersSent++;
         }
 
+        // Send Weight Reminder if enabled
+        if ((member as any).notifyWeightReminder) {
+          const weightFlexMessage = createWeightReminderFlexMessage(context, weekNumber);
+          
+          // Add delay between messages
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          
+          const success = await pushMessage(member.lineUserId, [weightFlexMessage]);
+          if (success) weightRemindersSent++;
+        }
+
         await new Promise((resolve) => setTimeout(resolve, 100));
       } catch (error) {
         console.error(`Error processing weekly for member ${member.id}:`, error);
@@ -105,11 +117,11 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    console.log(`[Weekly Cron] Insights: ${insightsSent}, Photo reminders: ${photoRemindersSent}, Skipped: ${skipped}, Failed: ${failed}`);
+    console.log(`[Weekly Cron] Insights: ${insightsSent}, Photo reminders: ${photoRemindersSent}, Weight reminders: ${weightRemindersSent}, Skipped: ${skipped}, Failed: ${failed}`);
 
     return NextResponse.json({
       success: true,
-      stats: { insightsSent, photoRemindersSent, skipped, failed, total: members.length },
+      stats: { insightsSent, photoRemindersSent, weightRemindersSent, skipped, failed, total: members.length },
     });
   } catch (error) {
     console.error("[Weekly Cron] Error:", error);
@@ -373,6 +385,127 @@ function createProgressPhotoReminderFlexMessage(
             type: "message",
             label: "ข้ามสัปดาห์นี้",
             text: "ข้ามถ่ายรูปสัปดาห์นี้",
+          },
+        },
+      ],
+    },
+  });
+}
+
+// Create Weight Reminder Flex Message
+function createWeightReminderFlexMessage(
+  context: Awaited<ReturnType<typeof gatherMemberContext>>,
+  weekNumber: number
+) {
+  if (!context) {
+    return createFlexMessage("⚖️ เตือนชั่งน้ำหนัก", {
+      type: "bubble",
+      body: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          { type: "text", text: "ไม่สามารถโหลดข้อมูลได้", wrap: true },
+        ],
+      },
+    });
+  }
+
+  // Build weight info text
+  let weightInfoText = "";
+  if (context.goal.currentWeight) {
+    weightInfoText += `น้ำหนักล่าสุด: ${context.goal.currentWeight} kg`;
+  }
+  if (context.goal.targetWeight) {
+    weightInfoText += weightInfoText ? "\n" : "";
+    weightInfoText += `เป้าหมาย: ${context.goal.targetWeight} kg`;
+  }
+  if (context.weightChange !== null) {
+    const changeText = context.weightChange > 0 ? `+${context.weightChange.toFixed(1)}` : context.weightChange.toFixed(1);
+    weightInfoText += weightInfoText ? "\n" : "";
+    weightInfoText += `เปลี่ยนแปลง: ${changeText} kg`;
+  }
+
+  return createFlexMessage("⚖️ เตือนชั่งน้ำหนัก", {
+    type: "bubble",
+    size: "mega",
+    body: {
+      type: "box",
+      layout: "vertical",
+      contents: [
+        {
+          type: "box",
+          layout: "horizontal",
+          contents: [
+            { type: "text", text: "⚖️", size: "xl", flex: 0 },
+            {
+              type: "text",
+              text: "ถึงเวลาชั่งน้ำหนัก!",
+              weight: "bold",
+              size: "lg",
+              color: "#2196F3",
+              margin: "md",
+            },
+          ],
+        },
+        {
+          type: "text",
+          text: `สัปดาห์ที่ ${weekNumber}`,
+          size: "sm",
+          color: "#888888",
+          margin: "md",
+        },
+        { type: "separator", margin: "lg" },
+        {
+          type: "text",
+          text: `สวัสดีตอนเช้า ${context.name}!\n\nอย่าลืมชั่งน้ำหนักวันนี้นะครับ เพื่อติดตามความก้าวหน้าของคุณ`,
+          wrap: true,
+          size: "sm",
+          margin: "lg",
+          color: "#333333",
+        },
+        ...(weightInfoText ? [
+          {
+            type: "box" as const,
+            layout: "vertical" as const,
+            margin: "lg" as const,
+            paddingAll: "12px",
+            backgroundColor: "#E3F2FD",
+            cornerRadius: "8px",
+            contents: [
+              {
+                type: "text" as const,
+                text: weightInfoText,
+                size: "sm" as const,
+                color: "#1565C0",
+                wrap: true,
+              },
+            ],
+          },
+        ] : []),
+        {
+          type: "text",
+          text: "💡 Tips:\n• ชั่งตอนเช้าหลังตื่นนอน\n• ก่อนทานอาหารและดื่มน้ำ\n• ใส่เสื้อผ้าเบาๆ หรือไม่ใส่",
+          wrap: true,
+          size: "xs",
+          margin: "lg",
+          color: "#666666",
+        },
+      ],
+      paddingAll: "20px",
+    },
+    footer: {
+      type: "box",
+      layout: "vertical",
+      spacing: "sm",
+      contents: [
+        {
+          type: "button",
+          style: "primary",
+          color: "#2196F3",
+          action: {
+            type: "uri",
+            label: "⚖️ บันทึกน้ำหนัก",
+            uri: `${process.env.LIFF_URL || "https://liff.line.me/2009033721-Ou7cdCtC"}/goal`,
           },
         },
       ],

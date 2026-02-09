@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
         notifyDinnerSuggestion: true,
         notifyProgressPhoto: true,
         notifyPostExercise: true,
+        notifyWeightReminder: true,
         notificationsPausedUntil: true,
         aiCoachExpireDate: true,
         memberType: {
@@ -81,6 +82,7 @@ export async function GET(request: NextRequest) {
         dinnerSuggestion: member.notifyDinnerSuggestion,
         progressPhoto: member.notifyProgressPhoto,
         postExercise: member.notifyPostExercise,
+        weightReminder: member.notifyWeightReminder,
         pausedUntil: member.notificationsPausedUntil,
       },
       schedule: member.memberType ? {
@@ -129,6 +131,7 @@ export async function PUT(request: NextRequest) {
       dinnerSuggestion,
       progressPhoto,
       postExercise,
+      weightReminder,
     } = body;
 
     // Build update data (User can only update notification preferences, not expire date)
@@ -141,6 +144,7 @@ export async function PUT(request: NextRequest) {
     if (dinnerSuggestion !== undefined) updateData.notifyDinnerSuggestion = dinnerSuggestion;
     if (progressPhoto !== undefined) updateData.notifyProgressPhoto = progressPhoto;
     if (postExercise !== undefined) updateData.notifyPostExercise = postExercise;
+    if (weightReminder !== undefined) updateData.notifyWeightReminder = weightReminder;
 
     const member = await prisma.member.update({
       where: { lineUserId },
@@ -153,6 +157,7 @@ export async function PUT(request: NextRequest) {
         notifyDinnerSuggestion: true,
         notifyProgressPhoto: true,
         notifyPostExercise: true,
+        notifyWeightReminder: true,
         notificationsPausedUntil: true,
         aiCoachExpireDate: true,
         memberType: {
@@ -194,6 +199,7 @@ export async function PUT(request: NextRequest) {
         dinnerSuggestion: member.notifyDinnerSuggestion,
         progressPhoto: member.notifyProgressPhoto,
         postExercise: member.notifyPostExercise,
+        weightReminder: member.notifyWeightReminder,
         pausedUntil: member.notificationsPausedUntil,
       },
       aiCoach: {

@@ -51,6 +51,7 @@ model Member {
   notifyWaterReminder    Boolean   @default(true)
   notifyProgressPhoto    Boolean   @default(true)
   notifyPostExercise     Boolean   @default(true)
+  notifyWeightReminder   Boolean   @default(true)
   notificationsPausedUntil DateTime?
   
   addresses        Address[]

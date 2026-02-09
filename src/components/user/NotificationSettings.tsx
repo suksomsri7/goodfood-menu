@@ -16,6 +16,7 @@ import {
   Calendar,
   AlertCircle,
   Infinity,
+  Scale,
 } from "lucide-react";
 
 interface NotificationSettingsProps {
@@ -32,6 +33,7 @@ interface Settings {
   dinnerSuggestion: boolean;
   progressPhoto: boolean;
   postExercise: boolean;
+  weightReminder: boolean;
   pausedUntil: string | null;
 }
 
@@ -179,6 +181,14 @@ export function NotificationSettings({
       description: "หลังบันทึกการออกกำลังกาย",
       color: "text-green-500",
       bgColor: "bg-green-100",
+    },
+    {
+      key: "weightReminder" as const,
+      icon: Scale,
+      label: "เตือนชั่งน้ำหนัก",
+      description: "ทุก 7 วัน ตอนเช้า",
+      color: "text-blue-500",
+      bgColor: "bg-blue-100",
     },
   ];
 
