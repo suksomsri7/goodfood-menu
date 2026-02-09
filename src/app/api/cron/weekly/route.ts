@@ -505,7 +505,7 @@ function createWeightReminderFlexMessage(
           action: {
             type: "uri",
             label: "⚖️ บันทึกน้ำหนัก",
-            uri: `${process.env.LIFF_URL || "https://liff.line.me/2009033721-Ou7cdCtC"}/goal`,
+            uri: "https://liff.line.me/2009033721-QFRs8owx",
           },
         },
       ],
