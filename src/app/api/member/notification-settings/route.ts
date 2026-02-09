@@ -127,6 +127,7 @@ export async function PUT(request: NextRequest) {
       progressPhoto,
       postExercise,
       pauseForDays, // Number of days to pause all notifications
+      courseStartDate, // User can set their own course start date
     } = body;
 
     // Build update data
@@ -140,6 +141,11 @@ export async function PUT(request: NextRequest) {
     if (waterReminder !== undefined) updateData.notifyWaterReminder = waterReminder;
     if (progressPhoto !== undefined) updateData.notifyProgressPhoto = progressPhoto;
     if (postExercise !== undefined) updateData.notifyPostExercise = postExercise;
+
+    // Handle course start date (user can set this themselves)
+    if (courseStartDate !== undefined) {
+      updateData.courseStartDate = courseStartDate ? new Date(courseStartDate) : null;
+    }
 
     // Handle pause
     if (pauseForDays !== undefined) {
@@ -165,8 +171,33 @@ export async function PUT(request: NextRequest) {
         notifyProgressPhoto: true,
         notifyPostExercise: true,
         notificationsPausedUntil: true,
+        courseStartDate: true,
+        memberType: {
+          select: {
+            id: true,
+            name: true,
+            courseDuration: true,
+          },
+        },
       },
     });
+
+    // Calculate course progress for response
+    let courseProgress = null;
+    if (member.courseStartDate && member.memberType) {
+      const daysSinceStart = Math.floor(
+        (Date.now() - member.courseStartDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
+      const currentDay = daysSinceStart + 1;
+      const progress = Math.min(100, Math.round((currentDay / member.memberType.courseDuration) * 100));
+      
+      courseProgress = {
+        currentDay,
+        totalDays: member.memberType.courseDuration,
+        progress,
+        isActive: currentDay <= member.memberType.courseDuration,
+      };
+    }
 
     return NextResponse.json({
       success: true,
@@ -181,6 +212,12 @@ export async function PUT(request: NextRequest) {
         postExercise: member.notifyPostExercise,
         pausedUntil: member.notificationsPausedUntil,
       },
+      course: courseProgress,
+      memberType: member.memberType ? {
+        id: member.memberType.id,
+        name: member.memberType.name,
+        courseDuration: member.memberType.courseDuration,
+      } : null,
     });
   } catch (error) {
     console.error("Error updating notification settings:", error);

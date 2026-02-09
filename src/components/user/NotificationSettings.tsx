@@ -17,6 +17,9 @@ import {
   Pause,
   Play,
   Sparkles,
+  Calendar,
+  Rocket,
+  RefreshCw,
 } from "lucide-react";
 
 interface NotificationSettingsProps {
@@ -53,6 +56,12 @@ interface CourseProgress {
   isActive: boolean;
 }
 
+interface MemberType {
+  id: string;
+  name: string;
+  courseDuration?: number;
+}
+
 export function NotificationSettings({
   isOpen,
   onClose,
@@ -61,8 +70,11 @@ export function NotificationSettings({
   const [settings, setSettings] = useState<Settings | null>(null);
   const [schedule, setSchedule] = useState<Schedule | null>(null);
   const [course, setCourse] = useState<CourseProgress | null>(null);
+  const [memberType, setMemberType] = useState<MemberType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string>("");
 
   useEffect(() => {
     if (isOpen && lineUserId) {
@@ -83,6 +95,7 @@ export function NotificationSettings({
         setSettings(data.settings);
         setSchedule(data.schedule);
         setCourse(data.course);
+        setMemberType(data.memberType);
       }
     } catch (error) {
       console.error("Error fetching settings:", error);
@@ -140,6 +153,65 @@ export function NotificationSettings({
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const startCourse = async (startDate: string) => {
+    if (!lineUserId) return;
+
+    setIsSaving(true);
+    try {
+      const res = await fetch(
+        `/api/member/notification-settings?lineUserId=${lineUserId}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ courseStartDate: startDate }),
+        }
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        setCourse(data.course);
+        setMemberType(data.memberType);
+        setShowDatePicker(false);
+        setSelectedDate("");
+      }
+    } catch (error) {
+      console.error("Error starting course:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const resetCourse = async () => {
+    if (!lineUserId) return;
+    if (!confirm("ต้องการรีเซ็ตคอร์สใช่หรือไม่? ความคืบหน้าจะถูกล้าง")) return;
+
+    setIsSaving(true);
+    try {
+      const res = await fetch(
+        `/api/member/notification-settings?lineUserId=${lineUserId}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ courseStartDate: null }),
+        }
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        setCourse(data.course);
+      }
+    } catch (error) {
+      console.error("Error resetting course:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const getTodayDate = () => {
+    const today = new Date();
+    return today.toISOString().split("T")[0];
   };
 
   const isPaused = settings?.pausedUntil && new Date(settings.pausedUntil) > new Date();
@@ -256,16 +328,26 @@ export function NotificationSettings({
                 </button>
               </div>
 
-              {/* Course Progress */}
+              {/* Course Progress - Active Course */}
               {course && course.isActive && (
                 <div className="mt-4 p-3 bg-green-50 rounded-xl">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-green-700">
                       คอร์ส {course.totalDays} วัน
                     </span>
-                    <span className="text-sm text-green-600">
-                      วันที่ {course.currentDay}/{course.totalDays}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-green-600">
+                        วันที่ {course.currentDay}/{course.totalDays}
+                      </span>
+                      <button
+                        onClick={resetCourse}
+                        disabled={isSaving}
+                        className="p-1 hover:bg-green-200 rounded transition-colors"
+                        title="รีเซ็ตคอร์ส"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5 text-green-600" />
+                      </button>
+                    </div>
                   </div>
                   <div className="w-full h-2 bg-green-200 rounded-full overflow-hidden">
                     <div
@@ -273,6 +355,100 @@ export function NotificationSettings({
                       style={{ width: `${course.progress}%` }}
                     />
                   </div>
+                </div>
+              )}
+
+              {/* Course Completed */}
+              {course && !course.isActive && (
+                <div className="mt-4 p-3 bg-amber-50 rounded-xl">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-sm font-medium text-amber-700">
+                        🎉 คอร์สเสร็จสิ้นแล้ว!
+                      </span>
+                      <p className="text-xs text-amber-600 mt-1">
+                        คุณสามารถเริ่มคอร์สใหม่ได้
+                      </p>
+                    </div>
+                    <button
+                      onClick={resetCourse}
+                      disabled={isSaving}
+                      className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 transition-colors"
+                    >
+                      เริ่มใหม่
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* No Course Started Yet - But Has Member Type */}
+              {!course && memberType && (
+                <div className="mt-4 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-100">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Rocket className="w-5 h-5 text-purple-500" />
+                    <span className="font-medium text-purple-700">
+                      พร้อมเริ่มคอร์ส {memberType.name}
+                    </span>
+                  </div>
+                  
+                  {!showDatePicker ? (
+                    <div className="space-y-2">
+                      <button
+                        onClick={() => startCourse(getTodayDate())}
+                        disabled={isSaving}
+                        className="w-full py-2.5 bg-purple-500 text-white rounded-xl font-medium hover:bg-purple-600 transition-colors flex items-center justify-center gap-2"
+                      >
+                        {isSaving ? (
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            <Play className="w-4 h-4" />
+                            เริ่มคอร์สวันนี้
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => setShowDatePicker(true)}
+                        className="w-full py-2 text-purple-600 text-sm hover:bg-purple-100 rounded-lg transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Calendar className="w-4 h-4" />
+                        เลือกวันเริ่มเอง
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <input
+                        type="date"
+                        value={selectedDate}
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                        className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setShowDatePicker(false)}
+                          className="flex-1 py-2 text-gray-600 bg-gray-100 rounded-lg text-sm hover:bg-gray-200 transition-colors"
+                        >
+                          ยกเลิก
+                        </button>
+                        <button
+                          onClick={() => selectedDate && startCourse(selectedDate)}
+                          disabled={!selectedDate || isSaving}
+                          className="flex-1 py-2 bg-purple-500 text-white rounded-lg text-sm font-medium hover:bg-purple-600 transition-colors disabled:opacity-50"
+                        >
+                          {isSaving ? "กำลังบันทึก..." : "เริ่มคอร์ส"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* No Member Type Assigned */}
+              {!course && !memberType && (
+                <div className="mt-4 p-3 bg-gray-50 rounded-xl">
+                  <p className="text-sm text-gray-500 text-center">
+                    ⏳ รอ Admin กำหนดประเภทสมาชิก
+                  </p>
                 </div>
               )}
             </div>
