@@ -11,7 +11,7 @@ import { FitnessRings } from "@/components/user/FitnessRings";
 import { AnalysisModal } from "@/components/user/AnalysisModal";
 import { useLiff } from "@/components/providers/LiffProvider";
 import { NotificationSettings } from "@/components/user/NotificationSettings";
-import { Brain, Bell } from "lucide-react";
+import { Brain, Sparkles } from "lucide-react";
 
 // Types
 interface Meal {
@@ -539,7 +539,7 @@ export default function CaloriePage() {
             onClick={() => setShowNotificationSettings(true)}
             className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full text-sm font-medium shadow-lg shadow-green-500/25 hover:shadow-green-500/40 transition-all active:scale-95"
           >
-            <span>🤖</span>
+            <Sparkles className="w-4 h-4" />
             <span>AI Coach</span>
           </button>
         </div>
