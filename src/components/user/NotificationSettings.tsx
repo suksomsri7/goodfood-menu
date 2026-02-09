@@ -8,7 +8,6 @@ import {
   Sun,
   Moon,
   Utensils,
-  Droplets,
   Camera,
   Dumbbell,
   TrendingUp,
@@ -31,7 +30,6 @@ interface Settings {
   weeklyInsights: boolean;
   lunchSuggestion: boolean;
   dinnerSuggestion: boolean;
-  waterReminder: boolean;
   progressPhoto: boolean;
   postExercise: boolean;
   pausedUntil: string | null;
@@ -42,7 +40,6 @@ interface Schedule {
   lunchReminderTime: string;
   dinnerReminderTime: string;
   eveningSummaryTime: string;
-  waterReminderTimes: string[];
   weeklyInsightsTime: string;
 }
 
@@ -158,16 +155,6 @@ export function NotificationSettings({
       description: schedule ? `เวลา ${schedule.eveningSummaryTime}` : "",
       color: "text-indigo-500",
       bgColor: "bg-indigo-100",
-    },
-    {
-      key: "waterReminder" as const,
-      icon: Droplets,
-      label: "เตือนดื่มน้ำ",
-      description: schedule
-        ? `${schedule.waterReminderTimes.length} ครั้ง/วัน`
-        : "",
-      color: "text-blue-500",
-      bgColor: "bg-blue-100",
     },
     {
       key: "weeklyInsights" as const,
@@ -406,9 +393,6 @@ export function NotificationSettings({
                         <div className="text-gray-600">
                           🌙 สรุป: {schedule.eveningSummaryTime}
                         </div>
-                      </div>
-                      <div className="mt-2 text-sm text-gray-600">
-                        💧 น้ำ: {schedule.waterReminderTimes.join(", ")}
                       </div>
                     </div>
                   )}

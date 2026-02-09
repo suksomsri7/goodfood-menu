@@ -23,7 +23,6 @@ export async function GET(request: NextRequest) {
         notifyWeeklyInsights: true,
         notifyLunchSuggestion: true,
         notifyDinnerSuggestion: true,
-        notifyWaterReminder: true,
         notifyProgressPhoto: true,
         notifyPostExercise: true,
         notificationsPausedUntil: true,
@@ -37,7 +36,6 @@ export async function GET(request: NextRequest) {
             lunchReminderTime: true,
             dinnerReminderTime: true,
             eveningSummaryTime: true,
-            waterReminderTimes: true,
             weeklyInsightsTime: true,
           },
         },
@@ -81,7 +79,6 @@ export async function GET(request: NextRequest) {
         weeklyInsights: member.notifyWeeklyInsights,
         lunchSuggestion: member.notifyLunchSuggestion,
         dinnerSuggestion: member.notifyDinnerSuggestion,
-        waterReminder: member.notifyWaterReminder,
         progressPhoto: member.notifyProgressPhoto,
         postExercise: member.notifyPostExercise,
         pausedUntil: member.notificationsPausedUntil,
@@ -91,7 +88,6 @@ export async function GET(request: NextRequest) {
         lunchReminderTime: member.memberType.lunchReminderTime,
         dinnerReminderTime: member.memberType.dinnerReminderTime,
         eveningSummaryTime: member.memberType.eveningSummaryTime,
-        waterReminderTimes: member.memberType.waterReminderTimes.split(","),
         weeklyInsightsTime: member.memberType.weeklyInsightsTime,
       } : null,
       aiCoach: {
@@ -131,7 +127,6 @@ export async function PUT(request: NextRequest) {
       weeklyInsights,
       lunchSuggestion,
       dinnerSuggestion,
-      waterReminder,
       progressPhoto,
       postExercise,
     } = body;
@@ -144,7 +139,6 @@ export async function PUT(request: NextRequest) {
     if (weeklyInsights !== undefined) updateData.notifyWeeklyInsights = weeklyInsights;
     if (lunchSuggestion !== undefined) updateData.notifyLunchSuggestion = lunchSuggestion;
     if (dinnerSuggestion !== undefined) updateData.notifyDinnerSuggestion = dinnerSuggestion;
-    if (waterReminder !== undefined) updateData.notifyWaterReminder = waterReminder;
     if (progressPhoto !== undefined) updateData.notifyProgressPhoto = progressPhoto;
     if (postExercise !== undefined) updateData.notifyPostExercise = postExercise;
 
@@ -157,7 +151,6 @@ export async function PUT(request: NextRequest) {
         notifyWeeklyInsights: true,
         notifyLunchSuggestion: true,
         notifyDinnerSuggestion: true,
-        notifyWaterReminder: true,
         notifyProgressPhoto: true,
         notifyPostExercise: true,
         notificationsPausedUntil: true,
@@ -199,7 +192,6 @@ export async function PUT(request: NextRequest) {
         weeklyInsights: member.notifyWeeklyInsights,
         lunchSuggestion: member.notifyLunchSuggestion,
         dinnerSuggestion: member.notifyDinnerSuggestion,
-        waterReminder: member.notifyWaterReminder,
         progressPhoto: member.notifyProgressPhoto,
         postExercise: member.notifyPostExercise,
         pausedUntil: member.notificationsPausedUntil,

@@ -29,7 +29,6 @@ export type CoachingType =
   | "lunch" 
   | "dinner" 
   | "evening" 
-  | "water" 
   | "weekly" 
   | "photo" 
   | "exercise" 
@@ -137,7 +136,6 @@ export async function shouldSendNotification(
     evening: member.notifyEveningSummary,
     lunch: member.notifyLunchSuggestion,
     dinner: member.notifyDinnerSuggestion,
-    water: member.notifyWaterReminder,
     weekly: member.notifyWeeklyInsights,
     photo: member.notifyProgressPhoto,
     exercise: member.notifyPostExercise,
@@ -151,8 +149,6 @@ export async function shouldSendNotification(
 
   // Type-specific checks
   switch (type) {
-    case "water":
-      return await shouldSendWaterReminder(memberId);
     case "lunch":
       return !(await hasMealLogToday(memberId, "lunch"));
     case "dinner":
@@ -163,40 +159,6 @@ export async function shouldSendNotification(
     default:
       return true;
   }
-}
-
-// Check if user needs water reminder
-export async function shouldSendWaterReminder(memberId: string): Promise<boolean> {
-  const member = await prisma.member.findUnique({
-    where: { id: memberId },
-  });
-  
-  if (!member) return false;
-  
-  const now = new Date();
-  const hour = now.getHours();
-  const totalGoal = member.dailyWater || 8;
-
-  // Calculate expected glasses by now (distributed across 7am-9pm)
-  const activeHours = Math.max(0, Math.min(14, hour - 7)); // 7am to 9pm
-  const expectedByNow = Math.floor((activeHours / 14) * totalGoal);
-
-  // Get today's water logs
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
-
-  const waterLogs = await prisma.waterLog.aggregate({
-    where: {
-      memberId,
-      date: { gte: startOfDay },
-    },
-    _sum: { amount: true },
-  });
-
-  const actualDrunk = waterLogs._sum.amount || 0;
-
-  // Send reminder if drunk less than expected
-  return actualDrunk < expectedByNow;
 }
 
 // Check if user has logged a specific meal type today
@@ -583,22 +545,6 @@ ${context.exerciseToday ? `- ออกกำลังกาย: ${context.exerci
 
 ความยาวไม่เกิน 200 ตัวอักษร`;
 
-    case "water":
-      return `${baseInfo}
-
-สถานะน้ำ:
-- ดื่มแล้ว: ${context.water.current} แก้ว
-- เป้าหมาย: ${context.water.target} แก้ว
-- เหลือ: ${context.water.target - context.water.current} แก้ว
-- เวลาปัจจุบัน: ${new Date().getHours()}:00 น.
-
-กรุณาเตือนดื่มน้ำ:
-1. บอกสถานะปัจจุบัน
-2. ให้เหตุผลว่าทำไมควรดื่มน้ำ
-3. ให้กำลังใจ
-
-ความยาวไม่เกิน 100 ตัวอักษร`;
-
     case "inactive":
       return `${baseInfo}
 
@@ -703,8 +649,6 @@ function getFallbackMessage(type: CoachingType, context: MemberContext): string 
       return `ถึงเวลามื้อเย็นแล้วครับ${name} 🍽️ วันนี้เหลือแคลอรี่ ${context.targets.calories - context.today.calories} kcal`;
     case "evening":
       return `สรุปวันนี้ครับ${name} 📊 แคลอรี่ ${context.today.calories}/${context.targets.calories} kcal พรุ่งนี้สู้ต่อนะครับ!`;
-    case "water":
-      return `อย่าลืมดื่มน้ำนะครับ${name}! 💧 ตอนนี้ ${context.water.current}/${context.water.target} แก้ว`;
     case "inactive":
       return `คิดถึงนะครับ${name}! 😊 กลับมาบันทึกอาหารกันต่อนะครับ`;
     case "milestone":
@@ -727,7 +671,6 @@ export function createCoachingFlexMessage(
     lunch: "🍽️",
     dinner: "🍽️",
     evening: "📊",
-    water: "💧",
     weekly: "💡",
     photo: "📸",
     exercise: "🏃",
@@ -740,7 +683,6 @@ export function createCoachingFlexMessage(
     lunch: "แนะนำมื้อกลางวัน",
     dinner: "แนะนำมื้อเย็น",
     evening: "สรุปวันนี้",
-    water: "เตือนดื่มน้ำ",
     weekly: "Insights สัปดาห์",
     photo: "ถ่ายรูปความคืบหน้า",
     exercise: "หลังออกกำลังกาย",

@@ -70,7 +70,6 @@ export async function GET(request: NextRequest) {
       evening: member.notifyEveningSummary,
       lunch: member.notifyLunchSuggestion,
       dinner: member.notifyDinnerSuggestion,
-      water: member.notifyWaterReminder,
       weekly: member.notifyWeeklyInsights,
       photo: member.notifyProgressPhoto,
       exercise: member.notifyPostExercise,
@@ -93,7 +92,7 @@ export async function GET(request: NextRequest) {
     // Step 4: Check each notification type
     const allTypes: CoachingType[] = [
       "morning", "lunch", "dinner", "evening", 
-      "water", "weekly", "photo", "exercise", 
+      "weekly", "photo", "exercise", 
       "milestone", "inactive"
     ];
 
@@ -190,7 +189,6 @@ function getNotifPref(member: {
   notifyEveningSummary: boolean;
   notifyLunchSuggestion: boolean;
   notifyDinnerSuggestion: boolean;
-  notifyWaterReminder: boolean;
   notifyWeeklyInsights: boolean;
   notifyProgressPhoto: boolean;
   notifyPostExercise: boolean;
@@ -200,7 +198,6 @@ function getNotifPref(member: {
     evening: member.notifyEveningSummary,
     lunch: member.notifyLunchSuggestion,
     dinner: member.notifyDinnerSuggestion,
-    water: member.notifyWaterReminder,
     weekly: member.notifyWeeklyInsights,
     photo: member.notifyProgressPhoto,
     exercise: member.notifyPostExercise,
