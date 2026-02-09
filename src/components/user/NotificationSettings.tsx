@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
   Bell,
-  BellOff,
   Sun,
   Moon,
   Utensils,
@@ -14,7 +13,6 @@ import {
   Dumbbell,
   TrendingUp,
   Clock,
-  Pause,
   Play,
   Sparkles,
   Calendar,
@@ -130,31 +128,6 @@ export function NotificationSettings({
     }
   };
 
-  const togglePause = async (days: number | null) => {
-    if (!lineUserId) return;
-
-    setIsSaving(true);
-    try {
-      const res = await fetch(
-        `/api/member/notification-settings?lineUserId=${lineUserId}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pauseForDays: days }),
-        }
-      );
-
-      if (res.ok) {
-        const data = await res.json();
-        setSettings(data.settings);
-      }
-    } catch (error) {
-      console.error("Error toggling pause:", error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const startCourse = async (startDate: string) => {
     if (!lineUserId) return;
 
@@ -213,8 +186,6 @@ export function NotificationSettings({
     const today = new Date();
     return today.toISOString().split("T")[0];
   };
-
-  const isPaused = settings?.pausedUntil && new Date(settings.pausedUntil) > new Date();
 
   const settingItems = [
     {
@@ -443,14 +414,6 @@ export function NotificationSettings({
                 </div>
               )}
 
-              {/* No Member Type Assigned */}
-              {!course && !memberType && (
-                <div className="mt-4 p-3 bg-gray-50 rounded-xl">
-                  <p className="text-sm text-gray-500 text-center">
-                    ⏳ รอ Admin กำหนดประเภทสมาชิก
-                  </p>
-                </div>
-              )}
             </div>
 
             {/* Content */}
@@ -459,54 +422,27 @@ export function NotificationSettings({
                 <div className="flex items-center justify-center py-12">
                   <div className="w-8 h-8 border-3 border-green-200 border-t-green-500 rounded-full animate-spin" />
                 </div>
-              ) : settings ? (
-                <div className="p-6 space-y-6">
-                  {/* Pause All */}
-                  <div className="p-4 bg-gray-50 rounded-2xl">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {isPaused ? (
-                          <BellOff className="w-5 h-5 text-gray-400" />
-                        ) : (
-                          <Bell className="w-5 h-5 text-green-500" />
-                        )}
-                        <div>
-                          <p className="font-medium text-gray-800">
-                            {isPaused ? "การแจ้งเตือนถูกหยุดชั่วคราว" : "การแจ้งเตือนเปิดอยู่"}
-                          </p>
-                          {isPaused && settings.pausedUntil && (
-                            <p className="text-sm text-gray-500">
-                              จนถึง{" "}
-                              {new Date(settings.pausedUntil).toLocaleDateString("th-TH", {
-                                day: "numeric",
-                                month: "short",
-                              })}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      {isPaused ? (
-                        <button
-                          onClick={() => togglePause(null)}
-                          disabled={isSaving}
-                          className="px-4 py-2 bg-green-500 text-white rounded-xl text-sm font-medium hover:bg-green-600 transition-colors flex items-center gap-2"
-                        >
-                          <Play className="w-4 h-4" />
-                          เปิดใช้งาน
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => togglePause(1)}
-                          disabled={isSaving}
-                          className="px-4 py-2 bg-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-300 transition-colors flex items-center gap-2"
-                        >
-                          <Pause className="w-4 h-4" />
-                          หยุด 1 วัน
-                        </button>
-                      )}
+              ) : !memberType ? (
+                /* No Member Type - Show contact admin message */
+                <div className="p-6">
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                      <Sparkles className="w-8 h-8 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                      เปิดระบบ AI Coach
+                    </h3>
+                    <p className="text-gray-500 mb-4">
+                      สอบถามแอดมินเพื่อเปิดใช้งาน AI Coach
+                    </p>
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-full text-sm text-gray-600">
+                      <Bell className="w-4 h-4" />
+                      รอการกำหนดจากแอดมิน
                     </div>
                   </div>
-
+                </div>
+              ) : settings ? (
+                <div className="p-6 space-y-6">
                   {/* Settings List */}
                   <div className="space-y-3">
                     {settingItems.map((item) => (

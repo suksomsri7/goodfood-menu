@@ -726,28 +726,29 @@ export default function MembersPage() {
                             </select>
                           ) : (
                             <div className="space-y-3">
-                              <div className="flex items-center gap-2">
-                                {memberDetail.memberType ? (
-                                  <span
-                                    className="px-3 py-1.5 rounded-full text-sm font-medium"
-                                    style={{ backgroundColor: `${memberDetail.memberType.color}20`, color: memberDetail.memberType.color }}
-                                  >
-                                    {memberDetail.memberType.name}
-                                  </span>
-                                ) : (
-                                  <span className="text-gray-400">ยังไม่ได้กำหนด</span>
-                                )}
-                              </div>
-                              {memberDetail.courseStartDate && (
-                                <div className="flex items-center gap-2 text-sm text-purple-700">
-                                  <Calendar className="w-4 h-4" />
-                                  <span>เริ่มคอร์ส: {format(new Date(memberDetail.courseStartDate), "d MMMM yyyy", { locale: th })}</span>
-                                </div>
-                              )}
-                              {!memberDetail.courseStartDate && memberDetail.memberType && (
-                                <p className="text-sm text-gray-500">
-                                  รอ User กำหนดวันเริ่มคอร์ส
-                                </p>
+                              {memberDetail.memberType ? (
+                                <>
+                                  <div className="flex items-center gap-2">
+                                    <span
+                                      className="px-3 py-1.5 rounded-full text-sm font-medium"
+                                      style={{ backgroundColor: `${memberDetail.memberType.color}20`, color: memberDetail.memberType.color }}
+                                    >
+                                      {memberDetail.memberType.name}
+                                    </span>
+                                  </div>
+                                  {memberDetail.courseStartDate ? (
+                                    <div className="flex items-center gap-2 text-sm text-purple-700">
+                                      <Calendar className="w-4 h-4" />
+                                      <span>เริ่มคอร์ส: {format(new Date(memberDetail.courseStartDate), "d MMMM yyyy", { locale: th })}</span>
+                                    </div>
+                                  ) : (
+                                    <p className="text-sm text-gray-500">
+                                      รอ User กำหนดวันเริ่มคอร์ส
+                                    </p>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="text-gray-400">ยังไม่ได้กำหนด</span>
                               )}
                             </div>
                           )}
