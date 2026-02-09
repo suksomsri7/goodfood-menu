@@ -118,11 +118,7 @@ export async function shouldSendNotification(
   if (!member) return false;
 
   // Check if AI Coach is active
-  const aiCoachActiveCheck = isAiCoachActive(member);
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'coaching.ts:shouldSendNotification',message:'AI Coach active check',data:{memberId,type,aiCoachActive:aiCoachActiveCheck,memberTypeId:member.memberTypeId,memberTypeName:member.memberType?.name,courseDuration:member.memberType?.courseDuration,aiCoachExpireDate:member.aiCoachExpireDate?.toISOString()},hypothesisId:'H2',timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
-  if (!aiCoachActiveCheck) {
+  if (!isAiCoachActive(member)) {
     console.log("[Coaching] AI Coach not active for member:", memberId);
     return false;
   }
@@ -132,9 +128,6 @@ export async function shouldSendNotification(
     member.notificationsPausedUntil &&
     member.notificationsPausedUntil > new Date()
   ) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'coaching.ts:shouldSendNotification',message:'Notifications paused',data:{memberId,pausedUntil:member.notificationsPausedUntil?.toISOString()},hypothesisId:'H3',timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     return false;
   }
 
@@ -152,9 +145,6 @@ export async function shouldSendNotification(
     inactive: true, // Always send inactive reminders
   };
 
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'coaching.ts:shouldSendNotification',message:'Notification preference check',data:{memberId,type,prefEnabled:notificationMap[type],allPrefs:{exercise:member.notifyPostExercise,water:member.notifyWaterReminder}},hypothesisId:'H3',timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
   if (!notificationMap[type]) {
     return false;
   }
@@ -852,15 +842,9 @@ export async function sendCoachingMessage(
   memberId: string,
   type: CoachingType
 ): Promise<boolean> {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'coaching.ts:sendCoachingMessage',message:'Function called',data:{memberId,type},hypothesisId:'H1',timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
   try {
     // Check if should send
     const shouldSend = await shouldSendNotification(memberId, type);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'coaching.ts:sendCoachingMessage',message:'shouldSendNotification result',data:{memberId,type,shouldSend},hypothesisId:'H2-H3',timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     if (!shouldSend) {
       console.log(`Skipping ${type} notification for member ${memberId}`);
       return false;
@@ -873,9 +857,6 @@ export async function sendCoachingMessage(
 
     if (!member?.lineUserId) {
       console.log(`Member ${memberId} has no LINE user ID`);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'coaching.ts:sendCoachingMessage',message:'No LINE user ID',data:{memberId},hypothesisId:'H4',timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       return false;
     }
 
@@ -883,24 +864,15 @@ export async function sendCoachingMessage(
     const context = await gatherMemberContext(memberId);
     if (!context) {
       console.log(`Failed to gather context for member ${memberId}`);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'coaching.ts:sendCoachingMessage',message:'Failed to gather context',data:{memberId},hypothesisId:'H5',timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       return false;
     }
 
     // Generate message
     const message = await generateCoachingMessage(type, context);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'coaching.ts:sendCoachingMessage',message:'Message generated',data:{memberId,type,messageLength:message.length},hypothesisId:'H5',timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
 
     // Create and send Flex message
     const flexMessage = createCoachingFlexMessage(type, message, context);
     const success = await pushMessage(member.lineUserId, [flexMessage]);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'coaching.ts:sendCoachingMessage',message:'LINE push result',data:{memberId,type,lineUserId:member.lineUserId,success},hypothesisId:'H4',timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
 
     if (success) {
       console.log(`Sent ${type} coaching to member ${memberId}`);
@@ -911,9 +883,6 @@ export async function sendCoachingMessage(
     return success;
   } catch (error) {
     console.error(`Error sending coaching to member ${memberId}:`, error);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'coaching.ts:sendCoachingMessage',message:'Exception caught',data:{memberId,type,error:String(error)},hypothesisId:'H4-H5',timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     return false;
   }
 }

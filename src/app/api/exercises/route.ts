@@ -102,9 +102,6 @@ export async function GET(request: NextRequest) {
 
 // POST - Add a new exercise log
 export async function POST(request: NextRequest) {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'exercises/route.ts:POST',message:'Exercise POST called',data:{},hypothesisId:'H1',timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
   try {
     const body = await request.json();
     const {
@@ -162,21 +159,12 @@ export async function POST(request: NextRequest) {
     });
 
     console.log("[Exercise] Created:", { memberId: member.id, exerciseId: exercise.id, name, calories: calculatedCalories });
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'exercises/route.ts:POST',message:'Exercise created, calling sendCoachingMessage',data:{memberId:member.id,exerciseName:name,calories:calculatedCalories},hypothesisId:'H1',timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
 
     // Send post-exercise coaching notification (async, don't block response)
     sendCoachingMessage(member.id, "exercise").then(sent => {
       console.log("[Exercise] Coaching notification result:", { memberId: member.id, sent });
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'exercises/route.ts:POST',message:'sendCoachingMessage completed',data:{memberId:member.id,sent},hypothesisId:'H1',timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
     }).catch(err => {
       console.error("[Exercise] Failed to send coaching:", err);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'exercises/route.ts:POST',message:'sendCoachingMessage failed',data:{memberId:member.id,error:String(err)},hypothesisId:'H1',timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
     });
 
     return NextResponse.json(exercise);
