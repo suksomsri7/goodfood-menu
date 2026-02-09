@@ -585,13 +585,13 @@ export default function MemberTypesPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       ระยะเวลาคอร์ส
                     </label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2 mb-2">
                       {[7, 15, 30].map((days) => (
                         <button
                           key={days}
                           type="button"
                           onClick={() => setFormData({ ...formData, courseDuration: days })}
-                          className={`flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all ${
+                          className={`py-2.5 px-4 rounded-xl text-sm font-medium transition-all ${
                             formData.courseDuration === days
                               ? "bg-green-500 text-white"
                               : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -600,6 +600,27 @@ export default function MemberTypesPage() {
                           {days === 7 ? "🌱" : days === 15 ? "🌿" : "🌳"} {days} วัน
                         </button>
                       ))}
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, courseDuration: 0 })}
+                        className={`py-2.5 px-4 rounded-xl text-sm font-medium transition-all ${
+                          formData.courseDuration === 0
+                            ? "bg-green-500 text-white"
+                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        }`}
+                      >
+                        ♾️ ไม่จำกัด
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.courseDuration}
+                        onChange={(e) => setFormData({ ...formData, courseDuration: parseInt(e.target.value) || 0 })}
+                        className="w-24 px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-center"
+                      />
+                      <span className="text-sm text-gray-500">วัน (0 = ไม่จำกัด)</span>
                     </div>
                   </div>
 
