@@ -56,7 +56,7 @@ export async function PUT(
         ...(name !== undefined && { name }),
         ...(email !== undefined && { email }),
         ...(phone !== undefined && { phone }),
-        ...(memberTypeId !== undefined && { memberTypeId }),
+        ...(memberTypeId !== undefined && { memberTypeId: memberTypeId || null }),
         ...(courseStartDate !== undefined && { courseStartDate: courseStartDate ? new Date(courseStartDate) : null }),
       },
       include: {
