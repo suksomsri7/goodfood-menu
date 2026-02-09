@@ -20,7 +20,13 @@ export async function GET() {
       _count: undefined,
     }));
 
-    return NextResponse.json(result);
+    // Add cache headers - categories change rarely
+    const response = NextResponse.json(result);
+    response.headers.set(
+      "Cache-Control",
+      "public, max-age=120, stale-while-revalidate=600"
+    );
+    return response;
   } catch (error) {
     console.error("Error fetching categories:", error);
     return NextResponse.json(

@@ -8,10 +8,9 @@ const CACHE_VERSION = "5";
 export function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
 
-  // Only apply cache busting to user-facing pages
+  // Only apply cache busting to user-facing pages (NOT landing/articles pages)
   const userPages = ["/goal", "/menu", "/orders", "/cal"];
   const isUserPage =
-    pathname === "/" ||
     userPages.some((p) => pathname === p || pathname.startsWith(p + "/"));
 
   if (!isUserPage) return NextResponse.next();

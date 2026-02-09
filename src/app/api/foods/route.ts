@@ -36,7 +36,13 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(foods);
+    // Add cache headers - foods data changes infrequently
+    const response = NextResponse.json(foods);
+    response.headers.set(
+      "Cache-Control",
+      "public, max-age=60, stale-while-revalidate=300"
+    );
+    return response;
   } catch (error) {
     console.error("Error fetching foods:", error);
     return NextResponse.json(

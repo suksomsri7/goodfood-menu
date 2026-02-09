@@ -1,0 +1,228 @@
+"use client";
+
+import { motion } from "framer-motion";
+import { ArrowRight, Sparkles, Camera, BarChart3 } from "lucide-react";
+import Link from "next/link";
+
+export function HeroSection() {
+  return (
+    <section className="relative min-h-screen flex items-center overflow-hidden">
+      {/* Background */}
+      <div className="absolute inset-0 bg-gradient-to-b from-primary-50/50 via-white to-white" />
+
+      {/* Decorative blobs */}
+      <div className="absolute top-20 right-10 w-72 h-72 bg-primary-100/30 rounded-full blur-3xl" />
+      <div className="absolute bottom-20 left-10 w-96 h-96 bg-primary-50/50 rounded-full blur-3xl" />
+
+      <div className="relative max-w-7xl mx-auto px-6 py-32 md:py-40">
+        <div className="grid lg:grid-cols-2 gap-16 items-center">
+          {/* Left - Content */}
+          <div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary-50 rounded-full mb-8"
+            >
+              <Sparkles className="w-4 h-4 text-primary-600" />
+              <span className="text-sm text-primary-700 font-medium">
+                ขับเคลื่อนด้วย AI
+              </span>
+            </motion.div>
+
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight"
+            >
+              ดูแลสุขภาพ
+              <br />
+              <span className="bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent">
+                ง่ายๆ ด้วย AI
+              </span>
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="mt-6 text-lg text-gray-500 leading-relaxed max-w-lg"
+            >
+              แอปนับแคลอรี่อัจฉริยะ ถ่ายรูปอาหาร AI วิเคราะห์โภชนาการทันที
+              สั่งอาหารเพื่อสุขภาพ พร้อมโค้ชส่วนตัวตลอด 24 ชั่วโมง
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="mt-10 flex flex-wrap gap-4"
+            >
+              <a
+                href="https://line.me/R/ti/p/@goodfood.menu"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-8 py-4 bg-gray-900 text-white font-medium rounded-full hover:bg-gray-800 transition-all hover:shadow-lg hover:shadow-gray-900/20"
+              >
+                เริ่มต้นใช้งานฟรี
+                <ArrowRight className="w-4 h-4" />
+              </a>
+              <button
+                onClick={() => {
+                  document
+                    .querySelector("#features")
+                    ?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="inline-flex items-center gap-2 px-8 py-4 text-gray-600 font-medium rounded-full border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all"
+              >
+                ดูคุณสมบัติ
+              </button>
+            </motion.div>
+
+            {/* Trust indicators */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.5 }}
+              className="mt-12 flex flex-wrap items-center gap-4 md:gap-6 text-sm text-gray-400"
+            >
+              <span>ฟรี ไม่มีค่าใช้จ่าย</span>
+              <span className="w-1 h-1 bg-gray-300 rounded-full hidden md:block" />
+              <span>ใช้งานผ่าน LINE</span>
+              <span className="w-1 h-1 bg-gray-300 rounded-full hidden md:block" />
+              <span>ไม่ต้องติดตั้งแอป</span>
+            </motion.div>
+          </div>
+
+          {/* Right - Phone Mockup */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+            className="hidden lg:flex justify-center"
+          >
+            <div className="relative">
+              {/* Phone frame */}
+              <div className="w-[280px] h-[580px] bg-gray-900 rounded-[3rem] p-3 shadow-2xl shadow-gray-900/20">
+                <div className="w-full h-full bg-white rounded-[2.4rem] overflow-hidden relative">
+                  {/* Status bar */}
+                  <div className="h-12 bg-primary-500 flex items-center justify-center">
+                    <div className="w-20 h-5 bg-black/20 rounded-full mt-1" />
+                  </div>
+                  {/* App content */}
+                  <div className="p-4 space-y-4">
+                    {/* Calorie ring */}
+                    <div className="flex justify-center py-4">
+                      <div className="w-32 h-32 rounded-full border-8 border-primary-100 relative flex items-center justify-center">
+                        <div className="absolute inset-0 rounded-full border-8 border-primary-500 border-t-transparent border-r-transparent rotate-45" />
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-gray-900">
+                            1,240
+                          </div>
+                          <div className="text-xs text-gray-400">แคลอรี่</div>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Macro bars */}
+                    <div className="space-y-3">
+                      {[
+                        { label: "โปรตีน", w: "70%", color: "bg-blue-400" },
+                        { label: "คาร์บ", w: "45%", color: "bg-amber-400" },
+                        { label: "ไขมัน", w: "60%", color: "bg-rose-400" },
+                      ].map((bar) => (
+                        <div key={bar.label} className="space-y-1">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-gray-500">{bar.label}</span>
+                          </div>
+                          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                            <motion.div
+                              className={`h-full rounded-full ${bar.color}`}
+                              initial={{ width: 0 }}
+                              animate={{ width: bar.w }}
+                              transition={{ duration: 1, delay: 0.8 }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Meal items */}
+                    <div className="space-y-2 mt-4">
+                      {[
+                        { name: "มื้อเช้า", cal: "420 kcal", emoji: "🍳", bg: "bg-amber-100" },
+                        { name: "มื้อกลางวัน", cal: "580 kcal", emoji: "🥗", bg: "bg-primary-100" },
+                      ].map((meal) => (
+                        <div
+                          key={meal.name}
+                          className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl"
+                        >
+                          <div
+                            className={`w-8 h-8 rounded-lg ${meal.bg} flex items-center justify-center`}
+                          >
+                            <span className="text-sm">{meal.emoji}</span>
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-xs font-medium text-gray-700">
+                              {meal.name}
+                            </div>
+                            <div className="text-[10px] text-gray-400">
+                              {meal.cal}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Floating card - left */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 1 }}
+                className="absolute -left-20 top-32 bg-white rounded-2xl shadow-xl shadow-gray-200/50 p-4 border border-gray-100"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-primary-50 rounded-xl flex items-center justify-center">
+                    <Camera className="w-5 h-5 text-primary-600" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium text-gray-900">
+                      ถ่ายรูปอาหาร
+                    </div>
+                    <div className="text-[10px] text-gray-400">
+                      AI วิเคราะห์ทันที
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Floating card - right */}
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 1.2 }}
+                className="absolute -right-16 bottom-40 bg-white rounded-2xl shadow-xl shadow-gray-200/50 p-4 border border-gray-100"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+                    <BarChart3 className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium text-gray-900">
+                      ติดตามผล
+                    </div>
+                    <div className="text-[10px] text-gray-400">
+                      กราฟ & สถิติ
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  );
+}

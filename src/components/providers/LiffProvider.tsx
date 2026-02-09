@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useState,
+  useRef,
   ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
@@ -51,12 +52,16 @@ export function LiffProvider({ children }: LiffProviderProps) {
   const [inClient, setInClient] = useState(false);
   const [profile, setProfile] = useState<LiffProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const initStartTime = useRef<number>(0);
 
   useEffect(() => {
     const init = async () => {
+      initStartTime.current = Date.now();
+      
       try {
-        // BACKOFFICE & PUBLIC pages: Skip LIFF completely
-        if (pathname.startsWith('/backoffice') || pathname.startsWith('/tip') || pathname.startsWith('/login')) {
+        // BACKOFFICE & PUBLIC/LANDING pages: Skip LIFF completely
+        const isLandingPage = pathname === '/' || pathname.startsWith('/articles');
+        if (pathname.startsWith('/backoffice') || pathname.startsWith('/tip') || pathname.startsWith('/login') || isLandingPage) {
           setIsReady(true);
           return;
         }
@@ -77,8 +82,8 @@ export function LiffProvider({ children }: LiffProviderProps) {
           setLoggedIn(true);
           setInClient(false);
           
-          // Register dev user in database
-          await registerUser(mockProfile);
+          // Register dev user in database (non-blocking)
+          registerUser(mockProfile);
           
           setIsReady(true);
           return;
@@ -113,13 +118,17 @@ export function LiffProvider({ children }: LiffProviderProps) {
 
         if (loggedInCheck) {
           setLoggedIn(true);
+          
+          // OPTIMIZATION: Get profile and register in parallel
           const userProfile = await getProfile();
           if (userProfile) {
             setProfile(userProfile);
-
-            // Register/update user in database
-            await registerUser(userProfile);
+            // Register/update user in database (non-blocking)
+            registerUser(userProfile);
           }
+          
+          const elapsed = Date.now() - initStartTime.current;
+          console.log(`[LIFF] Ready in ${elapsed}ms`);
         } else {
           // Not logged in - trigger login (works in both LIFF browser and external browser)
           login();
@@ -152,19 +161,17 @@ export function LiffProvider({ children }: LiffProviderProps) {
   );
 }
 
-// Register or update user in database
-async function registerUser(profile: LiffProfile) {
-  try {
-    await fetch("/api/members/me", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        lineUserId: profile.userId,
-        displayName: profile.displayName,
-        pictureUrl: profile.pictureUrl,
-      }),
-    });
-  } catch (error) {
+// Register or update user in database (non-blocking)
+function registerUser(profile: LiffProfile) {
+  fetch("/api/members/me", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      lineUserId: profile.userId,
+      displayName: profile.displayName,
+      pictureUrl: profile.pictureUrl,
+    }),
+  }).catch((error) => {
     console.error("Failed to register user:", error);
-  }
+  });
 }

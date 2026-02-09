@@ -93,67 +93,98 @@ export default function CaloriePage() {
 
   const lineUserId = profile?.userId;
 
-  // Fetch member data
-  const fetchMember = useCallback(async () => {
+  // Helper to get date string
+  const getDateStr = useCallback((date: Date) => {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  }, []);
+
+  // Helper to transform meal data
+  const transformMeal = useCallback((meal: any): Meal => ({
+    id: meal.id,
+    name: meal.name,
+    weight: meal.weight,
+    multiplier: meal.multiplier,
+    calories: meal.calories,
+    protein: meal.protein,
+    carbs: meal.carbs,
+    fat: meal.fat,
+    sodium: meal.sodium,
+    sugar: meal.sugar,
+    imageUrl: meal.imageUrl,
+    ingredients: meal.ingredients,
+    time: new Date(meal.date).toLocaleTimeString("th-TH", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+  }), []);
+
+  // Helper to transform exercise data  
+  const transformExercise = useCallback((ex: any): Exercise => ({
+    id: ex.id,
+    name: ex.name,
+    type: ex.type,
+    duration: ex.duration,
+    calories: ex.calories,
+    intensity: ex.intensity,
+    note: ex.note,
+    time: new Date(ex.date).toLocaleTimeString("th-TH", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+  }), []);
+
+  // OPTIMIZED: Fetch ALL initial data in ONE request
+  const fetchInitialData = useCallback(async () => {
     if (!lineUserId) return;
 
     try {
-      const res = await fetch(`/api/members/me?lineUserId=${lineUserId}`);
+      const dateStr = getDateStr(selectedDate);
+      const tzOffset = selectedDate.getTimezoneOffset();
+      const res = await fetch(
+        `/api/cal/initial-data?lineUserId=${lineUserId}&date=${dateStr}&tzOffset=${tzOffset}`
+      );
+      
       if (res.ok) {
         const data = await res.json();
-        setMember(data);
+        
+        // Set all data at once
+        setMember(data.member);
+        setMeals(data.meals.map(transformMeal));
+        setWaterIntake(data.water.total);
+        setExercises(data.exercises.items.map(transformExercise));
+        setExerciseBurned(data.exercises.totalBurned);
+        
+        console.log(`[Cal] Initial data loaded in ${data.meta.responseTime}ms`);
       }
     } catch (error) {
-      console.error("Failed to fetch member:", error);
+      console.error("Failed to fetch initial data:", error);
     }
-  }, [lineUserId]);
+  }, [lineUserId, selectedDate, getDateStr, transformMeal, transformExercise]);
 
-  // Fetch meals for selected date
+  // Individual fetch functions for date changes and mutations
   const fetchMeals = useCallback(async () => {
     if (!lineUserId) return;
 
     try {
-      // Use local date string to avoid timezone issues
-      const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
-      // Also send timezone offset so backend can filter correctly
+      const dateStr = getDateStr(selectedDate);
       const tzOffset = selectedDate.getTimezoneOffset();
       const res = await fetch(
         `/api/meals?lineUserId=${lineUserId}&date=${dateStr}&tzOffset=${tzOffset}`
       );
       if (res.ok) {
         const data = await res.json();
-        // Transform data to match Meal interface
-        const transformedMeals: Meal[] = data.map((meal: any) => ({
-          id: meal.id,
-          name: meal.name,
-          weight: meal.weight,
-          multiplier: meal.multiplier,
-          calories: meal.calories,
-          protein: meal.protein,
-          carbs: meal.carbs,
-          fat: meal.fat,
-          sodium: meal.sodium,
-          sugar: meal.sugar,
-          imageUrl: meal.imageUrl,
-          ingredients: meal.ingredients,
-          time: new Date(meal.date).toLocaleTimeString("th-TH", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        }));
-        setMeals(transformedMeals);
+        setMeals(data.map(transformMeal));
       }
     } catch (error) {
       console.error("Failed to fetch meals:", error);
     }
-  }, [lineUserId, selectedDate]);
+  }, [lineUserId, selectedDate, getDateStr, transformMeal]);
 
-  // Fetch water intake for selected date
   const fetchWater = useCallback(async () => {
     if (!lineUserId) return;
 
     try {
-      const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
+      const dateStr = getDateStr(selectedDate);
       const tzOffset = selectedDate.getTimezoneOffset();
       const res = await fetch(
         `/api/water?lineUserId=${lineUserId}&date=${dateStr}&tzOffset=${tzOffset}`
@@ -165,41 +196,26 @@ export default function CaloriePage() {
     } catch (error) {
       console.error("Failed to fetch water:", error);
     }
-  }, [lineUserId, selectedDate]);
+  }, [lineUserId, selectedDate, getDateStr]);
 
-  // Fetch exercises for selected date
   const fetchExercises = useCallback(async () => {
     if (!lineUserId) return;
 
     try {
-      const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
+      const dateStr = getDateStr(selectedDate);
       const tzOffset = selectedDate.getTimezoneOffset();
       const res = await fetch(
         `/api/exercises?lineUserId=${lineUserId}&date=${dateStr}&tzOffset=${tzOffset}`
       );
       if (res.ok) {
         const data = await res.json();
-        // Transform data to match Exercise interface
-        const transformedExercises: Exercise[] = (data.exercises || []).map((ex: any) => ({
-          id: ex.id,
-          name: ex.name,
-          type: ex.type,
-          duration: ex.duration,
-          calories: ex.calories,
-          intensity: ex.intensity,
-          note: ex.note,
-          time: new Date(ex.date).toLocaleTimeString("th-TH", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        }));
-        setExercises(transformedExercises);
+        setExercises((data.exercises || []).map(transformExercise));
         setExerciseBurned(data.totalBurned || 0);
       }
     } catch (error) {
       console.error("Failed to fetch exercises:", error);
     }
-  }, [lineUserId, selectedDate]);
+  }, [lineUserId, selectedDate, getDateStr, transformExercise]);
 
   // Fetch AI recommendation
   const fetchRecommendation = useCallback(async (forceRefresh = false) => {
@@ -268,19 +284,17 @@ export default function CaloriePage() {
     document.title = "แคลอรี่";
   }, []);
 
-  // Initial data fetch
+  // Initial data fetch - OPTIMIZED: Single API call instead of 4
   useEffect(() => {
     if (isReady && lineUserId) {
       setIsLoading(true);
-      Promise.all([fetchMember(), fetchMeals(), fetchWater(), fetchExercises()]).finally(() => {
+      fetchInitialData().finally(() => {
         setIsLoading(false);
-        // AI Recommendation disabled temporarily
-        // fetchRecommendation();
       });
     } else if (isReady && !isLoggedIn) {
       setIsLoading(false);
     }
-  }, [isReady, lineUserId, isLoggedIn, fetchMember, fetchMeals, fetchWater, fetchExercises]);
+  }, [isReady, lineUserId, isLoggedIn, fetchInitialData]);
 
   // Refetch data when date changes
   useEffect(() => {
