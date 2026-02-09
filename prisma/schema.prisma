@@ -39,8 +39,8 @@ model Member {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   
-  // Course tracking
-  courseStartDate  DateTime?
+  // AI Coach expire date (set by Admin)
+  aiCoachExpireDate  DateTime?
   
   // Notification Preferences
   notifyMorningCoach     Boolean   @default(true)

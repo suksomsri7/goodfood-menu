@@ -43,11 +43,11 @@ export interface MemberContext {
     currentWeight: number | null;
     targetWeight: number | null;
   };
-  course: {
-    day: number;
-    total: number;
-    progress: number;
-    startDate: Date | null;
+  aiCoach: {
+    isActive: boolean;
+    isUnlimited: boolean;
+    daysRemaining: number | null;
+    expireDate: Date | null;
   };
   today: {
     calories: number;
@@ -88,6 +88,21 @@ export interface MemberContext {
   lastActiveAt: Date | null;
 }
 
+// Check if AI Coach is active for member
+export function isAiCoachActive(member: { 
+  memberType: { courseDuration: number } | null; 
+  aiCoachExpireDate: Date | null 
+}): boolean {
+  if (!member.memberType) return false;
+  
+  // Unlimited (courseDuration = 0)
+  if (member.memberType.courseDuration === 0) return true;
+  
+  // Check expire date
+  if (!member.aiCoachExpireDate) return false;
+  return member.aiCoachExpireDate > new Date();
+}
+
 // Check if member should receive notification
 export async function shouldSendNotification(
   memberId: string,
@@ -101,6 +116,12 @@ export async function shouldSendNotification(
   console.log("[Coaching] shouldSendNotification:", { memberId, type, found: !!member });
 
   if (!member) return false;
+
+  // Check if AI Coach is active
+  if (!isAiCoachActive(member)) {
+    console.log("[Coaching] AI Coach not active for member:", memberId);
+    return false;
+  }
 
   // Check if notifications are paused
   if (
@@ -138,7 +159,7 @@ export async function shouldSendNotification(
       return !(await hasMealLogToday(memberId, "dinner"));
     case "weekly":
     case "photo":
-      return isWeeklyMilestone(member.courseStartDate);
+      return isWeeklyMilestoneFromCreated(member.createdAt);
     default:
       return true;
   }
@@ -216,26 +237,38 @@ export async function hasMealLogToday(
 }
 
 // Check if it's a weekly milestone (7, 14, 21... days from course start)
-export function isWeeklyMilestone(courseStartDate: Date | null): boolean {
-  if (!courseStartDate) return false;
-
+// Check if today is a weekly milestone (every 7 days from member creation)
+export function isWeeklyMilestoneFromCreated(createdAt: Date): boolean {
   const now = new Date();
-  const diffTime = now.getTime() - courseStartDate.getTime();
+  const diffTime = now.getTime() - createdAt.getTime();
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-  return diffDays > 0 && diffDays % 7 === 0;
+  // Send weekly insights every 7 days, starting from day 7
+  return diffDays >= 7 && diffDays % 7 === 0;
 }
 
 // Calculate course progress percentage
-export function getCourseProgress(startDate: Date | null, duration: number): { day: number; progress: number } {
-  if (!startDate) return { day: 0, progress: 0 };
+// Get AI Coach status and remaining days
+export function getAiCoachStatus(
+  expireDate: Date | null, 
+  courseDuration: number
+): { isActive: boolean; isUnlimited: boolean; daysRemaining: number | null } {
+  // Unlimited (courseDuration = 0)
+  if (courseDuration === 0) {
+    return { isActive: true, isUnlimited: true, daysRemaining: null };
+  }
+  
+  if (!expireDate) {
+    return { isActive: false, isUnlimited: false, daysRemaining: null };
+  }
 
   const now = new Date();
-  const diffTime = now.getTime() - startDate.getTime();
-  const day = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
-  const progress = Math.min(100, Math.round((day / duration) * 100));
+  const isActive = expireDate > now;
+  const daysRemaining = isActive 
+    ? Math.ceil((expireDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
 
-  return { day, progress };
+  return { isActive, isUnlimited: false, daysRemaining };
 }
 
 // Gather all context data for a member
@@ -352,9 +385,9 @@ export async function gatherMemberContext(memberId: string): Promise<MemberConte
   // Calculate streak
   const streakDays = await calculateStreak(memberId);
 
-  // Course progress
-  const courseDuration = member.memberType?.courseDuration || 7;
-  const { day, progress } = getCourseProgress(member.courseStartDate, courseDuration);
+  // AI Coach status
+  const courseDuration = member.memberType?.courseDuration || 0;
+  const aiCoachStatus = getAiCoachStatus(member.aiCoachExpireDate, courseDuration);
 
   return {
     name: member.displayName || member.name || "คุณลูกค้า",
@@ -363,11 +396,11 @@ export async function gatherMemberContext(memberId: string): Promise<MemberConte
       currentWeight: member.weight,
       targetWeight: member.goalWeight,
     },
-    course: {
-      day,
-      total: courseDuration,
-      progress,
-      startDate: member.courseStartDate,
+    aiCoach: {
+      isActive: aiCoachStatus.isActive,
+      isUnlimited: aiCoachStatus.isUnlimited,
+      daysRemaining: aiCoachStatus.daysRemaining,
+      expireDate: member.aiCoachExpireDate,
     },
     today: {
       calories: Math.round(todayTotals.calories),

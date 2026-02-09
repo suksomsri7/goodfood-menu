@@ -4,7 +4,7 @@ import {
   gatherMemberContext,
   generateCoachingMessage,
   createCoachingFlexMessage,
-  getCourseProgress
+  isAiCoachActive
 } from "@/lib/coaching";
 import { pushMessage } from "@/lib/line";
 import { Prisma } from "@prisma/client";
@@ -18,8 +18,8 @@ function verifyCronSecret(request: NextRequest): boolean {
   return authHeader === `Bearer ${cronSecret}`;
 }
 
-// Milestone percentages to celebrate
-const MILESTONES = [25, 50, 75, 100];
+// Membership milestones (in days) to celebrate
+const MILESTONES = [7, 14, 30, 60, 90, 180, 365];
 
 // Member type with memberType relation included
 type MemberWithType = Prisma.MemberGetPayload<{
@@ -32,11 +32,11 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get all active members with course
+    // Get all active members with AI Coach
     const members = await prisma.member.findMany({
       where: {
         isActive: true,
-        courseStartDate: { not: null },
+        memberTypeId: { not: null },
       },
       include: {
         memberType: true,
@@ -51,15 +51,11 @@ export async function GET(request: NextRequest) {
 
     for (const member of members) {
       try {
-        if (!member.courseStartDate || !member.memberType) {
+        // Check if AI Coach is active
+        if (!isAiCoachActive(member)) {
           skipped++;
           continue;
         }
-
-        const { day, progress } = getCourseProgress(
-          member.courseStartDate,
-          member.memberType.courseDuration
-        );
 
         // Check if notifications are paused
         if (member.notificationsPausedUntil && member.notificationsPausedUntil > new Date()) {
@@ -67,19 +63,18 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
+        // Calculate days since member creation
+        const daysSinceCreated = Math.floor(
+          (Date.now() - member.createdAt.getTime()) / (1000 * 60 * 60 * 24)
+        );
+
         // Check if today is a milestone day
-        const isMilestoneDay = MILESTONES.some((milestone) => {
-          const targetDay = Math.ceil((milestone / 100) * member.memberType!.courseDuration);
-          return day === targetDay;
-        });
+        const isMilestoneDay = MILESTONES.includes(daysSinceCreated);
 
         if (!isMilestoneDay) {
           skipped++;
           continue;
         }
-
-        // Check if we already sent this milestone (avoid duplicate sends)
-        // We could store this in DB, but for simplicity we'll just check if it's the exact day
 
         const context = await gatherMemberContext(member.id);
         if (!context) {
@@ -94,7 +89,7 @@ export async function GET(request: NextRequest) {
         
         if (success) {
           sent++;
-          console.log(`[Milestone Cron] Sent ${progress}% milestone to member ${member.id}`);
+          console.log(`[Milestone Cron] Sent ${daysSinceCreated}-day milestone to member ${member.id}`);
         } else {
           failed++;
         }

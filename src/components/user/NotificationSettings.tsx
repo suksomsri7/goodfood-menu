@@ -13,11 +13,10 @@ import {
   Dumbbell,
   TrendingUp,
   Clock,
-  Play,
   Sparkles,
   Calendar,
-  Rocket,
-  RefreshCw,
+  AlertCircle,
+  Infinity,
 } from "lucide-react";
 
 interface NotificationSettingsProps {
@@ -47,17 +46,12 @@ interface Schedule {
   weeklyInsightsTime: string;
 }
 
-interface CourseProgress {
-  currentDay: number;
-  totalDays: number;
-  progress: number;
-  isActive: boolean;
-}
-
-interface MemberType {
-  id: string;
-  name: string;
-  courseDuration?: number;
+interface AiCoachStatus {
+  status: "not_assigned" | "active" | "expired" | "unlimited";
+  expireDate: string | null;
+  daysRemaining: number | null;
+  memberTypeName: string | null;
+  courseDuration: number | null;
 }
 
 export function NotificationSettings({
@@ -67,12 +61,8 @@ export function NotificationSettings({
 }: NotificationSettingsProps) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [schedule, setSchedule] = useState<Schedule | null>(null);
-  const [course, setCourse] = useState<CourseProgress | null>(null);
-  const [memberType, setMemberType] = useState<MemberType | null>(null);
+  const [aiCoach, setAiCoach] = useState<AiCoachStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string>("");
 
   useEffect(() => {
     if (isOpen && lineUserId) {
@@ -92,8 +82,7 @@ export function NotificationSettings({
         const data = await res.json();
         setSettings(data.settings);
         setSchedule(data.schedule);
-        setCourse(data.course);
-        setMemberType(data.memberType);
+        setAiCoach(data.aiCoach);
       }
     } catch (error) {
       console.error("Error fetching settings:", error);
@@ -128,63 +117,13 @@ export function NotificationSettings({
     }
   };
 
-  const startCourse = async (startDate: string) => {
-    if (!lineUserId) return;
-
-    setIsSaving(true);
-    try {
-      const res = await fetch(
-        `/api/member/notification-settings?lineUserId=${lineUserId}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ courseStartDate: startDate }),
-        }
-      );
-
-      if (res.ok) {
-        const data = await res.json();
-        setCourse(data.course);
-        setMemberType(data.memberType);
-        setShowDatePicker(false);
-        setSelectedDate("");
-      }
-    } catch (error) {
-      console.error("Error starting course:", error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const resetCourse = async () => {
-    if (!lineUserId) return;
-    if (!confirm("ต้องการรีเซ็ตคอร์สใช่หรือไม่? ความคืบหน้าจะถูกล้าง")) return;
-
-    setIsSaving(true);
-    try {
-      const res = await fetch(
-        `/api/member/notification-settings?lineUserId=${lineUserId}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ courseStartDate: null }),
-        }
-      );
-
-      if (res.ok) {
-        const data = await res.json();
-        setCourse(data.course);
-      }
-    } catch (error) {
-      console.error("Error resetting course:", error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const getTodayDate = () => {
-    const today = new Date();
-    return today.toISOString().split("T")[0];
+  const formatExpireDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString("th-TH", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
   };
 
   const settingItems = [
@@ -256,6 +195,9 @@ export function NotificationSettings({
     },
   ];
 
+  // Check if AI Coach is available for use
+  const isAiCoachAvailable = aiCoach?.status === "active" || aiCoach?.status === "unlimited";
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -288,7 +230,9 @@ export function NotificationSettings({
                     <h2 className="text-lg font-bold text-gray-800">
                       AI Coach
                     </h2>
-                    <p className="text-sm text-gray-500">ตั้งค่าการแจ้งเตือน</p>
+                    <p className="text-sm text-gray-500">
+                      {aiCoach?.memberTypeName || "ตั้งค่าการแจ้งเตือน"}
+                    </p>
                   </div>
                 </div>
                 <button
@@ -299,121 +243,49 @@ export function NotificationSettings({
                 </button>
               </div>
 
-              {/* Course Progress - Active Course */}
-              {course && course.isActive && (
-                <div className="mt-4 p-3 bg-green-50 rounded-xl">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-green-700">
-                      คอร์ส {course.totalDays} วัน
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-green-600">
-                        วันที่ {course.currentDay}/{course.totalDays}
-                      </span>
-                      <button
-                        onClick={resetCourse}
-                        disabled={isSaving}
-                        className="p-1 hover:bg-green-200 rounded transition-colors"
-                        title="รีเซ็ตคอร์ส"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5 text-green-600" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="w-full h-2 bg-green-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-green-500 rounded-full transition-all"
-                      style={{ width: `${course.progress}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Course Completed */}
-              {course && !course.isActive && (
-                <div className="mt-4 p-3 bg-amber-50 rounded-xl">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-sm font-medium text-amber-700">
-                        🎉 คอร์สเสร็จสิ้นแล้ว!
-                      </span>
-                      <p className="text-xs text-amber-600 mt-1">
-                        คุณสามารถเริ่มคอร์สใหม่ได้
+              {/* Status Banner */}
+              {aiCoach && (
+                <div className="mt-4">
+                  {aiCoach.status === "active" && (
+                    <div className="p-3 bg-green-50 rounded-xl">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-green-600" />
+                        <span className="text-sm font-medium text-green-700">
+                          เหลืออีก {aiCoach.daysRemaining} วัน
+                        </span>
+                      </div>
+                      <p className="text-xs text-green-600 mt-1">
+                        หมดอายุ: {formatExpireDate(aiCoach.expireDate!)}
                       </p>
                     </div>
-                    <button
-                      onClick={resetCourse}
-                      disabled={isSaving}
-                      className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 transition-colors"
-                    >
-                      เริ่มใหม่
-                    </button>
-                  </div>
-                </div>
-              )}
+                  )}
 
-              {/* No Course Started Yet - But Has Member Type */}
-              {!course && memberType && (
-                <div className="mt-4 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-100">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Rocket className="w-5 h-5 text-purple-500" />
-                    <span className="font-medium text-purple-700">
-                      พร้อมเริ่มคอร์ส {memberType.name}
-                    </span>
-                  </div>
-                  
-                  {!showDatePicker ? (
-                    <div className="space-y-2">
-                      <button
-                        onClick={() => startCourse(getTodayDate())}
-                        disabled={isSaving}
-                        className="w-full py-2.5 bg-purple-500 text-white rounded-xl font-medium hover:bg-purple-600 transition-colors flex items-center justify-center gap-2"
-                      >
-                        {isSaving ? (
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <>
-                            <Play className="w-4 h-4" />
-                            เริ่มคอร์สวันนี้
-                          </>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => setShowDatePicker(true)}
-                        className="w-full py-2 text-purple-600 text-sm hover:bg-purple-100 rounded-lg transition-colors flex items-center justify-center gap-2"
-                      >
-                        <Calendar className="w-4 h-4" />
-                        เลือกวันเริ่มเอง
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <input
-                        type="date"
-                        value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
-                      />
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setShowDatePicker(false)}
-                          className="flex-1 py-2 text-gray-600 bg-gray-100 rounded-lg text-sm hover:bg-gray-200 transition-colors"
-                        >
-                          ยกเลิก
-                        </button>
-                        <button
-                          onClick={() => selectedDate && startCourse(selectedDate)}
-                          disabled={!selectedDate || isSaving}
-                          className="flex-1 py-2 bg-purple-500 text-white rounded-lg text-sm font-medium hover:bg-purple-600 transition-colors disabled:opacity-50"
-                        >
-                          {isSaving ? "กำลังบันทึก..." : "เริ่มคอร์ส"}
-                        </button>
+                  {aiCoach.status === "unlimited" && (
+                    <div className="p-3 bg-purple-50 rounded-xl">
+                      <div className="flex items-center gap-2">
+                        <Infinity className="w-4 h-4 text-purple-600" />
+                        <span className="text-sm font-medium text-purple-700">
+                          ไม่จำกัดระยะเวลา
+                        </span>
                       </div>
+                    </div>
+                  )}
+
+                  {aiCoach.status === "expired" && (
+                    <div className="p-3 bg-red-50 rounded-xl">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 text-red-600" />
+                        <span className="text-sm font-medium text-red-700">
+                          หมดอายุแล้ว
+                        </span>
+                      </div>
+                      <p className="text-xs text-red-600 mt-1">
+                        ติดต่อแอดมินเพื่อต่ออายุ
+                      </p>
                     </div>
                   )}
                 </div>
               )}
-
             </div>
 
             {/* Content */}
@@ -422,8 +294,8 @@ export function NotificationSettings({
                 <div className="flex items-center justify-center py-12">
                   <div className="w-8 h-8 border-3 border-green-200 border-t-green-500 rounded-full animate-spin" />
                 </div>
-              ) : !memberType ? (
-                /* No Member Type - Show contact admin message */
+              ) : !aiCoach || aiCoach.status === "not_assigned" ? (
+                /* Not Assigned - Show contact admin message */
                 <div className="p-6">
                   <div className="text-center py-12">
                     <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
@@ -441,7 +313,26 @@ export function NotificationSettings({
                     </div>
                   </div>
                 </div>
-              ) : settings ? (
+              ) : aiCoach.status === "expired" ? (
+                /* Expired - Show renew message */
+                <div className="p-6">
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+                      <AlertCircle className="w-8 h-8 text-red-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                      AI Coach หมดอายุแล้ว
+                    </h3>
+                    <p className="text-gray-500 mb-4">
+                      กรุณาติดต่อแอดมินเพื่อต่ออายุการใช้งาน
+                    </p>
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-100 rounded-full text-sm text-red-600">
+                      <Calendar className="w-4 h-4" />
+                      หมดอายุเมื่อ {formatExpireDate(aiCoach.expireDate!)}
+                    </div>
+                  </div>
+                </div>
+              ) : settings && isAiCoachAvailable ? (
                 <div className="p-6 space-y-6">
                   {/* Settings List */}
                   <div className="space-y-3">

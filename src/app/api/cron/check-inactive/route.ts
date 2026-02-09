@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { 
   gatherMemberContext,
   generateCoachingMessage,
-  createCoachingFlexMessage
+  createCoachingFlexMessage,
+  isAiCoachActive
 } from "@/lib/coaching";
 import { pushMessage } from "@/lib/line";
 import { Prisma } from "@prisma/client";
@@ -28,11 +29,11 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get all active members with course
+    // Get all active members with AI Coach
     const members = await prisma.member.findMany({
       where: {
         isActive: true,
-        courseStartDate: { not: null },
+        memberTypeId: { not: null },
       },
       include: {
         memberType: true,
@@ -47,16 +48,10 @@ export async function GET(request: NextRequest) {
 
     for (const member of members) {
       try {
-        // Check if within course duration
-        if (member.courseStartDate && member.memberType) {
-          const daysSinceStart = Math.floor(
-            (Date.now() - member.courseStartDate.getTime()) / (1000 * 60 * 60 * 24)
-          );
-          
-          if (daysSinceStart >= member.memberType.courseDuration) {
-            skipped++;
-            continue; // Course ended
-          }
+        // Check if AI Coach is active
+        if (!isAiCoachActive(member)) {
+          skipped++;
+          continue;
         }
 
         // Check if notifications are paused
@@ -75,17 +70,12 @@ export async function GET(request: NextRequest) {
         });
 
         if (!lastMealLog) {
-          // Never logged - check if course started more than threshold days ago
-          if (member.courseStartDate) {
-            const daysSinceStart = Math.floor(
-              (Date.now() - member.courseStartDate.getTime()) / (1000 * 60 * 60 * 24)
-            );
-            
-            if (daysSinceStart < inactiveDays) {
-              skipped++;
-              continue;
-            }
-          } else {
+          // Never logged - check if member joined more than threshold days ago
+          const daysSinceCreated = Math.floor(
+            (Date.now() - member.createdAt.getTime()) / (1000 * 60 * 60 * 24)
+          );
+          
+          if (daysSinceCreated < inactiveDays) {
             skipped++;
             continue;
           }

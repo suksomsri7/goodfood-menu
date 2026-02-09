@@ -48,7 +48,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, email, phone, memberTypeId, courseStartDate } = body;
+    const { name, email, phone, memberTypeId, aiCoachExpireDate } = body;
 
     const member = await prisma.member.update({
       where: { id },
@@ -57,7 +57,7 @@ export async function PUT(
         ...(email !== undefined && { email }),
         ...(phone !== undefined && { phone }),
         ...(memberTypeId !== undefined && { memberTypeId: memberTypeId || null }),
-        ...(courseStartDate !== undefined && { courseStartDate: courseStartDate ? new Date(courseStartDate) : null }),
+        ...(aiCoachExpireDate !== undefined && { aiCoachExpireDate: aiCoachExpireDate ? new Date(aiCoachExpireDate) : null }),
       },
       include: {
         memberType: true,

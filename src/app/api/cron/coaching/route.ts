@@ -43,11 +43,11 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get all active members with course start date
+    // Get all active members with AI Coach configured
     const members = await prisma.member.findMany({
       where: {
         isActive: true,
-        courseStartDate: { not: null },
+        memberTypeId: { not: null },
       },
       include: {
         memberType: true,
@@ -62,19 +62,19 @@ export async function GET(request: NextRequest) {
 
     for (const member of members) {
       try {
-        // Check if within course duration
-        if (member.courseStartDate && member.memberType) {
-          const daysSinceStart = Math.floor(
-            (Date.now() - member.courseStartDate.getTime()) / (1000 * 60 * 60 * 24)
-          );
+        // Check if AI Coach is active
+        if (member.memberType) {
+          const isUnlimited = member.memberType.courseDuration === 0;
+          const isExpired = !isUnlimited && 
+            (!member.aiCoachExpireDate || member.aiCoachExpireDate < new Date());
           
-          if (daysSinceStart >= member.memberType.courseDuration) {
+          if (isExpired) {
             skipped++;
-            continue; // Course ended
+            continue; // AI Coach expired
           }
         }
 
-        // Check notification preference
+        // Check notification preference (this also checks isAiCoachActive)
         const shouldSend = await shouldSendNotification(member.id, type);
         
         if (!shouldSend) {

@@ -64,7 +64,6 @@ export async function GET(request: NextRequest) {
         current: currentWeight,
         change: weightChange,
       },
-      courseStartDate: member.courseStartDate,
     });
   } catch (error) {
     console.error("Error getting progress photos:", error);
@@ -100,7 +99,9 @@ export async function POST(request: NextRequest) {
 
     const member = await prisma.member.findUnique({
       where: { lineUserId },
-      include: {
+      select: {
+        id: true,
+        createdAt: true,
         memberType: true,
       },
     });
@@ -112,14 +113,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calculate week number
-    let weekNumber = 1;
-    if (member.courseStartDate) {
-      const daysSinceStart = Math.floor(
-        (Date.now() - member.courseStartDate.getTime()) / (1000 * 60 * 60 * 24)
-      );
-      weekNumber = Math.floor(daysSinceStart / 7) + 1;
-    }
+    // Calculate week number from member creation date
+    const daysSinceCreated = Math.floor(
+      (Date.now() - member.createdAt.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    const weekNumber = Math.floor(daysSinceCreated / 7) + 1;
 
     // Check if photo already exists for this week
     const existingPhoto = await prisma.progressPhoto.findFirst({

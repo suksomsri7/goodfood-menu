@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { 
   gatherMemberContext,
-  generateCoachingMessage,
-  createCoachingFlexMessage,
-  isWeeklyMilestone
+  isWeeklyMilestoneFromCreated,
+  isAiCoachActive
 } from "@/lib/coaching";
 import { pushMessage, createFlexMessage } from "@/lib/line";
 import { Prisma } from "@prisma/client";
@@ -29,11 +28,11 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get all active members
+    // Get all active members with AI Coach
     const members = await prisma.member.findMany({
       where: {
         isActive: true,
-        courseStartDate: { not: null },
+        memberTypeId: { not: null },
       },
       include: {
         memberType: true,
@@ -50,21 +49,15 @@ export async function GET(request: NextRequest) {
     for (const member of members) {
       try {
         // Check if it's a weekly milestone for this member
-        if (!isWeeklyMilestone(member.courseStartDate)) {
+        if (!isWeeklyMilestoneFromCreated(member.createdAt)) {
           skipped++;
           continue;
         }
 
-        // Check if within course duration
-        if (member.courseStartDate && member.memberType) {
-          const daysSinceStart = Math.floor(
-            (Date.now() - member.courseStartDate.getTime()) / (1000 * 60 * 60 * 24)
-          );
-          
-          if (daysSinceStart > member.memberType.courseDuration) {
-            skipped++;
-            continue;
-          }
+        // Check if AI Coach is active
+        if (!isAiCoachActive(member)) {
+          skipped++;
+          continue;
         }
 
         // Check if notifications are paused
@@ -79,7 +72,11 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
-        const weekNumber = Math.floor((context.course.day - 1) / 7) + 1;
+        // Calculate week number from member creation
+        const daysSinceCreated = Math.floor(
+          (Date.now() - member.createdAt.getTime()) / (1000 * 60 * 60 * 24)
+        );
+        const weekNumber = Math.floor(daysSinceCreated / 7);
 
         // Send Weekly Insights if enabled
         if (member.notifyWeeklyInsights) {
@@ -217,7 +214,12 @@ function createWeeklyInsightsFlexMessage(
     });
   }
 
-  const progressBar = `${"█".repeat(Math.floor(context.course.progress / 10))}${"░".repeat(10 - Math.floor(context.course.progress / 10))} ${context.course.progress}%`;
+  // Build status text
+  const statusText = context.aiCoach.isUnlimited 
+    ? "AI Coach ∞" 
+    : context.aiCoach.daysRemaining 
+      ? `AI Coach (เหลือ ${context.aiCoach.daysRemaining} วัน)` 
+      : "AI Coach";
 
   return createFlexMessage(`💡 Insights สัปดาห์ที่ ${weekNumber}`, {
     type: "bubble",
@@ -248,16 +250,9 @@ function createWeeklyInsightsFlexMessage(
           contents: [
             {
               type: "text",
-              text: `คอร์ส ${context.course.total} วัน`,
+              text: statusText,
               size: "sm",
               color: "#888888",
-            },
-            {
-              type: "text",
-              text: progressBar,
-              size: "xs",
-              color: "#1DB446",
-              margin: "xs",
             },
           ],
         },

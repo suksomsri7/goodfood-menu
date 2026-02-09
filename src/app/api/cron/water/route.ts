@@ -4,7 +4,8 @@ import {
   shouldSendWaterReminder,
   gatherMemberContext,
   generateCoachingMessage,
-  createCoachingFlexMessage
+  createCoachingFlexMessage,
+  isAiCoachActive
 } from "@/lib/coaching";
 import { pushMessage } from "@/lib/line";
 import { Prisma } from "@prisma/client";
@@ -29,12 +30,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get all active members with water reminder enabled
+    // Get all active members with water reminder enabled and AI Coach
     const members = await prisma.member.findMany({
       where: {
         isActive: true,
         notifyWaterReminder: true,
-        courseStartDate: { not: null },
+        memberTypeId: { not: null },
         OR: [
           { notificationsPausedUntil: null },
           { notificationsPausedUntil: { lt: new Date() } },
@@ -53,16 +54,10 @@ export async function GET(request: NextRequest) {
 
     for (const member of members) {
       try {
-        // Check if within course duration
-        if (member.courseStartDate && member.memberType) {
-          const daysSinceStart = Math.floor(
-            (Date.now() - member.courseStartDate.getTime()) / (1000 * 60 * 60 * 24)
-          );
-          
-          if (daysSinceStart >= member.memberType.courseDuration) {
-            skipped++;
-            continue;
-          }
+        // Check if AI Coach is active
+        if (!isAiCoachActive(member)) {
+          skipped++;
+          continue;
         }
 
         // Check if user needs water reminder (smart check)

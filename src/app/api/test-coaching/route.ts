@@ -40,11 +40,24 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Determine AI Coach status
+    const isUnlimited = member.memberType?.courseDuration === 0;
+    const isExpired = !isUnlimited && 
+      (!member.aiCoachExpireDate || member.aiCoachExpireDate < new Date());
+    const aiCoachStatus = !member.memberType 
+      ? "not_assigned" 
+      : isUnlimited 
+        ? "unlimited" 
+        : isExpired 
+          ? "expired" 
+          : "active";
+
     results.member = {
       id: member.id,
       name: member.displayName || member.name,
       lineUserId: member.lineUserId,
-      courseStartDate: member.courseStartDate,
+      aiCoachExpireDate: member.aiCoachExpireDate,
+      aiCoachStatus,
       memberTypeId: member.memberTypeId,
       memberTypeName: member.memberType?.name,
       courseDuration: member.memberType?.courseDuration,
@@ -68,9 +81,9 @@ export async function GET(request: NextRequest) {
     const context = await gatherMemberContext(member.id);
     results.context = context ? {
       name: context.name,
-      courseDay: context.course.day,
-      courseTotal: context.course.total,
-      courseProgress: context.course.progress,
+      aiCoachActive: context.aiCoach.isActive,
+      aiCoachUnlimited: context.aiCoach.isUnlimited,
+      aiCoachDaysRemaining: context.aiCoach.daysRemaining,
       todayCalories: context.today.calories,
       todayMeals: context.today.meals,
       exerciseToday: context.exerciseToday,
@@ -126,11 +139,17 @@ export async function GET(request: NextRequest) {
     // Step 6: Diagnose issues
     const issues: string[] = [];
     
-    if (!member.courseStartDate) {
-      issues.push("❌ courseStartDate ไม่ได้ตั้งค่า - AI Coach จะไม่ทำงาน");
-    }
     if (!member.memberType) {
-      issues.push("❌ ไม่ได้กำหนดประเภทสมาชิก");
+      issues.push("❌ ไม่ได้กำหนดประเภท AI Coach");
+    } else if (aiCoachStatus === "expired") {
+      issues.push("❌ AI Coach หมดอายุแล้ว");
+    } else if (aiCoachStatus === "active" && member.aiCoachExpireDate) {
+      const daysLeft = Math.ceil(
+        (member.aiCoachExpireDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+      );
+      issues.push(`✅ AI Coach ใช้งานได้ (เหลือ ${daysLeft} วัน)`);
+    } else if (aiCoachStatus === "unlimited") {
+      issues.push("✅ AI Coach ไม่จำกัดระยะเวลา");
     }
     if (!member.isActive) {
       issues.push("❌ สมาชิกไม่ active");

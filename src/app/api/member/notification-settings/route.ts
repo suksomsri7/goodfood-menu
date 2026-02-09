@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
         notifyProgressPhoto: true,
         notifyPostExercise: true,
         notificationsPausedUntil: true,
-        courseStartDate: true,
+        aiCoachExpireDate: true,
         memberType: {
           select: {
             id: true,
@@ -51,21 +51,27 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Calculate course progress
-    let courseProgress = null;
-    if (member.courseStartDate && member.memberType) {
-      const daysSinceStart = Math.floor(
-        (Date.now() - member.courseStartDate.getTime()) / (1000 * 60 * 60 * 24)
-      );
-      const currentDay = daysSinceStart + 1;
-      const progress = Math.min(100, Math.round((currentDay / member.memberType.courseDuration) * 100));
-      
-      courseProgress = {
-        currentDay,
-        totalDays: member.memberType.courseDuration,
-        progress,
-        isActive: currentDay <= member.memberType.courseDuration,
-      };
+    // Determine AI Coach status
+    let aiCoachStatus: "not_assigned" | "active" | "expired" | "unlimited" = "not_assigned";
+    let daysRemaining: number | null = null;
+    
+    if (member.memberType) {
+      if (member.memberType.courseDuration === 0) {
+        // Unlimited
+        aiCoachStatus = "unlimited";
+      } else if (member.aiCoachExpireDate) {
+        const now = new Date();
+        const expireDate = new Date(member.aiCoachExpireDate);
+        if (expireDate > now) {
+          aiCoachStatus = "active";
+          daysRemaining = Math.ceil((expireDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        } else {
+          aiCoachStatus = "expired";
+        }
+      } else {
+        // Has member type but no expire date set - treat as needs setup
+        aiCoachStatus = "not_assigned";
+      }
     }
 
     return NextResponse.json({
@@ -88,11 +94,13 @@ export async function GET(request: NextRequest) {
         waterReminderTimes: member.memberType.waterReminderTimes.split(","),
         weeklyInsightsTime: member.memberType.weeklyInsightsTime,
       } : null,
-      course: courseProgress,
-      memberType: member.memberType ? {
-        id: member.memberType.id,
-        name: member.memberType.name,
-      } : null,
+      aiCoach: {
+        status: aiCoachStatus,
+        expireDate: member.aiCoachExpireDate,
+        daysRemaining,
+        memberTypeName: member.memberType?.name || null,
+        courseDuration: member.memberType?.courseDuration || null,
+      },
     });
   } catch (error) {
     console.error("Error getting notification settings:", error);
@@ -126,11 +134,9 @@ export async function PUT(request: NextRequest) {
       waterReminder,
       progressPhoto,
       postExercise,
-      pauseForDays, // Number of days to pause all notifications
-      courseStartDate, // User can set their own course start date
     } = body;
 
-    // Build update data
+    // Build update data (User can only update notification preferences, not expire date)
     const updateData: Record<string, unknown> = {};
 
     if (morningCoach !== undefined) updateData.notifyMorningCoach = morningCoach;
@@ -141,22 +147,6 @@ export async function PUT(request: NextRequest) {
     if (waterReminder !== undefined) updateData.notifyWaterReminder = waterReminder;
     if (progressPhoto !== undefined) updateData.notifyProgressPhoto = progressPhoto;
     if (postExercise !== undefined) updateData.notifyPostExercise = postExercise;
-
-    // Handle course start date (user can set this themselves)
-    if (courseStartDate !== undefined) {
-      updateData.courseStartDate = courseStartDate ? new Date(courseStartDate) : null;
-    }
-
-    // Handle pause
-    if (pauseForDays !== undefined) {
-      if (pauseForDays === 0 || pauseForDays === null) {
-        updateData.notificationsPausedUntil = null;
-      } else {
-        const pauseUntil = new Date();
-        pauseUntil.setDate(pauseUntil.getDate() + pauseForDays);
-        updateData.notificationsPausedUntil = pauseUntil;
-      }
-    }
 
     const member = await prisma.member.update({
       where: { lineUserId },
@@ -171,7 +161,7 @@ export async function PUT(request: NextRequest) {
         notifyProgressPhoto: true,
         notifyPostExercise: true,
         notificationsPausedUntil: true,
-        courseStartDate: true,
+        aiCoachExpireDate: true,
         memberType: {
           select: {
             id: true,
@@ -182,21 +172,23 @@ export async function PUT(request: NextRequest) {
       },
     });
 
-    // Calculate course progress for response
-    let courseProgress = null;
-    if (member.courseStartDate && member.memberType) {
-      const daysSinceStart = Math.floor(
-        (Date.now() - member.courseStartDate.getTime()) / (1000 * 60 * 60 * 24)
-      );
-      const currentDay = daysSinceStart + 1;
-      const progress = Math.min(100, Math.round((currentDay / member.memberType.courseDuration) * 100));
-      
-      courseProgress = {
-        currentDay,
-        totalDays: member.memberType.courseDuration,
-        progress,
-        isActive: currentDay <= member.memberType.courseDuration,
-      };
+    // Determine AI Coach status
+    let aiCoachStatus: "not_assigned" | "active" | "expired" | "unlimited" = "not_assigned";
+    let daysRemaining: number | null = null;
+    
+    if (member.memberType) {
+      if (member.memberType.courseDuration === 0) {
+        aiCoachStatus = "unlimited";
+      } else if (member.aiCoachExpireDate) {
+        const now = new Date();
+        const expireDate = new Date(member.aiCoachExpireDate);
+        if (expireDate > now) {
+          aiCoachStatus = "active";
+          daysRemaining = Math.ceil((expireDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        } else {
+          aiCoachStatus = "expired";
+        }
+      }
     }
 
     return NextResponse.json({
@@ -212,12 +204,13 @@ export async function PUT(request: NextRequest) {
         postExercise: member.notifyPostExercise,
         pausedUntil: member.notificationsPausedUntil,
       },
-      course: courseProgress,
-      memberType: member.memberType ? {
-        id: member.memberType.id,
-        name: member.memberType.name,
-        courseDuration: member.memberType.courseDuration,
-      } : null,
+      aiCoach: {
+        status: aiCoachStatus,
+        expireDate: member.aiCoachExpireDate,
+        daysRemaining,
+        memberTypeName: member.memberType?.name || null,
+        courseDuration: member.memberType?.courseDuration || null,
+      },
     });
   } catch (error) {
     console.error("Error updating notification settings:", error);

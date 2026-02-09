@@ -94,7 +94,7 @@ interface MemberDetail {
   isOnboarded: boolean;
   memberType: MemberType | null;
   memberTypeId: string | null;
-  courseStartDate: string | null;
+  aiCoachExpireDate: string | null;
   addresses: Address[];
   weightLogs: { id: string; weight: number; date: string }[];
   createdAt: string;
@@ -205,6 +205,7 @@ export default function MembersPage() {
     email: "",
     phone: "",
     memberTypeId: "",
+    aiCoachExpireDate: "",
   });
   const [saving, setSaving] = useState(false);
 
@@ -261,6 +262,7 @@ export default function MembersPage() {
           email: detail.email || "",
           phone: detail.phone || "",
           memberTypeId: detail.memberTypeId || "",
+          aiCoachExpireDate: detail.aiCoachExpireDate ? detail.aiCoachExpireDate.split("T")[0] : "",
         });
       }
 
@@ -712,18 +714,40 @@ export default function MembersPage() {
                             AI Coach
                           </h3>
                           {isEditing ? (
-                            <select
-                              value={editForm.memberTypeId}
-                              onChange={(e) => setEditForm({ ...editForm, memberTypeId: e.target.value })}
-                              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
-                            >
-                              <option value="">-- ไม่ระบุ --</option>
-                              {memberTypes.map((type) => (
-                                <option key={type.id} value={type.id}>
-                                  {type.name}
-                                </option>
-                              ))}
-                            </select>
+                            <div className="space-y-4">
+                              {/* Member Type Selection */}
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">ประเภท AI Coach</label>
+                                <select
+                                  value={editForm.memberTypeId}
+                                  onChange={(e) => setEditForm({ ...editForm, memberTypeId: e.target.value })}
+                                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                                >
+                                  <option value="">-- ไม่ระบุ --</option>
+                                  {memberTypes.map((type) => (
+                                    <option key={type.id} value={type.id}>
+                                      {type.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              
+                              {/* Expire Date - Show only when member type is selected */}
+                              {editForm.memberTypeId && (
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">วันหมดอายุ</label>
+                                  <input
+                                    type="date"
+                                    value={editForm.aiCoachExpireDate}
+                                    onChange={(e) => setEditForm({ ...editForm, aiCoachExpireDate: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                                  />
+                                  <p className="mt-1 text-xs text-gray-500">
+                                    เว้นว่างถ้าเป็นแบบไม่จำกัดระยะเวลา
+                                  </p>
+                                </div>
+                              )}
+                            </div>
                           ) : (
                             <div className="space-y-3">
                               {memberDetail.memberType ? (
@@ -736,14 +760,22 @@ export default function MembersPage() {
                                       {memberDetail.memberType.name}
                                     </span>
                                   </div>
-                                  {memberDetail.courseStartDate ? (
-                                    <div className="flex items-center gap-2 text-sm text-purple-700">
+                                  {memberDetail.aiCoachExpireDate ? (
+                                    <div className="flex items-center gap-2 text-sm">
                                       <Calendar className="w-4 h-4" />
-                                      <span>เริ่มคอร์ส: {format(new Date(memberDetail.courseStartDate), "d MMMM yyyy", { locale: th })}</span>
+                                      {new Date(memberDetail.aiCoachExpireDate) > new Date() ? (
+                                        <span className="text-purple-700">
+                                          หมดอายุ: {format(new Date(memberDetail.aiCoachExpireDate), "d MMMM yyyy", { locale: th })}
+                                        </span>
+                                      ) : (
+                                        <span className="text-red-600">
+                                          หมดอายุแล้ว: {format(new Date(memberDetail.aiCoachExpireDate), "d MMMM yyyy", { locale: th })}
+                                        </span>
+                                      )}
                                     </div>
                                   ) : (
-                                    <p className="text-sm text-gray-500">
-                                      รอ User กำหนดวันเริ่มคอร์ส
+                                    <p className="text-sm text-green-600">
+                                      ✓ ไม่จำกัดระยะเวลา
                                     </p>
                                   )}
                                 </>
