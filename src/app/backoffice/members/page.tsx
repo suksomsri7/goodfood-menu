@@ -205,7 +205,6 @@ export default function MembersPage() {
     email: "",
     phone: "",
     memberTypeId: "",
-    courseStartDate: "",
   });
   const [saving, setSaving] = useState(false);
 
@@ -262,7 +261,6 @@ export default function MembersPage() {
           email: detail.email || "",
           phone: detail.phone || "",
           memberTypeId: detail.memberTypeId || "",
-          courseStartDate: detail.courseStartDate ? detail.courseStartDate.split("T")[0] : "",
         });
       }
 
@@ -707,17 +705,17 @@ export default function MembersPage() {
                           </div>
                         </div>
 
-                        {/* Member Type - Editable */}
-                        <div className="bg-gray-50 rounded-xl p-6">
+                        {/* AI Coach - Editable */}
+                        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-6 border border-purple-100">
                           <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                            <Crown className="w-5 h-5" />
-                            ประเภทสมาชิก
+                            <Crown className="w-5 h-5 text-purple-600" />
+                            AI Coach
                           </h3>
                           {isEditing ? (
                             <select
                               value={editForm.memberTypeId}
                               onChange={(e) => setEditForm({ ...editForm, memberTypeId: e.target.value })}
-                              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent outline-none"
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
                             >
                               <option value="">-- ไม่ระบุ --</option>
                               {memberTypes.map((type) => (
@@ -727,45 +725,29 @@ export default function MembersPage() {
                               ))}
                             </select>
                           ) : (
-                            <div className="flex items-center gap-2">
-                              {memberDetail.memberType ? (
-                                <span
-                                  className="px-3 py-1.5 rounded-full text-sm font-medium"
-                                  style={{ backgroundColor: `${memberDetail.memberType.color}20`, color: memberDetail.memberType.color }}
-                                >
-                                  {memberDetail.memberType.name}
-                                </span>
-                              ) : (
-                                <span className="text-gray-400">ไม่ได้กำหนด</span>
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-2">
+                                {memberDetail.memberType ? (
+                                  <span
+                                    className="px-3 py-1.5 rounded-full text-sm font-medium"
+                                    style={{ backgroundColor: `${memberDetail.memberType.color}20`, color: memberDetail.memberType.color }}
+                                  >
+                                    {memberDetail.memberType.name}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400">ยังไม่ได้กำหนด</span>
+                                )}
+                              </div>
+                              {memberDetail.courseStartDate && (
+                                <div className="flex items-center gap-2 text-sm text-purple-700">
+                                  <Calendar className="w-4 h-4" />
+                                  <span>เริ่มคอร์ส: {format(new Date(memberDetail.courseStartDate), "d MMMM yyyy", { locale: th })}</span>
+                                </div>
                               )}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* AI Coach Course Start Date */}
-                        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-6 border border-purple-100">
-                          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                            <Calendar className="w-5 h-5 text-purple-600" />
-                            AI Coach - วันเริ่มคอร์ส
-                          </h3>
-                          <p className="text-sm text-gray-500 mb-3">
-                            กำหนดวันเริ่มต้นคอร์สเพื่อเปิดใช้งานระบบ AI Coach แจ้งเตือนอัตโนมัติ
-                          </p>
-                          {isEditing ? (
-                            <input
-                              type="date"
-                              value={editForm.courseStartDate}
-                              onChange={(e) => setEditForm({ ...editForm, courseStartDate: e.target.value })}
-                              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
-                            />
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              {memberDetail.courseStartDate ? (
-                                <span className="px-3 py-1.5 rounded-full text-sm font-medium bg-purple-100 text-purple-700">
-                                  {format(new Date(memberDetail.courseStartDate), "d MMMM yyyy", { locale: th })}
-                                </span>
-                              ) : (
-                                <span className="text-gray-400">ยังไม่ได้กำหนด - AI Coach ยังไม่เปิดใช้งาน</span>
+                              {!memberDetail.courseStartDate && memberDetail.memberType && (
+                                <p className="text-sm text-gray-500">
+                                  รอ User กำหนดวันเริ่มคอร์ส
+                                </p>
                               )}
                             </div>
                           )}

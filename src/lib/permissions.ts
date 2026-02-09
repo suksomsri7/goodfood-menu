@@ -145,7 +145,7 @@ export const PERMISSION_MODULES: PermissionModule[] = [
   },
   {
     id: "member-types",
-    label: "ประเภทสมาชิก",
+    label: "AI Coach",
     permissions: [
       { code: "member-types.view", label: "ดูรายการ" },
       { code: "member-types.create", label: "เพิ่ม" },

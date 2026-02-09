@@ -158,7 +158,7 @@ export default function MemberTypesPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) {
-      setError("กรุณากรอกชื่อประเภทสมาชิก");
+      setError("กรุณากรอกชื่อ AI Coach");
       return;
     }
 
@@ -223,8 +223,8 @@ export default function MemberTypesPage() {
   return (
     <div>
       <Header
-        title="ประเภทสมาชิก"
-        subtitle="จัดการประเภทสมาชิกและโควต้าการใช้งาน"
+        title="AI Coach"
+        subtitle="จัดการประเภท AI Coach และการตั้งค่าคอร์ส"
       />
 
       <div className="p-6">
@@ -244,7 +244,7 @@ export default function MemberTypesPage() {
             className="px-4 py-2.5 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors flex items-center gap-2 font-medium shadow-lg shadow-green-500/20"
           >
             <Plus className="w-5 h-5" />
-            เพิ่มประเภทสมาชิก
+            เพิ่ม AI Coach
           </button>
         </div>
 
@@ -259,17 +259,17 @@ export default function MemberTypesPage() {
             <div className="p-12 text-center">
               <Crown className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-600 mb-2">
-                ยังไม่มีประเภทสมาชิก
+                ยังไม่มี AI Coach
               </h3>
               <p className="text-gray-400 mb-4">
-                สร้างประเภทสมาชิกเพื่อกำหนดโควต้าการใช้งาน
+                สร้าง AI Coach เพื่อกำหนดคอร์สและการแจ้งเตือน
               </p>
               <button
                 onClick={openCreateModal}
                 className="px-6 py-2.5 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors font-medium"
               >
                 <Plus className="w-5 h-5 inline mr-2" />
-                เพิ่มประเภทสมาชิก
+                เพิ่ม AI Coach
               </button>
             </div>
           ) : (
@@ -423,7 +423,7 @@ export default function MemberTypesPage() {
             >
               <div className="px-6 py-4 border-b border-gray-100 flex-shrink-0">
                 <h2 className="text-xl font-bold text-gray-800">
-                  {editingType ? "แก้ไขประเภทสมาชิก" : "เพิ่มประเภทสมาชิก"}
+                  {editingType ? "แก้ไข AI Coach" : "เพิ่ม AI Coach"}
                 </h2>
               </div>
 

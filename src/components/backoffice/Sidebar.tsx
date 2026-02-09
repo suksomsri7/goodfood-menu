@@ -154,7 +154,7 @@ const navGroups: NavGroup[] = [
     items: [
       {
         href: "/backoffice/member-types",
-        label: "ประเภทสมาชิก",
+        label: "AI Coach",
         icon: <Crown className="w-5 h-5" />,
         moduleId: "member-types",
       },
