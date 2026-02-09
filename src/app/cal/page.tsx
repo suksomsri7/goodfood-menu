@@ -525,25 +525,6 @@ export default function CaloriePage() {
           </div>
         )}
 
-        {/* AI Analysis & Notification Settings Buttons */}
-        <div className="flex justify-center gap-3 mb-8 mt-8" data-guide="ai-button">
-          <button
-            onClick={fetchAnalysis}
-            disabled={isLoadingAnalysis}
-            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full text-sm font-medium shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all active:scale-95"
-          >
-            <Brain className={`w-4 h-4 ${isLoadingAnalysis ? 'animate-pulse' : ''}`} />
-            <span>{isLoadingAnalysis ? 'กำลังวิเคราะห์...' : 'AI วิเคราะห์'}</span>
-          </button>
-          <button
-            onClick={() => setShowNotificationSettings(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full text-sm font-medium shadow-lg shadow-green-500/25 hover:shadow-green-500/40 transition-all active:scale-95"
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>AI Coach</span>
-          </button>
-        </div>
-
         {/* Macros - both rows */}
         <div data-guide="macros">
           {/* Row 1 - Carbs, Protein, Fat */}
@@ -609,6 +590,25 @@ export default function CaloriePage() {
           onRefresh={() => fetchRecommendation(true)}
         />
       </div> */}
+
+      {/* AI Analysis & Notification Settings Buttons */}
+      <div className="flex justify-center gap-3 mb-6 px-6" data-guide="ai-button">
+        <button
+          onClick={fetchAnalysis}
+          disabled={isLoadingAnalysis}
+          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full text-sm font-medium shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all active:scale-95"
+        >
+          <Brain className={`w-4 h-4 ${isLoadingAnalysis ? 'animate-pulse' : ''}`} />
+          <span>{isLoadingAnalysis ? 'กำลังวิเคราะห์...' : 'AI วิเคราะห์'}</span>
+        </button>
+        <button
+          onClick={() => setShowNotificationSettings(true)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full text-sm font-medium shadow-lg shadow-green-500/25 hover:shadow-green-500/40 transition-all active:scale-95"
+        >
+          <Sparkles className="w-4 h-4" />
+          <span>AI Coach</span>
+        </button>
+      </div>
 
       {/* Exercises */}
       {exercises.length > 0 && (
