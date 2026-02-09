@@ -419,15 +419,15 @@ export default function MemberTypesPage() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative bg-white rounded-2xl max-w-lg w-full shadow-2xl"
+              className="relative bg-white rounded-2xl max-w-lg w-full shadow-2xl max-h-[90vh] flex flex-col"
             >
-              <div className="px-6 py-4 border-b border-gray-100">
+              <div className="px-6 py-4 border-b border-gray-100 flex-shrink-0">
                 <h2 className="text-xl font-bold text-gray-800">
                   {editingType ? "แก้ไขประเภทสมาชิก" : "เพิ่มประเภทสมาชิก"}
                 </h2>
               </div>
 
-              <form onSubmit={handleSubmit} className="p-6 space-y-5">
+              <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto flex-1">
                 {error && (
                   <div className="p-3 bg-red-50 text-red-600 rounded-xl text-sm">
                     {error}
