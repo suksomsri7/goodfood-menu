@@ -474,7 +474,7 @@ export default function OrdersPage() {
                     <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">ลูกค้า</th>
                     <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">เลขออเดอร์</th>
                     <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">ร้านค้า</th>
-                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">แพ็คเกจ</th>
+                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">คอร์ส</th>
                     <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">จำนวนเมนู</th>
                     <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">ราคารวม</th>
                     <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">สถานะ</th>
@@ -752,7 +752,7 @@ export default function OrdersPage() {
                 {/* Order Info */}
                 <div className="mb-6">
                   <div className="p-4 bg-gray-50 rounded-xl mb-4">
-                    <p className="text-xs text-gray-500 mb-1">แพ็คเกจ</p>
+                    <p className="text-xs text-gray-500 mb-1">คอร์ส</p>
                     <p className="font-semibold">{planLabels[selectedOrder.coursePlan] || selectedOrder.coursePlan} {selectedOrder.totalDays > 1 && `(${selectedOrder.totalDays} วัน)`}</p>
                   </div>
 

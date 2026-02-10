@@ -65,7 +65,7 @@ export const PERMISSION_MODULES: PermissionModule[] = [
   },
   {
     id: "packages",
-    label: "แพ็คเกจอาหาร",
+    label: "คอร์สอาหาร",
     permissions: [
       { code: "packages.view", label: "ดูรายการ" },
       { code: "packages.create", label: "เพิ่ม" },

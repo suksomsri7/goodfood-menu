@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     ).join("\n");
 
     // Build prompt
-    let prompt = `คุณเป็นนักโภชนาการ ช่วยเลือกเมนูอาหารสำหรับแพ็คเกจ "${packageName}"
+    let prompt = `คุณเป็นนักโภชนาการ ช่วยเลือกเมนูอาหารสำหรับคอร์ส "${packageName}"
 
 จำนวนที่ต้องเลือก: ${requiredItems} เมนู
 

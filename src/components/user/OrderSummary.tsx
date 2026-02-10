@@ -33,10 +33,10 @@ const mealLabels = {
 };
 
 const planLabels: Record<string, string> = {
-  "7_DAYS": "แพ็คเกจ 7 วัน",
-  "15_DAYS": "แพ็คเกจ 15 วัน",
-  "30_DAYS": "แพ็คเกจ 30 วัน",
-  "CUSTOM": "แพ็คเกจกำหนดเอง",
+  "7_DAYS": "คอร์ส 7 วัน",
+  "15_DAYS": "คอร์ส 15 วัน",
+  "30_DAYS": "คอร์ส 30 วัน",
+  "CUSTOM": "คอร์สกำหนดเอง",
 };
 
 export function OrderSummary({ items, totalDays, coursePlan, onClose, onRemoveItem, onSubmit }: Props) {

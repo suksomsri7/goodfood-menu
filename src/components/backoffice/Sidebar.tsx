@@ -96,7 +96,7 @@ const navGroups: NavGroup[] = [
       },
       {
         href: "/backoffice/packages",
-        label: "แพ็คเกจอาหาร",
+        label: "คอร์สอาหาร",
         icon: <Package className="w-5 h-5" />,
         moduleId: "packages",
       },

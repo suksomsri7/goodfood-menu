@@ -562,6 +562,14 @@ export default function MenuPage() {
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
   const totalPrice = cart.reduce((sum, item) => sum + item.food.price * item.quantity, 0);
   
+  // Check minimum order for package-only restaurants
+  const isPackageOnlyRestaurant = selectedRestaurant?.sellType === "package";
+  const minOrderRequired = selectedRestaurant?.minOrder || 0;
+  const minOrderShortfall = isPackageOnlyRestaurant && minOrderRequired > 0 
+    ? Math.max(0, minOrderRequired - totalItems) 
+    : 0;
+  const canCheckout = !isPackageOnlyRestaurant || minOrderShortfall === 0;
+  
   // Find the best applicable package based on cart quantity
   const bestApplicablePackage = (() => {
     // Get all packages where totalItems >= requiredItems
@@ -771,8 +779,8 @@ export default function MenuPage() {
 
   // Build tabs dynamically based on available data (use filtered data)
   const allTabs = [
-    // แพ็คเกจ - show only if has packages
-    ...(filteredPackages.length > 0 ? [{ id: "package", label: "แพ็คเกจ" }] : []),
+    // คอร์ส - show only if has packages
+    ...(filteredPackages.length > 0 ? [{ id: "package", label: "คอร์ส" }] : []),
     // โปรโมชั่น - show only if has promotions
     ...(filteredPromotions.length > 0 ? [{ id: "promotion", label: "โปรโมชั่น" }] : []),
     // คนสั่งเยอะ - show only if has foods with badge "bestseller"
@@ -949,13 +957,13 @@ export default function MenuPage() {
         </div>
       ) : (
         <div className="px-4 py-4">
-          {/* แพ็คเกจ Section */}
+          {/* คอร์ส Section */}
           {filteredPackages.length > 0 && (
             <div
               ref={(el) => { sectionRefs.current["package"] = el; }}
               className="mb-8"
             >
-              <h2 className="text-lg font-bold text-gray-900 mb-4">แพ็คเกจ</h2>
+              <h2 className="text-lg font-bold text-gray-900 mb-4">คอร์ส</h2>
               <div className="space-y-3">
                 {filteredPackages.map((pkg) => (
                   <div
@@ -1355,6 +1363,21 @@ export default function MenuPage() {
                     )}
                   </div>
                 )}
+                
+                {/* Minimum order warning for package-only restaurants */}
+                {isPackageOnlyRestaurant && minOrderShortfall > 0 && (
+                  <div className="p-3 rounded-xl bg-red-50 border border-red-200 mb-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-lg">⚠️</span>
+                      <span className="font-semibold text-red-700">
+                        สั่งขั้นต่ำ {minOrderRequired} ชิ้น
+                      </span>
+                    </div>
+                    <p className="text-sm text-red-600">
+                      ต้องเพิ่มอีก {minOrderShortfall} ชิ้น เพื่อดำเนินการสั่งซื้อ
+                    </p>
+                  </div>
+                )}
 
                 {/* Summary */}
                 <div className="space-y-2 mb-4">
@@ -1365,7 +1388,7 @@ export default function MenuPage() {
                   
                   {isPackageEligible && packageDiscount > 0 && (
                     <div className="flex items-center justify-between text-green-600">
-                      <span>ส่วนลดแพ็คเกจ</span>
+                      <span>ส่วนลดคอร์ส</span>
                       <span>-฿{packageDiscount.toFixed(2)}</span>
                     </div>
                   )}
@@ -1398,9 +1421,14 @@ export default function MenuPage() {
                   </button>
                   <button
                     onClick={handleProceedToCheckout}
-                    className="flex-[2] py-3 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition-colors"
+                    disabled={!canCheckout}
+                    className={`flex-[2] py-3 rounded-xl font-semibold transition-colors ${
+                      canCheckout 
+                        ? "bg-green-500 text-white hover:bg-green-600" 
+                        : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    }`}
                   >
-                    ดำเนินการสั่งซื้อ
+                    {canCheckout ? "ดำเนินการสั่งซื้อ" : `เพิ่มอีก ${minOrderShortfall} ชิ้น`}
                   </button>
                 </div>
               </div>
@@ -1706,7 +1734,7 @@ export default function MenuPage() {
                       </div>
                       {packageDiscount > 0 && (
                         <div className="flex justify-between text-sm text-green-600">
-                          <span>ส่วนลดแพ็คเกจ</span>
+                          <span>ส่วนลดคอร์ส</span>
                           <span>-฿{packageDiscount.toFixed(2)}</span>
                         </div>
                       )}

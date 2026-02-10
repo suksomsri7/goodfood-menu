@@ -372,7 +372,7 @@ export default function PackagesPage() {
 
   // ลบ
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`ต้องการลบแพ็คเกจ "${name}" หรือไม่?`)) return;
+    if (!confirm(`ต้องการลบคอร์ส "${name}" หรือไม่?`)) return;
 
     try {
       const res = await fetch(`/api/packages/${id}`, { method: "DELETE" });
@@ -395,7 +395,7 @@ export default function PackagesPage() {
   if (isLoading) {
     return (
       <div>
-        <Header title="แพ็คเกจอาหาร" subtitle="จัดการแพ็คเกจส่วนลดทั้งหมด" />
+        <Header title="คอร์สอาหาร" subtitle="จัดการคอร์สส่วนลดทั้งหมด" />
         <div className="p-6 flex items-center justify-center min-h-[400px]">
           <Loader2 className="w-8 h-8 animate-spin text-[#4CAF50]" />
         </div>
@@ -405,13 +405,13 @@ export default function PackagesPage() {
 
   return (
     <div>
-      <Header title="แพ็คเกจอาหาร" subtitle="จัดการแพ็คเกจส่วนลดทั้งหมด" />
+      <Header title="คอร์สอาหาร" subtitle="จัดการคอร์สส่วนลดทั้งหมด" />
 
       <div className="p-6">
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-6">
           <div className="bg-white rounded-xl border border-gray-100 p-4">
-            <p className="text-sm text-gray-500">แพ็คเกจทั้งหมด</p>
+            <p className="text-sm text-gray-500">คอร์สทั้งหมด</p>
             <p className="text-2xl font-bold text-gray-900">{packages.length}</p>
           </div>
           <div className="bg-white rounded-xl border border-gray-100 p-4">
@@ -434,7 +434,7 @@ export default function PackagesPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="ค้นหาแพ็คเกจ..."
+              placeholder="ค้นหาคอร์ส..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm"
@@ -455,7 +455,7 @@ export default function PackagesPage() {
             className="flex items-center gap-2 px-4 py-2.5 bg-[#4CAF50] text-white rounded-lg text-sm font-medium hover:bg-[#43A047] whitespace-nowrap"
           >
             <Plus className="w-4 h-4" />
-            เพิ่มแพ็คเกจ
+            เพิ่มคอร์ส
           </button>
         </div>
 
@@ -466,17 +466,17 @@ export default function PackagesPage() {
               {packages.length === 0 ? (
                 <div>
                   <Package className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                  <p className="mb-4">ยังไม่มีแพ็คเกจอาหาร</p>
+                  <p className="mb-4">ยังไม่มีคอร์สอาหาร</p>
                   <button
                     onClick={openCreateModal}
                     className="inline-flex items-center gap-2 px-4 py-2 bg-[#4CAF50] text-white rounded-lg text-sm"
                   >
                     <Plus className="w-4 h-4" />
-                    สร้างแพ็คเกจแรก
+                    สร้างคอร์สแรก
                   </button>
                 </div>
               ) : (
-                "ไม่พบแพ็คเกจที่ค้นหา"
+                "ไม่พบคอร์สที่ค้นหา"
               )}
             </div>
           ) : (
@@ -489,7 +489,7 @@ export default function PackagesPage() {
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
                     <th className="w-10"></th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">แพ็คเกจ</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">คอร์ส</th>
                     <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">ร้าน</th>
                     <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">จำนวนรายการ</th>
                     <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">ส่วนลด</th>
@@ -520,7 +520,7 @@ export default function PackagesPage() {
         </div>
 
         <p className="text-xs text-gray-400 mt-3">
-          💡 ลากและวางเพื่อจัดลำดับแพ็คเกจ
+          💡 ลากและวางเพื่อจัดลำดับคอร์ส
         </p>
       </div>
 
@@ -530,7 +530,7 @@ export default function PackagesPage() {
           <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between p-4 border-b">
               <h2 className="text-lg font-bold">
-                {editingPackage ? "แก้ไขแพ็คเกจ" : "สร้างแพ็คเกจใหม่"}
+                {editingPackage ? "แก้ไขคอร์ส" : "สร้างคอร์สใหม่"}
               </h2>
               <button onClick={closeModal} className="p-1 rounded hover:bg-gray-100">
                 <X className="w-5 h-5" />
@@ -560,7 +560,7 @@ export default function PackagesPage() {
               {/* รูปภาพ */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  รูปภาพแพ็คเกจ
+                  รูปภาพคอร์ส
                 </label>
                 <div className="relative">
                   {imagePreview ? (
@@ -603,7 +603,7 @@ export default function PackagesPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  ชื่อแพ็คเกจ <span className="text-red-500">*</span>
+                  ชื่อคอร์ส <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -624,7 +624,7 @@ export default function PackagesPage() {
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={2}
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent"
-                  placeholder="อธิบายเงื่อนไขแพ็คเกจ..."
+                  placeholder="อธิบายเงื่อนไขคอร์ส..."
                 />
               </div>
 

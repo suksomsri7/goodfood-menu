@@ -19,7 +19,7 @@ const plans = [
 export function CoursePlanSelector({ coursePlan, customDays, onPlanChange, onCustomDaysChange }: Props) {
   return (
     <div className="px-6 py-6">
-      <h2 className="text-lg font-semibold text-gray-800 mb-4">เลือกแพ็คเกจ</h2>
+      <h2 className="text-lg font-semibold text-gray-800 mb-4">เลือกคอร์ส</h2>
       
       <div className="grid grid-cols-2 gap-3">
         {plans.map((plan) => (

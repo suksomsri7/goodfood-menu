@@ -247,7 +247,7 @@ function SortableRestaurantCard({
             </span>
             <span className="flex items-center gap-1 text-gray-600">
               <Package className="w-4 h-4" />
-              {restaurant._count.packages} แพ็คเกจ
+              {restaurant._count.packages} คอร์ส
             </span>
             <span className="text-gray-600">
               ค่าส่ง: ฿{restaurant.deliveryFee}
@@ -477,7 +477,7 @@ export default function RestaurantsPage() {
 
   const getSellTypeLabel = (type: string) => {
     switch (type) {
-      case "package": return "แพ็คเกจ";
+      case "package": return "คอร์สเท่านั้น";
       case "per_meal": return "รายมื้อ";
       case "both": return "ทั้งหมด";
       default: return type;
@@ -669,8 +669,8 @@ export default function RestaurantsPage() {
                   onChange={(e) => setFormData({ ...formData, sellType: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
                 >
-                  <option value="both">ทั้งหมด (แพ็คเกจ + รายมื้อ)</option>
-                  <option value="package">แพ็คเกจเท่านั้น</option>
+                  <option value="both">ทั้งหมด (คอร์ส + รายมื้อ)</option>
+                  <option value="package">คอร์สเท่านั้น</option>
                   <option value="per_meal">รายมื้อเท่านั้น</option>
                 </select>
               </div>
@@ -678,7 +678,7 @@ export default function RestaurantsPage() {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ค่าส่ง (แพ็คเกจ)
+                    ค่าส่ง (คอร์ส)
                   </label>
                   <input
                     type="number"
