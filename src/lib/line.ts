@@ -533,10 +533,31 @@ export function createOrderFlexMessage(order: {
       contents: [
         {
           type: "text",
+          text: "กรุณารอตรวจสอบรายการสั่งซื้อ และการจัดส่ง",
+          size: "xs",
+          color: "#FF8C00",
+          align: "center",
+          wrap: true,
+        },
+        {
+          type: "text",
+          text: "พนักงานจะติดต่อกลับอย่างเร็วที่สุด",
+          size: "xs",
+          color: "#FF8C00",
+          align: "center",
+          wrap: true,
+        },
+        {
+          type: "separator",
+          margin: "sm",
+        },
+        {
+          type: "text",
           text: "ขอบคุณที่ใช้บริการ GoodFood 💚",
           size: "xs",
           color: "#AAAAAA",
           align: "center",
+          margin: "sm",
         },
       ],
       paddingAll: "15px",
@@ -628,7 +649,8 @@ export function createOrderConfirmedFlexMessage(
     accountName: string;
     accountNumber: string;
     qrCodeUrl?: string | null;
-  }
+  },
+  orderId?: string
 ): LineFlexMessage {
   const bodyContents: unknown[] = [
     {

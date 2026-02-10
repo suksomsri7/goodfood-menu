@@ -51,7 +51,7 @@ export async function GET(
   }
 }
 
-// PATCH - อัพเดทข้อมูล Order (สถานะ, หมายเหตุ, เลขพัสดุ)
+// PATCH - อัพเดทข้อมูล Order (สถานะ, หมายเหตุ, เลขพัสดุ, ราคา)
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -59,13 +59,25 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { status, note, trackingNumber, carrier, sendNotification = true } = body;
+    const { 
+      status, 
+      note, 
+      trackingNumber, 
+      carrier, 
+      deliveryFee,
+      discount,
+      totalPrice,
+      finalPrice,
+      items,
+      sendNotification = true 
+    } = body;
 
     // ดึงข้อมูล order เดิมก่อน
     const existingOrder = await prisma.order.findUnique({
       where: { id },
       include: {
         member: true,
+        items: true,
       },
     });
 
@@ -76,6 +88,18 @@ export async function PATCH(
       );
     }
 
+    // Update item prices if provided
+    if (items && Array.isArray(items)) {
+      for (const item of items) {
+        if (item.id && item.price !== undefined) {
+          await prisma.orderItem.update({
+            where: { id: item.id },
+            data: { price: item.price },
+          });
+        }
+      }
+    }
+
     const order = await prisma.order.update({
       where: { id },
       data: {
@@ -83,10 +107,15 @@ export async function PATCH(
         ...(note !== undefined && { note }),
         ...(trackingNumber !== undefined && { trackingNumber }),
         ...(carrier !== undefined && { carrier }),
+        ...(deliveryFee !== undefined && { deliveryFee }),
+        ...(discount !== undefined && { discount }),
+        ...(totalPrice !== undefined && { totalPrice }),
+        ...(finalPrice !== undefined && { finalPrice }),
       },
       include: {
         items: true,
         member: true,
+        restaurant: true,
       },
     });
 
@@ -106,15 +135,19 @@ export async function PATCH(
                 where: { isActive: true },
               });
 
+              // Calculate final price
+              const confirmedFinalPrice = order.finalPrice ?? (order.totalPrice + order.deliveryFee - order.discount);
+
               flexMessage = createOrderConfirmedFlexMessage(
                 order.orderNumber,
-                order.totalPrice,
+                confirmedFinalPrice,
                 paymentAccount ? {
                   bankName: paymentAccount.bankName,
                   accountName: paymentAccount.accountName,
                   accountNumber: paymentAccount.accountNumber,
                   qrCodeUrl: paymentAccount.qrCodeUrl,
-                } : undefined
+                } : undefined,
+                order.id // Pass orderId for quotation link
               );
               break;
 

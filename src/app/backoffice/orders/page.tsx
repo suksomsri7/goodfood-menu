@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Header } from "@/components/backoffice/Header";
-import { User, Phone, Mail, MessageCircle, Package, Truck, Trash2, Store, MapPin, Calendar, Clock } from "lucide-react";
+import { User, Phone, Mail, MessageCircle, Package, Truck, Trash2, Store, MapPin, Calendar, Clock, Edit3, Save, X, FileText } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Member {
@@ -106,6 +106,13 @@ export default function OrdersPage() {
   const [trackingNumber, setTrackingNumber] = useState("");
   const [carrier, setCarrier] = useState("");
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  
+  // Edit price state
+  const [isEditingPrice, setIsEditingPrice] = useState(false);
+  const [editDeliveryFee, setEditDeliveryFee] = useState(0);
+  const [editDiscount, setEditDiscount] = useState(0);
+  const [editItemPrices, setEditItemPrices] = useState<Record<string, number>>({});
+  const [savingPrice, setSavingPrice] = useState(false);
 
   useEffect(() => {
     fetchOrders();
@@ -193,6 +200,83 @@ export default function OrdersPage() {
       console.error("Error deleting order:", error);
       alert("เกิดข้อผิดพลาด");
     }
+  };
+
+  // Start editing prices
+  const startEditingPrice = () => {
+    if (!selectedOrder) return;
+    setEditDeliveryFee(selectedOrder.deliveryFee || 0);
+    setEditDiscount(selectedOrder.discount || 0);
+    const itemPrices: Record<string, number> = {};
+    selectedOrder.items.forEach(item => {
+      itemPrices[item.id] = item.price;
+    });
+    setEditItemPrices(itemPrices);
+    setIsEditingPrice(true);
+  };
+
+  // Cancel editing
+  const cancelEditingPrice = () => {
+    setIsEditingPrice(false);
+    setEditItemPrices({});
+  };
+
+  // Save price changes
+  const savePriceChanges = async () => {
+    if (!selectedOrder) return;
+    setSavingPrice(true);
+
+    try {
+      // Calculate new total
+      const itemsTotal = selectedOrder.items.reduce((sum, item) => {
+        const newPrice = editItemPrices[item.id] ?? item.price;
+        return sum + (newPrice * item.quantity);
+      }, 0);
+      
+      const newTotalPrice = itemsTotal;
+      const newFinalPrice = itemsTotal + editDeliveryFee - editDiscount;
+
+      const res = await fetch(`/api/orders/${selectedOrder.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deliveryFee: editDeliveryFee,
+          discount: editDiscount,
+          totalPrice: newTotalPrice,
+          finalPrice: newFinalPrice,
+          items: Object.entries(editItemPrices).map(([itemId, price]) => ({
+            id: itemId,
+            price,
+          })),
+          sendNotification: false,
+        }),
+      });
+
+      if (res.ok) {
+        const updatedOrder = await res.json();
+        setSelectedOrder(updatedOrder);
+        fetchOrders();
+        setIsEditingPrice(false);
+      } else {
+        alert("เกิดข้อผิดพลาดในการบันทึก");
+      }
+    } catch (error) {
+      console.error("Error saving prices:", error);
+      alert("เกิดข้อผิดพลาด");
+    } finally {
+      setSavingPrice(false);
+    }
+  };
+
+  // Calculate totals for edit mode
+  const calculateEditTotals = () => {
+    if (!selectedOrder) return { itemsTotal: 0, finalPrice: 0 };
+    const itemsTotal = selectedOrder.items.reduce((sum, item) => {
+      const newPrice = editItemPrices[item.id] ?? item.price;
+      return sum + (newPrice * item.quantity);
+    }, 0);
+    const finalPrice = itemsTotal + editDeliveryFee - editDiscount;
+    return { itemsTotal, finalPrice };
   };
 
   const filteredOrders = orders.filter(
@@ -562,7 +646,36 @@ export default function OrdersPage() {
                   )}
 
                   {/* Items by Day */}
-                  <h3 className="font-semibold text-gray-800 mb-3">🍽️ รายการเมนู</h3>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-gray-800">🍽️ รายการเมนู</h3>
+                    {!isEditingPrice ? (
+                      <button
+                        onClick={startEditingPrice}
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                        แก้ไขราคา
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={cancelEditingPrice}
+                          className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                          ยกเลิก
+                        </button>
+                        <button
+                          onClick={savePriceChanges}
+                          disabled={savingPrice}
+                          className="flex items-center gap-1 px-3 py-1.5 text-sm bg-green-500 text-white hover:bg-green-600 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          <Save className="w-4 h-4" />
+                          {savingPrice ? "กำลังบันทึก..." : "บันทึก"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   {Object.entries(groupItemsByDay(selectedOrder.items))
                     .sort(([a], [b]) => Number(a) - Number(b))
                     .map(([day, items]) => (
@@ -572,7 +685,8 @@ export default function OrdersPage() {
                         )}
                         <div className="space-y-2">
                           {items.map((item) => {
-                            const totalItemPrice = item.price * item.quantity;
+                            const itemPrice = isEditingPrice ? (editItemPrices[item.id] ?? item.price) : item.price;
+                            const totalItemPrice = itemPrice * item.quantity;
                             return (
                               <div key={item.id} className="p-3 bg-gray-50 rounded-lg">
                                 <div className="flex items-center justify-between mb-1">
@@ -580,9 +694,26 @@ export default function OrdersPage() {
                                   <p className="text-xs text-gray-500">{mealLabels[item.mealType] || item.mealType}</p>
                                 </div>
                                 <div className="flex items-center justify-between text-sm">
-                                  <p className="text-gray-500">
-                                    {item.quantity} x ฿{item.price.toLocaleString()}
-                                  </p>
+                                  {isEditingPrice ? (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-gray-500">{item.quantity} x</span>
+                                      <input
+                                        type="number"
+                                        value={editItemPrices[item.id] ?? item.price}
+                                        onChange={(e) => setEditItemPrices({
+                                          ...editItemPrices,
+                                          [item.id]: parseFloat(e.target.value) || 0
+                                        })}
+                                        className="w-24 px-2 py-1 border border-gray-300 rounded-lg text-right font-mono"
+                                        min="0"
+                                      />
+                                      <span className="text-gray-400">฿</span>
+                                    </div>
+                                  ) : (
+                                    <p className="text-gray-500">
+                                      {item.quantity} x ฿{item.price.toLocaleString()}
+                                    </p>
+                                  )}
                                   <p className="font-semibold text-gray-700">= ฿{totalItemPrice.toLocaleString()}</p>
                                 </div>
                               </div>
@@ -597,37 +728,81 @@ export default function OrdersPage() {
                     {/* ยอดรวมก่อนส่วนลด */}
                     <div className="flex items-center justify-between py-2">
                       <span className="text-gray-600">ยอดรวมอาหาร</span>
-                      <span className="font-semibold text-gray-800">฿{selectedOrder.totalPrice.toLocaleString()}</span>
+                      <span className="font-semibold text-gray-800">
+                        ฿{isEditingPrice ? calculateEditTotals().itemsTotal.toLocaleString() : selectedOrder.totalPrice.toLocaleString()}
+                      </span>
                     </div>
 
                     {/* ค่าจัดส่ง */}
-                    {selectedOrder.deliveryFee > 0 && (
-                      <div className="flex items-center justify-between py-2 border-t border-green-200">
-                        <span className="text-gray-600">ค่าจัดส่ง</span>
-                        <span className="font-semibold text-gray-800">฿{selectedOrder.deliveryFee.toLocaleString()}</span>
-                      </div>
-                    )}
+                    <div className="flex items-center justify-between py-2 border-t border-green-200">
+                      <span className="text-gray-600">ค่าจัดส่ง</span>
+                      {isEditingPrice ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            value={editDeliveryFee}
+                            onChange={(e) => setEditDeliveryFee(parseFloat(e.target.value) || 0)}
+                            className="w-24 px-2 py-1 border border-gray-300 rounded-lg text-right font-mono"
+                            min="0"
+                          />
+                          <span className="text-gray-400">฿</span>
+                        </div>
+                      ) : (
+                        <span className="font-semibold text-gray-800">฿{(selectedOrder.deliveryFee || 0).toLocaleString()}</span>
+                      )}
+                    </div>
 
                     {/* ส่วนลด */}
-                    {selectedOrder.discount > 0 && (
-                      <div className="flex items-center justify-between py-2 border-t border-green-200">
-                        <div>
-                          <span className="text-green-600">ส่วนลด</span>
-                          {selectedOrder.packageName && (
-                            <p className="text-xs text-green-500">🎉 {selectedOrder.packageName}</p>
-                          )}
-                          {selectedOrder.discountType === "percent" && selectedOrder.discountValue && (
-                            <p className="text-xs text-green-500">({selectedOrder.discountValue}%)</p>
-                          )}
-                        </div>
-                        <span className="font-semibold text-green-600">-฿{selectedOrder.discount.toLocaleString()}</span>
+                    <div className="flex items-center justify-between py-2 border-t border-green-200">
+                      <div>
+                        <span className="text-green-600">ส่วนลด</span>
+                        {!isEditingPrice && selectedOrder.packageName && (
+                          <p className="text-xs text-green-500">🎉 {selectedOrder.packageName}</p>
+                        )}
                       </div>
-                    )}
+                      {isEditingPrice ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-green-500">-</span>
+                          <input
+                            type="number"
+                            value={editDiscount}
+                            onChange={(e) => setEditDiscount(parseFloat(e.target.value) || 0)}
+                            className="w-24 px-2 py-1 border border-gray-300 rounded-lg text-right font-mono"
+                            min="0"
+                          />
+                          <span className="text-gray-400">฿</span>
+                        </div>
+                      ) : (
+                        <span className="font-semibold text-green-600">-฿{(selectedOrder.discount || 0).toLocaleString()}</span>
+                      )}
+                    </div>
 
                     {/* ที่ต้องชำระ */}
                     <div className="flex items-center justify-between py-3 border-t-2 border-green-300 mt-2">
                       <span className="font-bold text-gray-800 text-lg">ที่ต้องชำระ</span>
-                      <span className="font-bold text-green-600 text-2xl">฿{(selectedOrder.finalPrice || selectedOrder.totalPrice).toLocaleString()}</span>
+                      <span className="font-bold text-green-600 text-2xl">
+                        ฿{isEditingPrice 
+                          ? calculateEditTotals().finalPrice.toLocaleString() 
+                          : (selectedOrder.finalPrice || selectedOrder.totalPrice).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Quotation Link */}
+                  <div className="mt-4 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-blue-600" />
+                        <span className="text-sm font-medium text-blue-700">ใบเสนอราคา</span>
+                      </div>
+                      <a
+                        href={`/quotation/${selectedOrder.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                      >
+                        ดูใบเสนอราคา
+                      </a>
                     </div>
                   </div>
                 </div>
