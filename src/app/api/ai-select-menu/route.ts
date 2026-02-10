@@ -30,13 +30,17 @@ export async function POST(request: NextRequest) {
       requiredItems, 
       packageName,
       userGoals,
-      lineUserId 
+      lineUserId,
+      existingCartItems = 0,
+      existingCartFoodIds = []
     }: { 
       foods: Food[]; 
       requiredItems: number; 
       packageName: string;
       userGoals?: UserGoals;
       lineUserId?: string;
+      existingCartItems?: number;
+      existingCartFoodIds?: string[];
     } = body;
 
     if (!foods || foods.length === 0 || !requiredItems) {
@@ -46,35 +50,72 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Calculate how many more items needed (subtract existing cart)
+    const itemsNeeded = Math.max(0, requiredItems - existingCartItems);
+    
+    // Filter out foods already in cart
+    const availableFoods = foods.filter(f => !existingCartFoodIds.includes(f.id));
+    
+    // If no more items needed
+    if (itemsNeeded === 0) {
+      return NextResponse.json({
+        success: true,
+        selectedFoods: [],
+        recommendation: "✅ คุณมีสินค้าในตะกร้าครบตามคอร์สแล้ว!",
+        totalCalories: 0,
+        totalProtein: 0,
+        totalCarbs: 0,
+        totalFat: 0,
+        totalPrice: 0,
+        existingCartItems,
+        itemsNeeded: 0,
+      });
+    }
+
     // Check if OpenAI API key is configured
     if (!process.env.OPENAI_API_KEY) {
       // Return random selection without AI
-      const shuffled = [...foods].sort(() => Math.random() - 0.5);
-      const selected = shuffled.slice(0, Math.min(requiredItems, foods.length));
+      const shuffled = [...availableFoods].sort(() => Math.random() - 0.5);
+      const selected = shuffled.slice(0, Math.min(itemsNeeded, availableFoods.length));
       
       return NextResponse.json({
         success: true,
         selectedFoods: selected.map(f => ({ ...f, quantity: 1 })),
-        recommendation: "⚠️ ไม่พบ API Key - เลือกแบบสุ่มให้แล้ว",
+        recommendation: existingCartItems > 0 
+          ? `⚠️ ไม่พบ API Key - เลือกเพิ่มอีก ${selected.length} เมนูให้แล้ว (มีในตะกร้าแล้ว ${existingCartItems} รายการ)`
+          : "⚠️ ไม่พบ API Key - เลือกแบบสุ่มให้แล้ว",
         totalCalories: selected.reduce((sum, f) => sum + f.calories, 0),
         totalProtein: selected.reduce((sum, f) => sum + f.protein, 0),
         totalCarbs: selected.reduce((sum, f) => sum + f.carbs, 0),
         totalFat: selected.reduce((sum, f) => sum + f.fat, 0),
         totalPrice: selected.reduce((sum, f) => sum + f.price, 0),
+        existingCartItems,
+        itemsNeeded,
       });
     }
 
-    // Build food list for AI
-    const foodList = foods.map((f, i) => 
+    // Build food list for AI (use available foods, not all foods)
+    const foodList = availableFoods.map((f, i) => 
       `${i + 1}. ${f.name} - ${f.calories} kcal, P:${f.protein}g, C:${f.carbs}g, F:${f.fat}g, ราคา ฿${f.price}`
     ).join("\n");
 
     // Build prompt
     let prompt = `คุณเป็นนักโภชนาการ ช่วยเลือกเมนูอาหารสำหรับคอร์ส "${packageName}"
+`;
 
-จำนวนที่ต้องเลือก: ${requiredItems} เมนู
+    if (existingCartItems > 0) {
+      prompt += `
+ลูกค้ามีสินค้าในตะกร้าแล้ว: ${existingCartItems} รายการ
+ต้องการเลือกเพิ่มอีก: ${itemsNeeded} เมนู (เพื่อให้ครบ ${requiredItems} เมนู)
+`;
+    } else {
+      prompt += `
+จำนวนที่ต้องเลือก: ${itemsNeeded} เมนู
+`;
+    }
 
-รายการอาหารที่มี:
+    prompt += `
+รายการอาหารที่สามารถเลือกได้ (ไม่รวมที่อยู่ในตะกร้าแล้ว):
 ${foodList}
 
 `;
@@ -90,7 +131,7 @@ ${foodList}
     }
 
     prompt += `
-กรุณาเลือก ${requiredItems} เมนู โดยพิจารณา:
+กรุณาเลือก ${itemsNeeded} เมนู โดยพิจารณา:
 1. ความหลากหลายของสารอาหาร
 2. สมดุลระหว่างโปรตีน คาร์บ และไขมัน
 3. ${userGoals ? "เหมาะสมกับเป้าหมายของผู้ใช้" : "เหมาะสมกับการรับประทานในแต่ละวัน"}
@@ -101,19 +142,23 @@ ${foodList}
   "recommendation": "คำแนะนำสั้นๆ 2-3 ประโยค เป็นภาษาไทย"
 }`;
 
+    // Calculate appropriate max_tokens based on items needed
+    // Each ID takes ~3-4 tokens, plus JSON structure and recommendation
+    const estimatedTokens = Math.max(500, itemsNeeded * 5 + 200);
+    
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content: "คุณเป็นนักโภชนาการ ช่วยเลือกเมนูอาหารที่หลากหลายและมีคุณค่าทางโภชนาการ ตอบเป็น JSON เท่านั้น",
+          content: "คุณเป็นนักโภชนาการ ช่วยเลือกเมนูอาหารที่หลากหลายและมีคุณค่าทางโภชนาการ ตอบเป็น JSON เท่านั้น ต้องเลือกให้ครบตามจำนวนที่ขอ",
         },
         {
           role: "user",
           content: prompt,
         },
       ],
-      max_tokens: 500,
+      max_tokens: estimatedTokens,
       temperature: 0.5,
     });
 
@@ -137,20 +182,20 @@ ${foodList}
       throw new Error("Failed to parse AI response");
     }
 
-    // Map selected IDs to foods
+    // Map selected IDs to foods (use availableFoods since that's what AI sees)
     const selectedFoods: (Food & { quantity: number })[] = [];
     const selectedIndices = aiResponse.selectedIds || [];
     
     for (const idx of selectedIndices) {
-      const food = foods[idx - 1]; // AI uses 1-based index
-      if (food && selectedFoods.length < requiredItems) {
+      const food = availableFoods[idx - 1]; // AI uses 1-based index
+      if (food && selectedFoods.length < itemsNeeded) {
         selectedFoods.push({ ...food, quantity: 1 });
       }
     }
 
-    // If not enough foods selected, fill with random ones
-    while (selectedFoods.length < requiredItems && selectedFoods.length < foods.length) {
-      const remaining = foods.filter(f => !selectedFoods.find(sf => sf.id === f.id));
+    // If not enough foods selected, fill with random ones from available foods
+    while (selectedFoods.length < itemsNeeded && selectedFoods.length < availableFoods.length) {
+      const remaining = availableFoods.filter(f => !selectedFoods.find(sf => sf.id === f.id));
       if (remaining.length > 0) {
         const randomFood = remaining[Math.floor(Math.random() * remaining.length)];
         selectedFoods.push({ ...randomFood, quantity: 1 });
@@ -166,15 +211,23 @@ ${foodList}
     const totalFat = selectedFoods.reduce((sum, f) => sum + f.fat, 0);
     const totalPrice = selectedFoods.reduce((sum, f) => sum + f.price, 0);
 
+    // Build recommendation message
+    let recommendation = aiResponse.recommendation || "เลือกเมนูที่หลากหลายและมีคุณค่าทางโภชนาการให้คุณแล้ว";
+    if (existingCartItems > 0) {
+      recommendation = `🛒 มีในตะกร้าแล้ว ${existingCartItems} รายการ - ${recommendation}`;
+    }
+
     return NextResponse.json({
       success: true,
       selectedFoods,
-      recommendation: aiResponse.recommendation || "เลือกเมนูที่หลากหลายและมีคุณค่าทางโภชนาการให้คุณแล้ว",
+      recommendation,
       totalCalories,
       totalProtein,
       totalCarbs,
       totalFat,
       totalPrice,
+      existingCartItems,
+      itemsNeeded,
     });
 
   } catch (error: unknown) {

@@ -728,6 +728,10 @@ export default function MenuPage() {
         }
       }
 
+      // Calculate existing cart items
+      const existingCartItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+      const existingCartFoodIds = cart.map(item => item.food.id);
+      
       const res = await fetch("/api/ai-select-menu", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -745,6 +749,8 @@ export default function MenuPage() {
           packageName: selectedPackage.name,
           userGoals,
           lineUserId,
+          existingCartItems,
+          existingCartFoodIds,
         }),
       });
 
