@@ -38,7 +38,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, description, requiredItems, discountType, discountValue, freeItems, imageUrl } = body;
+    const { name, description, requiredItems, discountType, discountValue, freeItems, imageUrl, restaurantId } = body;
 
     // ดึงข้อมูลเดิม
     const existing = await prisma.package.findUnique({ where: { id } });
@@ -80,6 +80,15 @@ export async function PUT(
         discountValue: parsedDiscountValue,
         freeItems: parseInt(freeItems) || 0,
         imageUrl: finalImageUrl,
+        restaurantId: restaurantId || null,
+      },
+      include: {
+        restaurant: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
 
@@ -140,10 +149,19 @@ export async function PATCH(
     if (body.freeItems !== undefined) updateData.freeItems = parseInt(body.freeItems) || 0;
     if (finalImageUrl !== undefined) updateData.imageUrl = finalImageUrl;
     if (body.isActive !== undefined) updateData.isActive = body.isActive;
+    if (body.restaurantId !== undefined) updateData.restaurantId = body.restaurantId || null;
 
     const updatedPackage = await prisma.package.update({
       where: { id },
       data: updateData,
+      include: {
+        restaurant: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     });
 
     return NextResponse.json(updatedPackage);
