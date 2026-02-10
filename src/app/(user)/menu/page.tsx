@@ -600,18 +600,19 @@ export default function MenuPage() {
   })();
   
   // Find the next package to unlock (for showing "add X more" message)
-  // Only show packages that have benefits (discount or free items)
+  // Show the closest package to unlock, regardless of benefits
   const nextPackageToUnlock = (() => {
-    const lockedPackages = packages.filter(pkg => {
-      const isLocked = totalItems < pkg.requiredItems;
-      const hasDiscount = pkg.discountType && pkg.discountValue != null && pkg.discountValue > 0;
-      const hasFreeItems = pkg.freeItems != null && pkg.freeItems > 0;
-      return isLocked && (hasDiscount || hasFreeItems);
-    });
+    const lockedPackages = packages.filter(pkg => totalItems < pkg.requiredItems);
     if (lockedPackages.length === 0) return null;
     // Get the one with lowest requiredItems (closest to unlock)
     return lockedPackages.sort((a, b) => a.requiredItems - b.requiredItems)[0];
   })();
+  
+  // Check if next package has any benefits
+  const nextPackageHasBenefits = nextPackageToUnlock && (
+    (nextPackageToUnlock.discountType && nextPackageToUnlock.discountValue != null && nextPackageToUnlock.discountValue > 0) ||
+    (nextPackageToUnlock.freeItems != null && nextPackageToUnlock.freeItems > 0)
+  );
   
   // Calculate package discount (including free items)
   const activePackage = bestApplicablePackage;
@@ -1423,21 +1424,23 @@ export default function MenuPage() {
                             {nextPackageToUnlock.name}
                           </span>
                         </div>
-                        <p className="text-sm text-amber-600 mb-2">
-                          เพิ่มอีก {nextPackageToUnlock.requiredItems - totalItems} ชิ้น เพื่อรับ:
+                        <p className="text-sm text-amber-600">
+                          เพิ่มอีก {nextPackageToUnlock.requiredItems - totalItems} ชิ้น {nextPackageHasBenefits ? "เพื่อรับ:" : ""}
                         </p>
-                        <div className="flex flex-wrap gap-2 text-xs">
-                          {nextPackageToUnlock.discountType && nextPackageToUnlock.discountValue != null && nextPackageToUnlock.discountValue > 0 && (
-                            <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded-full">
-                              💰 ลด {nextPackageToUnlock.discountType === "percent" ? `${nextPackageToUnlock.discountValue}%` : `฿${nextPackageToUnlock.discountValue}`}
-                            </span>
-                          )}
-                          {nextPackageToUnlock.freeItems != null && nextPackageToUnlock.freeItems > 0 && (
-                            <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full">
-                              🎁 แถม {nextPackageToUnlock.freeItems} เมนู
-                            </span>
-                          )}
-                        </div>
+                        {nextPackageHasBenefits && (
+                          <div className="flex flex-wrap gap-2 text-xs mt-2">
+                            {nextPackageToUnlock.discountType && nextPackageToUnlock.discountValue != null && nextPackageToUnlock.discountValue > 0 && (
+                              <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded-full">
+                                💰 ลด {nextPackageToUnlock.discountType === "percent" ? `${nextPackageToUnlock.discountValue}%` : `฿${nextPackageToUnlock.discountValue}`}
+                              </span>
+                            )}
+                            {nextPackageToUnlock.freeItems != null && nextPackageToUnlock.freeItems > 0 && (
+                              <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full">
+                                🎁 แถม {nextPackageToUnlock.freeItems} เมนู
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1492,9 +1495,10 @@ export default function MenuPage() {
                 <div className="flex gap-3">
                   <button
                     onClick={clearCart}
-                    className="flex-1 py-3 border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+                    className="flex-1 py-3 border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
                   >
-                    ล้างตะกร้า
+                    <span>🗑️</span>
+                    <span>ล้างตะกร้า</span>
                   </button>
                   <button
                     onClick={handleProceedToCheckout}
