@@ -607,17 +607,52 @@ export default function MenuPage() {
     return lockedPackages.sort((a, b) => a.requiredItems - b.requiredItems)[0];
   })();
   
-  // Calculate package discount
+  // Calculate package discount (including free items)
   const activePackage = bestApplicablePackage;
+  
+  // Calculate free items discount based on lowest priced items in cart
+  const freeItemsDiscount = (() => {
+    if (!activePackage || !activePackage.freeItems || activePackage.freeItems <= 0) return 0;
+    
+    // Get all items with their prices, expanded by quantity
+    const allItemPrices: number[] = [];
+    cart.forEach(item => {
+      for (let i = 0; i < item.quantity; i++) {
+        allItemPrices.push(item.food.price);
+      }
+    });
+    
+    // Sort by price (lowest first)
+    allItemPrices.sort((a, b) => a - b);
+    
+    // Take the lowest priced items up to freeItems count
+    const freeCount = Math.min(activePackage.freeItems, allItemPrices.length);
+    let discount = 0;
+    for (let i = 0; i < freeCount; i++) {
+      discount += allItemPrices[i];
+    }
+    
+    return discount;
+  })();
+  
   const packageDiscount = (() => {
     if (!activePackage) return 0;
-    if (!activePackage.discountType || !activePackage.discountValue) return 0;
     
-    if (activePackage.discountType === "percent") {
-      return Math.round(totalPrice * (activePackage.discountValue / 100));
-    } else {
-      return activePackage.discountValue;
+    let discount = 0;
+    
+    // Add percentage or fixed discount
+    if (activePackage.discountType && activePackage.discountValue) {
+      if (activePackage.discountType === "percent") {
+        discount += Math.round(totalPrice * (activePackage.discountValue / 100));
+      } else {
+        discount += activePackage.discountValue;
+      }
     }
+    
+    // Add free items discount
+    discount += freeItemsDiscount;
+    
+    return discount;
   })();
   
   const finalPrice = totalPrice - packageDiscount;
@@ -1364,9 +1399,9 @@ export default function MenuPage() {
                               💰 ลด {activePackage.discountType === "percent" ? `${activePackage.discountValue}%` : `฿${activePackage.discountValue}`}
                             </span>
                           )}
-                          {activePackage.freeItems > 0 && (
+                          {activePackage.freeItems > 0 && freeItemsDiscount > 0 && (
                             <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full">
-                              🎁 แถม {activePackage.freeItems} เมนู
+                              🎁 แถม {activePackage.freeItems} เมนู (ลด ฿{freeItemsDiscount.toFixed(0)})
                             </span>
                           )}
                         </div>
@@ -1411,10 +1446,21 @@ export default function MenuPage() {
                     <span className="text-gray-700">฿{totalPrice.toFixed(2)}</span>
                   </div>
                   
-                  {isPackageEligible && packageDiscount > 0 && (
+                  {/* Percentage/Fixed Discount */}
+                  {isPackageEligible && activePackage?.discountType && activePackage?.discountValue && activePackage.discountValue > 0 && (
                     <div className="flex items-center justify-between text-green-600">
-                      <span>ส่วนลดคอร์ส</span>
-                      <span>-฿{packageDiscount.toFixed(2)}</span>
+                      <span>💰 ส่วนลด {activePackage.discountType === "percent" ? `${activePackage.discountValue}%` : ""}</span>
+                      <span>-฿{(activePackage.discountType === "percent" 
+                        ? Math.round(totalPrice * (activePackage.discountValue / 100)) 
+                        : activePackage.discountValue).toFixed(2)}</span>
+                    </div>
+                  )}
+                  
+                  {/* Free Items Discount */}
+                  {isPackageEligible && freeItemsDiscount > 0 && (
+                    <div className="flex items-center justify-between text-orange-600">
+                      <span>🎁 แถม {activePackage?.freeItems} เมนู</span>
+                      <span>-฿{freeItemsDiscount.toFixed(2)}</span>
                     </div>
                   )}
 

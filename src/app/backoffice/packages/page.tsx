@@ -774,7 +774,7 @@ export default function PackagesPage() {
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={isSubmitting || !formData.name || (!formData.discountValue && parseInt(formData.freeItems) === 0)}
+                disabled={isSubmitting || !formData.name}
                 className="px-4 py-2 bg-[#4CAF50] text-white rounded-lg text-sm font-medium hover:bg-[#43A047] disabled:opacity-50"
               >
                 {isSubmitting ? "กำลังบันทึก..." : "บันทึก"}
