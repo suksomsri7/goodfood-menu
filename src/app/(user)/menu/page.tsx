@@ -1335,15 +1335,13 @@ export default function MenuPage() {
                     {/* Current active package discount */}
                     {activePackage && (
                       <div className="p-3 rounded-xl bg-green-50 border border-green-200">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2">
                           <span className="text-lg">🎉</span>
                           <span className="font-semibold text-green-700">
                             {activePackage.name}
                           </span>
+                          <span className="text-green-500">✓</span>
                         </div>
-                        <p className="text-sm text-green-600">
-                          ✓ ได้รับส่วนลด {activePackage.discountType === "percent" ? `${activePackage.discountValue}%` : `฿${activePackage.discountValue}`}
-                        </p>
                       </div>
                     )}
                     
