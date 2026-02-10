@@ -600,8 +600,14 @@ export default function MenuPage() {
   })();
   
   // Find the next package to unlock (for showing "add X more" message)
+  // Only show packages that have benefits (discount or free items)
   const nextPackageToUnlock = (() => {
-    const lockedPackages = packages.filter(pkg => totalItems < pkg.requiredItems);
+    const lockedPackages = packages.filter(pkg => {
+      const isLocked = totalItems < pkg.requiredItems;
+      const hasDiscount = pkg.discountType && pkg.discountValue != null && pkg.discountValue > 0;
+      const hasFreeItems = pkg.freeItems != null && pkg.freeItems > 0;
+      return isLocked && (hasDiscount || hasFreeItems);
+    });
     if (lockedPackages.length === 0) return null;
     // Get the one with lowest requiredItems (closest to unlock)
     return lockedPackages.sort((a, b) => a.requiredItems - b.requiredItems)[0];
