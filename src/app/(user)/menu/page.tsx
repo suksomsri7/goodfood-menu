@@ -58,8 +58,9 @@ interface Package {
   mealsPerDay: number;
   requiredItems: number;
   price: number;
-  discountType: string;
-  discountValue: number;
+  discountType: string | null;
+  discountValue: number | null;
+  freeItems: number;
   isActive: boolean;
 }
 
@@ -577,17 +578,24 @@ export default function MenuPage() {
     
     if (eligiblePackages.length === 0) return null;
     
-    // Sort by discount value (highest first) and requiredItems (highest first for same discount)
+    // Sort by total benefits (discount + free items value) - highest first
     // This ensures we get the best deal
     return eligiblePackages.sort((a, b) => {
       // Calculate actual discount amount for comparison
-      const discountA = a.discountType === "percent" 
-        ? totalPrice * (a.discountValue / 100) 
-        : a.discountValue;
-      const discountB = b.discountType === "percent" 
-        ? totalPrice * (b.discountValue / 100) 
-        : b.discountValue;
-      return discountB - discountA;
+      const discountA = a.discountType && a.discountValue
+        ? (a.discountType === "percent" 
+          ? totalPrice * (a.discountValue / 100) 
+          : a.discountValue)
+        : 0;
+      const discountB = b.discountType && b.discountValue
+        ? (b.discountType === "percent" 
+          ? totalPrice * (b.discountValue / 100) 
+          : b.discountValue)
+        : 0;
+      // Add free items value (estimated)
+      const freeValueA = (a.freeItems || 0) * 100; // Estimate 100 baht per free item
+      const freeValueB = (b.freeItems || 0) * 100;
+      return (discountB + freeValueB) - (discountA + freeValueA);
     })[0];
   })();
   
@@ -603,6 +611,7 @@ export default function MenuPage() {
   const activePackage = bestApplicablePackage;
   const packageDiscount = (() => {
     if (!activePackage) return 0;
+    if (!activePackage.discountType || !activePackage.discountValue) return 0;
     
     if (activePackage.discountType === "percent") {
       return Math.round(totalPrice * (activePackage.discountValue / 100));
@@ -988,15 +997,22 @@ export default function MenuPage() {
                         {pkg.description && (
                           <p className="text-white/80 text-sm line-clamp-2">{pkg.description}</p>
                         )}
-                        <div className="flex items-center gap-2 mt-2">
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
                           <span className="bg-white/20 px-2 py-1 rounded-lg text-sm">
                             ซื้อ {pkg.requiredItems} ชิ้น
                           </span>
-                          <span className="bg-yellow-400 text-yellow-900 px-2 py-1 rounded-lg text-sm font-bold">
-                            {pkg.discountType === "percent" 
-                              ? `ลด ${pkg.discountValue}%` 
-                              : `ลด ฿${pkg.discountValue}`}
-                          </span>
+                          {pkg.discountType && pkg.discountValue && pkg.discountValue > 0 && (
+                            <span className="bg-yellow-400 text-yellow-900 px-2 py-1 rounded-lg text-sm font-bold">
+                              💰 ลด {pkg.discountType === "percent" 
+                                ? `${pkg.discountValue}%` 
+                                : `฿${pkg.discountValue}`}
+                            </span>
+                          )}
+                          {pkg.freeItems > 0 && (
+                            <span className="bg-orange-400 text-orange-900 px-2 py-1 rounded-lg text-sm font-bold">
+                              🎁 แถม {pkg.freeItems}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1335,12 +1351,24 @@ export default function MenuPage() {
                     {/* Current active package discount */}
                     {activePackage && (
                       <div className="p-3 rounded-xl bg-green-50 border border-green-200">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 mb-1">
                           <span className="text-lg">🎉</span>
                           <span className="font-semibold text-green-700">
                             {activePackage.name}
                           </span>
                           <span className="text-green-500">✓</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2 text-sm">
+                          {activePackage.discountType && activePackage.discountValue && activePackage.discountValue > 0 && (
+                            <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full">
+                              💰 ลด {activePackage.discountType === "percent" ? `${activePackage.discountValue}%` : `฿${activePackage.discountValue}`}
+                            </span>
+                          )}
+                          {activePackage.freeItems > 0 && (
+                            <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full">
+                              🎁 แถม {activePackage.freeItems} เมนู
+                            </span>
+                          )}
                         </div>
                       </div>
                     )}
@@ -1354,9 +1382,21 @@ export default function MenuPage() {
                             {nextPackageToUnlock.name}
                           </span>
                         </div>
-                        <p className="text-sm text-amber-600">
-                          เพิ่มอีก {nextPackageToUnlock.requiredItems - totalItems} ชิ้น
+                        <p className="text-sm text-amber-600 mb-2">
+                          เพิ่มอีก {nextPackageToUnlock.requiredItems - totalItems} ชิ้น เพื่อรับ:
                         </p>
+                        <div className="flex flex-wrap gap-2 text-xs">
+                          {nextPackageToUnlock.discountType && nextPackageToUnlock.discountValue && nextPackageToUnlock.discountValue > 0 && (
+                            <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded-full">
+                              💰 ลด {nextPackageToUnlock.discountType === "percent" ? `${nextPackageToUnlock.discountValue}%` : `฿${nextPackageToUnlock.discountValue}`}
+                            </span>
+                          )}
+                          {nextPackageToUnlock.freeItems > 0 && (
+                            <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full">
+                              🎁 แถม {nextPackageToUnlock.freeItems} เมนู
+                            </span>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -2015,11 +2055,18 @@ export default function MenuPage() {
                       <span className="bg-white/20 px-3 py-1 rounded-lg text-sm">
                         เลือก {selectedPackage.requiredItems} เมนู
                       </span>
-                      <span className="bg-yellow-400 text-yellow-900 px-3 py-1 rounded-lg text-sm font-bold">
-                        {selectedPackage.discountType === "percent" 
-                          ? `ลด ${selectedPackage.discountValue}%` 
-                          : `ลด ฿${selectedPackage.discountValue}`}
-                      </span>
+                      {selectedPackage.discountType && selectedPackage.discountValue && selectedPackage.discountValue > 0 && (
+                        <span className="bg-yellow-400 text-yellow-900 px-3 py-1 rounded-lg text-sm font-bold">
+                          💰 ลด {selectedPackage.discountType === "percent" 
+                            ? `${selectedPackage.discountValue}%` 
+                            : `฿${selectedPackage.discountValue}`}
+                        </span>
+                      )}
+                      {selectedPackage.freeItems > 0 && (
+                        <span className="bg-orange-400 text-orange-900 px-3 py-1 rounded-lg text-sm font-bold">
+                          🎁 แถม {selectedPackage.freeItems}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

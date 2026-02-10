@@ -27,8 +27,9 @@ interface FoodPackage {
   description?: string;
   imageUrl?: string;
   requiredItems: number;
-  discountType: "percent" | "fixed";
-  discountValue: number;
+  discountType: "percent" | "fixed" | null;
+  discountValue: number | null;
+  freeItems: number;
   isActive: boolean;
   order: number;
   restaurantId?: string;
@@ -117,10 +118,22 @@ function SortableRow({
         </span>
       </td>
       <td className="py-3 px-4 text-center">
-        <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium">
-          {pkg.discountType === "percent" ? <Percent className="w-3 h-3" /> : <DollarSign className="w-3 h-3" />}
-          ลด {formatDiscount(pkg)}
-        </span>
+        <div className="flex flex-col gap-1 items-center">
+          {pkg.discountType && pkg.discountValue && pkg.discountValue > 0 && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium">
+              {pkg.discountType === "percent" ? <Percent className="w-3 h-3" /> : <DollarSign className="w-3 h-3" />}
+              ลด {pkg.discountType === "percent" ? `${pkg.discountValue}%` : `฿${pkg.discountValue.toLocaleString()}`}
+            </span>
+          )}
+          {pkg.freeItems > 0 && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-50 text-orange-700 rounded-full text-xs font-medium">
+              🎁 แถม {pkg.freeItems} เมนู
+            </span>
+          )}
+          {(!pkg.discountType || !pkg.discountValue) && pkg.freeItems === 0 && (
+            <span className="text-gray-400 text-xs">-</span>
+          )}
+        </div>
       </td>
       <td className="py-3 px-4 text-center">
         <span className={`px-2 py-1 rounded-full text-xs font-medium ${pkg.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
@@ -172,8 +185,9 @@ export default function PackagesPage() {
     name: "",
     description: "",
     requiredItems: "1",
-    discountType: "percent" as "percent" | "fixed",
+    discountType: "" as "" | "percent" | "fixed",
     discountValue: "",
+    freeItems: "0",
     restaurantId: "",
   });
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -277,8 +291,9 @@ export default function PackagesPage() {
       name: "",
       description: "",
       requiredItems: "1",
-      discountType: "percent",
+      discountType: "",
       discountValue: "",
+      freeItems: "0",
       restaurantId: "",
     });
     setImagePreview(null);
@@ -292,8 +307,9 @@ export default function PackagesPage() {
       name: pkg.name,
       description: pkg.description || "",
       requiredItems: pkg.requiredItems.toString(),
-      discountType: pkg.discountType,
-      discountValue: pkg.discountValue.toString(),
+      discountType: pkg.discountType || "",
+      discountValue: pkg.discountValue?.toString() || "",
+      freeItems: pkg.freeItems?.toString() || "0",
       restaurantId: pkg.restaurantId || "",
     });
     setImagePreview(pkg.imageUrl || null);
@@ -322,8 +338,9 @@ export default function PackagesPage() {
           name: formData.name,
           description: formData.description || null,
           requiredItems: parseInt(formData.requiredItems) || 1,
-          discountType: formData.discountType,
-          discountValue: parseFloat(formData.discountValue) || 0,
+          discountType: formData.discountType || null,
+          discountValue: formData.discountValue ? parseFloat(formData.discountValue) : null,
+          freeItems: parseInt(formData.freeItems) || 0,
           imageUrl: imagePreview,
           restaurantId: formData.restaurantId || null,
         }),
@@ -384,12 +401,20 @@ export default function PackagesPage() {
     }
   };
 
-  // แสดงส่วนลด
+  // แสดงส่วนลด/ของแถม
   const formatDiscount = (pkg: FoodPackage) => {
-    if (pkg.discountType === "percent") {
-      return `${pkg.discountValue}%`;
+    const parts = [];
+    if (pkg.discountType && pkg.discountValue) {
+      if (pkg.discountType === "percent") {
+        parts.push(`ลด ${pkg.discountValue}%`);
+      } else {
+        parts.push(`ลด ฿${pkg.discountValue.toLocaleString()}`);
+      }
     }
-    return `฿${pkg.discountValue.toLocaleString()}`;
+    if (pkg.freeItems > 0) {
+      parts.push(`แถม ${pkg.freeItems} เมนู`);
+    }
+    return parts.length > 0 ? parts.join(" + ") : "-";
   };
 
   if (isLoading) {
@@ -639,77 +664,101 @@ export default function PackagesPage() {
                   required
                   min="1"
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent"
-                  placeholder="เช่น 3"
+                  placeholder="เช่น 21"
                 />
                 <p className="text-xs text-gray-400 mt-1">
-                  ลูกค้าต้องซื้อสินค้าครบตามจำนวนนี้ถึงจะได้รับส่วนลด
+                  ลูกค้าต้องซื้อสินค้าครบตามจำนวนนี้ถึงจะได้รับสิทธิ์
                 </p>
               </div>
 
+              {/* Free Items */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ประเภทส่วนลด <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  🎁 จำนวนเมนูแถม
                 </label>
-                <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="number"
+                  value={formData.freeItems}
+                  onChange={(e) => setFormData({ ...formData, freeItems: e.target.value })}
+                  min="0"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent"
+                  placeholder="เช่น 2"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  ลูกค้าจะได้รับเมนูแถมเพิ่มตามจำนวนที่กำหนด (ใส่ 0 ถ้าไม่มี)
+                </p>
+              </div>
+
+              {/* Discount Section */}
+              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  💰 ส่วนลด (ไม่บังคับ)
+                </label>
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, discountType: "", discountValue: "" })}
+                    className={`flex items-center justify-center gap-1 p-2 border rounded-lg transition-colors text-sm ${
+                      formData.discountType === ""
+                        ? "border-gray-400 bg-gray-100 text-gray-700"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <span className="font-medium">ไม่มี</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, discountType: "percent" })}
-                    className={`flex items-center justify-center gap-2 p-3 border rounded-lg transition-colors ${
+                    className={`flex items-center justify-center gap-1 p-2 border rounded-lg transition-colors text-sm ${
                       formData.discountType === "percent"
                         ? "border-[#4CAF50] bg-green-50 text-[#4CAF50]"
                         : "border-gray-200 hover:border-gray-300"
                     }`}
                   >
-                    <Percent className="w-5 h-5" />
-                    <span className="font-medium">เปอร์เซ็นต์</span>
+                    <Percent className="w-4 h-4" />
+                    <span className="font-medium">%</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, discountType: "fixed" })}
-                    className={`flex items-center justify-center gap-2 p-3 border rounded-lg transition-colors ${
+                    className={`flex items-center justify-center gap-1 p-2 border rounded-lg transition-colors text-sm ${
                       formData.discountType === "fixed"
                         ? "border-[#4CAF50] bg-green-50 text-[#4CAF50]"
                         : "border-gray-200 hover:border-gray-300"
                     }`}
                   >
-                    <DollarSign className="w-5 h-5" />
-                    <span className="font-medium">จำนวนเงิน</span>
+                    <DollarSign className="w-4 h-4" />
+                    <span className="font-medium">฿</span>
                   </button>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {formData.discountType === "percent" ? "ส่วนลด (%)" : "ส่วนลด (บาท)"}{" "}
-                  <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    value={formData.discountValue}
-                    onChange={(e) => setFormData({ ...formData, discountValue: e.target.value })}
-                    required
-                    min="0"
-                    max={formData.discountType === "percent" ? "100" : undefined}
-                    step="any"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm pr-12 focus:outline-none focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent"
-                    placeholder={formData.discountType === "percent" ? "เช่น 10" : "เช่น 50"}
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">
-                    {formData.discountType === "percent" ? "%" : "฿"}
-                  </span>
-                </div>
+                {formData.discountType && (
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={formData.discountValue}
+                      onChange={(e) => setFormData({ ...formData, discountValue: e.target.value })}
+                      min="0"
+                      max={formData.discountType === "percent" ? "100" : undefined}
+                      step="any"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm pr-12 focus:outline-none focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent"
+                      placeholder={formData.discountType === "percent" ? "เช่น 10" : "เช่น 50"}
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+                      {formData.discountType === "percent" ? "%" : "฿"}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Preview */}
-              {formData.requiredItems && formData.discountValue && (
+              {formData.requiredItems && (parseInt(formData.freeItems) > 0 || (formData.discountType && formData.discountValue)) && (
                 <div className="p-4 bg-orange-50 rounded-lg border border-orange-100">
                   <p className="text-sm text-orange-800 font-medium">
-                    📦 ตัวอย่าง: ลูกค้าซื้อสินค้าครบ {formData.requiredItems} รายการ
-                    {formData.discountType === "percent" 
-                      ? ` จะได้รับส่วนลด ${formData.discountValue}%` 
-                      : ` จะได้รับส่วนลด ฿${parseFloat(formData.discountValue || "0").toLocaleString()}`
-                    }
+                    📦 ตัวอย่าง: ซื้อครบ {formData.requiredItems} เมนู
+                    {parseInt(formData.freeItems) > 0 && ` 🎁 แถม ${formData.freeItems} เมนู`}
+                    {formData.discountType === "percent" && formData.discountValue && ` 💰 ลด ${formData.discountValue}%`}
+                    {formData.discountType === "fixed" && formData.discountValue && ` 💰 ลด ฿${parseFloat(formData.discountValue).toLocaleString()}`}
                   </p>
                 </div>
               )}
@@ -725,7 +774,7 @@ export default function PackagesPage() {
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={isSubmitting || !formData.name || !formData.discountValue}
+                disabled={isSubmitting || !formData.name || (!formData.discountValue && parseInt(formData.freeItems) === 0)}
                 className="px-4 py-2 bg-[#4CAF50] text-white rounded-lg text-sm font-medium hover:bg-[#43A047] disabled:opacity-50"
               >
                 {isSubmitting ? "กำลังบันทึก..." : "บันทึก"}

@@ -323,8 +323,9 @@ model Package {
   mealsPerDay   Int         @default(3)
   requiredItems Int         @default(1)
   price         Float       @default(0)
-  discountType  String      @default("percent")
-  discountValue Float       @default(0)
+  discountType  String?     // "percent" | "fixed" | null (optional)
+  discountValue Float?      // optional discount value
+  freeItems     Int         @default(0) // จำนวนเมนูแถม
   isActive      Boolean     @default(true)
   order         Int         @default(0)
   restaurantId  String?
