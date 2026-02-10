@@ -1357,27 +1357,14 @@ export default function MenuPage() {
                           </span>
                         </div>
                         <p className="text-sm text-amber-600">
-                          เพิ่มอีก {nextPackageToUnlock.requiredItems - totalItems} ชิ้น เพื่อรับส่วนลด {nextPackageToUnlock.discountType === "percent" ? `${nextPackageToUnlock.discountValue}%` : `฿${nextPackageToUnlock.discountValue}`}
+                          เพิ่มอีก {nextPackageToUnlock.requiredItems - totalItems} ชิ้น
                         </p>
                       </div>
                     )}
                   </div>
                 )}
                 
-                {/* Minimum order warning for package-only restaurants */}
-                {isPackageOnlyRestaurant && minOrderShortfall > 0 && (
-                  <div className="p-3 rounded-xl bg-red-50 border border-red-200 mb-4">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-lg">⚠️</span>
-                      <span className="font-semibold text-red-700">
-                        สั่งขั้นต่ำ {minOrderRequired} ชิ้น
-                      </span>
-                    </div>
-                    <p className="text-sm text-red-600">
-                      ต้องเพิ่มอีก {minOrderShortfall} ชิ้น เพื่อดำเนินการสั่งซื้อ
-                    </p>
-                  </div>
-                )}
+                
 
                 {/* Summary */}
                 <div className="space-y-2 mb-4">
