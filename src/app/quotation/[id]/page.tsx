@@ -289,8 +289,8 @@ export default function QuotationPage({ params }: { params: Promise<{ id: string
           </div>
         </div>
 
-        {/* Payment Info Card */}
-        {order.status === "confirmed" && paymentAccount && (
+        {/* Payment Info Card - Show for pending and confirmed status */}
+        {(order.status === "pending" || order.status === "confirmed") && paymentAccount && (
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-4">
             <div className="p-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
               <h3 className="font-bold text-lg flex items-center gap-2">

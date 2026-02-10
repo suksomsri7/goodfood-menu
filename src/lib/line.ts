@@ -678,88 +678,16 @@ export function createOrderConfirmedFlexMessage(
     },
     {
       type: "text",
-      text: "คำสั่งซื้อได้รับการยืนยันแล้ว",
+      text: "คำสั่งซื้อได้รับการยืนยันแล้ว\nกรุณาตรวจสอบรายละเอียดและชำระเงิน",
       size: "sm",
       color: "#555555",
       align: "center",
       margin: "lg",
       wrap: true,
     },
-    {
-      type: "separator",
-      margin: "lg",
-    },
-    {
-      type: "text",
-      text: "กรุณาชำระเงินได้ที่",
-      size: "sm",
-      color: "#555555",
-      align: "center",
-      margin: "lg",
-      weight: "bold",
-    },
   ];
 
-  // Add payment account info if available
-  if (paymentAccount) {
-    bodyContents.push(
-      {
-        type: "box",
-        layout: "vertical",
-        margin: "md",
-        contents: [
-          {
-            type: "text",
-            text: paymentAccount.bankName,
-            size: "md",
-            color: "#111111",
-            align: "center",
-            weight: "bold",
-          },
-          {
-            type: "text",
-            text: paymentAccount.accountName,
-            size: "sm",
-            color: "#555555",
-            align: "center",
-            margin: "xs",
-          },
-          {
-            type: "text",
-            text: paymentAccount.accountNumber,
-            size: "lg",
-            color: "#4CAF50",
-            align: "center",
-            margin: "xs",
-            weight: "bold",
-          },
-        ],
-      }
-    );
-
-    // Add QR Code if available
-    if (paymentAccount.qrCodeUrl) {
-      bodyContents.push(
-        {
-          type: "box",
-          layout: "vertical",
-          margin: "lg",
-          alignItems: "center",
-          contents: [
-            {
-              type: "image",
-              url: paymentAccount.qrCodeUrl,
-              size: "lg",
-              aspectRatio: "1:1",
-              aspectMode: "fit",
-            },
-          ],
-        }
-      );
-    }
-  }
-
-  // Add total price
+  // Add total price summary
   bodyContents.push(
     {
       type: "separator",
@@ -772,7 +700,7 @@ export function createOrderConfirmedFlexMessage(
       contents: [
         {
           type: "text",
-          text: "ยอดชำระ",
+          text: "ยอดที่ต้องชำระ",
           size: "md",
           color: "#555555",
           weight: "bold",
@@ -780,7 +708,7 @@ export function createOrderConfirmedFlexMessage(
         {
           type: "text",
           text: `฿${totalPrice.toLocaleString()}`,
-          size: "lg",
+          size: "xl",
           color: "#4CAF50",
           weight: "bold",
           align: "end",
@@ -789,6 +717,9 @@ export function createOrderConfirmedFlexMessage(
     }
   );
 
+  // Build URL for quotation page
+  const quotationUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://goodfood-menu.vercel.app"}/quotation/${orderId || ""}`;
+
   const flexContents: FlexContainer = {
     type: "bubble",
     body: {
@@ -796,6 +727,25 @@ export function createOrderConfirmedFlexMessage(
       layout: "vertical",
       contents: bodyContents,
       paddingAll: "20px",
+    },
+    footer: {
+      type: "box",
+      layout: "vertical",
+      spacing: "sm",
+      paddingAll: "12px",
+      contents: [
+        {
+          type: "button",
+          style: "primary",
+          color: "#4CAF50",
+          height: "md",
+          action: {
+            type: "uri",
+            label: "ดูรายละเอียดการชำระเงิน",
+            uri: quotationUrl,
+          },
+        },
+      ],
     },
   };
 
