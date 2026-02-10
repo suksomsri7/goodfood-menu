@@ -59,9 +59,10 @@ export function LiffProvider({ children }: LiffProviderProps) {
       initStartTime.current = Date.now();
       
       try {
-        // BACKOFFICE & PUBLIC/LANDING pages: Skip LIFF completely
+        // BACKOFFICE & PUBLIC pages: Skip LIFF completely
         const isLandingPage = pathname === '/' || pathname.startsWith('/articles');
-        if (pathname.startsWith('/backoffice') || pathname.startsWith('/tip') || pathname.startsWith('/login') || isLandingPage) {
+        const isPublicPage = pathname.startsWith('/quotation');
+        if (pathname.startsWith('/backoffice') || pathname.startsWith('/tip') || pathname.startsWith('/login') || isLandingPage || isPublicPage) {
           setIsReady(true);
           return;
         }
