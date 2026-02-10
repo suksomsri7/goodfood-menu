@@ -2,16 +2,17 @@
 
 import { format, addDays, subDays, isToday } from "date-fns";
 import { th } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Target } from "lucide-react";
+import { ChevronLeft, ChevronRight, Target, HelpCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface DaySelectorProps {
   selectedDate: Date;
   onDateChange: (date: Date) => void;
   showGoalIcon?: boolean;
+  onHelpClick?: () => void;
 }
 
-export function DaySelector({ selectedDate, onDateChange, showGoalIcon = false }: DaySelectorProps) {
+export function DaySelector({ selectedDate, onDateChange, showGoalIcon = false, onHelpClick }: DaySelectorProps) {
   const router = useRouter();
   
   const goToPreviousDay = () => {
@@ -32,8 +33,18 @@ export function DaySelector({ selectedDate, onDateChange, showGoalIcon = false }
   return (
     <div className="sticky top-0 z-50 bg-white border-b border-gray-100">
       <div className="flex items-center justify-between px-4 py-4">
-        {/* Spacer for left side */}
-        <div className="w-10" />
+        {/* Help Icon - Left */}
+        {onHelpClick ? (
+          <button
+            onClick={onHelpClick}
+            className="p-2 text-gray-400 hover:text-green-600 transition-colors"
+            aria-label="คู่มือการใช้งาน"
+          >
+            <HelpCircle className="w-5 h-5" strokeWidth={1.5} />
+          </button>
+        ) : (
+          <div className="w-10" />
+        )}
 
         {/* Date Navigation - Center */}
         <div className="flex items-center gap-3">

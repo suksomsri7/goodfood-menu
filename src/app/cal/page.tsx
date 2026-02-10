@@ -12,6 +12,7 @@ import { AnalysisModal } from "@/components/user/AnalysisModal";
 import { useLiff } from "@/components/providers/LiffProvider";
 import { NotificationSettings } from "@/components/user/NotificationSettings";
 import { Brain, Sparkles } from "lucide-react";
+import { useCalHelp } from "./help-context";
 
 // Types
 interface Meal {
@@ -67,6 +68,7 @@ const defaultGoals = {
 
 export default function CaloriePage() {
   const { profile, isReady, isLoggedIn } = useLiff();
+  const { onHelpClick } = useCalHelp();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [meals, setMeals] = useState<Meal[]>([]);
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -508,7 +510,7 @@ export default function CaloriePage() {
   return (
     <div className="min-h-screen bg-white pb-28">
       {/* Header - Sticky */}
-      <DaySelector selectedDate={selectedDate} onDateChange={setSelectedDate} showGoalIcon />
+      <DaySelector selectedDate={selectedDate} onDateChange={setSelectedDate} showGoalIcon onHelpClick={onHelpClick} />
 
       {/* Fitness Rings - Calories, Water */}
       <div data-guide="fitness-rings">

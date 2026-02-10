@@ -1,18 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { HelpCircle } from "lucide-react";
 import { OnboardingGuard } from "@/components/providers/OnboardingGuard";
 import { BottomNavBar } from "@/components/user/BottomNavBar";
 import { UserGuide, LOCALSTORAGE_KEY } from "@/components/user/UserGuide";
+import { CalHelpContext } from "./help-context";
 
 export function CalLayoutClient({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
   const [showGuide, setShowGuide] = useState(false);
   const [guideReady, setGuideReady] = useState(false);
 
@@ -25,24 +23,19 @@ export function CalLayoutClient({
     setGuideReady(true);
   }, []);
 
+  const handleHelpClick = () => {
+    setShowGuide(true);
+  };
+
   return (
-    <div className="min-h-screen bg-white pb-20">
-      {/* Guide trigger button - top-left → goes to /tip page */}
-      {guideReady && (
-        <button
-          onClick={() => router.push("/tip")}
-          className="fixed top-4 left-3 z-[55] w-8 h-8 rounded-full flex items-center justify-center active:scale-95 transition-all"
-          aria-label="คู่มือการใช้งาน"
-        >
-          <HelpCircle className="w-4 h-4 text-gray-400" />
-        </button>
-      )}
+    <CalHelpContext.Provider value={{ onHelpClick: guideReady ? handleHelpClick : undefined }}>
+      <div className="min-h-screen bg-white pb-20">
+        <OnboardingGuard>{children}</OnboardingGuard>
+        <BottomNavBar />
 
-      <OnboardingGuard>{children}</OnboardingGuard>
-      <BottomNavBar />
-
-      {/* Onboarding tooltip guide - first visit only */}
-      <UserGuide isOpen={showGuide} onClose={() => setShowGuide(false)} />
-    </div>
+        {/* Onboarding tooltip guide */}
+        <UserGuide isOpen={showGuide} onClose={() => setShowGuide(false)} />
+      </div>
+    </CalHelpContext.Provider>
   );
 }
