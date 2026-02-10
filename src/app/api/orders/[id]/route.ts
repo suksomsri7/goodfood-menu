@@ -51,7 +51,7 @@ export async function GET(
   }
 }
 
-// PATCH - อัพเดทข้อมูล Order (สถานะ, หมายเหตุ, เลขพัสดุ, ราคา)
+// PATCH - อัพเดทข้อมูล Order (สถานะ, หมายเหตุ, เลขพัสดุ, ราคา, จำนวน, เพิ่ม/ลบ รายการ)
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -69,6 +69,8 @@ export async function PATCH(
       totalPrice,
       finalPrice,
       items,
+      deleteItems,
+      newItems,
       sendNotification = true 
     } = body;
 
@@ -88,16 +90,47 @@ export async function PATCH(
       );
     }
 
-    // Update item prices if provided
+    // Delete items if provided
+    if (deleteItems && Array.isArray(deleteItems) && deleteItems.length > 0) {
+      await prisma.orderItem.deleteMany({
+        where: {
+          id: { in: deleteItems },
+          orderId: id,
+        },
+      });
+    }
+
+    // Update item prices and quantities if provided
     if (items && Array.isArray(items)) {
       for (const item of items) {
-        if (item.id && item.price !== undefined) {
-          await prisma.orderItem.update({
-            where: { id: item.id },
-            data: { price: item.price },
-          });
+        if (item.id) {
+          const updateData: { price?: number; quantity?: number } = {};
+          if (item.price !== undefined) updateData.price = item.price;
+          if (item.quantity !== undefined) updateData.quantity = item.quantity;
+          
+          if (Object.keys(updateData).length > 0) {
+            await prisma.orderItem.update({
+              where: { id: item.id },
+              data: updateData,
+            });
+          }
         }
       }
+    }
+
+    // Add new items if provided
+    if (newItems && Array.isArray(newItems) && newItems.length > 0) {
+      await prisma.orderItem.createMany({
+        data: newItems.map((item: { foodId: string; foodName: string; price: number; quantity: number; dayNumber?: number; mealType?: string }) => ({
+          orderId: id,
+          foodId: item.foodId,
+          foodName: item.foodName,
+          price: item.price,
+          quantity: item.quantity,
+          dayNumber: item.dayNumber || 1,
+          mealType: item.mealType || "lunch",
+        })),
+      });
     }
 
     const order = await prisma.order.update({

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Header } from "@/components/backoffice/Header";
-import { User, Phone, Mail, MessageCircle, Package, Truck, Trash2, Store, MapPin, Calendar, Clock, Edit3, Save, X, FileText } from "lucide-react";
+import { User, Phone, Mail, MessageCircle, Package, Truck, Trash2, Store, MapPin, Calendar, Clock, Edit3, Save, X, FileText, Plus, Minus, Search } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Member {
@@ -28,6 +28,14 @@ interface Restaurant {
   id: string;
   name: string;
   logoUrl: string | null;
+}
+
+interface Food {
+  id: string;
+  name: string;
+  price: number;
+  imageUrl: string | null;
+  calories: number;
 }
 
 interface Order {
@@ -112,7 +120,16 @@ export default function OrdersPage() {
   const [editDeliveryFee, setEditDeliveryFee] = useState(0);
   const [editDiscount, setEditDiscount] = useState(0);
   const [editItemPrices, setEditItemPrices] = useState<Record<string, number>>({});
+  const [editItemQuantities, setEditItemQuantities] = useState<Record<string, number>>({});
+  const [itemsToDelete, setItemsToDelete] = useState<string[]>([]);
+  const [newItems, setNewItems] = useState<{ foodId: string; foodName: string; price: number; quantity: number; dayNumber: number; mealType: string }[]>([]);
   const [savingPrice, setSavingPrice] = useState(false);
+  
+  // Add item modal state
+  const [showAddItemModal, setShowAddItemModal] = useState(false);
+  const [restaurantFoods, setRestaurantFoods] = useState<Food[]>([]);
+  const [foodSearchQuery, setFoodSearchQuery] = useState("");
+  const [loadingFoods, setLoadingFoods] = useState(false);
 
   useEffect(() => {
     fetchOrders();
@@ -208,10 +225,15 @@ export default function OrdersPage() {
     setEditDeliveryFee(selectedOrder.deliveryFee || 0);
     setEditDiscount(selectedOrder.discount || 0);
     const itemPrices: Record<string, number> = {};
+    const itemQuantities: Record<string, number> = {};
     selectedOrder.items.forEach(item => {
       itemPrices[item.id] = item.price;
+      itemQuantities[item.id] = item.quantity;
     });
     setEditItemPrices(itemPrices);
+    setEditItemQuantities(itemQuantities);
+    setItemsToDelete([]);
+    setNewItems([]);
     setIsEditingPrice(true);
   };
 
@@ -219,6 +241,83 @@ export default function OrdersPage() {
   const cancelEditingPrice = () => {
     setIsEditingPrice(false);
     setEditItemPrices({});
+    setEditItemQuantities({});
+    setItemsToDelete([]);
+    setNewItems([]);
+  };
+
+  // Mark item for deletion
+  const markItemForDeletion = (itemId: string) => {
+    setItemsToDelete([...itemsToDelete, itemId]);
+  };
+
+  // Restore item from deletion
+  const restoreItem = (itemId: string) => {
+    setItemsToDelete(itemsToDelete.filter(id => id !== itemId));
+  };
+
+  // Fetch foods from restaurant
+  const fetchRestaurantFoods = async (restaurantId: string) => {
+    setLoadingFoods(true);
+    try {
+      const res = await fetch(`/api/foods?restaurantId=${restaurantId}&isActive=true`);
+      if (res.ok) {
+        const data = await res.json();
+        setRestaurantFoods(data);
+      }
+    } catch (error) {
+      console.error("Error fetching foods:", error);
+    } finally {
+      setLoadingFoods(false);
+    }
+  };
+
+  // Open add item modal
+  const openAddItemModal = () => {
+    if (!selectedOrder?.restaurantId) {
+      alert("ออเดอร์นี้ไม่มีร้านค้า");
+      return;
+    }
+    fetchRestaurantFoods(selectedOrder.restaurantId);
+    setFoodSearchQuery("");
+    setShowAddItemModal(true);
+  };
+
+  // Add new item to order
+  const addNewItem = (food: Food) => {
+    // Check if already added
+    const existingNew = newItems.find(i => i.foodId === food.id);
+    if (existingNew) {
+      setNewItems(newItems.map(i => 
+        i.foodId === food.id ? { ...i, quantity: i.quantity + 1 } : i
+      ));
+    } else {
+      setNewItems([...newItems, {
+        foodId: food.id,
+        foodName: food.name,
+        price: food.price,
+        quantity: 1,
+        dayNumber: 1,
+        mealType: "lunch",
+      }]);
+    }
+    setShowAddItemModal(false);
+  };
+
+  // Remove new item
+  const removeNewItem = (foodId: string) => {
+    setNewItems(newItems.filter(i => i.foodId !== foodId));
+  };
+
+  // Update new item quantity
+  const updateNewItemQuantity = (foodId: string, quantity: number) => {
+    if (quantity <= 0) {
+      removeNewItem(foodId);
+      return;
+    }
+    setNewItems(newItems.map(i => 
+      i.foodId === foodId ? { ...i, quantity } : i
+    ));
   };
 
   // Save price changes
@@ -227,14 +326,20 @@ export default function OrdersPage() {
     setSavingPrice(true);
 
     try {
-      // Calculate new total
-      const itemsTotal = selectedOrder.items.reduce((sum, item) => {
-        const newPrice = editItemPrices[item.id] ?? item.price;
-        return sum + (newPrice * item.quantity);
-      }, 0);
+      // Calculate new total from existing items (excluding deleted)
+      const existingItemsTotal = selectedOrder.items
+        .filter(item => !itemsToDelete.includes(item.id))
+        .reduce((sum, item) => {
+          const newPrice = editItemPrices[item.id] ?? item.price;
+          const newQty = editItemQuantities[item.id] ?? item.quantity;
+          return sum + (newPrice * newQty);
+        }, 0);
       
-      const newTotalPrice = itemsTotal;
-      const newFinalPrice = itemsTotal + editDeliveryFee - editDiscount;
+      // Add new items total
+      const newItemsTotal = newItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      
+      const newTotalPrice = existingItemsTotal + newItemsTotal;
+      const newFinalPrice = newTotalPrice + editDeliveryFee - editDiscount;
 
       const res = await fetch(`/api/orders/${selectedOrder.id}`, {
         method: "PATCH",
@@ -244,10 +349,15 @@ export default function OrdersPage() {
           discount: editDiscount,
           totalPrice: newTotalPrice,
           finalPrice: newFinalPrice,
-          items: Object.entries(editItemPrices).map(([itemId, price]) => ({
-            id: itemId,
-            price,
-          })),
+          items: Object.entries(editItemPrices)
+            .filter(([itemId]) => !itemsToDelete.includes(itemId))
+            .map(([itemId, price]) => ({
+              id: itemId,
+              price,
+              quantity: editItemQuantities[itemId],
+            })),
+          deleteItems: itemsToDelete,
+          newItems: newItems,
           sendNotification: false,
         }),
       });
@@ -257,6 +367,8 @@ export default function OrdersPage() {
         setSelectedOrder(updatedOrder);
         fetchOrders();
         setIsEditingPrice(false);
+        setItemsToDelete([]);
+        setNewItems([]);
       } else {
         alert("เกิดข้อผิดพลาดในการบันทึก");
       }
@@ -271,10 +383,17 @@ export default function OrdersPage() {
   // Calculate totals for edit mode
   const calculateEditTotals = () => {
     if (!selectedOrder) return { itemsTotal: 0, finalPrice: 0 };
-    const itemsTotal = selectedOrder.items.reduce((sum, item) => {
-      const newPrice = editItemPrices[item.id] ?? item.price;
-      return sum + (newPrice * item.quantity);
-    }, 0);
+    // Existing items (excluding deleted)
+    const existingItemsTotal = selectedOrder.items
+      .filter(item => !itemsToDelete.includes(item.id))
+      .reduce((sum, item) => {
+        const newPrice = editItemPrices[item.id] ?? item.price;
+        const newQty = editItemQuantities[item.id] ?? item.quantity;
+        return sum + (newPrice * newQty);
+      }, 0);
+    // New items
+    const newItemsTotal = newItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const itemsTotal = existingItemsTotal + newItemsTotal;
     const finalPrice = itemsTotal + editDeliveryFee - editDiscount;
     return { itemsTotal, finalPrice };
   };
@@ -654,10 +773,17 @@ export default function OrdersPage() {
                         className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                       >
                         <Edit3 className="w-4 h-4" />
-                        แก้ไขราคา
+                        แก้ไข
                       </button>
                     ) : (
                       <div className="flex items-center gap-2">
+                        <button
+                          onClick={openAddItemModal}
+                          className="flex items-center gap-1 px-3 py-1.5 text-sm text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                        >
+                          <Plus className="w-4 h-4" />
+                          เพิ่มเมนู
+                        </button>
                         <button
                           onClick={cancelEditingPrice}
                           className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
@@ -685,18 +811,76 @@ export default function OrdersPage() {
                         )}
                         <div className="space-y-2">
                           {items.map((item) => {
+                            const isDeleted = itemsToDelete.includes(item.id);
+                            const itemQty = isEditingPrice ? (editItemQuantities[item.id] ?? item.quantity) : item.quantity;
                             const itemPrice = isEditingPrice ? (editItemPrices[item.id] ?? item.price) : item.price;
-                            const totalItemPrice = itemPrice * item.quantity;
+                            const totalItemPrice = itemPrice * itemQty;
+                            
+                            if (isDeleted) {
+                              return (
+                                <div key={item.id} className="p-3 bg-red-50 rounded-lg border border-red-200 opacity-60">
+                                  <div className="flex items-center justify-between">
+                                    <p className="font-medium text-red-400 line-through">{item.foodName}</p>
+                                    <button
+                                      onClick={() => restoreItem(item.id)}
+                                      className="text-xs px-2 py-1 bg-white text-red-600 rounded hover:bg-red-100"
+                                    >
+                                      เรียกคืน
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            }
+                            
                             return (
                               <div key={item.id} className="p-3 bg-gray-50 rounded-lg">
                                 <div className="flex items-center justify-between mb-1">
                                   <p className="font-medium text-gray-800">{item.foodName}</p>
-                                  <p className="text-xs text-gray-500">{mealLabels[item.mealType] || item.mealType}</p>
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-xs text-gray-500">{mealLabels[item.mealType] || item.mealType}</p>
+                                    {isEditingPrice && (
+                                      <button
+                                        onClick={() => markItemForDeletion(item.id)}
+                                        className="p-1 text-red-500 hover:bg-red-100 rounded"
+                                        title="ลบรายการ"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
                                 <div className="flex items-center justify-between text-sm">
                                   {isEditingPrice ? (
                                     <div className="flex items-center gap-2">
-                                      <span className="text-gray-500">{item.quantity} x</span>
+                                      {/* Quantity Controls */}
+                                      <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg">
+                                        <button
+                                          onClick={() => {
+                                            const newQty = Math.max(1, itemQty - 1);
+                                            setEditItemQuantities({ ...editItemQuantities, [item.id]: newQty });
+                                          }}
+                                          className="p-1 hover:bg-gray-100 rounded-l-lg"
+                                        >
+                                          <Minus className="w-4 h-4 text-gray-500" />
+                                        </button>
+                                        <input
+                                          type="number"
+                                          value={itemQty}
+                                          onChange={(e) => setEditItemQuantities({
+                                            ...editItemQuantities,
+                                            [item.id]: Math.max(1, parseInt(e.target.value) || 1)
+                                          })}
+                                          className="w-12 text-center border-0 focus:ring-0"
+                                          min="1"
+                                        />
+                                        <button
+                                          onClick={() => setEditItemQuantities({ ...editItemQuantities, [item.id]: itemQty + 1 })}
+                                          className="p-1 hover:bg-gray-100 rounded-r-lg"
+                                        >
+                                          <Plus className="w-4 h-4 text-gray-500" />
+                                        </button>
+                                      </div>
+                                      <span className="text-gray-400">x</span>
                                       <input
                                         type="number"
                                         value={editItemPrices[item.id] ?? item.price}
@@ -704,7 +888,7 @@ export default function OrdersPage() {
                                           ...editItemPrices,
                                           [item.id]: parseFloat(e.target.value) || 0
                                         })}
-                                        className="w-24 px-2 py-1 border border-gray-300 rounded-lg text-right font-mono"
+                                        className="w-20 px-2 py-1 border border-gray-300 rounded-lg text-right font-mono"
                                         min="0"
                                       />
                                       <span className="text-gray-400">฿</span>
@@ -722,6 +906,60 @@ export default function OrdersPage() {
                         </div>
                       </div>
                     ))}
+                  
+                  {/* New Items (in edit mode) */}
+                  {isEditingPrice && newItems.length > 0 && (
+                    <div className="mb-4 border-t border-dashed border-green-300 pt-4">
+                      <p className="text-sm font-medium text-green-600 mb-2">✨ รายการใหม่</p>
+                      <div className="space-y-2">
+                        {newItems.map((item) => {
+                          const totalItemPrice = item.price * item.quantity;
+                          return (
+                            <div key={item.foodId} className="p-3 bg-green-50 rounded-lg border border-green-200">
+                              <div className="flex items-center justify-between mb-1">
+                                <p className="font-medium text-gray-800">{item.foodName}</p>
+                                <button
+                                  onClick={() => removeNewItem(item.foodId)}
+                                  className="p-1 text-red-500 hover:bg-red-100 rounded"
+                                  title="ลบรายการ"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                              <div className="flex items-center justify-between text-sm">
+                                <div className="flex items-center gap-2">
+                                  {/* Quantity Controls */}
+                                  <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg">
+                                    <button
+                                      onClick={() => updateNewItemQuantity(item.foodId, item.quantity - 1)}
+                                      className="p-1 hover:bg-gray-100 rounded-l-lg"
+                                    >
+                                      <Minus className="w-4 h-4 text-gray-500" />
+                                    </button>
+                                    <input
+                                      type="number"
+                                      value={item.quantity}
+                                      onChange={(e) => updateNewItemQuantity(item.foodId, Math.max(1, parseInt(e.target.value) || 1))}
+                                      className="w-12 text-center border-0 focus:ring-0"
+                                      min="1"
+                                    />
+                                    <button
+                                      onClick={() => updateNewItemQuantity(item.foodId, item.quantity + 1)}
+                                      className="p-1 hover:bg-gray-100 rounded-r-lg"
+                                    >
+                                      <Plus className="w-4 h-4 text-gray-500" />
+                                    </button>
+                                  </div>
+                                  <span className="text-gray-400">x ฿{item.price.toLocaleString()}</span>
+                                </div>
+                                <p className="font-semibold text-green-700">= ฿{totalItemPrice.toLocaleString()}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Price Summary */}
                   <div className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-100 mt-4">
@@ -922,6 +1160,114 @@ export default function OrdersPage() {
                     </>
                   )}
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Add Item Modal */}
+      <AnimatePresence>
+        {showAddItemModal && selectedOrder && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/50"
+              onClick={() => setShowAddItemModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative bg-white rounded-2xl max-w-lg w-full max-h-[80vh] shadow-2xl flex flex-col"
+            >
+              <div className="px-6 py-4 border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                      <Plus className="w-5 h-5 text-green-600" />
+                      เพิ่มเมนู
+                    </h3>
+                    {selectedOrder.restaurant && (
+                      <p className="text-sm text-gray-500">ร้าน {selectedOrder.restaurant.name}</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setShowAddItemModal(false)}
+                    className="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
+                
+                {/* Search */}
+                <div className="mt-4 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={foodSearchQuery}
+                    onChange={(e) => setFoodSearchQuery(e.target.value)}
+                    placeholder="ค้นหาเมนู..."
+                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4">
+                {loadingFoods ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : restaurantFoods.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <p>ไม่พบเมนูจากร้านนี้</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-3">
+                    {restaurantFoods
+                      .filter(food => 
+                        foodSearchQuery === "" || 
+                        food.name.toLowerCase().includes(foodSearchQuery.toLowerCase())
+                      )
+                      .map((food) => {
+                        // Check if already in order or newItems
+                        const existingInOrder = selectedOrder.items.find(i => i.foodId === food.id && !itemsToDelete.includes(i.id));
+                        const existingInNew = newItems.find(i => i.foodId === food.id);
+                        
+                        return (
+                          <button
+                            key={food.id}
+                            onClick={() => addNewItem(food)}
+                            className="p-4 bg-gray-50 hover:bg-green-50 rounded-xl border border-gray-100 hover:border-green-200 transition-all text-left flex items-center gap-4"
+                          >
+                            {food.imageUrl ? (
+                              <img 
+                                src={food.imageUrl} 
+                                alt={food.name}
+                                className="w-16 h-16 rounded-lg object-cover"
+                              />
+                            ) : (
+                              <div className="w-16 h-16 rounded-lg bg-gray-200 flex items-center justify-center text-2xl">
+                                🍽️
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-gray-800 truncate">{food.name}</p>
+                              <p className="text-sm text-gray-500">{food.calories} kcal</p>
+                              <p className="text-green-600 font-semibold">฿{food.price.toLocaleString()}</p>
+                            </div>
+                            {(existingInOrder || existingInNew) && (
+                              <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+                                อยู่ในออเดอร์
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>
