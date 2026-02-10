@@ -36,11 +36,11 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, description, requiredItems, discountType, discountValue, imageUrl, restaurantId } = body;
+    const { name, description, requiredItems, discountType, discountValue, freeItems, imageUrl, restaurantId } = body;
 
-    if (!name || discountValue === undefined) {
+    if (!name) {
       return NextResponse.json(
-        { error: "Name and discount value are required" },
+        { error: "Name is required" },
         { status: 400 }
       );
     }
@@ -55,13 +55,19 @@ export async function POST(request: Request) {
       }
     }
 
+    // Handle null discount values properly
+    const parsedDiscountValue = discountValue !== null && discountValue !== undefined && discountValue !== "" 
+      ? parseFloat(discountValue) 
+      : null;
+
     const newPackage = await prisma.package.create({
       data: {
         name,
         description: description || null,
         requiredItems: parseInt(requiredItems) || 1,
-        discountType: discountType || "percent",
-        discountValue: parseFloat(discountValue) || 0,
+        discountType: discountType || null,
+        discountValue: parsedDiscountValue,
+        freeItems: parseInt(freeItems) || 0,
         imageUrl: finalImageUrl,
         restaurantId: restaurantId || null,
       },

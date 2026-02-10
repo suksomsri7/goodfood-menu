@@ -1036,14 +1036,14 @@ export default function MenuPage() {
                           <span className="bg-white/20 px-2 py-1 rounded-lg text-sm">
                             ซื้อ {pkg.requiredItems} ชิ้น
                           </span>
-                          {pkg.discountType && pkg.discountValue && pkg.discountValue > 0 && (
+                          {pkg.discountType && pkg.discountValue != null && pkg.discountValue > 0 && (
                             <span className="bg-yellow-400 text-yellow-900 px-2 py-1 rounded-lg text-sm font-bold">
                               💰 ลด {pkg.discountType === "percent" 
                                 ? `${pkg.discountValue}%` 
                                 : `฿${pkg.discountValue}`}
                             </span>
                           )}
-                          {pkg.freeItems > 0 && (
+                          {pkg.freeItems != null && pkg.freeItems > 0 && (
                             <span className="bg-orange-400 text-orange-900 px-2 py-1 rounded-lg text-sm font-bold">
                               🎁 แถม {pkg.freeItems}
                             </span>
@@ -1394,12 +1394,12 @@ export default function MenuPage() {
                           <span className="text-green-500">✓</span>
                         </div>
                         <div className="flex flex-wrap gap-2 text-sm">
-                          {activePackage.discountType && activePackage.discountValue && activePackage.discountValue > 0 && (
+                          {activePackage.discountType && activePackage.discountValue != null && activePackage.discountValue > 0 && (
                             <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full">
                               💰 ลด {activePackage.discountType === "percent" ? `${activePackage.discountValue}%` : `฿${activePackage.discountValue}`}
                             </span>
                           )}
-                          {activePackage.freeItems > 0 && freeItemsDiscount > 0 && (
+                          {activePackage.freeItems != null && activePackage.freeItems > 0 && freeItemsDiscount > 0 && (
                             <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full">
                               🎁 แถม {activePackage.freeItems} เมนู (ลด ฿{freeItemsDiscount.toFixed(0)})
                             </span>
@@ -1421,12 +1421,12 @@ export default function MenuPage() {
                           เพิ่มอีก {nextPackageToUnlock.requiredItems - totalItems} ชิ้น เพื่อรับ:
                         </p>
                         <div className="flex flex-wrap gap-2 text-xs">
-                          {nextPackageToUnlock.discountType && nextPackageToUnlock.discountValue && nextPackageToUnlock.discountValue > 0 && (
+                          {nextPackageToUnlock.discountType && nextPackageToUnlock.discountValue != null && nextPackageToUnlock.discountValue > 0 && (
                             <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded-full">
                               💰 ลด {nextPackageToUnlock.discountType === "percent" ? `${nextPackageToUnlock.discountValue}%` : `฿${nextPackageToUnlock.discountValue}`}
                             </span>
                           )}
-                          {nextPackageToUnlock.freeItems > 0 && (
+                          {nextPackageToUnlock.freeItems != null && nextPackageToUnlock.freeItems > 0 && (
                             <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full">
                               🎁 แถม {nextPackageToUnlock.freeItems} เมนู
                             </span>
@@ -1447,7 +1447,7 @@ export default function MenuPage() {
                   </div>
                   
                   {/* Percentage/Fixed Discount */}
-                  {isPackageEligible && activePackage?.discountType && activePackage?.discountValue && activePackage.discountValue > 0 && (
+                  {isPackageEligible && activePackage?.discountType && activePackage?.discountValue != null && activePackage.discountValue > 0 && (
                     <div className="flex items-center justify-between text-green-600">
                       <span>💰 ส่วนลด {activePackage.discountType === "percent" ? `${activePackage.discountValue}%` : ""}</span>
                       <span>-฿{(activePackage.discountType === "percent" 
@@ -1457,7 +1457,7 @@ export default function MenuPage() {
                   )}
                   
                   {/* Free Items Discount */}
-                  {isPackageEligible && freeItemsDiscount > 0 && (
+                  {isPackageEligible && activePackage?.freeItems != null && freeItemsDiscount > 0 && (
                     <div className="flex items-center justify-between text-orange-600">
                       <span>🎁 แถม {activePackage?.freeItems} เมนู</span>
                       <span>-฿{freeItemsDiscount.toFixed(2)}</span>
