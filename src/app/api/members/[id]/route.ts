@@ -108,64 +108,54 @@ export async function DELETE(
     }
 
     // Delete related data first (due to foreign key constraints)
+    // Use extended timeout (30 seconds) for members with lots of data
     await prisma.$transaction(async (tx) => {
       step = "tx:mealLog";
-      console.log("[DELETE] Step:", step);
       await tx.mealLog.deleteMany({ where: { memberId: id } });
       
       step = "tx:weightLog";
-      console.log("[DELETE] Step:", step);
       await tx.weightLog.deleteMany({ where: { memberId: id } });
       
       step = "tx:waterLog";
-      console.log("[DELETE] Step:", step);
       await tx.waterLog.deleteMany({ where: { memberId: id } });
       
       step = "tx:exerciseLog";
-      console.log("[DELETE] Step:", step);
       await tx.exerciseLog.deleteMany({ where: { memberId: id } });
       
       step = "tx:progressPhoto";
-      console.log("[DELETE] Step:", step);
       await tx.progressPhoto.deleteMany({ where: { memberId: id } });
       
       step = "tx:aiRecommendation";
-      console.log("[DELETE] Step:", step);
       await tx.aiRecommendation.deleteMany({ where: { memberId: id } });
       
       step = "tx:aiUsageLog";
-      console.log("[DELETE] Step:", step);
       await tx.aiUsageLog.deleteMany({ where: { memberId: id } });
       
       step = "tx:barcodeScanHistory";
-      console.log("[DELETE] Step:", step);
       await tx.barcodeScanHistory.deleteMany({ where: { memberId: id } });
       
       step = "tx:cartItem";
-      console.log("[DELETE] Step:", step);
       await tx.cartItem.deleteMany({ where: { memberId: id } });
       
       step = "tx:address";
-      console.log("[DELETE] Step:", step);
       await tx.address.deleteMany({ where: { memberId: id } });
       
-      step = "tx:orders-find";
-      console.log("[DELETE] Step:", step);
-      const orders = await tx.order.findMany({ where: { memberId: id }, select: { id: true } });
-      console.log("[DELETE] Orders to delete:", orders.length);
-      
+      // Delete order items first, then orders (use single query for efficiency)
       step = "tx:orderItems";
-      for (const order of orders) {
-        await tx.orderItem.deleteMany({ where: { orderId: order.id } });
+      const orders = await tx.order.findMany({ where: { memberId: id }, select: { id: true } });
+      if (orders.length > 0) {
+        const orderIds = orders.map(o => o.id);
+        await tx.orderItem.deleteMany({ where: { orderId: { in: orderIds } } });
       }
       
       step = "tx:order";
-      console.log("[DELETE] Step:", step);
       await tx.order.deleteMany({ where: { memberId: id } });
       
       step = "tx:member";
-      console.log("[DELETE] Step:", step);
       await tx.member.delete({ where: { id } });
+    }, {
+      maxWait: 10000, // 10 seconds max wait to acquire connection
+      timeout: 30000, // 30 seconds timeout for the transaction
     });
 
     step = "complete";
