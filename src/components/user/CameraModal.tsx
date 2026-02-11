@@ -616,8 +616,12 @@ export function CameraModal({ isOpen, onClose, onSave, lineUserId }: CameraModal
                     try {
                       const success = await requestLimitIncrease(lineUserId);
                       if (success) {
-                        alert("ส่งข้อมูลสำเร็จ! กรุณาตรวจสอบข้อความใน LINE Chat");
-                        setShowLimitModal(false);
+                        // Close LIFF window immediately
+                        if (isInClient()) {
+                          closeWindow();
+                        } else {
+                          setShowLimitModal(false);
+                        }
                       } else {
                         alert("ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง");
                       }

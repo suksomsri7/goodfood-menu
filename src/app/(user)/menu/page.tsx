@@ -2221,10 +2221,14 @@ export default function MenuPage() {
                       try {
                         const success = await requestLimitIncrease(profile.userId);
                         if (success) {
-                          alert("ส่งข้อมูลสำเร็จ! กรุณาตรวจสอบข้อความใน LINE Chat");
-                          setSelectedPackage(null);
-                          setShowAiResult(false);
-                          setAiLimitReached(false);
+                          // Close LIFF window immediately
+                          if (isInClient()) {
+                            closeWindow();
+                          } else {
+                            setSelectedPackage(null);
+                            setShowAiResult(false);
+                            setAiLimitReached(false);
+                          }
                         } else {
                           alert("ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง");
                         }

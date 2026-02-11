@@ -80,8 +80,12 @@ export function AnalysisModal({
       const success = await requestLimitIncrease(lineUserId);
       
       if (success) {
-        alert("ส่งข้อมูลสำเร็จ! กรุณาตรวจสอบข้อความใน LINE Chat");
-        onClose();
+        // Close LIFF window immediately
+        if (isInClient()) {
+          closeWindow();
+        } else {
+          onClose();
+        }
       } else {
         alert("ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง");
       }
