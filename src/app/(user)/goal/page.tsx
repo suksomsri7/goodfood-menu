@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { WeightChart } from "@/components/user/WeightChart";
 import { GoalSummary } from "@/components/user/GoalSummary";
-import { Target } from "lucide-react";
+import { Target, Scale } from "lucide-react";
 import { OnboardingModal } from "@/components/user/OnboardingModal";
 import { WelcomeBackModal } from "@/components/user/WelcomeBackModal";
 import { useLiff } from "@/components/providers/LiffProvider";
@@ -39,6 +39,7 @@ export default function GoalPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showResetGoal, setShowResetGoal] = useState(false);
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
+  const [showWeightModal, setShowWeightModal] = useState(false);
 
   const lineUserId = profile?.userId;
 
@@ -301,7 +302,7 @@ export default function GoalPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-24">
+    <div className="min-h-screen bg-slate-50 pb-40">
       {/* Welcome Back Modal (for returning inactive users) */}
       <WelcomeBackModal
         isOpen={showWelcomeBack}
@@ -347,6 +348,9 @@ export default function GoalPage() {
           currentWeight={currentWeight || 70}
           startWeight={startWeight || currentWeight || 70}
           onUpdateWeight={handleUpdateWeight}
+          showUpdateModal={showWeightModal}
+          onCloseUpdateModal={() => setShowWeightModal(false)}
+          hideInternalButton={true}
         />
 
         {/* Goal Summary */}
@@ -411,15 +415,24 @@ export default function GoalPage() {
         </motion.div>
       </div>
 
-      {/* Fixed Bottom Button */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-200">
-        <button
-          onClick={() => setShowResetGoal(true)}
-          className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-colors"
-        >
-          <Target className="w-4 h-4" />
-          ตั้งเป้าหมายใหม่
-        </button>
+      {/* Fixed Bottom Buttons - positioned above bottom nav bar */}
+      <div className="fixed bottom-20 left-0 right-0 px-4 pb-2 bg-gradient-to-t from-slate-50 via-slate-50 to-transparent pt-4">
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowWeightModal(true)}
+            className="flex-1 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-colors shadow-lg shadow-emerald-500/30"
+          >
+            <Scale className="w-4 h-4" />
+            อัพเดทน้ำหนัก
+          </button>
+          <button
+            onClick={() => setShowResetGoal(true)}
+            className="flex-1 py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-colors shadow-lg shadow-slate-900/30"
+          >
+            <Target className="w-4 h-4" />
+            ตั้งเป้าหมายใหม่
+          </button>
+        </div>
       </div>
     </div>
   );

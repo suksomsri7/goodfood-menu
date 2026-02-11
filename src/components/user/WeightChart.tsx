@@ -25,6 +25,10 @@ interface WeightChartProps {
   currentWeight: number;
   startWeight: number;
   onUpdateWeight?: (weight: number) => void;
+  // External control for modal
+  showUpdateModal?: boolean;
+  onCloseUpdateModal?: () => void;
+  hideInternalButton?: boolean;
 }
 
 export function WeightChart({
@@ -33,9 +37,24 @@ export function WeightChart({
   currentWeight,
   startWeight,
   onUpdateWeight,
+  showUpdateModal,
+  onCloseUpdateModal,
+  hideInternalButton = false,
 }: WeightChartProps) {
-  const [showModal, setShowModal] = useState(false);
+  const [internalShowModal, setInternalShowModal] = useState(false);
   const [inputWeight, setInputWeight] = useState(currentWeight.toString());
+
+  // Use external control if provided, otherwise use internal state
+  const showModal = showUpdateModal !== undefined ? showUpdateModal : internalShowModal;
+  const setShowModal = (value: boolean) => {
+    if (showUpdateModal !== undefined) {
+      if (!value && onCloseUpdateModal) {
+        onCloseUpdateModal();
+      }
+    } else {
+      setInternalShowModal(value);
+    }
+  };
 
   const weightDiff = startWeight - currentWeight;
   const isLosing = weightDiff > 0;
@@ -93,16 +112,18 @@ export function WeightChart({
           </div>
         </div>
 
-        {/* Update Button */}
-        <button
-          onClick={() => {
-            setInputWeight(currentWeight.toString());
-            setShowModal(true);
-          }}
-          className="w-full mb-6 py-2.5 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 rounded-xl text-sm font-medium text-slate-600 transition-colors"
-        >
-          อัพเดทน้ำหนักปัจจุบัน
-        </button>
+        {/* Update Button (can be hidden when controlled externally) */}
+        {!hideInternalButton && (
+          <button
+            onClick={() => {
+              setInputWeight(currentWeight.toString());
+              setShowModal(true);
+            }}
+            className="w-full mb-6 py-2.5 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 rounded-xl text-sm font-medium text-slate-600 transition-colors"
+          >
+            อัพเดทน้ำหนักปัจจุบัน
+          </button>
+        )}
 
         {/* Chart */}
         <div className="h-44 mb-6">
