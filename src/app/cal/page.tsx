@@ -687,6 +687,7 @@ export default function CaloriePage() {
         onRefresh={fetchAnalysis}
         limitReached={analysisLimitReached}
         limitMessage={analysisLimitMessage}
+        lineUserId={lineUserId}
       />
 
       {/* Notification Settings Modal */}

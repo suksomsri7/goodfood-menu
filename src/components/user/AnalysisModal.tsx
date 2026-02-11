@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Brain, Target, Lightbulb, AlertTriangle } from "lucide-react";
-import { sendMessage, isInClient, closeWindow } from "@/lib/liff";
+import { requestLimitIncrease, isInClient, closeWindow } from "@/lib/liff";
 
 interface AnalysisData {
   summary?: string | string[] | null;
@@ -18,6 +18,7 @@ interface AnalysisModalProps {
   onRefresh: () => void;
   limitReached?: boolean;
   limitMessage?: string;
+  lineUserId?: string;
 }
 
 // Helper function to render content that could be string or array
@@ -65,26 +66,27 @@ export function AnalysisModal({
   onRefresh,
   limitReached = false,
   limitMessage,
+  lineUserId,
 }: AnalysisModalProps) {
   
   // Handle request for limit increase
   const handleRequestLimitIncrease = async () => {
-    const message = "วิธีเพิ่ม Limit การใช้งาน";
+    if (!lineUserId) {
+      alert("ไม่พบข้อมูลผู้ใช้");
+      return;
+    }
     
     try {
-      const success = await sendMessage(message);
+      const success = await requestLimitIncrease(lineUserId);
       
       if (success) {
-        if (isInClient()) {
-          closeWindow();
-        } else {
-          onClose();
-        }
+        alert("ส่งข้อมูลสำเร็จ! กรุณาตรวจสอบข้อความใน LINE Chat");
+        onClose();
       } else {
         alert("ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง");
       }
     } catch (error) {
-      console.error("Error sending message:", error);
+      console.error("Error requesting limit increase:", error);
       alert("ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง");
     }
   };
