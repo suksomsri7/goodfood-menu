@@ -54,6 +54,11 @@ export function OnboardingGuard({ children, setIsLoading: setParentLoading }: On
   }, [isReady, isLoggedIn, profile?.userId, checkOnboardingStatus, setParentLoading]);
 
   const handleOnboardingComplete = () => {
+    // #region agent log
+    console.log('[DEBUG Onboarding] Complete - setting flag and reloading');
+    // #endregion
+    // Set flag so guide shows after reload
+    sessionStorage.setItem('justCompletedOnboarding', 'true');
     setShowOnboarding(false);
     setIsOnboarded(true);
     // Refresh the page to load new data
