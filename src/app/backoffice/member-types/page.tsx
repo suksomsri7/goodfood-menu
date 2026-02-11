@@ -16,7 +16,6 @@ import {
   Brain,
   ScanLine,
   Settings,
-  Power,
   Clock,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -48,7 +47,6 @@ interface MemberType {
 }
 
 interface AiCoachSettings {
-  aiCoachEnabled: boolean;
   trialDays: number;
   trialMemberTypeId: string | null;
   generalMemberTypeId: string | null;
@@ -268,6 +266,27 @@ export default function MemberTypesPage() {
     return `${limit} ครั้ง`;
   };
 
+  // Toggle member type active status
+  const toggleMemberTypeActive = async (typeId: string, currentStatus: boolean) => {
+    try {
+      const res = await fetch(`/api/member-types/${typeId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !currentStatus }),
+      });
+      
+      if (res.ok) {
+        setMemberTypes(prev => 
+          prev.map(type => 
+            type.id === typeId ? { ...type, isActive: !currentStatus } : type
+          )
+        );
+      }
+    } catch (error) {
+      console.error("Error toggling member type:", error);
+    }
+  };
+
   return (
     <div>
       <Header
@@ -289,29 +308,7 @@ export default function MemberTypesPage() {
               </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* AI Coach Toggle */}
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                <div className="flex items-center gap-3">
-                  <Power className={`w-5 h-5 ${aiCoachSettings.aiCoachEnabled ? "text-green-600" : "text-gray-400"}`} />
-                  <div>
-                    <p className="font-medium text-gray-800">เปิด/ปิด AI Coach</p>
-                    <p className="text-xs text-gray-500">เปิดหรือปิดระบบ AI Coach ทั้งหมด</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => updateAiCoachSetting("aiCoachEnabled", !aiCoachSettings.aiCoachEnabled)}
-                  disabled={savingSettings}
-                  className={`relative w-14 h-8 rounded-full transition-colors ${
-                    aiCoachSettings.aiCoachEnabled ? "bg-green-500" : "bg-gray-300"
-                  }`}
-                >
-                  <div className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${
-                    aiCoachSettings.aiCoachEnabled ? "translate-x-7" : "translate-x-1"
-                  }`} />
-                </button>
-              </div>
-
+            <div className="grid md:grid-cols-3 gap-6">
               {/* Trial Days */}
               <div className="p-4 bg-gray-50 rounded-xl">
                 <div className="flex items-center gap-3 mb-3">
@@ -537,7 +534,27 @@ export default function MemberTypesPage() {
                     </div>
 
                     {/* Right Section - Actions */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
+                      {/* Toggle Active */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500">
+                          {type.isActive ? "เปิด" : "ปิด"}
+                        </span>
+                        <button
+                          onClick={() => toggleMemberTypeActive(type.id, type.isActive)}
+                          className={`relative w-12 h-6 rounded-full transition-colors ${
+                            type.isActive ? "bg-green-500" : "bg-gray-300"
+                          }`}
+                          title={type.isActive ? "ปิดใช้งาน" : "เปิดใช้งาน"}
+                        >
+                          <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-transform ${
+                            type.isActive ? "translate-x-6" : "translate-x-0.5"
+                          }`} />
+                        </button>
+                      </div>
+
+                      <div className="w-px h-6 bg-gray-200" />
+
                       <button
                         onClick={() => openEditModal(type)}
                         className="p-2.5 text-gray-500 hover:bg-gray-100 rounded-xl transition-colors"
