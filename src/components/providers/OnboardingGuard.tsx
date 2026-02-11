@@ -1,22 +1,22 @@
 "use client";
 
-import { useState, useEffect, useCallback, ReactNode } from "react";
+import { useEffect, useCallback, ReactNode } from "react";
 import { useLiff } from "@/components/providers/LiffProvider";
+import { useOnboarding } from "@/components/providers/OnboardingContext";
 import { OnboardingModal } from "@/components/user/OnboardingModal";
 
 interface OnboardingGuardProps {
   children: ReactNode;
+  setIsLoading?: (loading: boolean) => void;
 }
 
-export function OnboardingGuard({ children }: OnboardingGuardProps) {
+export function OnboardingGuard({ children, setIsLoading: setParentLoading }: OnboardingGuardProps) {
   const { profile, isReady, isLoggedIn } = useLiff();
-  const [isOnboarded, setIsOnboarded] = useState<boolean | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  const { isOnboarded, setIsOnboarded, showOnboarding, setShowOnboarding } = useOnboarding();
 
   const checkOnboardingStatus = useCallback(async () => {
     if (!profile?.userId) {
-      setIsLoading(false);
+      setParentLoading?.(false);
       return;
     }
 
@@ -38,17 +38,20 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
       setIsOnboarded(false);
       setShowOnboarding(true);
     } finally {
-      setIsLoading(false);
+      setParentLoading?.(false);
     }
-  }, [profile?.userId]);
+  }, [profile?.userId, setIsOnboarded, setShowOnboarding, setParentLoading]);
 
   useEffect(() => {
-    if (isReady && isLoggedIn && profile?.userId) {
+    if (!isReady) return;
+    
+    if (isLoggedIn && profile?.userId) {
       checkOnboardingStatus();
-    } else if (isReady && !isLoggedIn) {
-      setIsLoading(false);
+    } else {
+      // Not logged in or no profile - stop loading
+      setParentLoading?.(false);
     }
-  }, [isReady, isLoggedIn, profile?.userId, checkOnboardingStatus]);
+  }, [isReady, isLoggedIn, profile?.userId, checkOnboardingStatus, setParentLoading]);
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
@@ -56,18 +59,6 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
     // Refresh the page to load new data
     window.location.reload();
   };
-
-  // Loading state
-  if (!isReady || isLoading) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-500">กำลังโหลด...</p>
-        </div>
-      </div>
-    );
-  }
 
   // Not logged in - show children (page will handle its own auth state)
   if (!isLoggedIn || !profile?.userId) {
