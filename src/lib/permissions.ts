@@ -154,6 +154,26 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     ],
   },
   {
+    id: "schedule",
+    label: "ตั้งเวลา",
+    description: "ตั้งค่าเวลาแจ้งเตือนและระบบติดตามผู้ใช้",
+    permissions: [
+      { code: "schedule.view", label: "ดูการตั้งค่า" },
+      { code: "schedule.update", label: "แก้ไขการตั้งค่า" },
+    ],
+  },
+  {
+    id: "nutrition",
+    label: "ตารางสารอาหาร",
+    description: "ข้อมูลสารอาหารมาตรฐาน",
+    permissions: [
+      { code: "nutrition.view", label: "ดูรายการ" },
+      { code: "nutrition.create", label: "เพิ่ม" },
+      { code: "nutrition.update", label: "แก้ไข" },
+      { code: "nutrition.delete", label: "ลบ" },
+    ],
+  },
+  {
     id: "staff",
     label: "พนักงาน",
     permissions: [
@@ -193,6 +213,8 @@ export const MENU_PERMISSION_MAP: Record<string, string> = {
   "/backoffice/categories": "categories",
   "/backoffice/settings": "settings",
   "/backoffice/member-types": "member-types",
+  "/backoffice/schedule": "schedule",
+  "/backoffice/nutrition": "nutrition",
   "/backoffice/staff": "staff",
   "/backoffice/roles": "roles",
 };

@@ -24,6 +24,7 @@ import {
   Crown,
   Store,
   Users,
+  Table2,
 } from "lucide-react";
 import { useSidebar } from "./SidebarContext";
 import { useStaff } from "./StaffContext";
@@ -162,6 +163,13 @@ const navGroups: NavGroup[] = [
         href: "/backoffice/schedule",
         label: "ตั้งเวลา",
         icon: <Calendar className="w-5 h-5" />,
+        moduleId: "schedule",
+      },
+      {
+        href: "/backoffice/nutrition",
+        label: "ตารางสารอาหาร",
+        icon: <Table2 className="w-5 h-5" />,
+        moduleId: "nutrition",
       },
       {
         href: "/backoffice/staff",
