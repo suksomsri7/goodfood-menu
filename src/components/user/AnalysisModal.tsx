@@ -1,7 +1,8 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Brain, Target, Lightbulb } from "lucide-react";
+import { X, Brain, Target, Lightbulb, AlertTriangle } from "lucide-react";
+import { sendMessage, isInClient, closeWindow } from "@/lib/liff";
 
 interface AnalysisData {
   summary?: string | string[] | null;
@@ -15,6 +16,8 @@ interface AnalysisModalProps {
   analysis: AnalysisData | null;
   isLoading: boolean;
   onRefresh: () => void;
+  limitReached?: boolean;
+  limitMessage?: string;
 }
 
 // Helper function to render content that could be string or array
@@ -60,7 +63,32 @@ export function AnalysisModal({
   analysis,
   isLoading,
   onRefresh,
+  limitReached = false,
+  limitMessage,
 }: AnalysisModalProps) {
+  
+  // Handle request for limit increase
+  const handleRequestLimitIncrease = async () => {
+    const message = "วิธีเพิ่ม Limit การใช้งาน";
+    
+    try {
+      const success = await sendMessage(message);
+      
+      if (success) {
+        if (isInClient()) {
+          closeWindow();
+        } else {
+          onClose();
+        }
+      } else {
+        alert("ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง");
+      }
+    } catch (error) {
+      console.error("Error sending message:", error);
+      alert("ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง");
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -114,6 +142,25 @@ export function AnalysisModal({
                 <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mb-4" />
                 <p className="text-gray-500 text-sm">กำลังวิเคราะห์ข้อมูล...</p>
                 <p className="text-gray-400 text-xs mt-1">อาจใช้เวลาสักครู่</p>
+              </div>
+            ) : limitReached ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                  <AlertTriangle className="w-10 h-10 text-amber-500" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">ถึงขีดจำกัดการใช้งานแล้ว</h3>
+                <p className="text-gray-500 text-sm text-center mb-6 px-4">
+                  {limitMessage || "คุณใช้งาน AI ครบจำนวนที่กำหนดแล้วในวันนี้"}
+                </p>
+                <button
+                  onClick={handleRequestLimitIncrease}
+                  className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+                >
+                  วิธีเพิ่ม Limit การใช้งาน
+                </button>
+                <p className="text-xs text-gray-400 mt-3">
+                  กดปุ่มเพื่อสอบถามแอดมิน
+                </p>
               </div>
             ) : analysis ? (
               <div className="space-y-6">

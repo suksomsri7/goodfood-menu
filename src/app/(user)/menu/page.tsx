@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLiff } from "@/components/providers/LiffProvider";
-import { closeWindow } from "@/lib/liff";
+import { closeWindow, sendMessage, isInClient } from "@/lib/liff";
 
 interface Restaurant {
   id: string;
@@ -128,6 +128,8 @@ export default function MenuPage() {
   const [aiSelectedFoods, setAiSelectedFoods] = useState<(Food & { quantity: number })[]>([]);
   const [aiRecommendation, setAiRecommendation] = useState("");
   const [showAiResult, setShowAiResult] = useState(false);
+  const [aiLimitReached, setAiLimitReached] = useState(false);
+  const [aiLimitMessage, setAiLimitMessage] = useState("");
 
   // Address state
   const [addresses, setAddresses] = useState<Address[]>([]);
@@ -758,9 +760,15 @@ export default function MenuPage() {
       
       // Check for limit reached
       if (data.limitReached) {
-        alert(data.error || "ถึงขีดจำกัดการใช้งาน AI วันนี้แล้ว");
+        setAiLimitReached(true);
+        setAiLimitMessage(data.error || "ถึงขีดจำกัดการใช้งาน AI วันนี้แล้ว");
+        setShowAiResult(true); // Show the result area to display limit message
         return;
       }
+      
+      // Reset limit state on success
+      setAiLimitReached(false);
+      setAiLimitMessage("");
       
       if (res.ok) {
         // Map back to full Food objects
@@ -2190,6 +2198,56 @@ export default function MenuPage() {
                         </p>
                       </div>
                     </div>
+                  </button>
+                </div>
+              </div>
+            ) : aiLimitReached ? (
+              // AI Limit Reached
+              <div className="px-4 pb-8">
+                <div className="flex flex-col items-center justify-center py-8">
+                  <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                    <span className="text-4xl">⚠️</span>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-2">ถึงขีดจำกัดการใช้งานแล้ว</h3>
+                  <p className="text-gray-500 text-sm text-center mb-6 px-4">
+                    {aiLimitMessage || "คุณใช้งาน AI ครบจำนวนที่กำหนดแล้วในวันนี้"}
+                  </p>
+                  <button
+                    onClick={async () => {
+                      const message = "วิธีเพิ่ม Limit การใช้งาน";
+                      try {
+                        const success = await sendMessage(message);
+                        if (success) {
+                          if (isInClient()) {
+                            closeWindow();
+                          } else {
+                            setSelectedPackage(null);
+                            setShowAiResult(false);
+                            setAiLimitReached(false);
+                          }
+                        } else {
+                          alert("ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง");
+                        }
+                      } catch (error) {
+                        console.error("Error sending message:", error);
+                        alert("ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง");
+                      }
+                    }}
+                    className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+                  >
+                    วิธีเพิ่ม Limit การใช้งาน
+                  </button>
+                  <p className="text-xs text-gray-400 mt-3">
+                    กดปุ่มเพื่อสอบถามแอดมิน
+                  </p>
+                  <button
+                    onClick={() => {
+                      setShowAiResult(false);
+                      setAiLimitReached(false);
+                    }}
+                    className="mt-4 text-gray-500 text-sm underline"
+                  >
+                    กลับไปเลือกวิธีอื่น
                   </button>
                 </div>
               </div>
