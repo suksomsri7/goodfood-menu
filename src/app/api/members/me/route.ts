@@ -67,6 +67,7 @@ export async function GET(request: NextRequest) {
     const member = await prisma.member.findUnique({
       where: { lineUserId },
       include: {
+        memberType: true,
         _count: {
           select: {
             mealLogs: true,
@@ -116,9 +117,26 @@ export async function GET(request: NextRequest) {
       data: updateData,
     });
 
+    // Calculate AI Coach status for debugging
+    let aiCoachStatus = "inactive";
+    if (member.memberType) {
+      if (!member.memberType.isActive) {
+        aiCoachStatus = "type_disabled";
+      } else if (member.memberType.courseDuration === 0) {
+        aiCoachStatus = "unlimited";
+      } else if (member.aiCoachExpireDate && member.aiCoachExpireDate > new Date()) {
+        aiCoachStatus = "active";
+      } else {
+        aiCoachStatus = "expired";
+      }
+    } else {
+      aiCoachStatus = "no_type";
+    }
+
     return NextResponse.json({
       ...member,
       showWelcomeBack, // Flag to show Welcome Back modal on frontend
+      aiCoachStatus, // For debugging AI Coach issues
     });
   } catch (error) {
     console.error("Failed to get member:", error);
