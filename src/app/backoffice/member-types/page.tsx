@@ -17,6 +17,9 @@ import {
   ScanLine,
   Settings,
   Clock,
+  Dumbbell,
+  Utensils,
+  MessageSquare,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -25,9 +28,13 @@ interface MemberType {
   name: string;
   description: string | null;
   color: string;
+  // AI Usage Limits
   dailyPhotoLimit: number;
   dailyAiAnalysisLimit: number;
+  dailyAiTextAnalysisLimit: number;
   dailyAiRecommendLimit: number;
+  dailyExerciseAnalysisLimit: number;
+  dailyMenuSelectLimit: number;
   dailyScanLimit: number;
   isDefault: boolean;
   isActive: boolean;
@@ -82,9 +89,13 @@ export default function MemberTypesPage() {
     name: "",
     description: "",
     color: "#4CAF50",
+    // AI Usage Limits
     dailyPhotoLimit: 3,
     dailyAiAnalysisLimit: 3,
+    dailyAiTextAnalysisLimit: 3,
     dailyAiRecommendLimit: 3,
+    dailyExerciseAnalysisLimit: 3,
+    dailyMenuSelectLimit: 3,
     dailyScanLimit: 5,
     isDefault: false,
     isActive: true,
@@ -157,7 +168,10 @@ export default function MemberTypesPage() {
       color: "#4CAF50",
       dailyPhotoLimit: 3,
       dailyAiAnalysisLimit: 3,
+      dailyAiTextAnalysisLimit: 3,
       dailyAiRecommendLimit: 3,
+      dailyExerciseAnalysisLimit: 3,
+      dailyMenuSelectLimit: 3,
       dailyScanLimit: 5,
       isDefault: false,
       isActive: true,
@@ -181,7 +195,10 @@ export default function MemberTypesPage() {
       color: type.color,
       dailyPhotoLimit: type.dailyPhotoLimit,
       dailyAiAnalysisLimit: type.dailyAiAnalysisLimit,
+      dailyAiTextAnalysisLimit: type.dailyAiTextAnalysisLimit || 3,
       dailyAiRecommendLimit: type.dailyAiRecommendLimit,
+      dailyExerciseAnalysisLimit: type.dailyExerciseAnalysisLimit || 3,
+      dailyMenuSelectLimit: type.dailyMenuSelectLimit || 3,
       dailyScanLimit: type.dailyScanLimit,
       isDefault: type.isDefault,
       isActive: type.isActive,
@@ -465,62 +482,98 @@ export default function MemberTypesPage() {
                         )}
 
                         {/* Limits */}
-                        <div className="flex flex-wrap items-center gap-4">
+                        <div className="flex flex-wrap items-center gap-3">
                           <div className="flex items-center gap-2 text-sm">
-                            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                              <Camera className="w-4 h-4 text-blue-600" />
+                            <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center">
+                              <Camera className="w-3.5 h-3.5 text-blue-600" />
                             </div>
                             <div>
                               <p className="text-gray-500 text-xs">Take Photo</p>
-                              <p className="font-semibold text-gray-700">
+                              <p className="font-semibold text-gray-700 text-xs">
                                 {formatLimit(type.dailyPhotoLimit)}/วัน
                               </p>
                             </div>
                           </div>
 
                           <div className="flex items-center gap-2 text-sm">
-                            <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                              <Sparkles className="w-4 h-4 text-purple-600" />
+                            <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center">
+                              <Sparkles className="w-3.5 h-3.5 text-purple-600" />
                             </div>
                             <div>
                               <p className="text-gray-500 text-xs">AI วิเคราะห์</p>
-                              <p className="font-semibold text-gray-700">
+                              <p className="font-semibold text-gray-700 text-xs">
                                 {formatLimit(type.dailyAiAnalysisLimit)}/วัน
                               </p>
                             </div>
                           </div>
 
                           <div className="flex items-center gap-2 text-sm">
-                            <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
-                              <Brain className="w-4 h-4 text-amber-600" />
+                            <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
+                              <Brain className="w-3.5 h-3.5 text-amber-600" />
                             </div>
                             <div>
                               <p className="text-gray-500 text-xs">AI คำแนะนำ</p>
-                              <p className="font-semibold text-gray-700">
+                              <p className="font-semibold text-gray-700 text-xs">
                                 {formatLimit(type.dailyAiRecommendLimit)}/วัน
                               </p>
                             </div>
                           </div>
 
                           <div className="flex items-center gap-2 text-sm">
-                            <div className="w-8 h-8 rounded-lg bg-cyan-100 flex items-center justify-center">
-                              <ScanLine className="w-4 h-4 text-cyan-600" />
+                            <div className="w-7 h-7 rounded-lg bg-orange-100 flex items-center justify-center">
+                              <MessageSquare className="w-3.5 h-3.5 text-orange-600" />
                             </div>
                             <div>
-                              <p className="text-gray-500 text-xs">สแกนหน้าจอ</p>
-                              <p className="font-semibold text-gray-700">
+                              <p className="text-gray-500 text-xs">AI ข้อความ</p>
+                              <p className="font-semibold text-gray-700 text-xs">
+                                {formatLimit(type.dailyAiTextAnalysisLimit || 3)}/วัน
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className="w-7 h-7 rounded-lg bg-green-100 flex items-center justify-center">
+                              <Dumbbell className="w-3.5 h-3.5 text-green-600" />
+                            </div>
+                            <div>
+                              <p className="text-gray-500 text-xs">AI ออกกำลังกาย</p>
+                              <p className="font-semibold text-gray-700 text-xs">
+                                {formatLimit(type.dailyExerciseAnalysisLimit || 3)}/วัน
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className="w-7 h-7 rounded-lg bg-pink-100 flex items-center justify-center">
+                              <Utensils className="w-3.5 h-3.5 text-pink-600" />
+                            </div>
+                            <div>
+                              <p className="text-gray-500 text-xs">AI เลือกเมนู</p>
+                              <p className="font-semibold text-gray-700 text-xs">
+                                {formatLimit(type.dailyMenuSelectLimit || 3)}/วัน
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className="w-7 h-7 rounded-lg bg-cyan-100 flex items-center justify-center">
+                              <ScanLine className="w-3.5 h-3.5 text-cyan-600" />
+                            </div>
+                            <div>
+                              <p className="text-gray-500 text-xs">สแกน Barcode</p>
+                              <p className="font-semibold text-gray-700 text-xs">
                                 {formatLimit(type.dailyScanLimit)}/วัน
                               </p>
                             </div>
                           </div>
 
                           <div className="flex items-center gap-2 text-sm">
-                            <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
-                              <Users className="w-4 h-4 text-green-600" />
+                            <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center">
+                              <Users className="w-3.5 h-3.5 text-gray-600" />
                             </div>
                             <div>
                               <p className="text-gray-500 text-xs">สมาชิก</p>
-                              <p className="font-semibold text-gray-700">
+                              <p className="font-semibold text-gray-700 text-xs">
                                 {type._count?.members || 0} คน
                               </p>
                             </div>
@@ -662,85 +715,143 @@ export default function MemberTypesPage() {
                 </div>
 
                 {/* Limits */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <Camera className="w-4 h-4 inline mr-1" />
-                      Take Photo (ครั้ง/วัน)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={formData.dailyPhotoLimit}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          dailyPhotoLimit: parseInt(e.target.value) || 0,
-                        })
-                      }
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
-                    />
-                    <p className="text-xs text-gray-400 mt-1">0 = ไม่จำกัด</p>
-                  </div>
+                <div className="border-t border-gray-200 pt-5">
+                  <h4 className="font-medium text-gray-800 mb-4 flex items-center gap-2">
+                    🎯 จำกัดการใช้งาน AI (ครั้ง/วัน, 0 = ไม่จำกัด)
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <Camera className="w-4 h-4 inline mr-1" />
+                        ถ่ายรูปอาหาร
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.dailyPhotoLimit}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            dailyPhotoLimit: parseInt(e.target.value) || 0,
+                          })
+                        }
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <Sparkles className="w-4 h-4 inline mr-1" />
-                      AI วิเคราะห์ (หน้าแคลอรี่ ครั้ง/วัน)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={formData.dailyAiAnalysisLimit}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          dailyAiAnalysisLimit: parseInt(e.target.value) || 0,
-                        })
-                      }
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
-                    />
-                    <p className="text-xs text-gray-400 mt-1">0 = ไม่จำกัด</p>
-                  </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <Sparkles className="w-4 h-4 inline mr-1" />
+                        AI วิเคราะห์รูปอาหาร
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.dailyAiAnalysisLimit}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            dailyAiAnalysisLimit: parseInt(e.target.value) || 0,
+                          })
+                        }
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <Brain className="w-4 h-4 inline mr-1" />
-                      AI คำแนะนำ (หน้าStock อาหาร ครั้ง/วัน)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={formData.dailyAiRecommendLimit}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          dailyAiRecommendLimit: parseInt(e.target.value) || 0,
-                        })
-                      }
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
-                    />
-                    <p className="text-xs text-gray-400 mt-1">0 = ไม่จำกัด</p>
-                  </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <MessageSquare className="w-4 h-4 inline mr-1" />
+                        AI วิเคราะห์ข้อความอาหาร
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.dailyAiTextAnalysisLimit}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            dailyAiTextAnalysisLimit: parseInt(e.target.value) || 0,
+                          })
+                        }
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <ScanLine className="w-4 h-4 inline mr-1" />
-                      สแกนหน้าจอ (บันทึกออกกำลังกาย/อาหาร ครั้ง/วัน)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={formData.dailyScanLimit}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          dailyScanLimit: parseInt(e.target.value) || 0,
-                        })
-                      }
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
-                    />
-                    <p className="text-xs text-gray-400 mt-1">0 = ไม่จำกัด</p>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <Brain className="w-4 h-4 inline mr-1" />
+                        AI คำแนะนำรายวัน
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.dailyAiRecommendLimit}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            dailyAiRecommendLimit: parseInt(e.target.value) || 0,
+                          })
+                        }
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <Dumbbell className="w-4 h-4 inline mr-1" />
+                        AI วิเคราะห์ออกกำลังกาย
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.dailyExerciseAnalysisLimit}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            dailyExerciseAnalysisLimit: parseInt(e.target.value) || 0,
+                          })
+                        }
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <Utensils className="w-4 h-4 inline mr-1" />
+                        AI เลือกเมนู
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.dailyMenuSelectLimit}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            dailyMenuSelectLimit: parseInt(e.target.value) || 0,
+                          })
+                        }
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <ScanLine className="w-4 h-4 inline mr-1" />
+                        สแกน Barcode
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.dailyScanLimit}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            dailyScanLimit: parseInt(e.target.value) || 0,
+                          })
+                        }
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                      />
+                    </div>
                   </div>
                 </div>
 

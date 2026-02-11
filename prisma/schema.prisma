@@ -472,17 +472,23 @@ model MemberType {
   name                  String   @unique
   description           String?
   color                 String   @default("#4CAF50")
-  dailyPhotoLimit       Int      @default(3)
-  dailyAiAnalysisLimit  Int      @default(3)
-  dailyAiRecommendLimit Int      @default(3)
-  dailyScanLimit        Int      @default(5)
+  
+  // AI Usage Limits (0 = unlimited)
+  dailyPhotoLimit           Int      @default(3)   // ถ่ายรูปอาหาร
+  dailyAiAnalysisLimit      Int      @default(3)   // วิเคราะห์อาหารจากรูป
+  dailyAiTextAnalysisLimit  Int      @default(3)   // วิเคราะห์อาหารจากข้อความ
+  dailyAiRecommendLimit     Int      @default(3)   // AI คำแนะนำ
+  dailyExerciseAnalysisLimit Int     @default(3)   // วิเคราะห์การออกกำลังกาย
+  dailyMenuSelectLimit      Int      @default(3)   // AI เลือกเมนู
+  dailyScanLimit            Int      @default(5)   // สแกน Barcode
+  
   isDefault             Boolean  @default(false)
   isActive              Boolean  @default(true)
   order                 Int      @default(0)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   
-  // Course Duration
+  // Course Duration (0 = unlimited)
   courseDuration        Int      @default(7)
   
   // Coaching Times
