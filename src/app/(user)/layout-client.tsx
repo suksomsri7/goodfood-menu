@@ -13,20 +13,11 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   // Show guide after onboarding completes (if not seen before)
   useEffect(() => {
-    // #region agent log
-    console.log('[DEBUG Guide]', { isLoading, isOnboarded, showOnboarding });
-    // #endregion
     if (!isLoading && isOnboarded === true && !showOnboarding) {
       const seen = localStorage.getItem(LOCALSTORAGE_KEY);
       const justCompleted = sessionStorage.getItem('justCompletedOnboarding');
-      // #region agent log
-      console.log('[DEBUG Guide] Inside condition, seen=', seen, 'justCompleted=', justCompleted);
-      // #endregion
       // Show guide if: just completed onboarding OR hasn't seen guide before
       if (justCompleted || !seen) {
-        // #region agent log
-        console.log('[DEBUG Guide] Setting showGuide=true');
-        // #endregion
         // Clear the flag
         sessionStorage.removeItem('justCompletedOnboarding');
         setShowGuide(true);

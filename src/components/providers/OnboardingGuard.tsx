@@ -5,6 +5,8 @@ import { useLiff } from "@/components/providers/LiffProvider";
 import { useOnboarding } from "@/components/providers/OnboardingContext";
 import { OnboardingModal } from "@/components/user/OnboardingModal";
 
+const ONBOARDING_CACHE_KEY = "goodfood_onboarding_status";
+
 interface OnboardingGuardProps {
   children: ReactNode;
   setIsLoading?: (loading: boolean) => void;
@@ -20,6 +22,25 @@ export function OnboardingGuard({ children, setIsLoading: setParentLoading }: On
       return;
     }
 
+    // Check localStorage cache first for faster navigation
+    try {
+      const cached = localStorage.getItem(ONBOARDING_CACHE_KEY);
+      if (cached) {
+        const { userId, isOnboarded: cachedOnboarded, timestamp } = JSON.parse(cached);
+        // Cache is valid for 5 minutes and same user
+        const isValid = userId === profile.userId && Date.now() - timestamp < 5 * 60 * 1000;
+        if (isValid && cachedOnboarded === true) {
+          // User is onboarded - use cache immediately
+          setIsOnboarded(true);
+          setShowOnboarding(false);
+          setParentLoading?.(false);
+          return;
+        }
+      }
+    } catch {
+      // Ignore cache errors
+    }
+
     try {
       const res = await fetch(`/api/members/me?lineUserId=${profile.userId}`);
       if (res.ok) {
@@ -27,16 +48,25 @@ export function OnboardingGuard({ children, setIsLoading: setParentLoading }: On
         const onboarded = data.isOnboarded === true;
         setIsOnboarded(onboarded);
         setShowOnboarding(!onboarded);
+        // Cache the result
+        localStorage.setItem(ONBOARDING_CACHE_KEY, JSON.stringify({
+          userId: profile.userId,
+          isOnboarded: onboarded,
+          timestamp: Date.now()
+        }));
       } else if (res.status === 404) {
         // New user - needs onboarding
         setIsOnboarded(false);
         setShowOnboarding(true);
+        // Clear cache for new user
+        localStorage.removeItem(ONBOARDING_CACHE_KEY);
       }
     } catch (error) {
       console.error("Failed to check onboarding status:", error);
-      // Assume not onboarded on error
-      setIsOnboarded(false);
-      setShowOnboarding(true);
+      // On error, don't show onboarding modal - just show the page
+      // This prevents flashing modal on network errors
+      setIsOnboarded(true);
+      setShowOnboarding(false);
     } finally {
       setParentLoading?.(false);
     }
@@ -54,11 +84,16 @@ export function OnboardingGuard({ children, setIsLoading: setParentLoading }: On
   }, [isReady, isLoggedIn, profile?.userId, checkOnboardingStatus, setParentLoading]);
 
   const handleOnboardingComplete = () => {
-    // #region agent log
-    console.log('[DEBUG Onboarding] Complete - setting flag and reloading');
-    // #endregion
     // Set flag so guide shows after reload
     sessionStorage.setItem('justCompletedOnboarding', 'true');
+    // Update cache
+    if (profile?.userId) {
+      localStorage.setItem(ONBOARDING_CACHE_KEY, JSON.stringify({
+        userId: profile.userId,
+        isOnboarded: true,
+        timestamp: Date.now()
+      }));
+    }
     setShowOnboarding(false);
     setIsOnboarded(true);
     // Refresh the page to load new data
