@@ -119,7 +119,8 @@ export async function sendMessage(text: string): Promise<boolean> {
   // Fallback: Use LINE URL scheme to open chat and pre-fill message
   try {
     const encodedText = encodeURIComponent(text);
-    const lineUrl = `https://line.me/R/oaMessage/@goodfood.menu/?${encodedText}`;
+    // Correct format: https://line.me/R/oaMessage/@OA_ID/?text=message
+    const lineUrl = `https://line.me/R/oaMessage/@goodfood.menu/?text=${encodedText}`;
     
     // In LIFF client, use openWindow with external:true to properly open LINE app
     if (isInitialized && liff.isInClient()) {
