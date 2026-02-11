@@ -10,49 +10,54 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const { isOnboarded, showOnboarding } = useOnboarding();
   const [isLoading, setIsLoading] = useState(true);
   const [showGuide, setShowGuide] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string>("");
 
   // Show guide after onboarding completes (if not seen before)
   useEffect(() => {
     // #region agent log
-    console.log('[Guide Debug] useEffect triggered:', { isLoading, isOnboarded, showOnboarding });
+    const debugParts: string[] = [];
+    debugParts.push(`load:${isLoading},onb:${isOnboarded},show:${showOnboarding}`);
     // #endregion
+    
     if (!isLoading && isOnboarded === true && !showOnboarding) {
       const seen = localStorage.getItem(LOCALSTORAGE_KEY);
       
       // Check for justCompleted flag (valid for 60 seconds after onboarding)
       let justCompleted = false;
+      let flagAge = 0;
       try {
         const justCompletedData = localStorage.getItem('goodfood_just_completed_onboarding');
         if (justCompletedData) {
           const { timestamp } = JSON.parse(justCompletedData);
+          flagAge = Date.now() - timestamp;
           // Valid for 60 seconds
-          justCompleted = Date.now() - timestamp < 60 * 1000;
-          // #region agent log
-          console.log('[Guide Debug] justCompleted flag:', { justCompletedData, age: Date.now() - timestamp, justCompleted });
-          // #endregion
+          justCompleted = flagAge < 60 * 1000;
         }
       } catch {
         // Ignore parse errors
       }
       
       // #region agent log
-      console.log('[Guide Debug] Inside condition:', { seen, justCompleted });
+      debugParts.push(`seen:${seen ? 'Y' : 'N'},jc:${justCompleted},age:${flagAge}ms`);
       // #endregion
       
       // Show guide if: just completed onboarding OR hasn't seen guide before
       if (justCompleted || !seen) {
         // #region agent log
-        console.log('[Guide Debug] Will show guide!');
+        debugParts.push('SHOW!');
         // #endregion
         // Clear the flag
         localStorage.removeItem('goodfood_just_completed_onboarding');
         setShowGuide(true);
       } else {
         // #region agent log
-        console.log('[Guide Debug] NOT showing guide - seen:', seen, 'justCompleted:', justCompleted);
+        debugParts.push('SKIP');
         // #endregion
       }
     }
+    // #region agent log
+    setDebugInfo(debugParts.join(' | '));
+    // #endregion
   }, [isLoading, isOnboarded, showOnboarding]);
 
   // Hide bottom nav during loading, onboarding, or when not yet onboarded
@@ -75,6 +80,13 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       
       {/* User Guide - shows after onboarding for new users */}
       <UserGuide isOpen={showGuide} onClose={() => setShowGuide(false)} />
+      
+      {/* Debug info - remove after fixing */}
+      {debugInfo && (
+        <div className="fixed bottom-24 left-2 right-2 bg-black/80 text-white text-xs p-2 rounded z-[100] font-mono">
+          {debugInfo}
+        </div>
+      )}
     </div>
   );
 }
