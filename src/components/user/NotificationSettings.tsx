@@ -130,7 +130,7 @@ export function NotificationSettings({
 
   // Send message to admin requesting AI Coach activation
   const requestAiCoachActivation = async () => {
-    const message = "ขอรายละเอียดเปิดระบบ AI Coach";
+    const message = "ขอเปิด AI Coach";
     
     try {
       // Send message via LIFF to the chat
@@ -334,7 +334,7 @@ export function NotificationSettings({
                       className="inline-flex items-center gap-2 px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors"
                     >
                       <MessageCircle className="w-5 h-5" />
-                      ขอรายละเอียดเปิดระบบ AI Coach
+                      ขอเปิด AI Coach
                     </button>
                   </div>
                 </div>
@@ -363,7 +363,7 @@ export function NotificationSettings({
                         className="inline-flex items-center gap-2 px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors"
                       >
                         <MessageCircle className="w-5 h-5" />
-                        ขอรายละเอียดเปิดระบบ AI Coach
+                        ขอเปิด AI Coach
                       </button>
                     </div>
                   </div>
