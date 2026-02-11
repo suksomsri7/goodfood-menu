@@ -526,31 +526,30 @@ export default function MemberTypesPage() {
                             </div>
                           </div>
                         </div>
+
+                        {/* Toggle Active - Inside Card */}
+                        <div className="flex items-center gap-3 mt-4 pt-4 border-t border-gray-100">
+                          <span className="text-sm text-gray-600">สถานะ AI Coach:</span>
+                          <button
+                            onClick={() => toggleMemberTypeActive(type.id, type.isActive)}
+                            className={`relative w-14 h-7 rounded-full transition-colors ${
+                              type.isActive ? "bg-green-500" : "bg-gray-300"
+                            }`}
+                            title={type.isActive ? "ปิดใช้งาน" : "เปิดใช้งาน"}
+                          >
+                            <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${
+                              type.isActive ? "translate-x-7" : "translate-x-0.5"
+                            }`} />
+                          </button>
+                          <span className={`text-sm font-medium ${type.isActive ? "text-green-600" : "text-gray-500"}`}>
+                            {type.isActive ? "เปิดใช้งาน" : "ปิดใช้งาน"}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
                     {/* Right Section - Actions */}
-                    <div className="flex items-center gap-3">
-                      {/* Toggle Active */}
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-500">
-                          {type.isActive ? "เปิด" : "ปิด"}
-                        </span>
-                        <button
-                          onClick={() => toggleMemberTypeActive(type.id, type.isActive)}
-                          className={`relative w-12 h-6 rounded-full transition-colors ${
-                            type.isActive ? "bg-green-500" : "bg-gray-300"
-                          }`}
-                          title={type.isActive ? "ปิดใช้งาน" : "เปิดใช้งาน"}
-                        >
-                          <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-transform ${
-                            type.isActive ? "translate-x-6" : "translate-x-0.5"
-                          }`} />
-                        </button>
-                      </div>
-
-                      <div className="w-px h-6 bg-gray-200" />
-
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={() => openEditModal(type)}
                         className="p-2.5 text-gray-500 hover:bg-gray-100 rounded-xl transition-colors"
