@@ -89,10 +89,13 @@ export interface MemberContext {
 
 // Check if AI Coach is active for member
 export function isAiCoachActive(member: { 
-  memberType: { courseDuration: number } | null; 
+  memberType: { courseDuration: number; isActive: boolean } | null; 
   aiCoachExpireDate: Date | null 
 }): boolean {
   if (!member.memberType) return false;
+  
+  // Check if member type is active (admin can disable AI Coach for this type)
+  if (!member.memberType.isActive) return false;
   
   // Unlimited (courseDuration = 0)
   if (member.memberType.courseDuration === 0) return true;

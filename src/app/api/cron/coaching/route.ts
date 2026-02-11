@@ -64,6 +64,12 @@ export async function GET(request: NextRequest) {
       try {
         // Check if AI Coach is active
         if (member.memberType) {
+          // Skip if member type is disabled
+          if (!member.memberType.isActive) {
+            skipped++;
+            continue; // AI Coach disabled for this type
+          }
+          
           const isUnlimited = member.memberType.courseDuration === 0;
           const isExpired = !isUnlimited && 
             (!member.aiCoachExpireDate || member.aiCoachExpireDate < new Date());
