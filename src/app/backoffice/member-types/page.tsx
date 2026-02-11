@@ -291,27 +291,50 @@ export default function MemberTypesPage() {
       />
 
       <div className="p-6">
-        {/* AI Coach Global Settings */}
+        {/* New Member Card Settings */}
         {aiCoachSettings && (
           <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
-                <Settings className="w-5 h-5 text-purple-600" />
+              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                <Users className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-gray-800">ตั้งค่า AI Coach</h3>
-                <p className="text-sm text-gray-500">การตั้งค่าระบบ AI Coach</p>
+                <h3 className="font-semibold text-gray-800">ตั้งค่าสมาชิกใหม่</h3>
+                <p className="text-sm text-gray-500">กำหนด Card เริ่มต้นสำหรับสมาชิกที่เข้ามาใหม่</p>
               </div>
             </div>
 
             <div className="grid md:grid-cols-3 gap-6">
+              {/* Trial Card */}
+              <div className="p-4 bg-green-50 rounded-xl border border-green-100">
+                <div className="flex items-center gap-3 mb-3">
+                  <Crown className="w-5 h-5 text-green-600" />
+                  <div>
+                    <p className="font-medium text-gray-800">Card ทดลอง</p>
+                    <p className="text-xs text-gray-500">สมาชิกใหม่จะได้ Card นี้</p>
+                  </div>
+                </div>
+                <select
+                  value={aiCoachSettings.trialMemberTypeId || ""}
+                  onChange={(e) => updateAiCoachSetting("trialMemberTypeId", e.target.value || null)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none bg-white"
+                >
+                  <option value="">-- ไม่กำหนด --</option>
+                  {aiCoachSettings.memberTypes.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {/* Trial Days */}
-              <div className="p-4 bg-gray-50 rounded-xl">
+              <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
                 <div className="flex items-center gap-3 mb-3">
                   <Clock className="w-5 h-5 text-amber-600" />
                   <div>
-                    <p className="font-medium text-gray-800">ระยะเวลาทดลองใช้</p>
-                    <p className="text-xs text-gray-500">สำหรับสมาชิกใหม่</p>
+                    <p className="font-medium text-gray-800">ระยะเวลาทดลอง</p>
+                    <p className="text-xs text-gray-500">จำนวนวันที่ให้ทดลองใช้</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -324,53 +347,30 @@ export default function MemberTypesPage() {
                       setAiCoachSettings(prev => prev ? { ...prev, trialDays: days } : null);
                     }}
                     onBlur={(e) => updateAiCoachSetting("trialDays", parseInt(e.target.value) || 0)}
-                    className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-center focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                    className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-center focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none bg-white"
                   />
                   <span className="text-sm text-gray-600">วัน (0 = ไม่มีทดลอง)</span>
                 </div>
               </div>
 
-              {/* Trial Member Type */}
-              <div className="p-4 bg-gray-50 rounded-xl">
+              {/* After Trial Card */}
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
                 <div className="flex items-center gap-3 mb-3">
-                  <Crown className="w-5 h-5 text-purple-600" />
+                  <Settings className="w-5 h-5 text-gray-600" />
                   <div>
-                    <p className="font-medium text-gray-800">AI Coach สำหรับทดลอง</p>
-                    <p className="text-xs text-gray-500">ประเภทที่ให้สมาชิกใหม่ทดลองใช้</p>
-                  </div>
-                </div>
-                <select
-                  value={aiCoachSettings.trialMemberTypeId || ""}
-                  onChange={(e) => updateAiCoachSetting("trialMemberTypeId", e.target.value || null)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
-                >
-                  <option value="">-- ไม่กำหนด --</option>
-                  {aiCoachSettings.memberTypes.map((type) => (
-                    <option key={type.id} value={type.id}>
-                      {type.name} {type.isDefault && "(ค่าเริ่มต้น)"}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* General Member Type (after trial) */}
-              <div className="p-4 bg-gray-50 rounded-xl">
-                <div className="flex items-center gap-3 mb-3">
-                  <Users className="w-5 h-5 text-gray-600" />
-                  <div>
-                    <p className="font-medium text-gray-800">AI Coach หลังหมดทดลอง</p>
-                    <p className="text-xs text-gray-500">เปลี่ยนเป็นประเภทนี้เมื่อหมดระยะทดลอง</p>
+                    <p className="font-medium text-gray-800">Card หลังทดลอง</p>
+                    <p className="text-xs text-gray-500">เมื่อหมดทดลองจะเปลี่ยนไป Card นี้</p>
                   </div>
                 </div>
                 <select
                   value={aiCoachSettings.generalMemberTypeId || ""}
                   onChange={(e) => updateAiCoachSetting("generalMemberTypeId", e.target.value || null)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none bg-white"
                 >
                   <option value="">-- ไม่กำหนด (ลบ AI Coach) --</option>
                   {aiCoachSettings.memberTypes.map((type) => (
                     <option key={type.id} value={type.id}>
-                      {type.name} {type.isDefault && "(ค่าเริ่มต้น)"}
+                      {type.name}
                     </option>
                   ))}
                 </select>
