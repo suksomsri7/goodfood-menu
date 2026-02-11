@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
       systemSettings: {
         trialDays: systemSettings?.trialDays,
         trialMemberTypeId: systemSettings?.trialMemberTypeId,
-        postTrialMemberTypeId: systemSettings?.postTrialMemberTypeId,
+        generalMemberTypeId: systemSettings?.generalMemberTypeId,
       },
     });
   } catch (error) {
