@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       type: "flex" as const,
       altText: "วิธีเพิ่ม Limit การใช้งาน AI",
       contents: {
-        type: "bubble",
+        type: "bubble" as const,
         header: {
           type: "box",
           layout: "vertical",
