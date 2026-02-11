@@ -14,26 +14,19 @@ function CalLayoutContent({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [showGuide, setShowGuide] = useState(false);
   const [guideReady, setGuideReady] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<string>("");
 
   // Show guide after onboarding completes or on first visit
   useEffect(() => {
-    const debugParts: string[] = [];
-    debugParts.push(`load:${isLoading},onb:${isOnboarded},show:${showOnboarding}`);
-    
     if (!isLoading && isOnboarded === true && !showOnboarding) {
       const seen = localStorage.getItem(LOCALSTORAGE_KEY);
       
       // Check for justCompleted flag from multiple sources
       let justCompleted = false;
-      let flagAge = 0;
-      let flagSource = 'none';
       try {
         // Check URL query parameter first (most reliable in LIFF)
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('onboarded') === '1') {
           justCompleted = true;
-          flagSource = 'url';
           // Clean up URL without reload
           window.history.replaceState({}, '', '/cal');
         }
@@ -42,9 +35,7 @@ function CalLayoutContent({ children }: { children: React.ReactNode }) {
           const justCompletedData = localStorage.getItem(JUST_COMPLETED_KEY);
           if (justCompletedData) {
             const { timestamp } = JSON.parse(justCompletedData);
-            flagAge = Date.now() - timestamp;
-            justCompleted = flagAge < 60 * 1000;
-            flagSource = 'localStorage';
+            justCompleted = Date.now() - timestamp < 60 * 1000;
           }
         }
         // Check sessionStorage as backup
@@ -52,27 +43,20 @@ function CalLayoutContent({ children }: { children: React.ReactNode }) {
           const sessionFlag = sessionStorage.getItem('gf_just_onboarded');
           if (sessionFlag === 'true') {
             justCompleted = true;
-            flagSource = 'sessionStorage';
           }
         }
       } catch {
         // Ignore parse errors
       }
       
-      debugParts.push(`seen:${seen ? 'Y' : 'N'},jc:${justCompleted}(${flagSource}),age:${flagAge}ms`);
-      
       // Show guide if: just completed onboarding OR hasn't seen guide before
       if (justCompleted || !seen) {
-        debugParts.push('SHOW!');
         // Clear flags
         localStorage.removeItem(JUST_COMPLETED_KEY);
         try { sessionStorage.removeItem('gf_just_onboarded'); } catch {}
         setShowGuide(true);
-      } else {
-        debugParts.push('SKIP');
       }
     }
-    setDebugInfo(debugParts.join(' | '));
     setGuideReady(true);
   }, [isLoading, isOnboarded, showOnboarding]);
 
@@ -101,11 +85,6 @@ function CalLayoutContent({ children }: { children: React.ReactNode }) {
 
         {/* Onboarding tooltip guide */}
         <UserGuide isOpen={showGuide} onClose={() => setShowGuide(false)} />
-        
-        {/* Debug info - remove after fixing */}
-        <div className="fixed bottom-24 left-2 right-2 bg-blue-600 text-white text-xs p-2 rounded z-[100] font-mono">
-          CAL: {debugInfo || 'waiting...'}
-        </div>
       </div>
     </CalHelpContext.Provider>
   );
