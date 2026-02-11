@@ -364,7 +364,7 @@ export default function MembersPage() {
         }
       } else {
         const error = await res.json();
-        alert(`${error.error || "ไม่สามารถลบสมาชิกได้"}${error.step ? `\n\nStep: ${error.step}` : ""}${error.details ? `\n\nรายละเอียด: ${error.details}` : ""}`);
+        alert(error.error || "ไม่สามารถลบสมาชิกได้");
       }
     } catch (error) {
       console.error("Failed to delete member:", error);
