@@ -40,7 +40,7 @@ export async function GET() {
   }
 }
 
-// PATCH - อัพเดทการตั้งค่า AI Coach
+// PATCH - อัพเดทการตั้งค่า AI Coach และ Activity Settings
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
@@ -48,7 +48,10 @@ export async function PATCH(request: Request) {
       aiCoachEnabled, 
       trialDays, 
       trialMemberTypeId, 
-      generalMemberTypeId 
+      generalMemberTypeId,
+      // Activity Settings
+      inactiveDaysThreshold,
+      gracePeriodDays,
     } = body;
 
     const settings = await prisma.systemSetting.upsert({
@@ -58,6 +61,8 @@ export async function PATCH(request: Request) {
         ...(trialDays !== undefined && { trialDays }),
         ...(trialMemberTypeId !== undefined && { trialMemberTypeId: trialMemberTypeId || null }),
         ...(generalMemberTypeId !== undefined && { generalMemberTypeId: generalMemberTypeId || null }),
+        ...(inactiveDaysThreshold !== undefined && { inactiveDaysThreshold }),
+        ...(gracePeriodDays !== undefined && { gracePeriodDays }),
       },
       create: {
         id: "system",
@@ -65,12 +70,14 @@ export async function PATCH(request: Request) {
         trialDays: trialDays ?? 7,
         trialMemberTypeId: trialMemberTypeId || null,
         generalMemberTypeId: generalMemberTypeId || null,
+        inactiveDaysThreshold: inactiveDaysThreshold ?? 7,
+        gracePeriodDays: gracePeriodDays ?? 2,
       },
     });
 
     return NextResponse.json(settings);
   } catch (error) {
-    console.error("Error updating AI Coach settings:", error);
+    console.error("Error updating settings:", error);
     return NextResponse.json(
       { error: "Failed to update settings" },
       { status: 500 }

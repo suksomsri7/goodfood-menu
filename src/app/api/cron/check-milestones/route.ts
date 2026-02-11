@@ -33,9 +33,11 @@ export async function GET(request: NextRequest) {
 
   try {
     // Get all active members with AI Coach
+    // Skip members who are "inactive" (haven't used app recently)
     const members = await prisma.member.findMany({
       where: {
         isActive: true,
+        activityStatus: "active", // Skip inactive members - no LINE messages for them
         memberTypeId: { not: null },
       },
       include: {

@@ -61,6 +61,8 @@ interface Member {
   goalWeight: number | null;
   isOnboarded: boolean;
   isActive: boolean;
+  activityStatus: string; // "active" | "inactive"
+  lastActiveAt: string | null;
   memberType: MemberType | null;
   orderCount: number;
   mealLogCount: number;
@@ -137,6 +139,7 @@ interface Stats {
   activeToday: number;
   newToday: number;
   totalOrders: number;
+  inactiveCount: number;
 }
 
 const goalLabels: Record<string, { label: string; color: string }> = {
@@ -339,7 +342,7 @@ export default function MembersPage() {
 
       <div className="p-6">
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -363,13 +366,22 @@ export default function MembersPage() {
             transition={{ delay: 0.2 }}
             className="bg-white rounded-xl p-5 border border-gray-100"
           >
+            <p className="text-2xl font-bold text-red-500">{stats?.inactiveCount || 0}</p>
+            <p className="text-sm text-gray-500 mt-1">Inactive</p>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-white rounded-xl p-5 border border-gray-100"
+          >
             <p className="text-2xl font-bold text-blue-600">{stats?.newToday || 0}</p>
             <p className="text-sm text-gray-500 mt-1">สมาชิกใหม่วันนี้</p>
           </motion.div>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
+            transition={{ delay: 0.4 }}
             className="bg-white rounded-xl p-5 border border-gray-100"
           >
             <p className="text-2xl font-bold text-purple-600">{stats?.totalOrders || 0}</p>
@@ -412,6 +424,9 @@ export default function MembersPage() {
                     </th>
                     <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase">
                       ประเภท
+                    </th>
+                    <th className="text-center py-4 px-6 text-xs font-semibold text-gray-500 uppercase">
+                      สถานะ
                     </th>
                     <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase">
                       เป้าหมาย
@@ -474,6 +489,17 @@ export default function MembersPage() {
                           <span className="text-gray-400 text-sm">-</span>
                         )}
                       </td>
+                      <td className="py-4 px-6 text-center">
+                        {member.activityStatus === "inactive" ? (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                            Inactive
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                            Active
+                          </span>
+                        )}
+                      </td>
                       <td className="py-4 px-6">
                         {member.goalType && goalLabels[member.goalType] ? (
                           <span
@@ -492,7 +518,9 @@ export default function MembersPage() {
                         {member.orderCount}
                       </td>
                       <td className="py-4 px-6">
-                        <span className="text-sm text-gray-500">{formatTimeAgo(member.updatedAt)}</span>
+                        <span className="text-sm text-gray-500">
+                          {member.lastActiveAt ? formatTimeAgo(member.lastActiveAt) : "-"}
+                        </span>
                       </td>
                       <td className="py-4 px-6">
                         <div className="flex items-center justify-center gap-1">

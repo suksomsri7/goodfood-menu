@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
         displayName,
         pictureUrl,
         updatedAt: new Date(),
+        lastActiveAt: new Date(),
       },
       create: {
         lineUserId,
@@ -34,6 +35,9 @@ export async function POST(request: NextRequest) {
         dailySodium: 2300,
         dailySugar: 50,
         dailyWater: 2000,
+        // Activity tracking
+        activityStatus: "active",
+        lastActiveAt: new Date(),
       },
     });
 
@@ -79,7 +83,41 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(member);
+    // Check if member was inactive and needs Welcome Back modal
+    const wasInactive = member.activityStatus === "inactive";
+    const showWelcomeBack = wasInactive && !member.welcomeBackShown;
+
+    // Update lastActiveAt and change status if returning from inactive
+    const updateData: Record<string, unknown> = {
+      lastActiveAt: new Date(),
+    };
+
+    if (wasInactive) {
+      // Member is returning from inactive status
+      updateData.activityStatus = "active";
+      updateData.inactiveSince = null;
+      
+      // Mark welcomeBackShown as true so modal shows only once
+      if (!member.welcomeBackShown) {
+        updateData.welcomeBackShown = true;
+      }
+    } else {
+      // Reset welcomeBackShown for active members (for next inactive cycle)
+      if (member.welcomeBackShown) {
+        updateData.welcomeBackShown = false;
+      }
+    }
+
+    // Update member activity
+    await prisma.member.update({
+      where: { lineUserId },
+      data: updateData,
+    });
+
+    return NextResponse.json({
+      ...member,
+      showWelcomeBack, // Flag to show Welcome Back modal on frontend
+    });
   } catch (error) {
     console.error("Failed to get member:", error);
     return NextResponse.json(

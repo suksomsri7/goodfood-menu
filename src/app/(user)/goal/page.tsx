@@ -6,6 +6,7 @@ import { WeightChart } from "@/components/user/WeightChart";
 import { GoalSummary } from "@/components/user/GoalSummary";
 import { Target } from "lucide-react";
 import { OnboardingModal } from "@/components/user/OnboardingModal";
+import { WelcomeBackModal } from "@/components/user/WelcomeBackModal";
 import { useLiff } from "@/components/providers/LiffProvider";
 import type { Gender } from "@/lib/health-calculator";
 
@@ -37,6 +38,7 @@ export default function GoalPage() {
   const [weeklyCalories, setWeeklyCalories] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [showResetGoal, setShowResetGoal] = useState(false);
+  const [showWelcomeBack, setShowWelcomeBack] = useState(false);
 
   const lineUserId = profile?.userId;
 
@@ -51,6 +53,10 @@ export default function GoalPage() {
           const data = await res.json();
           setMember(data);
           if (data.weight) setCurrentWeight(data.weight);
+          // Show Welcome Back modal if user was inactive
+          if (data.showWelcomeBack) {
+            setShowWelcomeBack(true);
+          }
           return; // Success - exit retry loop
         }
       } catch (error) {
@@ -284,8 +290,26 @@ export default function GoalPage() {
     );
   }
 
+  // Handle Welcome Back modal actions
+  const handleWelcomeSetNewGoal = () => {
+    setShowWelcomeBack(false);
+    setShowResetGoal(true);
+  };
+
+  const handleWelcomeSkip = () => {
+    setShowWelcomeBack(false);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
+      {/* Welcome Back Modal (for returning inactive users) */}
+      <WelcomeBackModal
+        isOpen={showWelcomeBack}
+        displayName={profile?.displayName}
+        onSetNewGoal={handleWelcomeSetNewGoal}
+        onSkip={handleWelcomeSkip}
+      />
+
       {/* Reset Goal Modal */}
       {showResetGoal && lineUserId && (
         <OnboardingModal

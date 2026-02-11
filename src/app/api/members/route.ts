@@ -46,12 +46,15 @@ export async function GET(request: NextRequest) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    const [activeToday, newToday] = await Promise.all([
+    const [activeToday, newToday, inactiveCount] = await Promise.all([
       prisma.member.count({
-        where: { updatedAt: { gte: today } },
+        where: { lastActiveAt: { gte: today } },
       }),
       prisma.member.count({
         where: { createdAt: { gte: today } },
+      }),
+      prisma.member.count({
+        where: { activityStatus: "inactive" },
       }),
     ]);
 
@@ -73,6 +76,8 @@ export async function GET(request: NextRequest) {
       goalWeight: member.goalWeight,
       isOnboarded: member.isOnboarded,
       isActive: member.isActive,
+      activityStatus: member.activityStatus,
+      lastActiveAt: member.lastActiveAt,
       memberType: member.memberType,
       orderCount: member._count.orders,
       mealLogCount: member._count.mealLogs,
@@ -87,6 +92,7 @@ export async function GET(request: NextRequest) {
         activeToday,
         newToday,
         totalOrders,
+        inactiveCount,
       },
       pagination: {
         total: totalCount,

@@ -11,7 +11,11 @@ import {
   Upload, 
   X,
   Star,
-  Check
+  Check,
+  Clock,
+  UserX,
+  Save,
+  Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -51,10 +55,19 @@ export default function SettingsPage() {
   const [qrCodePreview, setQrCodePreview] = useState<string | null>(null);
   const [isDefault, setIsDefault] = useState(false);
   
+  // Activity Settings state
+  const [activitySettings, setActivitySettings] = useState({
+    inactiveDaysThreshold: 7,
+    gracePeriodDays: 2,
+  });
+  const [activityLoading, setActivityLoading] = useState(true);
+  const [activitySaving, setActivitySaving] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchAccounts();
+    fetchActivitySettings();
   }, []);
 
   const fetchAccounts = async () => {
@@ -68,6 +81,44 @@ export default function SettingsPage() {
       console.error("Error fetching accounts:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchActivitySettings = async () => {
+    try {
+      const res = await fetch("/api/settings/ai-coach");
+      if (res.ok) {
+        const data = await res.json();
+        setActivitySettings({
+          inactiveDaysThreshold: data.inactiveDaysThreshold ?? 7,
+          gracePeriodDays: data.gracePeriodDays ?? 2,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching activity settings:", error);
+    } finally {
+      setActivityLoading(false);
+    }
+  };
+
+  const saveActivitySettings = async () => {
+    setActivitySaving(true);
+    try {
+      const res = await fetch("/api/settings/ai-coach", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(activitySettings),
+      });
+      if (res.ok) {
+        alert("บันทึกสำเร็จ");
+      } else {
+        alert("เกิดข้อผิดพลาด");
+      }
+    } catch (error) {
+      console.error("Error saving activity settings:", error);
+      alert("เกิดข้อผิดพลาด");
+    } finally {
+      setActivitySaving(false);
     }
   };
 
@@ -193,7 +244,109 @@ export default function SettingsPage() {
     <div>
       <Header title="ตั้งค่า" subtitle="จัดการการตั้งค่าระบบ" />
       
-      <div className="p-6">
+      <div className="p-6 space-y-6">
+        {/* Activity Status Settings Section */}
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
+                <UserX className="w-5 h-5 text-orange-600" />
+              </div>
+              <div>
+                <h2 className="font-semibold text-gray-800">ตั้งค่าสถานะสมาชิก</h2>
+                <p className="text-sm text-gray-500">กำหนดการเปลี่ยนสถานะ Active/Inactive</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6">
+            {activityLoading ? (
+              <div className="text-center py-8">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-400" />
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Inactive Threshold */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <Clock className="w-4 h-4 inline mr-2" />
+                      จำนวนวันไม่ใช้งานก่อนเปลี่ยนเป็น Inactive
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="number"
+                        min="1"
+                        value={activitySettings.inactiveDaysThreshold}
+                        onChange={(e) => setActivitySettings(prev => ({
+                          ...prev,
+                          inactiveDaysThreshold: parseInt(e.target.value) || 7,
+                        }))}
+                        className="w-24 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none text-center"
+                      />
+                      <span className="text-gray-600">วัน</span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">
+                      หากสมาชิกไม่เปิดแอปเกินจำนวนวันนี้ ระบบจะเปลี่ยนสถานะเป็น Inactive
+                    </p>
+                  </div>
+
+                  {/* Grace Period */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <Clock className="w-4 h-4 inline mr-2" />
+                      ระยะเวลาเตือนก่อนเปลี่ยนสถานะ
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="number"
+                        min="0"
+                        value={activitySettings.gracePeriodDays}
+                        onChange={(e) => setActivitySettings(prev => ({
+                          ...prev,
+                          gracePeriodDays: parseInt(e.target.value) || 0,
+                        }))}
+                        className="w-24 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none text-center"
+                      />
+                      <span className="text-gray-600">วัน</span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">
+                      ส่งข้อความเตือนก่อนเปลี่ยนสถานะกี่วัน (0 = ไม่เตือน)
+                    </p>
+                  </div>
+                </div>
+
+                {/* Info Box */}
+                <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+                  <h4 className="font-medium text-orange-800 mb-2">การทำงานของระบบ</h4>
+                  <ul className="text-sm text-orange-700 space-y-1">
+                    <li>• สมาชิกที่ Inactive จะไม่ได้รับข้อความ AI Coach อัตโนมัติ</li>
+                    <li>• เมื่อสมาชิก Inactive กลับมาเปิดแอป จะแสดง Modal ยินดีต้อนรับกลับ</li>
+                    <li>• สมาชิกสามารถเลือก &quot;ตั้งเป้าหมายใหม่&quot; หรือ &quot;ข้าม&quot; ได้</li>
+                    <li>• ทั้งสองตัวเลือกจะเปลี่ยนสถานะกลับเป็น Active ทันที</li>
+                  </ul>
+                </div>
+
+                {/* Save Button */}
+                <div className="flex justify-end">
+                  <button
+                    onClick={saveActivitySettings}
+                    disabled={activitySaving}
+                    className="px-6 py-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {activitySaving ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4" />
+                    )}
+                    บันทึกการตั้งค่า
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Payment Accounts Section */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">

@@ -39,6 +39,12 @@ model Member {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   
+  // Activity Status (active/inactive based on app usage)
+  activityStatus      String      @default("active")  // "active" | "inactive"
+  lastActiveAt        DateTime    @default(now())
+  inactiveSince       DateTime?
+  welcomeBackShown    Boolean     @default(false)
+  
   // AI Coach expire date (set by Admin)
   aiCoachExpireDate  DateTime?
   
@@ -626,6 +632,10 @@ model SystemSetting {
   trialDays                Int      @default(7)
   trialMemberTypeId        String?
   generalMemberTypeId      String?
+  
+  // Member Activity Status Settings
+  inactiveDaysThreshold    Int      @default(7)    // จำนวนวันที่ไม่เปิดแอปถึงจะเป็น Inactive
+  gracePeriodDays          Int      @default(2)    // ส่งเตือนก่อนเปลี่ยนสถานะกี่วัน
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
