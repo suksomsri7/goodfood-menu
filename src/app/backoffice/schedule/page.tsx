@@ -69,7 +69,7 @@ export default function SchedulePage() {
     setInactiveSaving(true);
     try {
       const res = await fetch("/api/settings/ai-coach", {
-        method: "PUT",
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(inactiveSettings),
       });
