@@ -111,17 +111,26 @@ export async function sendMessage(text: string): Promise<boolean> {
       }]);
       return true;
     } catch (error) {
-      console.error("liff.sendMessages failed:", error);
+      console.error("liff.sendMessages failed, using fallback:", error);
       // Fall through to URL scheme
     }
   }
   
   // Fallback: Use LINE URL scheme to open chat and pre-fill message
-  // This works even when opened from Rich Menu
   try {
     const encodedText = encodeURIComponent(text);
-    // Open LINE app with the message pre-filled (user needs to tap send)
-    window.location.href = `https://line.me/R/oaMessage/@goodfood.menu/?${encodedText}`;
+    const lineUrl = `https://line.me/R/oaMessage/@goodfood.menu/?${encodedText}`;
+    
+    // In LIFF client, use openWindow with external:true to properly open LINE app
+    if (isInitialized && liff.isInClient()) {
+      liff.openWindow({
+        url: lineUrl,
+        external: true
+      });
+    } else {
+      // Outside LIFF, just redirect
+      window.location.href = lineUrl;
+    }
     return true;
   } catch (error) {
     console.error("Failed to open LINE URL:", error);
