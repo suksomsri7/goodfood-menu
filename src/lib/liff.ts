@@ -102,17 +102,29 @@ export function closeWindow(): void {
 }
 
 export async function sendMessage(text: string): Promise<boolean> {
-  if (!isInitialized) return false;
+  // Try liff.sendMessages first (works only when opened from chat)
+  if (isInitialized && liff.isInClient()) {
+    try {
+      await liff.sendMessages([{
+        type: "text",
+        text: text,
+      }]);
+      return true;
+    } catch (error) {
+      console.error("liff.sendMessages failed:", error);
+      // Fall through to URL scheme
+    }
+  }
   
+  // Fallback: Use LINE URL scheme to open chat and pre-fill message
+  // This works even when opened from Rich Menu
   try {
-    // Send message to the chat where LIFF was opened from
-    await liff.sendMessages([{
-      type: "text",
-      text: text,
-    }]);
+    const encodedText = encodeURIComponent(text);
+    // Open LINE app with the message pre-filled (user needs to tap send)
+    window.location.href = `https://line.me/R/oaMessage/@goodfood.menu/?${encodedText}`;
     return true;
   } catch (error) {
-    console.error("Failed to send message:", error);
+    console.error("Failed to open LINE URL:", error);
     return false;
   }
 }

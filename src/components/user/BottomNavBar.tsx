@@ -286,6 +286,7 @@ export function BottomNavBar() {
         isOpen={showManualEntry}
         onClose={() => setShowManualEntry(false)}
         onSave={handleSaveMeal}
+        lineUserId={lineUserId}
       />
 
       {/* Camera Modal */}
@@ -293,6 +294,7 @@ export function BottomNavBar() {
         isOpen={showCamera}
         onClose={() => setShowCamera(false)}
         onSave={handleSaveMeal}
+        lineUserId={lineUserId}
       />
 
       {/* Stock Modal */}
@@ -319,6 +321,7 @@ export function BottomNavBar() {
         isOpen={showBarcode}
         onClose={() => setShowBarcode(false)}
         onSave={handleSaveMeal}
+        lineUserId={lineUserId}
       />
 
       {/* Exercise Modal */}
@@ -326,6 +329,7 @@ export function BottomNavBar() {
         isOpen={showExercise}
         onClose={() => setShowExercise(false)}
         onSave={handleSaveExercise}
+        lineUserId={lineUserId}
       />
     </>
   );
