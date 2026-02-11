@@ -13,14 +13,44 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   // Show guide after onboarding completes (if not seen before)
   useEffect(() => {
+    // #region agent log
+    console.log('[Guide Debug] useEffect triggered:', { isLoading, isOnboarded, showOnboarding });
+    // #endregion
     if (!isLoading && isOnboarded === true && !showOnboarding) {
       const seen = localStorage.getItem(LOCALSTORAGE_KEY);
-      const justCompleted = sessionStorage.getItem('justCompletedOnboarding');
+      
+      // Check for justCompleted flag (valid for 60 seconds after onboarding)
+      let justCompleted = false;
+      try {
+        const justCompletedData = localStorage.getItem('goodfood_just_completed_onboarding');
+        if (justCompletedData) {
+          const { timestamp } = JSON.parse(justCompletedData);
+          // Valid for 60 seconds
+          justCompleted = Date.now() - timestamp < 60 * 1000;
+          // #region agent log
+          console.log('[Guide Debug] justCompleted flag:', { justCompletedData, age: Date.now() - timestamp, justCompleted });
+          // #endregion
+        }
+      } catch {
+        // Ignore parse errors
+      }
+      
+      // #region agent log
+      console.log('[Guide Debug] Inside condition:', { seen, justCompleted });
+      // #endregion
+      
       // Show guide if: just completed onboarding OR hasn't seen guide before
       if (justCompleted || !seen) {
+        // #region agent log
+        console.log('[Guide Debug] Will show guide!');
+        // #endregion
         // Clear the flag
-        sessionStorage.removeItem('justCompletedOnboarding');
+        localStorage.removeItem('goodfood_just_completed_onboarding');
         setShowGuide(true);
+      } else {
+        // #region agent log
+        console.log('[Guide Debug] NOT showing guide - seen:', seen, 'justCompleted:', justCompleted);
+        // #endregion
       }
     }
   }, [isLoading, isOnboarded, showOnboarding]);

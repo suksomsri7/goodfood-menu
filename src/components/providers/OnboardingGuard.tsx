@@ -6,6 +6,7 @@ import { useOnboarding } from "@/components/providers/OnboardingContext";
 import { OnboardingModal } from "@/components/user/OnboardingModal";
 
 const ONBOARDING_CACHE_KEY = "goodfood_onboarding_status";
+const JUST_COMPLETED_KEY = "goodfood_just_completed_onboarding";
 
 interface OnboardingGuardProps {
   children: ReactNode;
@@ -84,8 +85,16 @@ export function OnboardingGuard({ children, setIsLoading: setParentLoading }: On
   }, [isReady, isLoggedIn, profile?.userId, checkOnboardingStatus, setParentLoading]);
 
   const handleOnboardingComplete = () => {
-    // Set flag so guide shows after reload
-    sessionStorage.setItem('justCompletedOnboarding', 'true');
+    // #region agent log
+    console.log('[Onboarding Debug] handleOnboardingComplete called');
+    // #endregion
+    // Set flag so guide shows after reload (use localStorage with timestamp - sessionStorage may be cleared in LIFF)
+    localStorage.setItem(JUST_COMPLETED_KEY, JSON.stringify({
+      timestamp: Date.now()
+    }));
+    // #region agent log
+    console.log('[Onboarding Debug] localStorage justCompleted set');
+    // #endregion
     // Update cache
     if (profile?.userId) {
       localStorage.setItem(ONBOARDING_CACHE_KEY, JSON.stringify({
