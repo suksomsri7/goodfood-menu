@@ -27,13 +27,17 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+
     const {
       name,
       description,
       color,
       dailyPhotoLimit,
       dailyAiAnalysisLimit,
+      dailyAiTextAnalysisLimit,
       dailyAiRecommendLimit,
+      dailyExerciseAnalysisLimit,
+      dailyMenuSelectLimit,
       dailyScanLimit,
       isDefault,
       isActive,
@@ -75,7 +79,10 @@ export async function POST(request: NextRequest) {
         color: color || "#4CAF50",
         dailyPhotoLimit: dailyPhotoLimit ?? 3,
         dailyAiAnalysisLimit: dailyAiAnalysisLimit ?? 3,
+        dailyAiTextAnalysisLimit: dailyAiTextAnalysisLimit ?? 3,
         dailyAiRecommendLimit: dailyAiRecommendLimit ?? 3,
+        dailyExerciseAnalysisLimit: dailyExerciseAnalysisLimit ?? 3,
+        dailyMenuSelectLimit: dailyMenuSelectLimit ?? 3,
         dailyScanLimit: dailyScanLimit ?? 5,
         isDefault: isDefault || false,
         isActive: isActive !== false,

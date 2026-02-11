@@ -193,22 +193,22 @@ export default function MemberTypesPage() {
       name: type.name,
       description: type.description || "",
       color: type.color,
-      dailyPhotoLimit: type.dailyPhotoLimit,
-      dailyAiAnalysisLimit: type.dailyAiAnalysisLimit,
-      dailyAiTextAnalysisLimit: type.dailyAiTextAnalysisLimit || 3,
-      dailyAiRecommendLimit: type.dailyAiRecommendLimit,
-      dailyExerciseAnalysisLimit: type.dailyExerciseAnalysisLimit || 3,
-      dailyMenuSelectLimit: type.dailyMenuSelectLimit || 3,
-      dailyScanLimit: type.dailyScanLimit,
+      dailyPhotoLimit: type.dailyPhotoLimit ?? 3,
+      dailyAiAnalysisLimit: type.dailyAiAnalysisLimit ?? 3,
+      dailyAiTextAnalysisLimit: type.dailyAiTextAnalysisLimit ?? 3,
+      dailyAiRecommendLimit: type.dailyAiRecommendLimit ?? 3,
+      dailyExerciseAnalysisLimit: type.dailyExerciseAnalysisLimit ?? 3,
+      dailyMenuSelectLimit: type.dailyMenuSelectLimit ?? 3,
+      dailyScanLimit: type.dailyScanLimit ?? 5,
       isDefault: type.isDefault,
       isActive: type.isActive,
-      morningCoachTime: type.morningCoachTime || "07:00",
-      lunchReminderTime: type.lunchReminderTime || "11:30",
-      dinnerReminderTime: type.dinnerReminderTime || "17:30",
-      eveningSummaryTime: type.eveningSummaryTime || "20:00",
-      waterReminderTimes: type.waterReminderTimes || "09:00,11:00,14:00,16:00",
-      weeklyInsightsTime: type.weeklyInsightsTime || "09:00",
-      inactiveReminderDays: type.inactiveReminderDays || 2,
+      morningCoachTime: type.morningCoachTime ?? "07:00",
+      lunchReminderTime: type.lunchReminderTime ?? "11:30",
+      dinnerReminderTime: type.dinnerReminderTime ?? "17:30",
+      eveningSummaryTime: type.eveningSummaryTime ?? "20:00",
+      waterReminderTimes: type.waterReminderTimes ?? "09:00,11:00,14:00,16:00",
+      weeklyInsightsTime: type.weeklyInsightsTime ?? "09:00",
+      inactiveReminderDays: type.inactiveReminderDays ?? 2,
     });
     setError("");
     setShowModal(true);
@@ -526,7 +526,7 @@ export default function MemberTypesPage() {
                             <div>
                               <p className="text-gray-500 text-xs">AI ข้อความ</p>
                               <p className="font-semibold text-gray-700 text-xs">
-                                {formatLimit(type.dailyAiTextAnalysisLimit || 3)}/วัน
+                                {formatLimit(type.dailyAiTextAnalysisLimit ?? 3)}/วัน
                               </p>
                             </div>
                           </div>
@@ -538,7 +538,7 @@ export default function MemberTypesPage() {
                             <div>
                               <p className="text-gray-500 text-xs">AI ออกกำลังกาย</p>
                               <p className="font-semibold text-gray-700 text-xs">
-                                {formatLimit(type.dailyExerciseAnalysisLimit || 3)}/วัน
+                                {formatLimit(type.dailyExerciseAnalysisLimit ?? 3)}/วัน
                               </p>
                             </div>
                           </div>
@@ -550,7 +550,7 @@ export default function MemberTypesPage() {
                             <div>
                               <p className="text-gray-500 text-xs">AI เลือกเมนู</p>
                               <p className="font-semibold text-gray-700 text-xs">
-                                {formatLimit(type.dailyMenuSelectLimit || 3)}/วัน
+                                {formatLimit(type.dailyMenuSelectLimit ?? 3)}/วัน
                               </p>
                             </div>
                           </div>

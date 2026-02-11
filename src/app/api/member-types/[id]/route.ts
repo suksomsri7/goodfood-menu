@@ -43,13 +43,17 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
+
     const {
       name,
       description,
       color,
       dailyPhotoLimit,
       dailyAiAnalysisLimit,
+      dailyAiTextAnalysisLimit,
       dailyAiRecommendLimit,
+      dailyExerciseAnalysisLimit,
+      dailyMenuSelectLimit,
       dailyScanLimit,
       isDefault,
       isActive,
@@ -80,7 +84,10 @@ export async function PATCH(
         ...(color !== undefined && { color }),
         ...(dailyPhotoLimit !== undefined && { dailyPhotoLimit }),
         ...(dailyAiAnalysisLimit !== undefined && { dailyAiAnalysisLimit }),
+        ...(dailyAiTextAnalysisLimit !== undefined && { dailyAiTextAnalysisLimit }),
         ...(dailyAiRecommendLimit !== undefined && { dailyAiRecommendLimit }),
+        ...(dailyExerciseAnalysisLimit !== undefined && { dailyExerciseAnalysisLimit }),
+        ...(dailyMenuSelectLimit !== undefined && { dailyMenuSelectLimit }),
         ...(dailyScanLimit !== undefined && { dailyScanLimit }),
         ...(isDefault !== undefined && { isDefault }),
         ...(isActive !== undefined && { isActive }),
