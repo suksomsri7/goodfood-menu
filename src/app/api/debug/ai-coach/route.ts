@@ -1,5 +1,78 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { sendCoachingMessage, gatherMemberContext, isAiCoachActive } from "@/lib/coaching";
+
+// POST - Test send coaching message
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { memberId, type = "exercise" } = body;
+
+    if (!memberId) {
+      return NextResponse.json({ error: "memberId is required" }, { status: 400 });
+    }
+
+    const member = await prisma.member.findUnique({
+      where: { id: memberId },
+      include: { memberType: true },
+    });
+
+    if (!member) {
+      return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    }
+
+    // Check AI Coach status
+    const aiActive = member.memberType ? isAiCoachActive(member) : false;
+    
+    // Try to gather context
+    let context = null;
+    let contextError = null;
+    try {
+      context = await gatherMemberContext(memberId);
+    } catch (e) {
+      contextError = String(e);
+    }
+
+    // Try to send message
+    let sendResult = false;
+    let sendError = null;
+    try {
+      sendResult = await sendCoachingMessage(memberId, type as "exercise");
+    } catch (e) {
+      sendError = String(e);
+    }
+
+    return NextResponse.json({
+      member: {
+        id: member.id,
+        name: member.name,
+        lineUserId: member.lineUserId,
+        notifyPostExercise: member.notifyPostExercise,
+      },
+      aiCoach: {
+        isActive: aiActive,
+        memberType: member.memberType?.name || null,
+        memberTypeActive: member.memberType?.isActive,
+        courseDuration: member.memberType?.courseDuration,
+        expireDate: member.aiCoachExpireDate?.toISOString(),
+      },
+      context: context ? {
+        hasContext: true,
+        exerciseToday: context.exerciseToday,
+        name: context.name,
+      } : {
+        hasContext: false,
+        error: contextError,
+      },
+      send: {
+        success: sendResult,
+        error: sendError,
+      },
+    });
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
+}
 
 // GET - Debug AI Coach status for a member
 export async function GET(request: NextRequest) {
