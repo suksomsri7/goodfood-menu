@@ -82,11 +82,9 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       <UserGuide isOpen={showGuide} onClose={() => setShowGuide(false)} />
       
       {/* Debug info - remove after fixing */}
-      {debugInfo && (
-        <div className="fixed bottom-24 left-2 right-2 bg-black/80 text-white text-xs p-2 rounded z-[100] font-mono">
-          {debugInfo}
-        </div>
-      )}
+      <div className="fixed bottom-24 left-2 right-2 bg-black/80 text-white text-xs p-2 rounded z-[100] font-mono">
+        DEBUG: {debugInfo || 'waiting...'}
+      </div>
     </div>
   );
 }

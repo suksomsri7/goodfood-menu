@@ -117,12 +117,18 @@ export function OnboardingGuard({ children, setIsLoading: setParentLoading }: On
   // Show onboarding modal for new users
   if (showOnboarding) {
     return (
-      <OnboardingModal
-        isOpen={true}
-        lineUserId={profile.userId}
-        displayName={profile.displayName}
-        onComplete={handleOnboardingComplete}
-      />
+      <>
+        <OnboardingModal
+          isOpen={true}
+          lineUserId={profile.userId}
+          displayName={profile.displayName}
+          onComplete={handleOnboardingComplete}
+        />
+        {/* Debug during onboarding */}
+        <div className="fixed top-2 left-2 right-2 bg-red-600 text-white text-xs p-2 rounded z-[200] font-mono">
+          ONBOARDING MODE
+        </div>
+      </>
     );
   }
 
