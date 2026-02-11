@@ -27,23 +27,36 @@ function CalLayoutContent({ children }: { children: React.ReactNode }) {
       // Check for justCompleted flag (valid for 60 seconds after onboarding)
       let justCompleted = false;
       let flagAge = 0;
+      let flagSource = 'none';
       try {
+        // Check localStorage first
         const justCompletedData = localStorage.getItem(JUST_COMPLETED_KEY);
         if (justCompletedData) {
           const { timestamp } = JSON.parse(justCompletedData);
           flagAge = Date.now() - timestamp;
           justCompleted = flagAge < 60 * 1000;
+          flagSource = 'localStorage';
+        }
+        // Also check sessionStorage as backup (LIFF may preserve this better)
+        if (!justCompleted) {
+          const sessionFlag = sessionStorage.getItem('gf_just_onboarded');
+          if (sessionFlag === 'true') {
+            justCompleted = true;
+            flagSource = 'sessionStorage';
+          }
         }
       } catch {
         // Ignore parse errors
       }
       
-      debugParts.push(`seen:${seen ? 'Y' : 'N'},jc:${justCompleted},age:${flagAge}ms`);
+      debugParts.push(`seen:${seen ? 'Y' : 'N'},jc:${justCompleted}(${flagSource}),age:${flagAge}ms`);
       
       // Show guide if: just completed onboarding OR hasn't seen guide before
       if (justCompleted || !seen) {
         debugParts.push('SHOW!');
+        // Clear flags
         localStorage.removeItem(JUST_COMPLETED_KEY);
+        try { sessionStorage.removeItem('gf_just_onboarded'); } catch {}
         setShowGuide(true);
       } else {
         debugParts.push('SKIP');
