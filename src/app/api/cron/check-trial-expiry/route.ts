@@ -20,6 +20,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: "No system settings found" });
     }
 
+    // Check if generalMemberTypeId is configured
+    if (!settings.generalMemberTypeId) {
+      return NextResponse.json({ 
+        message: "Card หลังทดลอง ไม่ได้กำหนดไว้ - ข้ามการเปลี่ยน Card อัตโนมัติ",
+        skipped: true,
+      });
+    }
+
     const now = new Date();
 
     // Find members whose AI Coach has expired
