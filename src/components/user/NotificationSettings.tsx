@@ -17,6 +17,8 @@ import {
   AlertCircle,
   Infinity,
   Scale,
+  MessageCircle,
+  Power,
 } from "lucide-react";
 
 interface NotificationSettingsProps {
@@ -46,7 +48,7 @@ interface Schedule {
 }
 
 interface AiCoachStatus {
-  status: "not_assigned" | "active" | "expired" | "unlimited";
+  status: "not_assigned" | "active" | "expired" | "unlimited" | "disabled";
   expireDate: string | null;
   daysRemaining: number | null;
   memberTypeName: string | null;
@@ -125,6 +127,39 @@ export function NotificationSettings({
     });
   };
 
+  // Send message to admin requesting AI Coach activation
+  const requestAiCoachActivation = async () => {
+    if (!lineUserId) return;
+    
+    try {
+      // Send message via LINE webhook to admin
+      await fetch("/api/line/webhook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          events: [{
+            type: "message",
+            message: {
+              type: "text",
+              text: "ขอรายละเอียดเปิดระบบ AI Coach",
+            },
+            source: {
+              type: "user",
+              userId: lineUserId,
+            },
+            replyToken: null,
+            timestamp: Date.now(),
+          }],
+        }),
+      });
+      
+      alert("ส่งข้อความสำเร็จ! แอดมินจะติดต่อกลับเร็วๆ นี้");
+    } catch (error) {
+      console.error("Error sending message:", error);
+      alert("ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง");
+    }
+  };
+
   const settingItems = [
     {
       key: "morningCoach" as const,
@@ -192,7 +227,7 @@ export function NotificationSettings({
     },
   ];
 
-  // Check if AI Coach is available for use
+  // Check if AI Coach is available for use (not disabled, not expired, not unassigned)
   const isAiCoachAvailable = aiCoach?.status === "active" || aiCoach?.status === "unlimited";
 
   return (
@@ -268,17 +303,14 @@ export function NotificationSettings({
                     </div>
                   )}
 
-                  {aiCoach.status === "expired" && (
-                    <div className="p-3 bg-red-50 rounded-xl">
+                  {(aiCoach.status === "expired" || aiCoach.status === "disabled") && (
+                    <div className="p-3 bg-orange-50 rounded-xl">
                       <div className="flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 text-red-600" />
-                        <span className="text-sm font-medium text-red-700">
-                          หมดอายุแล้ว
+                        <Power className="w-4 h-4 text-orange-600" />
+                        <span className="text-sm font-medium text-orange-700">
+                          หมดเวลาการใช้งาน
                         </span>
                       </div>
-                      <p className="text-xs text-red-600 mt-1">
-                        ติดต่อแอดมินเพื่อต่ออายุ
-                      </p>
                     </div>
                   )}
                 </div>
@@ -294,38 +326,52 @@ export function NotificationSettings({
               ) : !aiCoach || aiCoach.status === "not_assigned" ? (
                 /* Not Assigned - Show contact admin message */
                 <div className="p-6">
-                  <div className="text-center py-12">
+                  <div className="text-center py-8">
                     <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
                       <Sparkles className="w-8 h-8 text-gray-400" />
                     </div>
                     <h3 className="text-lg font-semibold text-gray-700 mb-2">
                       เปิดระบบ AI Coach
                     </h3>
-                    <p className="text-gray-500 mb-4">
+                    <p className="text-gray-500 mb-6">
                       สอบถามแอดมินเพื่อเปิดใช้งาน AI Coach
                     </p>
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-full text-sm text-gray-600">
-                      <Bell className="w-4 h-4" />
-                      รอการกำหนดจากแอดมิน
-                    </div>
+                    <button
+                      onClick={requestAiCoachActivation}
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors"
+                    >
+                      <MessageCircle className="w-5 h-5" />
+                      ขอรายละเอียดเปิดระบบ AI Coach
+                    </button>
                   </div>
                 </div>
-              ) : aiCoach.status === "expired" ? (
-                /* Expired - Show renew message */
+              ) : aiCoach.status === "disabled" || aiCoach.status === "expired" ? (
+                /* Disabled or Expired - Show message with contact button */
                 <div className="p-6">
-                  <div className="text-center py-12">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
-                      <AlertCircle className="w-8 h-8 text-red-400" />
+                  <div className="text-center py-8">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-orange-100 flex items-center justify-center">
+                      <Power className="w-8 h-8 text-orange-500" />
                     </div>
                     <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                      AI Coach หมดอายุแล้ว
+                      ระบบ AI Coach ของคุณได้หมดเวลาการใช้งาน
                     </h3>
-                    <p className="text-gray-500 mb-4">
-                      กรุณาติดต่อแอดมินเพื่อต่ออายุการใช้งาน
+                    <p className="text-gray-500 mb-6">
+                      หากต้องการใช้งานต่อโปรดติดต่อแอดมิน
                     </p>
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-100 rounded-full text-sm text-red-600">
-                      <Calendar className="w-4 h-4" />
-                      หมดอายุเมื่อ {formatExpireDate(aiCoach.expireDate!)}
+                    {aiCoach.status === "expired" && aiCoach.expireDate && (
+                      <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-100 rounded-full text-sm text-red-600 mb-6">
+                        <Calendar className="w-4 h-4" />
+                        หมดอายุเมื่อ {formatExpireDate(aiCoach.expireDate)}
+                      </div>
+                    )}
+                    <div>
+                      <button
+                        onClick={requestAiCoachActivation}
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors"
+                      >
+                        <MessageCircle className="w-5 h-5" />
+                        ขอรายละเอียดเปิดระบบ AI Coach
+                      </button>
                     </div>
                   </div>
                 </div>

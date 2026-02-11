@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
             id: true,
             name: true,
             courseDuration: true,
+            isActive: true,
             morningCoachTime: true,
             lunchReminderTime: true,
             dinnerReminderTime: true,
@@ -51,11 +52,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Determine AI Coach status
-    let aiCoachStatus: "not_assigned" | "active" | "expired" | "unlimited" = "not_assigned";
+    let aiCoachStatus: "not_assigned" | "active" | "expired" | "unlimited" | "disabled" = "not_assigned";
     let daysRemaining: number | null = null;
     
     if (member.memberType) {
-      if (member.memberType.courseDuration === 0) {
+      // Check if member type is disabled first
+      if (!member.memberType.isActive) {
+        aiCoachStatus = "disabled";
+      } else if (member.memberType.courseDuration === 0) {
         // Unlimited
         aiCoachStatus = "unlimited";
       } else if (member.aiCoachExpireDate) {
@@ -165,17 +169,20 @@ export async function PUT(request: NextRequest) {
             id: true,
             name: true,
             courseDuration: true,
+            isActive: true,
           },
         },
       },
     });
 
     // Determine AI Coach status
-    let aiCoachStatus: "not_assigned" | "active" | "expired" | "unlimited" = "not_assigned";
+    let aiCoachStatus: "not_assigned" | "active" | "expired" | "unlimited" | "disabled" = "not_assigned";
     let daysRemaining: number | null = null;
     
     if (member.memberType) {
-      if (member.memberType.courseDuration === 0) {
+      if (!member.memberType.isActive) {
+        aiCoachStatus = "disabled";
+      } else if (member.memberType.courseDuration === 0) {
         aiCoachStatus = "unlimited";
       } else if (member.aiCoachExpireDate) {
         const now = new Date();
