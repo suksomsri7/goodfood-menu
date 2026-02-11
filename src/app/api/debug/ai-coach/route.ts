@@ -6,16 +6,39 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const lineUserId = searchParams.get("lineUserId");
+    const memberId = searchParams.get("memberId");
 
-    if (!lineUserId) {
-      return NextResponse.json(
-        { error: "lineUserId is required" },
-        { status: 400 }
-      );
+    // If no params, list all members with their AI Coach status
+    if (!lineUserId && !memberId) {
+      const members = await prisma.member.findMany({
+        include: { memberType: true },
+        orderBy: { updatedAt: "desc" },
+        take: 20,
+      });
+
+      const memberList = members.map(m => {
+        let status = "no_type";
+        if (m.memberType) {
+          if (!m.memberType.isActive) status = "type_disabled";
+          else if (m.memberType.courseDuration === 0) status = "unlimited";
+          else if (m.aiCoachExpireDate && m.aiCoachExpireDate > new Date()) status = "active";
+          else status = "expired";
+        }
+        return {
+          id: m.id,
+          name: m.name,
+          lineUserId: m.lineUserId,
+          aiCoachStatus: status,
+          memberType: m.memberType?.name || null,
+          notifyPostExercise: m.notifyPostExercise,
+        };
+      });
+
+      return NextResponse.json({ members: memberList });
     }
 
-    const member = await prisma.member.findUnique({
-      where: { lineUserId },
+    const member = await prisma.member.findFirst({
+      where: lineUserId ? { lineUserId } : { id: memberId! },
       include: {
         memberType: true,
       },
