@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendCoachingMessage, gatherMemberContext, isAiCoachActive } from "@/lib/coaching";
+import { sendCoachingMessage, gatherMemberContext, isAiCoachActive, CoachingType } from "@/lib/coaching";
 
 // POST - Test send coaching message
 export async function POST(request: NextRequest) {
@@ -135,22 +135,42 @@ export async function GET(request: NextRequest) {
         contextError = String(e);
       }
 
+      // Get coaching type from query param (default: exercise)
+      const coachingType = (searchParams.get("type") || "exercise") as CoachingType;
+      const validTypes: CoachingType[] = ["morning", "lunch", "dinner", "evening", "weekly", "photo", "exercise", "milestone", "inactive"];
+      
+      if (!validTypes.includes(coachingType)) {
+        return NextResponse.json({ 
+          error: `Invalid type. Use: ${validTypes.join(", ")}` 
+        }, { status: 400 });
+      }
+
       // Try to send message
       let sendResult = false;
       let sendError = null;
       try {
-        sendResult = await sendCoachingMessage(memberId, "exercise");
+        sendResult = await sendCoachingMessage(memberId, coachingType);
       } catch (e) {
         sendError = String(e);
       }
 
       return NextResponse.json({
         test: true,
+        type: coachingType,
         member: {
           id: testMember.id,
           name: testMember.name,
           lineUserId: testMember.lineUserId,
-          notifyPostExercise: testMember.notifyPostExercise,
+        },
+        notifications: {
+          morning: testMember.notifyMorningCoach,
+          lunch: testMember.notifyLunchSuggestion,
+          dinner: testMember.notifyDinnerSuggestion,
+          evening: testMember.notifyEveningSummary,
+          weekly: testMember.notifyWeeklyInsights,
+          photo: testMember.notifyProgressPhoto,
+          exercise: testMember.notifyPostExercise,
+          weight: testMember.notifyWeightReminder,
         },
         aiCoach: {
           isActive: aiActive,

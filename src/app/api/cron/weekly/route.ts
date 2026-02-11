@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Send Weight Reminder if enabled
-        if ((member as any).notifyWeightReminder) {
+        if (member.notifyWeightReminder) {
           const weightFlexMessage = createWeightReminderFlexMessage(context, weekNumber);
           
           // Add delay between messages
