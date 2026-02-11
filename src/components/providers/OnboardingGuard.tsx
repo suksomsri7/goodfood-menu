@@ -57,20 +57,17 @@ export function OnboardingGuard({ children, setIsLoading: setParentLoading }: On
   }, [isReady, isLoggedIn, profile?.userId, checkOnboardingStatus, setParentLoading]);
 
   const handleOnboardingComplete = () => {
-    // Set flag so guide shows (use both localStorage and context)
-    localStorage.setItem(JUST_COMPLETED_KEY, JSON.stringify({
-      timestamp: Date.now()
-    }));
-    // Also set a backup flag that persists better in LIFF
+    // Set flags in multiple places for redundancy
     try {
+      localStorage.setItem(JUST_COMPLETED_KEY, JSON.stringify({ timestamp: Date.now() }));
       sessionStorage.setItem('gf_just_onboarded', 'true');
     } catch {}
     
     setShowOnboarding(false);
     setIsOnboarded(true);
     
-    // Navigate to /cal instead of reload (reload in LIFF can clear localStorage)
-    window.location.href = '/cal';
+    // Navigate with query parameter as most reliable method in LIFF
+    window.location.href = '/cal?onboarded=1';
   };
 
   // Not logged in - show children (page will handle its own auth state)

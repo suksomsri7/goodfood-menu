@@ -24,20 +24,30 @@ function CalLayoutContent({ children }: { children: React.ReactNode }) {
     if (!isLoading && isOnboarded === true && !showOnboarding) {
       const seen = localStorage.getItem(LOCALSTORAGE_KEY);
       
-      // Check for justCompleted flag (valid for 60 seconds after onboarding)
+      // Check for justCompleted flag from multiple sources
       let justCompleted = false;
       let flagAge = 0;
       let flagSource = 'none';
       try {
-        // Check localStorage first
-        const justCompletedData = localStorage.getItem(JUST_COMPLETED_KEY);
-        if (justCompletedData) {
-          const { timestamp } = JSON.parse(justCompletedData);
-          flagAge = Date.now() - timestamp;
-          justCompleted = flagAge < 60 * 1000;
-          flagSource = 'localStorage';
+        // Check URL query parameter first (most reliable in LIFF)
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('onboarded') === '1') {
+          justCompleted = true;
+          flagSource = 'url';
+          // Clean up URL without reload
+          window.history.replaceState({}, '', '/cal');
         }
-        // Also check sessionStorage as backup (LIFF may preserve this better)
+        // Check localStorage
+        if (!justCompleted) {
+          const justCompletedData = localStorage.getItem(JUST_COMPLETED_KEY);
+          if (justCompletedData) {
+            const { timestamp } = JSON.parse(justCompletedData);
+            flagAge = Date.now() - timestamp;
+            justCompleted = flagAge < 60 * 1000;
+            flagSource = 'localStorage';
+          }
+        }
+        // Check sessionStorage as backup
         if (!justCompleted) {
           const sessionFlag = sessionStorage.getItem('gf_just_onboarded');
           if (sessionFlag === 'true') {
