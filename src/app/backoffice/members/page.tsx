@@ -22,6 +22,8 @@ import {
   Crown,
   Save,
   Edit2,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { formatDistanceToNow, format } from "date-fns";
@@ -212,6 +214,11 @@ export default function MembersPage() {
   });
   const [saving, setSaving] = useState(false);
 
+  // Delete member state
+  const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   // Fetch members
   const fetchMembers = async () => {
     try {
@@ -325,6 +332,45 @@ export default function MembersPage() {
       console.error("Failed to save member:", error);
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Delete member functions
+  const openDeleteModal = (member: Member) => {
+    setMemberToDelete(member);
+    setShowDeleteModal(true);
+  };
+
+  const closeDeleteModal = () => {
+    setMemberToDelete(null);
+    setShowDeleteModal(false);
+  };
+
+  const handleDeleteMember = async () => {
+    if (!memberToDelete) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/members/${memberToDelete.id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        // Close modal and refresh
+        closeDeleteModal();
+        fetchMembers();
+        // If viewing detail of deleted member, close it
+        if (selectedMember?.id === memberToDelete.id) {
+          setShowDetail(false);
+          setSelectedMember(null);
+        }
+      } else {
+        const error = await res.json();
+        alert(error.error || "ไม่สามารถลบสมาชิกได้");
+      }
+    } catch (error) {
+      console.error("Failed to delete member:", error);
+      alert("เกิดข้อผิดพลาดในการลบสมาชิก");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -538,6 +584,13 @@ export default function MembersPage() {
                           >
                             <MessageSquare className="w-4 h-4" />
                           </Link>
+                          <button
+                            onClick={() => openDeleteModal(member)}
+                            className="p-2 rounded-lg hover:bg-red-50 transition-colors text-gray-400 hover:text-red-600"
+                            title="ลบสมาชิก"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </td>
                     </motion.tr>
@@ -1133,6 +1186,100 @@ export default function MembersPage() {
                     )}
                   </>
                 )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteModal && memberToDelete && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={closeDeleteModal}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="bg-red-50 p-6 text-center">
+                <div className="w-16 h-16 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4">
+                  <AlertTriangle className="w-8 h-8 text-red-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">ยืนยันการลบสมาชิก</h3>
+              </div>
+
+              {/* Content */}
+              <div className="p-6">
+                <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl mb-4">
+                  {memberToDelete.pictureUrl ? (
+                    <img
+                      src={memberToDelete.pictureUrl}
+                      alt={memberToDelete.displayName || ""}
+                      className="w-12 h-12 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#4CAF50] to-[#2E7D32] flex items-center justify-center text-white font-semibold">
+                      {(memberToDelete.displayName || memberToDelete.name || "?").charAt(0)}
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-semibold text-gray-900">
+                      {memberToDelete.displayName || memberToDelete.name || "ไม่ระบุชื่อ"}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {memberToDelete.phone || memberToDelete.email || memberToDelete.lineUserId}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3 text-sm text-gray-600">
+                  <p>การลบสมาชิกจะ:</p>
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li>ลบข้อมูลสมาชิกทั้งหมด</li>
+                    <li>ลบประวัติออเดอร์และ meal logs</li>
+                    <li>ลบที่อยู่และข้อมูลส่วนตัว</li>
+                  </ul>
+                  <p className="mt-4 p-3 bg-yellow-50 rounded-lg text-yellow-800 border border-yellow-200">
+                    <strong>หมายเหตุ:</strong> หากสมาชิกกลับมาใช้งานแอปอีกครั้ง จะเป็นการเริ่มต้นใหม่ทั้งหมด
+                  </p>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 p-6 pt-0">
+                <button
+                  onClick={closeDeleteModal}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-colors disabled:opacity-50"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  onClick={handleDeleteMember}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-3 text-white bg-red-600 hover:bg-red-700 rounded-xl font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {deleting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      กำลังลบ...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      ลบสมาชิก
+                    </>
+                  )}
+                </button>
               </div>
             </motion.div>
           </motion.div>

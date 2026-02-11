@@ -46,22 +46,37 @@ export async function GET(request: NextRequest) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    const [activeToday, newToday, inactiveCount] = await Promise.all([
-      prisma.member.count({
-        where: { lastActiveAt: { gte: today } },
-      }),
-      prisma.member.count({
-        where: { createdAt: { gte: today } },
-      }),
-      prisma.member.count({
-        where: { activityStatus: "inactive" },
-      }),
-    ]);
+    // Use try-catch for new fields in case Prisma client not regenerated yet
+    let activeToday = 0;
+    let newToday = 0;
+    let inactiveCount = 0;
+    
+    try {
+      [activeToday, newToday, inactiveCount] = await Promise.all([
+        // Try lastActiveAt first, fallback to updatedAt
+        prisma.member.count({
+          where: { lastActiveAt: { gte: today } },
+        }).catch(() => prisma.member.count({ where: { updatedAt: { gte: today } } })),
+        prisma.member.count({
+          where: { createdAt: { gte: today } },
+        }),
+        prisma.member.count({
+          where: { activityStatus: "inactive" },
+        }).catch(() => 0), // Return 0 if field doesn't exist yet
+      ]);
+    } catch (statsError) {
+      // Fallback to basic stats if new fields not available
+      [activeToday, newToday] = await Promise.all([
+        prisma.member.count({ where: { updatedAt: { gte: today } } }),
+        prisma.member.count({ where: { createdAt: { gte: today } } }),
+      ]);
+      inactiveCount = 0;
+    }
 
     // Calculate total orders
     const totalOrders = await prisma.order.count();
 
-    // Format members
+    // Format members (use optional chaining for new fields in case Prisma client not regenerated)
     const formattedMembers = members.map((member) => ({
       id: member.id,
       lineUserId: member.lineUserId,
@@ -76,8 +91,8 @@ export async function GET(request: NextRequest) {
       goalWeight: member.goalWeight,
       isOnboarded: member.isOnboarded,
       isActive: member.isActive,
-      activityStatus: member.activityStatus,
-      lastActiveAt: member.lastActiveAt,
+      activityStatus: (member as any).activityStatus || "active",
+      lastActiveAt: (member as any).lastActiveAt || member.updatedAt,
       memberType: member.memberType,
       orderCount: member._count.orders,
       mealLogCount: member._count.mealLogs,

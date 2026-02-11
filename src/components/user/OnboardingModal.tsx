@@ -244,7 +244,7 @@ export function OnboardingModal({
       </div>
 
       {/* Content */}
-      <div className="px-6 py-8 pb-32 overflow-y-auto h-[calc(100vh-140px)]">
+      <div className="px-6 py-8 pb-40 overflow-y-auto h-[calc(100vh-60px)]">
         <AnimatePresence mode="wait">
           {/* Step 1: Personal Info */}
           {step === 1 && (
@@ -602,7 +602,10 @@ export function OnboardingModal({
       </div>
 
       {/* Bottom Button */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 pb-8 bg-white border-t border-gray-100">
+      <div 
+        className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100"
+        style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom, 2rem))' }}
+      >
         <button
           onClick={step === TOTAL_STEPS ? handleSubmit : handleNext}
           disabled={!canProceed() || isSubmitting}
