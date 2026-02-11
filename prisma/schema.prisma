@@ -39,8 +39,8 @@ model Member {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   
-  // Activity Status (active/inactive based on app usage)
-  activityStatus      String      @default("active")  // "active" | "inactive"
+  // Activity Status (inactive until onboarding completes, then active)
+  activityStatus      String      @default("inactive")  // "active" | "inactive"
   lastActiveAt        DateTime    @default(now())
   inactiveSince       DateTime?
   welcomeBackShown    Boolean     @default(false)

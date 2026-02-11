@@ -77,6 +77,8 @@ export async function POST(request: NextRequest) {
         dailySugar: 50, // Default sugar limit
         dailyWater,
         isOnboarded: true,
+        activityStatus: "active", // Set active when onboarding completes
+        lastActiveAt: new Date(),
         updatedAt: new Date(),
         // Apply trial settings only if member doesn't have a memberType yet
         ...(trialData.memberTypeId && { memberTypeId: trialData.memberTypeId }),
@@ -106,6 +108,8 @@ export async function POST(request: NextRequest) {
         dailySugar: 50,
         dailyWater,
         isOnboarded: true,
+        activityStatus: "active", // Set active when onboarding completes
+        lastActiveAt: new Date(),
         // Apply trial settings for new members
         ...trialData,
       },

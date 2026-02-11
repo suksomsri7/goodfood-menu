@@ -35,8 +35,8 @@ export async function POST(request: NextRequest) {
         dailySodium: 2300,
         dailySugar: 50,
         dailyWater: 2000,
-        // Activity tracking
-        activityStatus: "active",
+        // Activity tracking - start as inactive until onboarding is complete
+        activityStatus: "inactive",
         lastActiveAt: new Date(),
       },
     });
@@ -84,7 +84,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if member was inactive and needs Welcome Back modal
-    const wasInactive = member.activityStatus === "inactive";
+    // Only show welcome back for ONBOARDED users who became inactive
+    const wasInactive = member.activityStatus === "inactive" && member.isOnboarded;
     const showWelcomeBack = wasInactive && !member.welcomeBackShown;
 
     // Update lastActiveAt and change status if returning from inactive
@@ -93,7 +94,7 @@ export async function GET(request: NextRequest) {
     };
 
     if (wasInactive) {
-      // Member is returning from inactive status
+      // Onboarded member is returning from inactive status
       updateData.activityStatus = "active";
       updateData.inactiveSince = null;
       
@@ -101,12 +102,13 @@ export async function GET(request: NextRequest) {
       if (!member.welcomeBackShown) {
         updateData.welcomeBackShown = true;
       }
-    } else {
-      // Reset welcomeBackShown for active members (for next inactive cycle)
+    } else if (member.isOnboarded && member.activityStatus === "active") {
+      // Reset welcomeBackShown for active onboarded members (for next inactive cycle)
       if (member.welcomeBackShown) {
         updateData.welcomeBackShown = false;
       }
     }
+    // Note: New users (not onboarded) stay "inactive" until they complete onboarding
 
     // Update member activity
     await prisma.member.update({

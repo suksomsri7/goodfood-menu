@@ -1,13 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BottomNavBar } from "@/components/user/BottomNavBar";
+import { UserGuide, LOCALSTORAGE_KEY } from "@/components/user/UserGuide";
 import { OnboardingProvider, useOnboarding } from "@/components/providers/OnboardingContext";
 import { OnboardingGuard } from "@/components/providers/OnboardingGuard";
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const { isOnboarded, showOnboarding } = useOnboarding();
   const [isLoading, setIsLoading] = useState(true);
+  const [showGuide, setShowGuide] = useState(false);
+
+  // Show guide after onboarding completes (if not seen before)
+  useEffect(() => {
+    if (!isLoading && isOnboarded === true && !showOnboarding) {
+      const seen = localStorage.getItem(LOCALSTORAGE_KEY);
+      if (!seen) {
+        setShowGuide(true);
+      }
+    }
+  }, [isLoading, isOnboarded, showOnboarding]);
 
   // Hide bottom nav during loading, onboarding, or when not yet onboarded
   const showBottomNav = !isLoading && isOnboarded === true && !showOnboarding;
@@ -26,6 +38,9 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         {children}
       </OnboardingGuard>
       {showBottomNav && <BottomNavBar />}
+      
+      {/* User Guide - shows after onboarding for new users */}
+      <UserGuide isOpen={showGuide} onClose={() => setShowGuide(false)} />
     </div>
   );
 }

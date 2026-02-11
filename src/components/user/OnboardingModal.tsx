@@ -215,7 +215,7 @@ export function OnboardingModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-white">
+    <div className="fixed inset-0 z-[60] bg-white">
       {/* Progress Bar */}
       <div className="sticky top-0 z-10 bg-white px-4 py-3 border-b border-gray-100">
         <div className="flex items-center gap-3">
