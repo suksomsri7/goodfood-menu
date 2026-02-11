@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { checkUsageLimit, logAiUsage } from "@/lib/usage-limits";
 
 const SYSTEM_PROMPT = `คุณคือผู้เชี่ยวชาญด้านโภชนาการอาหาร หน้าที่ของคุณคือวิเคราะห์อาหารจากรูปภาพและข้อมูลที่ได้รับ
 
@@ -25,6 +26,25 @@ const SYSTEM_PROMPT = `คุณคือผู้เชี่ยวชาญด
 
 export async function POST(request: NextRequest) {
   try {
+    const body = await request.json();
+    const { image, description, lineUserId } = body;
+
+    // Check usage limit if lineUserId is provided
+    if (lineUserId) {
+      const limitCheck = await checkUsageLimit(lineUserId, "dailyAiAnalysisLimit");
+      if (!limitCheck.allowed) {
+        return NextResponse.json(
+          { 
+            error: limitCheck.message,
+            limitReached: true,
+            limit: limitCheck.limit,
+            used: limitCheck.used,
+          },
+          { status: 429 }
+        );
+      }
+    }
+
     // Debug: Log API key status
     const apiKey = process.env.OPENAI_API_KEY;
     console.log("=== Food Analysis API ===");
@@ -62,9 +82,6 @@ export async function POST(request: NextRequest) {
     const openai = new OpenAI({
       apiKey: apiKey,
     });
-
-    const body = await request.json();
-    const { image, description } = body;
 
     if (!image) {
       return NextResponse.json(
@@ -130,6 +147,11 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("✅ Analysis successful:", nutritionData.name);
+    
+    // Log usage after successful analysis
+    if (lineUserId) {
+      await logAiUsage(lineUserId, "dailyAiAnalysisLimit");
+    }
     
     return NextResponse.json({
       success: true,

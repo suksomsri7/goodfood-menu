@@ -632,3 +632,13 @@ model SystemSetting {
 
   @@map("system_settings")
 }
+
+model AiUsageLog {
+  id         String   @id @default(cuid())
+  memberId   String
+  usageType  String   // "photo", "ai_analysis", "ai_text_analysis", "ai_recommend", "exercise_analysis", "menu_select", "scan"
+  createdAt  DateTime @default(now())
+
+  @@index([memberId, usageType, createdAt])
+  @@map("ai_usage_logs")
+}

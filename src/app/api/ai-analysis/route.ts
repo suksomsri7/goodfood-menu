@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { prisma } from "@/lib/prisma";
+import { checkUsageLimit, logAiUsage } from "@/lib/usage-limits";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -14,6 +15,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "lineUserId is required" },
         { status: 400 }
+      );
+    }
+
+    // Check usage limit
+    const limitCheck = await checkUsageLimit(lineUserId, "dailyAiRecommendLimit");
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        { 
+          error: limitCheck.message,
+          limitReached: true,
+          limit: limitCheck.limit,
+          used: limitCheck.used,
+        },
+        { status: 429 }
       );
     }
 
@@ -277,6 +292,9 @@ ${userData.today.exercises.length > 0 ?
         recommendations: [],
       };
     }
+
+    // Log usage after successful analysis
+    await logAiUsage(lineUserId, "dailyAiRecommendLimit");
 
     return NextResponse.json({
       success: true,

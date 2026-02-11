@@ -7,6 +7,7 @@ import { X, Camera, RotateCcw, Calculator, Loader2 } from "lucide-react";
 interface CameraModalProps {
   isOpen: boolean;
   onClose: () => void;
+  lineUserId?: string;
   onSave: (meal: {
     name: string;
     calories: number;
@@ -24,7 +25,7 @@ interface CameraModalProps {
 
 type CameraState = "camera" | "preview" | "analyzing" | "result";
 
-export function CameraModal({ isOpen, onClose, onSave }: CameraModalProps) {
+export function CameraModal({ isOpen, onClose, onSave, lineUserId }: CameraModalProps) {
   const [state, setState] = useState<CameraState>("camera");
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -130,10 +131,18 @@ export function CameraModal({ isOpen, onClose, onSave }: CameraModalProps) {
         body: JSON.stringify({
           image: capturedImage,
           description: formData.ingredients, // User's description
+          lineUserId,
         }),
       });
 
       const result = await response.json();
+      
+      // Check for limit reached
+      if (result.limitReached) {
+        setAnalysisError(`⚠️ ${result.error}`);
+        setState("preview");
+        return;
+      }
       
       if (result.error && !result.data) {
         throw new Error(result.error);

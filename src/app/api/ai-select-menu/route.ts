@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { checkUsageLimit, logAiUsage } from "@/lib/usage-limits";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -48,6 +49,22 @@ export async function POST(request: NextRequest) {
         { error: "Missing required data" },
         { status: 400 }
       );
+    }
+
+    // Check usage limit if lineUserId is provided
+    if (lineUserId) {
+      const limitCheck = await checkUsageLimit(lineUserId, "dailyMenuSelectLimit");
+      if (!limitCheck.allowed) {
+        return NextResponse.json(
+          { 
+            error: limitCheck.message,
+            limitReached: true,
+            limit: limitCheck.limit,
+            used: limitCheck.used,
+          },
+          { status: 429 }
+        );
+      }
     }
 
     // Calculate how many more items needed (subtract existing cart)
@@ -215,6 +232,11 @@ ${foodList}
     let recommendation = aiResponse.recommendation || "เลือกเมนูที่หลากหลายและมีคุณค่าทางโภชนาการให้คุณแล้ว";
     if (existingCartItems > 0) {
       recommendation = `🛒 มีในตะกร้าแล้ว ${existingCartItems} รายการ - ${recommendation}`;
+    }
+
+    // Log usage after successful selection
+    if (lineUserId) {
+      await logAiUsage(lineUserId, "dailyMenuSelectLimit");
     }
 
     return NextResponse.json({

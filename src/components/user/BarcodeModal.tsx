@@ -36,6 +36,7 @@ interface BarcodeProduct {
 interface BarcodeModalProps {
   isOpen: boolean;
   onClose: () => void;
+  lineUserId?: string;
   onSave: (meal: {
     name: string;
     calories: number;
@@ -60,7 +61,7 @@ type ModalState =
   | "analyzing"
   | "confirm";
 
-export function BarcodeModal({ isOpen, onClose, onSave }: BarcodeModalProps) {
+export function BarcodeModal({ isOpen, onClose, onSave, lineUserId }: BarcodeModalProps) {
   const [state, setState] = useState<ModalState>("scanner");
   const [barcode, setBarcode] = useState("");
   const [product, setProduct] = useState<BarcodeProduct | null>(null);
@@ -214,8 +215,18 @@ export function BarcodeModal({ isOpen, onClose, onSave }: BarcodeModalProps) {
     stopCamera();
 
     try {
-      const response = await fetch(`/api/barcode/${trimmedCode}`);
+      const url = lineUserId 
+        ? `/api/barcode/${trimmedCode}?lineUserId=${lineUserId}`
+        : `/api/barcode/${trimmedCode}`;
+      const response = await fetch(url);
       const result = await response.json();
+
+      // Check for limit reached
+      if (result.limitReached) {
+        setError(result.error || "ถึงขีดจำกัดการใช้งานวันนี้แล้ว");
+        setState("not_found");
+        return;
+      }
 
       // API returns { source: "database"|"openfoodfacts"|"not_found", success: true|false, data: ... }
       if (result.success && result.data) {
@@ -269,10 +280,18 @@ export function BarcodeModal({ isOpen, onClose, onSave }: BarcodeModalProps) {
         body: JSON.stringify({
           image: capturedImage,
           barcode,
+          lineUserId,
         }),
       });
 
       const result = await response.json();
+
+      // Check for limit reached
+      if (result.limitReached) {
+        setError(result.error || "ถึงขีดจำกัดการใช้งาน AI วันนี้แล้ว");
+        setState("photo_capture");
+        return;
+      }
 
       if (result.data) {
         setFormData({

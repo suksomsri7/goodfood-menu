@@ -7,6 +7,7 @@ import { X, Search, Plus, Minus, Sparkles } from "lucide-react";
 interface ManualEntryModalProps {
   isOpen: boolean;
   onClose: () => void;
+  lineUserId?: string;
   onSave: (meal: {
     name: string;
     calories: number;
@@ -21,7 +22,7 @@ interface ManualEntryModalProps {
   }) => void;
 }
 
-export function ManualEntryModal({ isOpen, onClose, onSave }: ManualEntryModalProps) {
+export function ManualEntryModal({ isOpen, onClose, onSave, lineUserId }: ManualEntryModalProps) {
   const [name, setName] = useState("");
   const [ingredients, setIngredients] = useState("");
   const [calories, setCalories] = useState("");
@@ -47,11 +48,19 @@ export function ManualEntryModal({ isOpen, onClose, onSave }: ManualEntryModalPr
           ingredients,
           weight: weight ? Number(weight) : undefined,
           quantity: multiplier,
+          lineUserId,
         }),
       });
 
-      if (res.ok) {
-        const result = await res.json();
+      const result = await res.json();
+      
+      // Check for limit reached
+      if (result.limitReached) {
+        alert(result.error || "ถึงขีดจำกัดการใช้งาน AI วันนี้แล้ว");
+        return;
+      }
+
+      if (res.ok && result.data) {
         if (result.data) {
           setCalories(String(result.data.calories || ""));
           setProtein(String(result.data.protein || ""));

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { checkUsageLimit, logAiUsage } from "@/lib/usage-limits";
 
 const SYSTEM_PROMPT = `คุณคือผู้เชี่ยวชาญด้านโภชนาการ หน้าที่ของคุณคือวิเคราะห์ข้อมูลโภชนาการจากรูปถ่ายฉลากสินค้า
 
@@ -55,13 +56,29 @@ export async function POST(request: NextRequest) {
 
     const openai = new OpenAI({ apiKey });
     const body = await request.json();
-    const { image, barcode, description } = body;
+    const { image, barcode, description, lineUserId } = body;
 
     if (!image) {
       return NextResponse.json(
         { error: "Image is required" },
         { status: 400 }
       );
+    }
+
+    // Check usage limit if lineUserId is provided
+    if (lineUserId) {
+      const limitCheck = await checkUsageLimit(lineUserId, "dailyScanLimit");
+      if (!limitCheck.allowed) {
+        return NextResponse.json(
+          { 
+            error: limitCheck.message,
+            limitReached: true,
+            limit: limitCheck.limit,
+            used: limitCheck.used,
+          },
+          { status: 429 }
+        );
+      }
     }
 
     console.log(`🤖 Analyzing nutrition label for barcode: ${barcode || 'unknown'}`);
@@ -124,6 +141,11 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`✅ Analysis complete: ${nutritionData.name} (confidence: ${nutritionData.confidence}%)`);
+
+    // Log usage after successful analysis
+    if (lineUserId) {
+      await logAiUsage(lineUserId, "dailyScanLimit");
+    }
 
     return NextResponse.json({
       success: true,

@@ -150,6 +150,7 @@ export function FloatingAddButton({ lineUserId, dailyNutrition, onAddMeal, onAdd
         isOpen={showManualEntry}
         onClose={() => setShowManualEntry(false)}
         onSave={handleSaveMeal}
+        lineUserId={lineUserId}
       />
 
       {/* Camera Modal */}
@@ -157,6 +158,7 @@ export function FloatingAddButton({ lineUserId, dailyNutrition, onAddMeal, onAdd
         isOpen={showCamera}
         onClose={() => setShowCamera(false)}
         onSave={handleSaveMeal}
+        lineUserId={lineUserId}
       />
 
       {/* Stock Modal */}
@@ -177,6 +179,7 @@ export function FloatingAddButton({ lineUserId, dailyNutrition, onAddMeal, onAdd
         isOpen={showBarcode}
         onClose={() => setShowBarcode(false)}
         onSave={handleSaveMeal}
+        lineUserId={lineUserId}
       />
 
       {/* Exercise Modal */}
@@ -187,6 +190,7 @@ export function FloatingAddButton({ lineUserId, dailyNutrition, onAddMeal, onAdd
           onAddExercise?.(exercise);
           setShowExercise(false);
         }}
+        lineUserId={lineUserId}
       />
     </>
   );

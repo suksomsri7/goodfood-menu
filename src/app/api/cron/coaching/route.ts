@@ -19,6 +19,40 @@ function verifyCronSecret(request: NextRequest): boolean {
   return authHeader === `Bearer ${cronSecret}`;
 }
 
+// Type for time-based coaching (morning, lunch, dinner, evening only)
+type TimeBasedCoachingType = "morning" | "lunch" | "dinner" | "evening";
+
+// Map coaching type to MemberType time field
+const timeFieldMap: Record<TimeBasedCoachingType, string> = {
+  morning: "morningCoachTime",
+  lunch: "lunchReminderTime",
+  dinner: "dinnerReminderTime",
+  evening: "eveningSummaryTime",
+};
+
+// Get current Thai time in HH:mm format
+function getCurrentThaiTime(): string {
+  const now = new Date();
+  // Convert to Thai timezone (UTC+7)
+  const thaiTime = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+  return thaiTime.toISOString().slice(11, 16); // HH:mm format
+}
+
+// Check if member's notification time matches current time window (±30 min)
+function isWithinTimeWindow(memberTime: string, currentTime: string, windowMinutes: number = 30): boolean {
+  const [memberHour, memberMin] = memberTime.split(":").map(Number);
+  const [currentHour, currentMin] = currentTime.split(":").map(Number);
+  
+  const memberTotalMin = memberHour * 60 + memberMin;
+  const currentTotalMin = currentHour * 60 + currentMin;
+  
+  const diff = Math.abs(memberTotalMin - currentTotalMin);
+  // Handle midnight crossing
+  const adjustedDiff = Math.min(diff, 1440 - diff);
+  
+  return adjustedDiff <= windowMinutes;
+}
+
 // Member type with memberType relation included
 type MemberWithType = Prisma.MemberGetPayload<{
   include: { memberType: true }
@@ -43,6 +77,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const currentTime = getCurrentThaiTime();
+    console.log(`[Coaching Cron] Current Thai time: ${currentTime}`);
+
     // Get all active members with AI Coach configured
     const members = await prisma.member.findMany({
       where: {
@@ -77,6 +114,15 @@ export async function GET(request: NextRequest) {
           if (isExpired) {
             skipped++;
             continue; // AI Coach expired
+          }
+
+          // Check if member's time setting matches current time
+          const timeField = timeFieldMap[type as TimeBasedCoachingType];
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const memberTime = (member.memberType as any)[timeField] as string;
+          if (memberTime && !isWithinTimeWindow(memberTime, currentTime)) {
+            skipped++;
+            continue; // Not the right time for this member
           }
         }
 
@@ -119,6 +165,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       type,
+      currentTime,
       stats: { sent, skipped, failed, total: members.length },
     });
   } catch (error) {

@@ -259,9 +259,19 @@ export default function CaloriePage() {
         }),
       });
       
+      const data = await res.json();
+      
+      // Check for limit reached
+      if (data.limitReached) {
+        setAnalysisResult({
+          summary: `⚠️ ${data.error || "ถึงขีดจำกัดการใช้งาน AI วันนี้แล้ว"}`,
+          goalAnalysis: [],
+          recommendations: []
+        });
+        return;
+      }
+      
       if (res.ok) {
-        const data = await res.json();
-        
         // Ensure analysis has required fields with fallbacks
         const safeAnalysis = data.analysis ? {
           summary: data.analysis.summary || "ไม่สามารถวิเคราะห์ได้",

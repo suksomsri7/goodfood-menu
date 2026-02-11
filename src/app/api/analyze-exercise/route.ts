@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { checkUsageLimit, logAiUsage } from "@/lib/usage-limits";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -7,13 +8,29 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
-    const { image } = await request.json();
+    const { image, lineUserId } = await request.json();
 
     if (!image) {
       return NextResponse.json(
         { error: "Image is required" },
         { status: 400 }
       );
+    }
+
+    // Check usage limit if lineUserId is provided
+    if (lineUserId) {
+      const limitCheck = await checkUsageLimit(lineUserId, "dailyExerciseAnalysisLimit");
+      if (!limitCheck.allowed) {
+        return NextResponse.json(
+          { 
+            error: limitCheck.message,
+            limitReached: true,
+            limit: limitCheck.limit,
+            used: limitCheck.used,
+          },
+          { status: 429 }
+        );
+      }
     }
 
     // Check if API key is configured
@@ -101,6 +118,11 @@ Only return valid JSON, no additional text.`
         { error: "Failed to parse analysis result" },
         { status: 500 }
       );
+    }
+
+    // Log usage after successful analysis
+    if (lineUserId) {
+      await logAiUsage(lineUserId, "dailyExerciseAnalysisLimit");
     }
 
     // Ensure required fields have values

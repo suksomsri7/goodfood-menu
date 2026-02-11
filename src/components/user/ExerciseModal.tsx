@@ -7,6 +7,7 @@ import { X, Flame, Clock, Dumbbell, ChevronDown, Camera, Loader2, Settings2, Rot
 interface ExerciseModalProps {
   isOpen: boolean;
   onClose: () => void;
+  lineUserId?: string;
   onSave: (exercise: {
     name: string;
     type: string;
@@ -95,7 +96,7 @@ const INTENSITY_LABELS: Record<string, string> = {
 
 type Mode = "select" | "custom" | "scan";
 
-export function ExerciseModal({ isOpen, onClose, onSave }: ExerciseModalProps) {
+export function ExerciseModal({ isOpen, onClose, onSave, lineUserId }: ExerciseModalProps) {
   const [mode, setMode] = useState<Mode>("select");
   const [selectedExercise, setSelectedExercise] = useState("");
   const [customExercise, setCustomExercise] = useState("");
@@ -257,11 +258,20 @@ export function ExerciseModal({ isOpen, onClose, onSave }: ExerciseModalProps) {
       const res = await fetch("/api/analyze-exercise", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: imageData }),
+        body: JSON.stringify({ image: imageData, lineUserId }),
       });
 
+      const data = await res.json();
+      
+      // Check for limit reached
+      if (data.limitReached) {
+        alert(data.error || "ถึงขีดจำกัดการใช้งาน AI วันนี้แล้ว");
+        setCapturedImage(null);
+        setIsAnalyzing(false);
+        return;
+      }
+
       if (res.ok) {
-        const data = await res.json();
         setAiResult(data);
         if (data.duration) setDuration(data.duration);
         if (data.calories) setCustomCalories(data.calories);

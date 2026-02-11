@@ -754,8 +754,15 @@ export default function MenuPage() {
         }),
       });
 
+      const data = await res.json();
+      
+      // Check for limit reached
+      if (data.limitReached) {
+        alert(data.error || "ถึงขีดจำกัดการใช้งาน AI วันนี้แล้ว");
+        return;
+      }
+      
       if (res.ok) {
-        const data = await res.json();
         // Map back to full Food objects
         const selectedWithFullData = data.selectedFoods.map((sf: { id: string; quantity: number }) => {
           const fullFood = foods.find(f => f.id === sf.id);

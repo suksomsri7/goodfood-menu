@@ -9,6 +9,17 @@ export type LimitType =
   | "dailyMenuSelectLimit"
   | "dailyScanLimit";
 
+// Map limit type to usage type
+const usageTypeMap: Record<LimitType, string> = {
+  dailyPhotoLimit: "photo",
+  dailyAiAnalysisLimit: "ai_analysis",
+  dailyAiTextAnalysisLimit: "ai_text_analysis",
+  dailyAiRecommendLimit: "ai_recommend",
+  dailyExerciseAnalysisLimit: "exercise_analysis",
+  dailyMenuSelectLimit: "menu_select",
+  dailyScanLimit: "scan",
+};
+
 interface UsageCheckResult {
   allowed: boolean;
   limit: number;
@@ -17,14 +28,24 @@ interface UsageCheckResult {
   message?: string;
 }
 
-// Get today's start and end timestamps
+// Get today's start and end timestamps (Thai timezone)
 function getTodayRange() {
+  // Use Thai timezone (UTC+7)
   const now = new Date();
-  const startOfDay = new Date(now);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date(now);
-  endOfDay.setHours(23, 59, 59, 999);
-  return { startOfDay, endOfDay };
+  const thaiOffset = 7 * 60; // 7 hours in minutes
+  const thaiNow = new Date(now.getTime() + thaiOffset * 60 * 1000);
+  
+  const startOfDay = new Date(thaiNow);
+  startOfDay.setUTCHours(0, 0, 0, 0);
+  // Convert back to UTC
+  const startUTC = new Date(startOfDay.getTime() - thaiOffset * 60 * 1000);
+  
+  const endOfDay = new Date(thaiNow);
+  endOfDay.setUTCHours(23, 59, 59, 999);
+  // Convert back to UTC
+  const endUTC = new Date(endOfDay.getTime() - thaiOffset * 60 * 1000);
+  
+  return { startOfDay: startUTC, endOfDay: endUTC };
 }
 
 // Check if user can perform an action based on their member type limits
@@ -63,67 +84,19 @@ export async function checkUsageLimit(
     }
 
     const { startOfDay, endOfDay } = getTodayRange();
-    let used = 0;
+    const usageType = usageTypeMap[limitType];
 
-    // Count today's usage based on limit type
-    switch (limitType) {
-      case "dailyPhotoLimit":
-      case "dailyAiAnalysisLimit":
-      case "dailyAiTextAnalysisLimit":
-        // Count meal logs created today
-        used = await prisma.mealLog.count({
-          where: {
-            memberId: member.id,
-            createdAt: {
-              gte: startOfDay,
-              lte: endOfDay,
-            },
-          },
-        });
-        break;
-
-      case "dailyAiRecommendLimit":
-        // Count AI recommendations today
-        const recommendation = await prisma.aiRecommendation.findUnique({
-          where: { memberId: member.id },
-        });
-        if (recommendation && recommendation.date >= startOfDay && recommendation.date <= endOfDay) {
-          used = recommendation.requestCount;
-        }
-        break;
-
-      case "dailyExerciseAnalysisLimit":
-        // Count exercise logs created today
-        used = await prisma.exerciseLog.count({
-          where: {
-            memberId: member.id,
-            createdAt: {
-              gte: startOfDay,
-              lte: endOfDay,
-            },
-          },
-        });
-        break;
-
-      case "dailyMenuSelectLimit":
-        // For menu select, we'll track separately (could add a new table or use a different approach)
-        // For now, allow based on general pattern
-        used = 0; // Will implement proper tracking if needed
-        break;
-
-      case "dailyScanLimit":
-        // Count barcode scans today
-        used = await prisma.barcodeScanHistory.count({
-          where: {
-            memberId: member.id,
-            createdAt: {
-              gte: startOfDay,
-              lte: endOfDay,
-            },
-          },
-        });
-        break;
-    }
+    // Count today's usage from AiUsageLog
+    const used = await prisma.aiUsageLog.count({
+      where: {
+        memberId: member.id,
+        usageType: usageType,
+        createdAt: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+    });
 
     const remaining = Math.max(0, limit - used);
     const allowed = used < limit;
@@ -143,6 +116,32 @@ export async function checkUsageLimit(
       used: 0,
       remaining: 0,
     };
+  }
+}
+
+// Log AI usage after successful API call
+export async function logAiUsage(
+  lineUserId: string,
+  limitType: LimitType
+): Promise<void> {
+  try {
+    const member = await prisma.member.findUnique({
+      where: { lineUserId },
+      select: { id: true },
+    });
+
+    if (!member) return;
+
+    const usageType = usageTypeMap[limitType];
+
+    await prisma.aiUsageLog.create({
+      data: {
+        memberId: member.id,
+        usageType: usageType,
+      },
+    });
+  } catch (error) {
+    console.error("Error logging AI usage:", error);
   }
 }
 

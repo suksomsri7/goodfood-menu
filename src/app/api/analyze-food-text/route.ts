@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { checkUsageLimit, logAiUsage } from "@/lib/usage-limits";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -8,13 +9,29 @@ const openai = new OpenAI({
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, ingredients, weight, quantity } = body;
+    const { name, ingredients, weight, quantity, lineUserId } = body;
 
     if (!name) {
       return NextResponse.json(
         { error: "Food name is required" },
         { status: 400 }
       );
+    }
+
+    // Check usage limit if lineUserId is provided
+    if (lineUserId) {
+      const limitCheck = await checkUsageLimit(lineUserId, "dailyAiTextAnalysisLimit");
+      if (!limitCheck.allowed) {
+        return NextResponse.json(
+          { 
+            error: limitCheck.message,
+            limitReached: true,
+            limit: limitCheck.limit,
+            used: limitCheck.used,
+          },
+          { status: 429 }
+        );
+      }
     }
 
     // Check if OpenAI API key is configured
@@ -99,6 +116,11 @@ export async function POST(request: NextRequest) {
     } catch (parseError) {
       console.error("Failed to parse AI response:", content);
       throw new Error("Failed to parse nutrition data");
+    }
+
+    // Log usage after successful analysis
+    if (lineUserId) {
+      await logAiUsage(lineUserId, "dailyAiTextAnalysisLimit");
     }
 
     return NextResponse.json({

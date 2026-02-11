@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { checkUsageLimit, logAiUsage } from "@/lib/usage-limits";
 
 // Open Food Facts API
 const OPEN_FOOD_FACTS_API = "https://world.openfoodfacts.org/api/v2/product";
@@ -85,12 +86,30 @@ export async function GET(
 ) {
   try {
     const { code: barcode } = await params;
+    const { searchParams } = new URL(request.url);
+    const lineUserId = searchParams.get("lineUserId");
 
     if (!barcode || barcode.length < 8) {
       return NextResponse.json(
         { error: "Invalid barcode" },
         { status: 400 }
       );
+    }
+
+    // Check usage limit if lineUserId is provided
+    if (lineUserId) {
+      const limitCheck = await checkUsageLimit(lineUserId, "dailyScanLimit");
+      if (!limitCheck.allowed) {
+        return NextResponse.json(
+          { 
+            error: limitCheck.message,
+            limitReached: true,
+            limit: limitCheck.limit,
+            used: limitCheck.used,
+          },
+          { status: 429 }
+        );
+      }
     }
 
     console.log(`🔍 Searching barcode: ${barcode}`);
@@ -113,6 +132,11 @@ export async function GET(
         where: { barcode },
         data: { scanCount: { increment: 1 } },
       });
+
+      // Log usage after successful scan
+      if (lineUserId) {
+        await logAiUsage(lineUserId, "dailyScanLimit");
+      }
 
       return NextResponse.json({
         success: true,
@@ -143,6 +167,11 @@ export async function GET(
           
           if (hasValidName || hasNutritionData) {
             console.log(`✅ Found in Open Food Facts: ${productData.name}`);
+
+            // Log usage after successful scan
+            if (lineUserId) {
+              await logAiUsage(lineUserId, "dailyScanLimit");
+            }
 
             return NextResponse.json({
               success: true,
