@@ -16,14 +16,14 @@ export async function GET() {
       });
     }
 
-    // Get member types for dropdown
+    // Get all member types for dropdown (include inactive for settings)
     const memberTypes = await prisma.memberType.findMany({
-      where: { isActive: true },
       orderBy: { order: "asc" },
       select: {
         id: true,
         name: true,
         isDefault: true,
+        isActive: true,
       },
     });
 
