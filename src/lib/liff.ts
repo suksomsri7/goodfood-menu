@@ -101,4 +101,20 @@ export function closeWindow(): void {
   liff.closeWindow();
 }
 
+export async function sendMessage(text: string): Promise<boolean> {
+  if (!isInitialized) return false;
+  
+  try {
+    // Send message to the chat where LIFF was opened from
+    await liff.sendMessages([{
+      type: "text",
+      text: text,
+    }]);
+    return true;
+  } catch (error) {
+    console.error("Failed to send message:", error);
+    return false;
+  }
+}
+
 export { liff };

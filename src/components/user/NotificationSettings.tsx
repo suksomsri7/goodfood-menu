@@ -20,6 +20,7 @@ import {
   MessageCircle,
   Power,
 } from "lucide-react";
+import { sendMessage, closeWindow, isInClient } from "@/lib/liff";
 
 interface NotificationSettingsProps {
   isOpen: boolean;
@@ -129,31 +130,23 @@ export function NotificationSettings({
 
   // Send message to admin requesting AI Coach activation
   const requestAiCoachActivation = async () => {
-    if (!lineUserId) return;
+    const message = "ขอรายละเอียดเปิดระบบ AI Coach";
     
     try {
-      // Send message via LINE webhook to admin
-      await fetch("/api/line/webhook", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          events: [{
-            type: "message",
-            message: {
-              type: "text",
-              text: "ขอรายละเอียดเปิดระบบ AI Coach",
-            },
-            source: {
-              type: "user",
-              userId: lineUserId,
-            },
-            replyToken: null,
-            timestamp: Date.now(),
-          }],
-        }),
-      });
+      // Send message via LIFF to the chat
+      const success = await sendMessage(message);
       
-      alert("ส่งข้อความสำเร็จ! แอดมินจะติดต่อกลับเร็วๆ นี้");
+      if (success) {
+        // Close LIFF window and go back to LINE chat
+        if (isInClient()) {
+          closeWindow();
+        } else {
+          // If not in LIFF client, close modal
+          onClose();
+        }
+      } else {
+        alert("ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง");
+      }
     } catch (error) {
       console.error("Error sending message:", error);
       alert("ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง");
@@ -347,7 +340,7 @@ export function NotificationSettings({
                 </div>
               ) : aiCoach.status === "disabled" || aiCoach.status === "expired" ? (
                 /* Disabled or Expired - Show message with contact button */
-                <div className="p-6">
+                <div className="p-6 pb-24">
                   <div className="text-center py-8">
                     <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-orange-100 flex items-center justify-center">
                       <Power className="w-8 h-8 text-orange-500" />
@@ -364,7 +357,7 @@ export function NotificationSettings({
                         หมดอายุเมื่อ {formatExpireDate(aiCoach.expireDate)}
                       </div>
                     )}
-                    <div>
+                    <div className="mb-8">
                       <button
                         onClick={requestAiCoachActivation}
                         className="inline-flex items-center gap-2 px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors"
