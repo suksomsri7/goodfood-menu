@@ -15,6 +15,9 @@ import {
   Infinity,
   Brain,
   ScanLine,
+  Settings,
+  Power,
+  Clock,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -44,6 +47,14 @@ interface MemberType {
   };
 }
 
+interface AiCoachSettings {
+  aiCoachEnabled: boolean;
+  trialDays: number;
+  trialMemberTypeId: string | null;
+  generalMemberTypeId: string | null;
+  memberTypes: { id: string; name: string; isDefault: boolean }[];
+}
+
 const colorOptions = [
   { value: "#4CAF50", label: "เขียว" },
   { value: "#2196F3", label: "น้ำเงิน" },
@@ -64,6 +75,10 @@ export default function MemberTypesPage() {
   const [editingType, setEditingType] = useState<MemberType | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  
+  // AI Coach Global Settings
+  const [aiCoachSettings, setAiCoachSettings] = useState<AiCoachSettings | null>(null);
+  const [savingSettings, setSavingSettings] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -89,6 +104,7 @@ export default function MemberTypesPage() {
 
   useEffect(() => {
     fetchMemberTypes();
+    fetchAiCoachSettings();
   }, []);
 
   const fetchMemberTypes = async () => {
@@ -102,6 +118,38 @@ export default function MemberTypesPage() {
       console.error("Error fetching member types:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchAiCoachSettings = async () => {
+    try {
+      const res = await fetch("/api/settings/ai-coach");
+      if (res.ok) {
+        const data = await res.json();
+        setAiCoachSettings(data);
+      }
+    } catch (error) {
+      console.error("Error fetching AI Coach settings:", error);
+    }
+  };
+
+  const updateAiCoachSetting = async (key: string, value: boolean | number | string | null) => {
+    setSavingSettings(true);
+    try {
+      const res = await fetch("/api/settings/ai-coach", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [key]: value }),
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setAiCoachSettings(prev => prev ? { ...prev, ...data } : null);
+      }
+    } catch (error) {
+      console.error("Error updating AI Coach settings:", error);
+    } finally {
+      setSavingSettings(false);
     }
   };
 
@@ -228,6 +276,116 @@ export default function MemberTypesPage() {
       />
 
       <div className="p-6">
+        {/* AI Coach Global Settings */}
+        {aiCoachSettings && (
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
+                <Settings className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800">ตั้งค่า AI Coach</h3>
+                <p className="text-sm text-gray-500">การตั้งค่าระบบ AI Coach</p>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* AI Coach Toggle */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                <div className="flex items-center gap-3">
+                  <Power className={`w-5 h-5 ${aiCoachSettings.aiCoachEnabled ? "text-green-600" : "text-gray-400"}`} />
+                  <div>
+                    <p className="font-medium text-gray-800">เปิด/ปิด AI Coach</p>
+                    <p className="text-xs text-gray-500">เปิดหรือปิดระบบ AI Coach ทั้งหมด</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => updateAiCoachSetting("aiCoachEnabled", !aiCoachSettings.aiCoachEnabled)}
+                  disabled={savingSettings}
+                  className={`relative w-14 h-8 rounded-full transition-colors ${
+                    aiCoachSettings.aiCoachEnabled ? "bg-green-500" : "bg-gray-300"
+                  }`}
+                >
+                  <div className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${
+                    aiCoachSettings.aiCoachEnabled ? "translate-x-7" : "translate-x-1"
+                  }`} />
+                </button>
+              </div>
+
+              {/* Trial Days */}
+              <div className="p-4 bg-gray-50 rounded-xl">
+                <div className="flex items-center gap-3 mb-3">
+                  <Clock className="w-5 h-5 text-amber-600" />
+                  <div>
+                    <p className="font-medium text-gray-800">ระยะเวลาทดลองใช้</p>
+                    <p className="text-xs text-gray-500">สำหรับสมาชิกใหม่</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    value={aiCoachSettings.trialDays}
+                    onChange={(e) => {
+                      const days = parseInt(e.target.value) || 0;
+                      setAiCoachSettings(prev => prev ? { ...prev, trialDays: days } : null);
+                    }}
+                    onBlur={(e) => updateAiCoachSetting("trialDays", parseInt(e.target.value) || 0)}
+                    className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-center focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                  />
+                  <span className="text-sm text-gray-600">วัน (0 = ไม่มีทดลอง)</span>
+                </div>
+              </div>
+
+              {/* Trial Member Type */}
+              <div className="p-4 bg-gray-50 rounded-xl">
+                <div className="flex items-center gap-3 mb-3">
+                  <Crown className="w-5 h-5 text-purple-600" />
+                  <div>
+                    <p className="font-medium text-gray-800">AI Coach สำหรับทดลอง</p>
+                    <p className="text-xs text-gray-500">ประเภทที่ให้สมาชิกใหม่ทดลองใช้</p>
+                  </div>
+                </div>
+                <select
+                  value={aiCoachSettings.trialMemberTypeId || ""}
+                  onChange={(e) => updateAiCoachSetting("trialMemberTypeId", e.target.value || null)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                >
+                  <option value="">-- ไม่กำหนด --</option>
+                  {aiCoachSettings.memberTypes.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.name} {type.isDefault && "(ค่าเริ่มต้น)"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* General Member Type (after trial) */}
+              <div className="p-4 bg-gray-50 rounded-xl">
+                <div className="flex items-center gap-3 mb-3">
+                  <Users className="w-5 h-5 text-gray-600" />
+                  <div>
+                    <p className="font-medium text-gray-800">AI Coach หลังหมดทดลอง</p>
+                    <p className="text-xs text-gray-500">เปลี่ยนเป็นประเภทนี้เมื่อหมดระยะทดลอง</p>
+                  </div>
+                </div>
+                <select
+                  value={aiCoachSettings.generalMemberTypeId || ""}
+                  onChange={(e) => updateAiCoachSetting("generalMemberTypeId", e.target.value || null)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                >
+                  <option value="">-- ไม่กำหนด (ลบ AI Coach) --</option>
+                  {aiCoachSettings.memberTypes.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.name} {type.isDefault && "(ค่าเริ่มต้น)"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Header Actions */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">

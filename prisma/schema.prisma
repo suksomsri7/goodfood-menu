@@ -611,3 +611,18 @@ model BarcodeScanHistory {
   @@index([memberId, createdAt])
   @@map("barcode_scan_history")
 }
+
+model SystemSetting {
+  id        String   @id @default("system")
+  
+  // AI Coach Global Settings
+  aiCoachEnabled           Boolean  @default(true)
+  trialDays                Int      @default(7)
+  trialMemberTypeId        String?
+  generalMemberTypeId      String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}

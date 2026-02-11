@@ -35,6 +35,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get system settings for trial period
+    const systemSettings = await prisma.systemSetting.findUnique({
+      where: { id: "system" },
+    });
+
+    // Calculate trial expiry date if trial is enabled
+    let trialData: { memberTypeId?: string; aiCoachExpireDate?: Date } = {};
+    if (systemSettings?.trialDays && systemSettings.trialDays > 0 && systemSettings.trialMemberTypeId) {
+      const expireDate = new Date();
+      expireDate.setDate(expireDate.getDate() + systemSettings.trialDays);
+      trialData = {
+        memberTypeId: systemSettings.trialMemberTypeId,
+        aiCoachExpireDate: expireDate,
+      };
+    }
+
     // Update or create member with all onboarding data
     const member = await prisma.member.upsert({
       where: { lineUserId },
@@ -62,6 +78,9 @@ export async function POST(request: NextRequest) {
         dailyWater,
         isOnboarded: true,
         updatedAt: new Date(),
+        // Apply trial settings only if member doesn't have a memberType yet
+        ...(trialData.memberTypeId && { memberTypeId: trialData.memberTypeId }),
+        ...(trialData.aiCoachExpireDate && { aiCoachExpireDate: trialData.aiCoachExpireDate }),
       },
       create: {
         lineUserId,
@@ -87,6 +106,8 @@ export async function POST(request: NextRequest) {
         dailySugar: 50,
         dailyWater,
         isOnboarded: true,
+        // Apply trial settings for new members
+        ...trialData,
       },
     });
 
