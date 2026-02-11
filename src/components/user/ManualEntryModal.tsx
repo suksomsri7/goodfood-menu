@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Search, Plus, Minus, Sparkles } from "lucide-react";
+import { X, Search, Plus, Minus, Sparkles, AlertTriangle } from "lucide-react";
+import { sendMessage, isInClient, closeWindow } from "@/lib/liff";
 
 interface ManualEntryModalProps {
   isOpen: boolean;
@@ -34,6 +35,8 @@ export function ManualEntryModal({ isOpen, onClose, onSave, lineUserId }: Manual
   const [weight, setWeight] = useState("");
   const [multiplier, setMultiplier] = useState(1);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [limitMessage, setLimitMessage] = useState("");
 
   const handleAiAnalyze = async () => {
     if (!name) return;
@@ -56,7 +59,8 @@ export function ManualEntryModal({ isOpen, onClose, onSave, lineUserId }: Manual
       
       // Check for limit reached
       if (result.limitReached) {
-        alert(result.error || "ถึงขีดจำกัดการใช้งาน AI วันนี้แล้ว");
+        setLimitMessage(result.error || "ถึงขีดจำกัดการใช้งาน AI วันนี้แล้ว");
+        setShowLimitModal(true);
         return;
       }
 
@@ -350,6 +354,67 @@ export function ManualEntryModal({ isOpen, onClose, onSave, lineUserId }: Manual
               </button>
             </div>
           </motion.div>
+
+          {/* Limit Reached Modal */}
+          <AnimatePresence>
+            {showLimitModal && (
+              <motion.div
+                className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <motion.div
+                  className="absolute inset-0 bg-black/60"
+                  onClick={() => setShowLimitModal(false)}
+                />
+                <motion.div
+                  className="relative bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl"
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                >
+                  <div className="flex flex-col items-center text-center">
+                    <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                      <AlertTriangle className="w-8 h-8 text-amber-500" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                      ถึงขีดจำกัดการใช้งานแล้ว
+                    </h3>
+                    <p className="text-gray-500 text-sm mb-6">
+                      {limitMessage}
+                    </p>
+                    <button
+                      onClick={async () => {
+                        const message = "วิธีเพิ่ม Limit การใช้งาน";
+                        try {
+                          const success = await sendMessage(message);
+                          if (success) {
+                            if (isInClient()) {
+                              closeWindow();
+                            } else {
+                              setShowLimitModal(false);
+                            }
+                          }
+                        } catch (error) {
+                          console.error("Error:", error);
+                        }
+                      }}
+                      className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold shadow-lg mb-3"
+                    >
+                      วิธีเพิ่ม Limit การใช้งาน
+                    </button>
+                    <button
+                      onClick={() => setShowLimitModal(false)}
+                      className="text-gray-500 text-sm"
+                    >
+                      ปิด
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </>
       )}
     </AnimatePresence>
