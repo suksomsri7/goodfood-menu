@@ -5,12 +5,32 @@
       "schedule": "0 0 * * *"
     },
     {
+      "path": "/api/cron/coaching?type=lunch",
+      "schedule": "30 4 * * *"
+    },
+    {
+      "path": "/api/cron/coaching?type=dinner",
+      "schedule": "30 10 * * *"
+    },
+    {
+      "path": "/api/cron/coaching?type=evening",
+      "schedule": "0 13 * * *"
+    },
+    {
       "path": "/api/cron/weekly",
-      "schedule": "0 2 * * *"
+      "schedule": "0 2 * * 1"
     },
     {
       "path": "/api/cron/check-trial-expiry",
       "schedule": "1 17 * * *"
+    },
+    {
+      "path": "/api/cron/check-inactive",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/check-milestones",
+      "schedule": "0 1 * * *"
     }
   ]
 }
