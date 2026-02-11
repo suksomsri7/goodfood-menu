@@ -123,7 +123,7 @@ export function AnalysisModal({
                 <Brain className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="font-bold text-gray-900">AI วิเคราะห์สุขภาพ</h2>
+                <h2 className="font-bold text-gray-900">AI Coach</h2>
                 <p className="text-xs text-gray-500">ผลวิเคราะห์ประจำวัน</p>
               </div>
             </div>

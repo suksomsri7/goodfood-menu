@@ -151,14 +151,14 @@ const sections: TipSection[] = [
         ),
       },
       {
-        title: "AI วิเคราะห์",
+        title: "AI Coach",
         description:
-          "กดปุ่ม AI วิเคราะห์ เพื่อให้ AI สรุปว่าวันนี้ทานได้ตามเป้าหรือยัง ขาดสารอาหารอะไร และแนะนำมื้อถัดไป",
+          "กดปุ่ม AI Coach เพื่อให้ AI สรุปว่าวันนี้ทานได้ตามเป้าหรือยัง ขาดสารอาหารอะไร และแนะนำมื้อถัดไป",
         visual: (
           <div className="flex justify-center py-1">
             <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full text-white text-xs font-medium shadow-sm">
               <Brain className="w-3.5 h-3.5" />
-              AI วิเคราะห์
+              AI Coach
             </div>
           </div>
         ),
