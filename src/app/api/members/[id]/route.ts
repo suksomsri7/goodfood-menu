@@ -86,73 +86,99 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let step = "init";
   try {
     const { id } = await params;
+    step = "params parsed";
+    console.log("[DELETE] Starting delete for member id:", id);
 
     // Check if member exists
     const member = await prisma.member.findUnique({
       where: { id },
       select: { id: true, displayName: true, lineUserId: true },
     });
+    step = "member lookup";
+    console.log("[DELETE] Member found:", member ? "yes" : "no");
 
     if (!member) {
       return NextResponse.json(
-        { error: "Member not found" },
+        { error: "Member not found", step },
         { status: 404 }
       );
     }
 
     // Delete related data first (due to foreign key constraints)
     await prisma.$transaction(async (tx) => {
-      // Delete meal logs
+      step = "tx:mealLog";
+      console.log("[DELETE] Step:", step);
       await tx.mealLog.deleteMany({ where: { memberId: id } });
       
-      // Delete weight logs
+      step = "tx:weightLog";
+      console.log("[DELETE] Step:", step);
       await tx.weightLog.deleteMany({ where: { memberId: id } });
       
-      // Delete water logs
+      step = "tx:waterLog";
+      console.log("[DELETE] Step:", step);
       await tx.waterLog.deleteMany({ where: { memberId: id } });
       
-      // Delete exercise logs
+      step = "tx:exerciseLog";
+      console.log("[DELETE] Step:", step);
       await tx.exerciseLog.deleteMany({ where: { memberId: id } });
       
-      // Delete progress photos
+      step = "tx:progressPhoto";
+      console.log("[DELETE] Step:", step);
       await tx.progressPhoto.deleteMany({ where: { memberId: id } });
       
-      // Delete AI recommendation
+      step = "tx:aiRecommendation";
+      console.log("[DELETE] Step:", step);
       await tx.aiRecommendation.deleteMany({ where: { memberId: id } });
       
-      // Delete AI usage logs
+      step = "tx:aiUsageLog";
+      console.log("[DELETE] Step:", step);
       await tx.aiUsageLog.deleteMany({ where: { memberId: id } });
       
-      // Delete barcode scan history
+      step = "tx:barcodeScanHistory";
+      console.log("[DELETE] Step:", step);
       await tx.barcodeScanHistory.deleteMany({ where: { memberId: id } });
       
-      // Delete cart items (directly on member, no Cart model)
+      step = "tx:cartItem";
+      console.log("[DELETE] Step:", step);
       await tx.cartItem.deleteMany({ where: { memberId: id } });
       
-      // Delete addresses
+      step = "tx:address";
+      console.log("[DELETE] Step:", step);
       await tx.address.deleteMany({ where: { memberId: id } });
       
-      // Delete order items -> orders
+      step = "tx:orders-find";
+      console.log("[DELETE] Step:", step);
       const orders = await tx.order.findMany({ where: { memberId: id }, select: { id: true } });
+      console.log("[DELETE] Orders to delete:", orders.length);
+      
+      step = "tx:orderItems";
       for (const order of orders) {
         await tx.orderItem.deleteMany({ where: { orderId: order.id } });
       }
+      
+      step = "tx:order";
+      console.log("[DELETE] Step:", step);
       await tx.order.deleteMany({ where: { memberId: id } });
       
-      // Finally delete the member
+      step = "tx:member";
+      console.log("[DELETE] Step:", step);
       await tx.member.delete({ where: { id } });
     });
 
+    step = "complete";
+    console.log("[DELETE] Successfully deleted member:", member.displayName || member.lineUserId);
     return NextResponse.json({ 
       success: true, 
       message: `Member ${member.displayName || member.lineUserId} deleted successfully` 
     });
   } catch (error) {
-    console.error("Error deleting member:", error);
+    console.error("[DELETE] Error at step:", step, "Error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Failed to delete member" },
+      { error: "Failed to delete member", step, details: errorMessage },
       { status: 500 }
     );
   }
