@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/check-trial-expiry",
-      "schedule": "0 1 * * *"
+      "schedule": "1 17 * * *"
     }
   ]
 }
