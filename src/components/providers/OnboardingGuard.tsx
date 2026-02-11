@@ -25,7 +25,7 @@ export function OnboardingGuard({ children, setIsLoading: setParentLoading }: On
   const { isOnboarded, setIsOnboarded, showOnboarding, setShowOnboarding } = useOnboarding();
   const [debugInfo, setDebugInfo] = useState<DebugInfo>({});
 
-  const checkOnboardingStatus = useCallback(async () => {
+  const checkOnboardingStatus = useCallback(async (retryCount = 0) => {
     if (!profile?.userId) {
       setDebugInfo({ reason: 'no_profile_userId' });
       setParentLoading?.(false);
@@ -46,6 +46,7 @@ export function OnboardingGuard({ children, setIsLoading: setParentLoading }: On
         });
         setIsOnboarded(onboarded);
         setShowOnboarding(!onboarded);
+        setParentLoading?.(false);
       } else if (res.status === 404) {
         setDebugInfo({
           profileUserId: profile.userId?.substring(0, 10) + '...',
@@ -55,17 +56,34 @@ export function OnboardingGuard({ children, setIsLoading: setParentLoading }: On
         // New user - needs onboarding
         setIsOnboarded(false);
         setShowOnboarding(true);
+        setParentLoading?.(false);
+      } else {
+        // Other error status - retry
+        throw new Error(`API returned ${res.status}`);
       }
     } catch (error) {
       console.error("Failed to check onboarding status:", error);
+      
+      // Retry up to 3 times with delay
+      if (retryCount < 3) {
+        setDebugInfo({
+          profileUserId: profile.userId?.substring(0, 10) + '...',
+          reason: `retry_${retryCount + 1}: ${String(error)}`
+        });
+        setTimeout(() => {
+          checkOnboardingStatus(retryCount + 1);
+        }, 1000 * (retryCount + 1)); // 1s, 2s, 3s delay
+        return; // Don't set loading false yet
+      }
+      
+      // After 3 retries, assume user is onboarded (don't block existing users)
+      // New users will just see the main page and can register from there
       setDebugInfo({
         profileUserId: profile.userId?.substring(0, 10) + '...',
-        reason: 'api_error: ' + String(error)
+        reason: 'api_error_fallback_to_onboarded: ' + String(error)
       });
-      // On error, assume not onboarded to be safe
-      setIsOnboarded(false);
-      setShowOnboarding(true);
-    } finally {
+      setIsOnboarded(true); // Assume onboarded to not block existing users
+      setShowOnboarding(false);
       setParentLoading?.(false);
     }
   }, [profile?.userId, setIsOnboarded, setShowOnboarding, setParentLoading]);
