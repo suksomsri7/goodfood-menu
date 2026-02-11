@@ -81,8 +81,10 @@ export async function GET(request: NextRequest) {
     const lineUserId = searchParams.get("lineUserId");
     const memberId = searchParams.get("memberId");
 
+    const testSend = searchParams.get("test") === "true";
+
     // If no params, list all members with their AI Coach status
-    if (!lineUserId && !memberId) {
+    if (!lineUserId && !memberId && !testSend) {
       const members = await prisma.member.findMany({
         include: { memberType: true },
         orderBy: { updatedAt: "desc" },
@@ -108,6 +110,68 @@ export async function GET(request: NextRequest) {
       });
 
       return NextResponse.json({ members: memberList });
+    }
+
+    // Handle test=true with memberId
+    if (testSend && memberId) {
+      const testMember = await prisma.member.findUnique({
+        where: { id: memberId },
+        include: { memberType: true },
+      });
+
+      if (!testMember) {
+        return NextResponse.json({ error: "Member not found" }, { status: 404 });
+      }
+
+      // Check AI Coach status
+      const aiActive = testMember.memberType ? isAiCoachActive(testMember) : false;
+      
+      // Try to gather context
+      let context = null;
+      let contextError = null;
+      try {
+        context = await gatherMemberContext(memberId);
+      } catch (e) {
+        contextError = String(e);
+      }
+
+      // Try to send message
+      let sendResult = false;
+      let sendError = null;
+      try {
+        sendResult = await sendCoachingMessage(memberId, "exercise");
+      } catch (e) {
+        sendError = String(e);
+      }
+
+      return NextResponse.json({
+        test: true,
+        member: {
+          id: testMember.id,
+          name: testMember.name,
+          lineUserId: testMember.lineUserId,
+          notifyPostExercise: testMember.notifyPostExercise,
+        },
+        aiCoach: {
+          isActive: aiActive,
+          memberType: testMember.memberType?.name || null,
+          memberTypeActive: testMember.memberType?.isActive,
+          courseDuration: testMember.memberType?.courseDuration,
+          expireDate: testMember.aiCoachExpireDate?.toISOString(),
+        },
+        context: context ? {
+          hasContext: true,
+          exerciseToday: context.exerciseToday,
+          name: context.name,
+        } : {
+          hasContext: false,
+          error: contextError,
+        },
+        send: {
+          success: sendResult,
+          error: sendError,
+        },
+      });
     }
 
     const member = await prisma.member.findFirst({
