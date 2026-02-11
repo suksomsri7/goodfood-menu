@@ -7,20 +7,51 @@ import { BottomNavBar } from "@/components/user/BottomNavBar";
 import { UserGuide, LOCALSTORAGE_KEY } from "@/components/user/UserGuide";
 import { CalHelpContext } from "./help-context";
 
+const JUST_COMPLETED_KEY = "goodfood_just_completed_onboarding";
+
 function CalLayoutContent({ children }: { children: React.ReactNode }) {
   const { isOnboarded, showOnboarding } = useOnboarding();
   const [isLoading, setIsLoading] = useState(true);
   const [showGuide, setShowGuide] = useState(false);
   const [guideReady, setGuideReady] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string>("");
 
-  // Auto-show onboarding guide on first visit only
+  // Show guide after onboarding completes or on first visit
   useEffect(() => {
-    const seen = localStorage.getItem(LOCALSTORAGE_KEY);
-    if (!seen) {
-      setShowGuide(true);
+    const debugParts: string[] = [];
+    debugParts.push(`load:${isLoading},onb:${isOnboarded},show:${showOnboarding}`);
+    
+    if (!isLoading && isOnboarded === true && !showOnboarding) {
+      const seen = localStorage.getItem(LOCALSTORAGE_KEY);
+      
+      // Check for justCompleted flag (valid for 60 seconds after onboarding)
+      let justCompleted = false;
+      let flagAge = 0;
+      try {
+        const justCompletedData = localStorage.getItem(JUST_COMPLETED_KEY);
+        if (justCompletedData) {
+          const { timestamp } = JSON.parse(justCompletedData);
+          flagAge = Date.now() - timestamp;
+          justCompleted = flagAge < 60 * 1000;
+        }
+      } catch {
+        // Ignore parse errors
+      }
+      
+      debugParts.push(`seen:${seen ? 'Y' : 'N'},jc:${justCompleted},age:${flagAge}ms`);
+      
+      // Show guide if: just completed onboarding OR hasn't seen guide before
+      if (justCompleted || !seen) {
+        debugParts.push('SHOW!');
+        localStorage.removeItem(JUST_COMPLETED_KEY);
+        setShowGuide(true);
+      } else {
+        debugParts.push('SKIP');
+      }
     }
+    setDebugInfo(debugParts.join(' | '));
     setGuideReady(true);
-  }, []);
+  }, [isLoading, isOnboarded, showOnboarding]);
 
   const handleHelpClick = () => {
     setShowGuide(true);
@@ -47,6 +78,11 @@ function CalLayoutContent({ children }: { children: React.ReactNode }) {
 
         {/* Onboarding tooltip guide */}
         <UserGuide isOpen={showGuide} onClose={() => setShowGuide(false)} />
+        
+        {/* Debug info - remove after fixing */}
+        <div className="fixed bottom-24 left-2 right-2 bg-blue-600 text-white text-xs p-2 rounded z-[100] font-mono">
+          CAL: {debugInfo || 'waiting...'}
+        </div>
       </div>
     </CalHelpContext.Provider>
   );
