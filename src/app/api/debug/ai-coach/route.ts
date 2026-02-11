@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendCoachingMessage, gatherMemberContext, isAiCoachActive, CoachingType } from "@/lib/coaching";
+import { getAllUsageLimits } from "@/lib/usage-limits";
 
 // POST - Test send coaching message
 export async function POST(request: NextRequest) {
@@ -82,6 +83,63 @@ export async function GET(request: NextRequest) {
     const memberId = searchParams.get("memberId");
 
     const testSend = searchParams.get("test") === "true";
+    const checkUsage = searchParams.get("usage") === "true";
+
+    // Check usage limits for a member
+    if (checkUsage && (lineUserId || memberId)) {
+      const member = await prisma.member.findFirst({
+        where: lineUserId ? { lineUserId } : { id: memberId! },
+        include: { memberType: true },
+      });
+
+      if (!member) {
+        return NextResponse.json({ error: "Member not found" }, { status: 404 });
+      }
+
+      // Get usage limits
+      const limits = await getAllUsageLimits(member.lineUserId);
+
+      // Get today's usage logs
+      const now = new Date();
+      const thaiOffset = 7 * 60;
+      const thaiNow = new Date(now.getTime() + thaiOffset * 60 * 1000);
+      const startOfDay = new Date(thaiNow);
+      startOfDay.setUTCHours(0, 0, 0, 0);
+      const startUTC = new Date(startOfDay.getTime() - thaiOffset * 60 * 1000);
+
+      const todayLogs = await prisma.aiUsageLog.findMany({
+        where: {
+          memberId: member.id,
+          createdAt: { gte: startUTC },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      return NextResponse.json({
+        member: {
+          id: member.id,
+          name: member.name,
+          lineUserId: member.lineUserId,
+          memberTypeId: member.memberTypeId,
+          memberTypeName: member.memberType?.name || null,
+        },
+        memberTypeLimits: member.memberType ? {
+          dailyPhotoLimit: member.memberType.dailyPhotoLimit,
+          dailyAiAnalysisLimit: member.memberType.dailyAiAnalysisLimit,
+          dailyAiTextAnalysisLimit: member.memberType.dailyAiTextAnalysisLimit,
+          dailyAiRecommendLimit: member.memberType.dailyAiRecommendLimit,
+          dailyExerciseAnalysisLimit: member.memberType.dailyExerciseAnalysisLimit,
+          dailyMenuSelectLimit: member.memberType.dailyMenuSelectLimit,
+          dailyScanLimit: member.memberType.dailyScanLimit,
+        } : "no_member_type (default: 3)",
+        usageLimits: limits,
+        todayLogs: todayLogs.map(log => ({
+          usageType: log.usageType,
+          createdAt: log.createdAt.toISOString(),
+        })),
+        logsCount: todayLogs.length,
+      });
+    }
 
     // If no params, list all members with their AI Coach status
     if (!lineUserId && !memberId && !testSend) {
