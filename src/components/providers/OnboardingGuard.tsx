@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, ReactNode } from "react";
+import { useEffect, useCallback, ReactNode, useState } from "react";
 import { useLiff } from "@/components/providers/LiffProvider";
 import { useOnboarding } from "@/components/providers/OnboardingContext";
 import { OnboardingModal } from "@/components/user/OnboardingModal";
@@ -15,9 +15,11 @@ interface OnboardingGuardProps {
 export function OnboardingGuard({ children, setIsLoading: setParentLoading }: OnboardingGuardProps) {
   const { profile, isReady, isLoggedIn } = useLiff();
   const { isOnboarded, setIsOnboarded, showOnboarding, setShowOnboarding } = useOnboarding();
+  const [debugReason, setDebugReason] = useState<string>("");
 
   const checkOnboardingStatus = useCallback(async (retryCount = 0) => {
     if (!profile?.userId) {
+      setDebugReason("no_userId");
       setParentLoading?.(false);
       return;
     }
@@ -28,10 +30,12 @@ export function OnboardingGuard({ children, setIsLoading: setParentLoading }: On
       if (res.ok) {
         const data = await res.json();
         const onboarded = data.isOnboarded === true;
+        setDebugReason(onboarded ? `ok_onboarded` : `ok_NOT_onboarded(${data.isOnboarded})`);
         setIsOnboarded(onboarded);
         setShowOnboarding(!onboarded);
         setParentLoading?.(false);
       } else if (res.status === 404) {
+        setDebugReason("404_new_user");
         // New user - needs onboarding
         setIsOnboarded(false);
         setShowOnboarding(true);
@@ -45,6 +49,7 @@ export function OnboardingGuard({ children, setIsLoading: setParentLoading }: On
       
       // Retry up to 3 times with delay
       if (retryCount < 3) {
+        setDebugReason(`retry_${retryCount + 1}`);
         setTimeout(() => {
           checkOnboardingStatus(retryCount + 1);
         }, 1000 * (retryCount + 1)); // 1s, 2s, 3s delay
@@ -52,7 +57,7 @@ export function OnboardingGuard({ children, setIsLoading: setParentLoading }: On
       }
       
       // After 3 retries, assume user is onboarded (don't block existing users)
-      // New users will just see the main page and can register from there
+      setDebugReason(`error_fallback_onboarded: ${String(error).substring(0, 50)}`);
       setIsOnboarded(true);
       setShowOnboarding(false);
       setParentLoading?.(false);
@@ -92,12 +97,18 @@ export function OnboardingGuard({ children, setIsLoading: setParentLoading }: On
   // Show onboarding modal for new users
   if (showOnboarding) {
     return (
-      <OnboardingModal
-        isOpen={true}
-        lineUserId={profile.userId}
-        displayName={profile.displayName}
-        onComplete={handleOnboardingComplete}
-      />
+      <>
+        {/* Debug banner */}
+        <div className="fixed top-0 left-0 right-0 z-[100] bg-red-500 text-white text-xs p-1 text-center">
+          DEBUG: {debugReason} | path={typeof window !== 'undefined' ? window.location.pathname : ''}
+        </div>
+        <OnboardingModal
+          isOpen={true}
+          lineUserId={profile.userId}
+          displayName={profile.displayName}
+          onComplete={handleOnboardingComplete}
+        />
+      </>
     );
   }
 
