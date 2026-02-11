@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Search, Plus, Minus, Sparkles, AlertTriangle } from "lucide-react";
-import { sendMessage, isInClient, closeWindow } from "@/lib/liff";
+import { requestLimitIncrease, isInClient, closeWindow } from "@/lib/liff";
 
 interface ManualEntryModalProps {
   isOpen: boolean;
@@ -386,18 +386,21 @@ export function ManualEntryModal({ isOpen, onClose, onSave, lineUserId }: Manual
                     </p>
                     <button
                       onClick={async () => {
-                        const message = "วิธีเพิ่ม Limit การใช้งาน";
+                        if (!lineUserId) {
+                          alert("ไม่พบข้อมูลผู้ใช้");
+                          return;
+                        }
                         try {
-                          const success = await sendMessage(message);
+                          const success = await requestLimitIncrease(lineUserId);
                           if (success) {
-                            if (isInClient()) {
-                              closeWindow();
-                            } else {
-                              setShowLimitModal(false);
-                            }
+                            alert("ส่งข้อมูลสำเร็จ! กรุณาตรวจสอบข้อความใน LINE Chat");
+                            setShowLimitModal(false);
+                          } else {
+                            alert("ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง");
                           }
                         } catch (error) {
                           console.error("Error:", error);
+                          alert("ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง");
                         }
                       }}
                       className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold shadow-lg mb-3"

@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Camera, RotateCcw, Calculator, Loader2, AlertTriangle } from "lucide-react";
-import { sendMessage, isInClient, closeWindow } from "@/lib/liff";
+import { requestLimitIncrease, isInClient, closeWindow } from "@/lib/liff";
 
 interface CameraModalProps {
   isOpen: boolean;

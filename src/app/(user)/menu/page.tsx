@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLiff } from "@/components/providers/LiffProvider";
-import { closeWindow, sendMessage, isInClient } from "@/lib/liff";
+import { closeWindow, requestLimitIncrease, isInClient } from "@/lib/liff";
 
 interface Restaurant {
   id: string;
@@ -2214,22 +2214,22 @@ export default function MenuPage() {
                   </p>
                   <button
                     onClick={async () => {
-                      const message = "วิธีเพิ่ม Limit การใช้งาน";
+                      if (!profile?.userId) {
+                        alert("ไม่พบข้อมูลผู้ใช้");
+                        return;
+                      }
                       try {
-                        const success = await sendMessage(message);
+                        const success = await requestLimitIncrease(profile.userId);
                         if (success) {
-                          if (isInClient()) {
-                            closeWindow();
-                          } else {
-                            setSelectedPackage(null);
-                            setShowAiResult(false);
-                            setAiLimitReached(false);
-                          }
+                          alert("ส่งข้อมูลสำเร็จ! กรุณาตรวจสอบข้อความใน LINE Chat");
+                          setSelectedPackage(null);
+                          setShowAiResult(false);
+                          setAiLimitReached(false);
                         } else {
                           alert("ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง");
                         }
                       } catch (error) {
-                        console.error("Error sending message:", error);
+                        console.error("Error requesting limit increase:", error);
                         alert("ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง");
                       }
                     }}

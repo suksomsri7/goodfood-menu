@@ -111,30 +111,32 @@ export async function sendMessage(text: string): Promise<boolean> {
       }]);
       return true;
     } catch (error) {
-      console.error("liff.sendMessages failed, using fallback:", error);
-      // Fall through to URL scheme
+      console.error("liff.sendMessages failed:", error);
+      // Fall through to return false
     }
   }
   
-  // Fallback: Use LINE URL scheme to open chat and pre-fill message
+  return false;
+}
+
+// Request limit increase - sends a message FROM the bot TO the user
+export async function requestLimitIncrease(lineUserId: string): Promise<boolean> {
   try {
-    const encodedText = encodeURIComponent(text);
-    // Correct format: https://line.me/R/oaMessage/@OA_ID/?text=message
-    const lineUrl = `https://line.me/R/oaMessage/@goodfood.menu/?text=${encodedText}`;
+    const res = await fetch("/api/request-limit-increase", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lineUserId }),
+    });
     
-    // In LIFF client, use openWindow with external:true to properly open LINE app
-    if (isInitialized && liff.isInClient()) {
-      liff.openWindow({
-        url: lineUrl,
-        external: true
-      });
-    } else {
-      // Outside LIFF, just redirect
-      window.location.href = lineUrl;
+    if (res.ok) {
+      return true;
     }
-    return true;
+    
+    const data = await res.json();
+    console.error("Failed to request limit increase:", data.error);
+    return false;
   } catch (error) {
-    console.error("Failed to open LINE URL:", error);
+    console.error("Error requesting limit increase:", error);
     return false;
   }
 }
