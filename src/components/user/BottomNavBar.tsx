@@ -270,7 +270,7 @@ export function BottomNavBar() {
 
         {/* Center FAB button - positioned above the bar */}
         <motion.button
-          className="absolute left-1/2 -translate-x-1/2 -top-7 w-14 h-14 rounded-full bg-red-500 flex items-center justify-center shadow-lg border-4 border-white"
+          className="absolute left-1/2 -translate-x-1/2 -top-7 w-14 h-14 rounded-full bg-gray-900 flex items-center justify-center shadow-lg border-4 border-white"
           onClick={() => setIsOpen(!isOpen)}
           whileTap={{ scale: 0.95 }}
           animate={{ rotate: isOpen ? 45 : 0 }}
