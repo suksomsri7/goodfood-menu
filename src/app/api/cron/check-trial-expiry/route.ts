@@ -46,12 +46,32 @@ export async function GET(request: Request) {
     }
 
     const now = new Date();
+    
+    // Calculate threshold for Thailand timezone
+    // If admin sets expiry to "Feb 12", stored as "2026-02-12T00:00:00Z" (UTC midnight)
+    // We want to consider it expired when it's Feb 12 in Thailand (00:00 Thailand = 17:00 UTC Feb 11)
+    // So threshold should be: end of today Thailand = start of tomorrow Thailand in UTC
+    const todayThailand = new Date(now.getTime() + (7 * 60 * 60 * 1000)); // Current time in Thailand
+    const tomorrowThailand = new Date(Date.UTC(
+      todayThailand.getUTCFullYear(),
+      todayThailand.getUTCMonth(),
+      todayThailand.getUTCDate() + 1, // Tomorrow
+      0, 0, 0, 0
+    ));
+    // Convert start of tomorrow Thailand to UTC (subtract 7 hours)
+    const thresholdDate = new Date(tomorrowThailand.getTime() - (7 * 60 * 60 * 1000));
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'check-trial-expiry/route.ts:date-calc',message:'Date calculation for Thailand timezone',data:{now:now.toISOString(),todayThailandDate:`${todayThailand.getUTCFullYear()}-${todayThailand.getUTCMonth()+1}-${todayThailand.getUTCDate()}`,thresholdDate:thresholdDate.toISOString()},timestamp:Date.now(),hypothesisId:'timezone-fix'})}).catch(()=>{});
+    // #endregion
 
     // Find members whose AI Coach has expired
+    // Expiry date stored as UTC midnight, threshold is end of today Thailand
+    // Example: expiry "Feb 12 00:00 UTC" < threshold "Feb 12 17:00 UTC" = TRUE (expired)
     const expiredMembers = await prisma.member.findMany({
       where: {
         aiCoachExpireDate: {
-          lte: now,
+          lt: thresholdDate, // Expire date is before end of today Thailand
         },
         memberTypeId: {
           not: settings.generalMemberTypeId,

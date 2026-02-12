@@ -27,6 +27,17 @@ export async function GET(request: Request) {
     });
 
     const now = new Date();
+    
+    // Calculate threshold for Thailand timezone (same logic as cron job)
+    const todayThailand = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+    const tomorrowThailand = new Date(Date.UTC(
+      todayThailand.getUTCFullYear(),
+      todayThailand.getUTCMonth(),
+      todayThailand.getUTCDate() + 1,
+      0, 0, 0, 0
+    ));
+    const thresholdDate = new Date(tomorrowThailand.getTime() - (7 * 60 * 60 * 1000));
+    const todayThailandStr = `${todayThailand.getUTCFullYear()}-${String(todayThailand.getUTCMonth()+1).padStart(2,'0')}-${String(todayThailand.getUTCDate()).padStart(2,'0')}`;
 
     if (action === "check-member" && lineUserId) {
       // Check specific member
@@ -50,7 +61,7 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: "Member not found" }, { status: 404 });
       }
 
-      const isExpired = member.aiCoachExpireDate ? member.aiCoachExpireDate <= now : false;
+      const isExpired = member.aiCoachExpireDate ? member.aiCoachExpireDate < thresholdDate : false;
       const isAlreadyGeneral = member.memberTypeId === settings?.generalMemberTypeId;
       const wouldBeUpdated = isExpired && !isAlreadyGeneral && settings?.generalMemberTypeId;
 
@@ -74,11 +85,11 @@ export async function GET(request: Request) {
     }
 
     if (action === "list-expired") {
-      // Find all expired members
+      // Find all expired members (using Thailand timezone threshold)
       const expiredMembers = await prisma.member.findMany({
         where: {
           aiCoachExpireDate: {
-            lte: now,
+            lt: thresholdDate,
           },
         },
         select: {
@@ -138,7 +149,7 @@ export async function GET(request: Request) {
 
       const expiredMembers = await prisma.member.findMany({
         where: {
-          aiCoachExpireDate: { lte: now },
+          aiCoachExpireDate: { lt: thresholdDate },
           memberTypeId: { not: settings.generalMemberTypeId },
         },
         select: {
@@ -212,7 +223,7 @@ export async function GET(request: Request) {
           currentType: m.memberType?.name,
           currentTypeId: m.memberTypeId,
           aiCoachExpireDate: m.aiCoachExpireDate,
-          isExpired: m.aiCoachExpireDate! <= now,
+          isExpired: m.aiCoachExpireDate! < thresholdDate,
           daysUntilExpire: Math.ceil((m.aiCoachExpireDate!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
         })),
         total: membersWithExpire.length,
@@ -237,6 +248,9 @@ export async function GET(request: Request) {
       })),
       cronSchedule: "1 17 * * * (UTC) = 00:01 Thailand Time daily",
       now: now.toISOString(),
+      todayThailand: todayThailandStr,
+      thresholdDate: thresholdDate.toISOString(),
+      explanation: "สมาชิกที่มี aiCoachExpireDate < thresholdDate จะถือว่าหมดอายุ (เทียบตามวันที่ไทย)",
       availableActions: [
         "?action=list-expired - แสดงสมาชิกที่หมดอายุแล้ว",
         "?action=list-with-expire - แสดงสมาชิกที่มีวันหมดอายุ",
