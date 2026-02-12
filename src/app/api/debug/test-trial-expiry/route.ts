@@ -130,6 +130,61 @@ export async function GET(request: Request) {
       });
     }
 
+    if (action === "trigger-update") {
+      // Manually trigger the update for expired members
+      if (!settings?.generalMemberTypeId) {
+        return NextResponse.json({ error: "generalMemberTypeId not configured" }, { status: 400 });
+      }
+
+      const expiredMembers = await prisma.member.findMany({
+        where: {
+          aiCoachExpireDate: { lte: now },
+          memberTypeId: { not: settings.generalMemberTypeId },
+        },
+        select: {
+          id: true,
+          displayName: true,
+          memberTypeId: true,
+          aiCoachExpireDate: true,
+          memberType: { select: { name: true } },
+        },
+      });
+
+      if (expiredMembers.length === 0) {
+        return NextResponse.json({ message: "No expired members to update", updated: 0 });
+      }
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'test-trial-expiry/route.ts:trigger',message:'Manual trigger - updating members',data:{count:expiredMembers.length,targetTypeId:settings.generalMemberTypeId},timestamp:Date.now(),hypothesisId:'manual-trigger'})}).catch(()=>{});
+      // #endregion
+
+      const updatePromises = expiredMembers.map(async (member) => {
+        return prisma.member.update({
+          where: { id: member.id },
+          data: {
+            memberTypeId: settings.generalMemberTypeId,
+            aiCoachExpireDate: null,
+          },
+        });
+      });
+
+      await Promise.all(updatePromises);
+
+      const generalType = memberTypes.find(t => t.id === settings.generalMemberTypeId);
+
+      return NextResponse.json({
+        success: true,
+        message: `Updated ${expiredMembers.length} members to "${generalType?.name}"`,
+        updated: expiredMembers.map(m => ({
+          id: m.id,
+          displayName: m.displayName,
+          previousType: m.memberType?.name,
+          previousExpireDate: m.aiCoachExpireDate,
+          newType: generalType?.name,
+        })),
+      });
+    }
+
     if (action === "list-with-expire") {
       // Find all members with aiCoachExpireDate set
       const membersWithExpire = await prisma.member.findMany({
@@ -186,6 +241,7 @@ export async function GET(request: Request) {
         "?action=list-expired - แสดงสมาชิกที่หมดอายุแล้ว",
         "?action=list-with-expire - แสดงสมาชิกที่มีวันหมดอายุ",
         "?action=check-member&lineUserId=xxx - ตรวจสอบสมาชิกเฉพาะคน",
+        "?action=trigger-update - ⚡ เปลี่ยน Card สมาชิกที่หมดอายุทันที (Manual Trigger)",
       ],
       troubleshooting: {
         step1: "ตรวจสอบว่า generalMemberTypeId มีค่าหรือไม่ (ถ้าเป็น NOT CONFIGURED จะไม่ทำงาน)",
