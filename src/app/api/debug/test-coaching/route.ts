@@ -2,6 +2,18 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { isAiCoachActive, shouldSendNotification } from "@/lib/coaching";
 
+// Calculate expiry threshold for Thailand timezone (same logic as coaching cron)
+function getExpiryThreshold(now: Date): Date {
+  const todayThailand = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+  const startOfTodayThailand = new Date(Date.UTC(
+    todayThailand.getUTCFullYear(),
+    todayThailand.getUTCMonth(),
+    todayThailand.getUTCDate(),
+    0, 0, 0, 0
+  ));
+  return new Date(startOfTodayThailand.getTime() - (7 * 60 * 60 * 1000));
+}
+
 // Debug endpoint to test coaching notification system
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -12,6 +24,7 @@ export async function GET(request: Request) {
     const now = new Date();
     const thaiTime = new Date(now.getTime() + 7 * 60 * 60 * 1000);
     const currentThaiTime = thaiTime.toISOString().slice(11, 16);
+    const expiryThreshold = getExpiryThreshold(now);
 
     if (action === "check-member" && lineUserId) {
       // Check specific member's coaching eligibility
@@ -25,6 +38,10 @@ export async function GET(request: Request) {
       }
 
       // Check all conditions
+      const isUnlimited = member.memberType?.courseDuration === 0;
+      const isExpiredCheck = !isUnlimited && 
+        (!member.aiCoachExpireDate || member.aiCoachExpireDate < expiryThreshold);
+      
       const checks = {
         isActive: member.isActive,
         activityStatus: member.activityStatus,
@@ -33,9 +50,13 @@ export async function GET(request: Request) {
         memberTypeName: member.memberType?.name,
         memberTypeIsActive: member.memberType?.isActive,
         courseDuration: member.memberType?.courseDuration,
-        isUnlimited: member.memberType?.courseDuration === 0,
+        isUnlimited,
         aiCoachExpireDate: member.aiCoachExpireDate,
-        isExpired: member.aiCoachExpireDate ? member.aiCoachExpireDate < now : "No expire date",
+        expiryThreshold: expiryThreshold.toISOString(),
+        isExpired: isExpiredCheck,
+        expiryExplanation: member.aiCoachExpireDate 
+          ? `${member.aiCoachExpireDate.toISOString()} >= ${expiryThreshold.toISOString()} = ${member.aiCoachExpireDate >= expiryThreshold ? "ACTIVE ✅" : "EXPIRED ❌"}`
+          : "No expire date set",
         morningCoachTime: member.memberType?.morningCoachTime,
         notifyMorningCoach: member.notifyMorningCoach,
         notificationsPausedUntil: member.notificationsPausedUntil,
@@ -71,7 +92,7 @@ export async function GET(request: Request) {
       if (member.memberType && !member.memberType.isActive) reasons.push("❌ memberType.isActive = false");
       if (member.memberType && member.memberType.courseDuration !== 0) {
         if (!member.aiCoachExpireDate) reasons.push("❌ aiCoachExpireDate not set (required for non-unlimited)");
-        else if (member.aiCoachExpireDate < now) reasons.push(`❌ AI Coach expired: ${member.aiCoachExpireDate.toISOString()}`);
+        else if (member.aiCoachExpireDate < expiryThreshold) reasons.push(`❌ AI Coach expired: ${member.aiCoachExpireDate.toISOString()} < threshold ${expiryThreshold.toISOString()}`);
       }
       if (!member.notifyMorningCoach) reasons.push("❌ notifyMorningCoach = false");
       if (checks.isPaused) reasons.push(`❌ Notifications paused until ${member.notificationsPausedUntil}`);

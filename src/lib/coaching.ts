@@ -87,6 +87,23 @@ export interface MemberContext {
   lastActiveAt: Date | null;
 }
 
+// Calculate expiry threshold using Thailand timezone
+// If expiry is "Feb 12", member should be active throughout Feb 12 (Thailand time)
+// Threshold = start of today Thailand in UTC
+// Example: Feb 12 Thailand starts at Feb 11 17:00 UTC
+function getExpiryThreshold(): Date {
+  const now = new Date();
+  const todayThailand = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+  const startOfTodayThailand = new Date(Date.UTC(
+    todayThailand.getUTCFullYear(),
+    todayThailand.getUTCMonth(),
+    todayThailand.getUTCDate(),
+    0, 0, 0, 0
+  ));
+  // Convert to UTC by subtracting 7 hours
+  return new Date(startOfTodayThailand.getTime() - (7 * 60 * 60 * 1000));
+}
+
 // Check if AI Coach is active for member
 export function isAiCoachActive(member: { 
   memberType: { courseDuration: number; isActive: boolean } | null; 
@@ -100,9 +117,11 @@ export function isAiCoachActive(member: {
   // Unlimited (courseDuration = 0)
   if (member.memberType.courseDuration === 0) return true;
   
-  // Check expire date
+  // Check expire date using Thailand timezone
+  // Expiry date "Feb 12" means member is active throughout Feb 12 (Thailand time)
   if (!member.aiCoachExpireDate) return false;
-  return member.aiCoachExpireDate > new Date();
+  const expiryThreshold = getExpiryThreshold();
+  return member.aiCoachExpireDate >= expiryThreshold;
 }
 
 // Check if member should receive notification

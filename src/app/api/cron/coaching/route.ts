@@ -78,7 +78,21 @@ export async function GET(request: NextRequest) {
 
   try {
     const currentTime = getCurrentThaiTime();
+    const now = new Date();
     console.log(`[Coaching Cron] Current Thai time: ${currentTime}`);
+
+    // Calculate expiry threshold using Thailand timezone
+    // If expiry is "Feb 12", member should receive messages throughout Feb 12 (Thailand time)
+    // Threshold = start of today Thailand in UTC
+    // Example: Feb 12 Thailand starts at Feb 11 17:00 UTC
+    const todayThailand = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+    const startOfTodayThailand = new Date(Date.UTC(
+      todayThailand.getUTCFullYear(),
+      todayThailand.getUTCMonth(),
+      todayThailand.getUTCDate(),
+      0, 0, 0, 0
+    ));
+    const expiryThreshold = new Date(startOfTodayThailand.getTime() - (7 * 60 * 60 * 1000));
 
     // Get all active members with AI Coach configured
     // Skip members who are "inactive" (haven't used app recently)
@@ -109,9 +123,11 @@ export async function GET(request: NextRequest) {
             continue; // AI Coach disabled for this type
           }
           
+          // Check expiry using Thailand timezone
+          // If expiry date is today or later (Thailand), member can still receive messages
           const isUnlimited = member.memberType.courseDuration === 0;
           const isExpired = !isUnlimited && 
-            (!member.aiCoachExpireDate || member.aiCoachExpireDate < new Date());
+            (!member.aiCoachExpireDate || member.aiCoachExpireDate < expiryThreshold);
           
           if (isExpired) {
             skipped++;
