@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Leaf } from "lucide-react";
+import { Menu, X, UtensilsCrossed } from "lucide-react";
 import Link from "next/link";
 
 interface NavLink {
@@ -69,10 +69,10 @@ export function Navbar() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5">
             <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
-              <Leaf className="w-4 h-4 text-white" />
+              <UtensilsCrossed className="w-4 h-4 text-white" />
             </div>
-            <span className="text-lg font-semibold text-gray-900">
-              Good Food
+            <span className="text-lg font-bold text-gray-900 tracking-wide">
+              GOOD <span className="text-red-500">FOOD</span>
             </span>
           </Link>
 
