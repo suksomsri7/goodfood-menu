@@ -216,6 +216,39 @@ export async function GET(request: Request) {
       });
     }
 
+    if (action === "check-member-types") {
+      // Check all member types configuration
+      const memberTypes = await prisma.memberType.findMany({
+        select: {
+          id: true,
+          name: true,
+          isActive: true,
+          courseDuration: true,
+          morningCoachTime: true,
+          lunchReminderTime: true,
+          dinnerReminderTime: true,
+          eveningSummaryTime: true,
+          _count: { select: { members: true } },
+        },
+      });
+
+      return NextResponse.json({
+        memberTypes: memberTypes.map(mt => ({
+          id: mt.id,
+          name: mt.name,
+          isActive: mt.isActive,
+          courseDuration: mt.courseDuration,
+          isUnlimited: mt.courseDuration === 0,
+          note: mt.courseDuration === 0 
+            ? "✅ Unlimited - ไม่ต้องมี aiCoachExpireDate" 
+            : `⚠️ ${mt.courseDuration} วัน - ต้องมี aiCoachExpireDate`,
+          morningCoachTime: mt.morningCoachTime,
+          memberCount: mt._count.members,
+        })),
+        explanation: "ถ้า courseDuration > 0 สมาชิกต้องมี aiCoachExpireDate ที่ยังไม่หมดอายุถึงจะได้รับข้อความ",
+      });
+    }
+
     // Default: show system info
     return NextResponse.json({
       currentThaiTime,
@@ -229,6 +262,7 @@ export async function GET(request: Request) {
         "?action=check-member&lineUserId=xxx - ตรวจสอบสมาชิกเฉพาะคน",
         "?action=list-eligible - แสดงรายชื่อสมาชิกที่มีสิทธิ์รับข้อความ",
         "?action=simulate-morning - จำลองว่า cron morning จะส่งให้ใครบ้าง",
+        "?action=check-member-types - ตรวจสอบการตั้งค่า Member Types ทั้งหมด",
       ],
     });
   } catch (error) {
