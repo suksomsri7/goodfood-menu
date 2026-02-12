@@ -65,7 +65,7 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   confirmed: { label: "รอชำระเงิน", color: "text-blue-600 bg-blue-50" },
   preparing: { label: "ชำระเงินแล้ว", color: "text-purple-600 bg-purple-50" },
   shipping: { label: "กำลังจัดส่ง", color: "text-blue-600 bg-blue-50" },
-  completed: { label: "จัดส่งแล้ว", color: "text-green-600 bg-green-50" },
+  completed: { label: "จัดส่งแล้ว", color: "text-red-600 bg-red-50" },
   cancelled: { label: "ยกเลิก", color: "text-red-600 bg-red-50" },
 };
 
@@ -134,7 +134,7 @@ export default function QuotationPage({ params }: { params: Promise<{ id: string
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-green-200 border-t-green-500 rounded-full animate-spin mx-auto" />
+          <div className="w-12 h-12 border-4 border-red-200 border-t-red-500 rounded-full animate-spin mx-auto" />
           <p className="text-gray-500 mt-4">กำลังโหลด...</p>
         </div>
       </div>
@@ -155,15 +155,15 @@ export default function QuotationPage({ params }: { params: Promise<{ id: string
   const finalAmount = order.finalPrice ?? (order.totalPrice + order.deliveryFee - order.discount);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-red-50 to-white">
       {/* Header */}
-      <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white py-8 px-4">
+      <div className="bg-gradient-to-r from-red-600 to-rose-600 text-white py-8 px-4">
         <div className="max-w-2xl mx-auto text-center">
           <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
             <FileText className="w-8 h-8" />
           </div>
           <h1 className="text-2xl font-bold">ใบเสนอราคา</h1>
-          <p className="text-green-100 mt-1">เลขที่ {order.orderNumber}</p>
+          <p className="text-red-100 mt-1">เลขที่ {order.orderNumber}</p>
           <div className={`inline-block mt-3 px-4 py-1.5 rounded-full text-sm font-medium ${statusLabels[order.status]?.color || "bg-gray-100 text-gray-600"}`}>
             {statusLabels[order.status]?.label || order.status}
           </div>
@@ -226,7 +226,7 @@ export default function QuotationPage({ params }: { params: Promise<{ id: string
           {order.coursePlan && (
             <div className="p-4 border-b border-gray-100">
               <div className="flex items-center gap-2">
-                <Package className="w-4 h-4 text-green-600" />
+                <Package className="w-4 h-4 text-red-600" />
                 <span className="font-medium text-gray-800">
                   {planLabels[order.coursePlan] || order.coursePlan}
                 </span>
@@ -245,7 +245,7 @@ export default function QuotationPage({ params }: { params: Promise<{ id: string
               .map(([day, items]) => (
                 <div key={day} className="mb-4">
                   {order.totalDays && order.totalDays > 1 && (
-                    <p className="text-sm font-medium text-green-600 mb-2">วันที่ {day}</p>
+                    <p className="text-sm font-medium text-red-600 mb-2">วันที่ {day}</p>
                   )}
                   <div className="space-y-2">
                     {items.map((item) => (
@@ -276,14 +276,14 @@ export default function QuotationPage({ params }: { params: Promise<{ id: string
                 <span>฿{order.deliveryFee.toLocaleString()}</span>
               </div>
               {order.discount > 0 && (
-                <div className="flex justify-between text-green-600">
+                <div className="flex justify-between text-red-600">
                   <span>ส่วนลด</span>
                   <span>-฿{order.discount.toLocaleString()}</span>
                 </div>
               )}
               <div className="flex justify-between text-xl font-bold text-gray-800 pt-2 border-t border-gray-200">
                 <span>ยอดที่ต้องชำระ</span>
-                <span className="text-green-600">฿{finalAmount.toLocaleString()}</span>
+                <span className="text-red-600">฿{finalAmount.toLocaleString()}</span>
               </div>
             </div>
           </div>
@@ -336,7 +336,7 @@ export default function QuotationPage({ params }: { params: Promise<{ id: string
                       <button
                         onClick={copyAccountNumber}
                         className={`p-2 rounded-lg transition-colors ${
-                          copied ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                          copied ? "bg-red-100 text-red-600" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
                         }`}
                       >
                         {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
@@ -347,9 +347,9 @@ export default function QuotationPage({ params }: { params: Promise<{ id: string
               </div>
 
               {/* Amount to Pay */}
-              <div className="mt-4 p-4 bg-green-50 rounded-xl border border-green-200">
-                <p className="text-sm text-green-700 mb-1">ยอดที่ต้องโอน</p>
-                <p className="text-3xl font-bold text-green-600">฿{finalAmount.toLocaleString()}</p>
+              <div className="mt-4 p-4 bg-red-50 rounded-xl border border-red-200">
+                <p className="text-sm text-red-700 mb-1">ยอดที่ต้องโอน</p>
+                <p className="text-3xl font-bold text-red-600">฿{finalAmount.toLocaleString()}</p>
               </div>
 
               {/* Note */}
@@ -362,12 +362,12 @@ export default function QuotationPage({ params }: { params: Promise<{ id: string
 
         {/* Already Paid */}
         {(order.status === "preparing" || order.status === "shipping" || order.status === "completed") && (
-          <div className="bg-green-50 rounded-2xl p-6 text-center border border-green-200">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Check className="w-8 h-8 text-green-600" />
+          <div className="bg-red-50 rounded-2xl p-6 text-center border border-red-200">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Check className="w-8 h-8 text-red-600" />
             </div>
-            <h3 className="font-bold text-green-800 text-lg">ชำระเงินเรียบร้อยแล้ว</h3>
-            <p className="text-green-600 mt-1">ขอบคุณที่ใช้บริการ</p>
+            <h3 className="font-bold text-red-800 text-lg">ชำระเงินเรียบร้อยแล้ว</h3>
+            <p className="text-red-600 mt-1">ขอบคุณที่ใช้บริการ</p>
           </div>
         )}
 

@@ -42,8 +42,8 @@ const sections: TipSection[] = [
     id: "start",
     icon: <Sparkles className="w-5 h-5" />,
     title: "เริ่มต้นใช้งาน",
-    color: "text-green-600",
-    bgColor: "bg-green-50",
+    color: "text-red-600",
+    bgColor: "bg-red-50",
     steps: [
       {
         title: "เมนูหลัก 3 ปุ่ม",
@@ -52,8 +52,8 @@ const sections: TipSection[] = [
         visual: (
           <div className="flex items-center justify-center gap-6 py-3">
             <div className="flex flex-col items-center gap-1">
-              <div className="w-11 h-11 rounded-xl bg-green-100 flex items-center justify-center">
-                <PieChart className="w-5 h-5 text-green-600" />
+              <div className="w-11 h-11 rounded-xl bg-red-100 flex items-center justify-center">
+                <PieChart className="w-5 h-5 text-red-600" />
               </div>
               <span className="text-[10px] text-gray-500">แคลอรี่</span>
             </div>
@@ -81,7 +81,7 @@ const sections: TipSection[] = [
             {[
               { icon: Camera, label: "ถ่ายรูปอาหาร", desc: "AI วิเคราะห์จากภาพ", color: "text-blue-500", bg: "bg-blue-50" },
               { icon: Barcode, label: "สแกนบาร์โค้ด", desc: "ดึงข้อมูลอัตโนมัติ", color: "text-purple-500", bg: "bg-purple-50" },
-              { icon: Package, label: "คลังอาหาร", desc: "เลือกจากที่สั่งไว้", color: "text-green-500", bg: "bg-green-50" },
+              { icon: Package, label: "คลังอาหาร", desc: "เลือกจากที่สั่งไว้", color: "text-red-500", bg: "bg-red-50" },
               { icon: PenLine, label: "กรอกเอง", desc: "ใส่ข้อมูลด้วยตนเอง", color: "text-orange-500", bg: "bg-orange-50" },
               { icon: Dumbbell, label: "ออกกำลังกาย", desc: "บันทึกแคลอรี่เผาผลาญ", color: "text-red-500", bg: "bg-red-50" },
             ].map((item) => (
@@ -138,7 +138,7 @@ const sections: TipSection[] = [
               { label: "ไขมัน", pct: 40, color: "bg-blue-400" },
               { label: "โซเดียม", pct: 25, color: "bg-purple-400" },
               { label: "น้ำตาล", pct: 48, color: "bg-pink-400" },
-              { label: "เผาผลาญ", pct: 35, color: "bg-emerald-400" },
+              { label: "เผาผลาญ", pct: 35, color: "bg-rose-400" },
             ].map((m) => (
               <div key={m.label} className="bg-gray-50 rounded-lg px-2 py-1.5">
                 <div className="text-[9px] text-gray-400 truncate">{m.label}</div>
@@ -180,7 +180,7 @@ const sections: TipSection[] = [
           <div className="grid grid-cols-2 gap-1.5">
             {["🍱", "🥗", "🍜", "🍣"].map((emoji, i) => (
               <div key={i} className="bg-gray-50 rounded-xl overflow-hidden">
-                <div className="aspect-[5/3] bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center">
+                <div className="aspect-[5/3] bg-gradient-to-br from-red-100 to-red-200 flex items-center justify-center">
                   <span className="text-xl">{emoji}</span>
                 </div>
                 <div className="px-2 py-1">
@@ -206,7 +206,7 @@ const sections: TipSection[] = [
               <span className="text-gray-500">อกไก่ย่างสมุนไพร x2</span>
               <span className="font-medium text-gray-700">฿318</span>
             </div>
-            <div className="bg-green-500 rounded-lg px-3 py-2 flex items-center justify-between text-white text-xs">
+            <div className="bg-red-500 rounded-lg px-3 py-2 flex items-center justify-between text-white text-xs">
               <div className="flex items-center gap-1.5">
                 <ShoppingCart className="w-3.5 h-3.5" />
                 <span>3 รายการ</span>
@@ -253,8 +253,8 @@ const sections: TipSection[] = [
     id: "goal",
     icon: <Target className="w-5 h-5" />,
     title: "ตั้งเป้าหมาย",
-    color: "text-emerald-600",
-    bgColor: "bg-emerald-50",
+    color: "text-rose-600",
+    bgColor: "bg-rose-50",
     steps: [
       {
         title: "กำหนดเป้าหมายสุขภาพ",

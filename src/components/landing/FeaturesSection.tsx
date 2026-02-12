@@ -56,8 +56,8 @@ const features = [
     title: "ติดตามความก้าวหน้า",
     description:
       "กราฟ สถิติ และรายงานรายสัปดาห์ เห็นพัฒนาการชัดเจน ทั้งน้ำหนัก แคลอรี่ และการออกกำลังกาย",
-    color: "bg-emerald-50",
-    iconColor: "text-emerald-600",
+    color: "bg-rose-50",
+    iconColor: "text-rose-600",
   },
 ];
 

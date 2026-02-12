@@ -503,7 +503,7 @@ export function OnboardingModal({
                     {/* Macro Bar */}
                     <div className="flex h-3 rounded-full overflow-hidden mt-3">
                       <div
-                        className="bg-green-500"
+                        className="bg-red-500"
                         style={{ width: `${(healthProfile.macros.carbs * 4) / healthProfile.dailyCalories * 100}%` }}
                       />
                       <div
@@ -560,7 +560,7 @@ export function OnboardingModal({
                 </div>
 
                 {/* Summary Card */}
-                <div className="bg-gradient-to-br from-primary-500 to-green-500 rounded-2xl p-5 text-white">
+                <div className="bg-gradient-to-br from-primary-500 to-red-500 rounded-2xl p-5 text-white">
                   <h3 className="font-semibold text-lg mb-4">
                     🎯 เป้าหมายของ {formData.name}
                   </h3>
@@ -787,12 +787,12 @@ function MacroBox({
   color: "green" | "blue" | "yellow";
 }) {
   const bgColors = {
-    green: "bg-green-50",
+    green: "bg-red-50",
     blue: "bg-blue-50",
     yellow: "bg-yellow-50",
   };
   const textColors = {
-    green: "text-green-700",
+    green: "text-red-700",
     blue: "text-blue-700",
     yellow: "text-yellow-700",
   };

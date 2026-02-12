@@ -1,16 +1,16 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-primary-50: #E8F5E9;
-  --color-primary-100: #C8E6C9;
-  --color-primary-200: #A5D6A7;
-  --color-primary-300: #81C784;
-  --color-primary-400: #66BB6A;
-  --color-primary-500: #4CAF50;
-  --color-primary-600: #43A047;
-  --color-primary-700: #388E3C;
-  --color-primary-800: #2E7D32;
-  --color-primary-900: #1B5E20;
+  --color-primary-50: #FEF2F2;
+  --color-primary-100: #FEE2E2;
+  --color-primary-200: #FECACA;
+  --color-primary-300: #FCA5A5;
+  --color-primary-400: #F87171;
+  --color-primary-500: #EF4444;
+  --color-primary-600: #DC2626;
+  --color-primary-700: #B91C1C;
+  --color-primary-800: #991B1B;
+  --color-primary-900: #7F1D1D;
   
   --color-accent-red: #EF5350;
   --color-accent-blue: #42A5F5;
@@ -68,14 +68,14 @@ body {
 
 /* Focus States for Accessibility */
 *:focus-visible {
-  outline: 2px solid #4CAF50;
+  outline: 2px solid #EF4444;
   outline-offset: 2px;
 }
 
 /* Selection */
 ::selection {
-  background: #C8E6C9;
-  color: #1B5E20;
+  background: #FEE2E2;
+  color: #7F1D1D;
 }
 
 /* Animations */
@@ -219,13 +219,13 @@ body {
 }
 
 .article-content a {
-  color: #4CAF50;
+  color: #EF4444;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
 .article-content a:hover {
-  color: #388E3C;
+  color: #B91C1C;
 }
 
 .article-content strong {
@@ -254,7 +254,7 @@ body {
 }
 
 .article-content blockquote {
-  border-left: 3px solid #E8F5E9;
+  border-left: 3px solid #FEF2F2;
   padding-left: 1.25rem;
   margin: 1.5rem 0;
   color: #6B7280;

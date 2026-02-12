@@ -376,7 +376,7 @@ export function ExerciseModal({ isOpen, onClose, onSave, lineUserId }: ExerciseM
             onClick={() => setMode("select")}
             className={`flex-1 py-3 text-xs font-medium transition-colors ${
               mode === "select" 
-                ? "text-green-600 border-b-2 border-green-500" 
+                ? "text-red-600 border-b-2 border-red-500" 
                 : "text-gray-500 hover:text-gray-700"
             }`}
           >
@@ -439,7 +439,7 @@ export function ExerciseModal({ isOpen, onClose, onSave, lineUserId }: ExerciseM
                           <button
                             key={exercise}
                             className={`w-full px-4 py-2.5 text-left hover:bg-gray-50 transition-colors ${
-                              selectedExercise === exercise ? "bg-green-50 text-green-600" : "text-gray-700"
+                              selectedExercise === exercise ? "bg-red-50 text-red-600" : "text-gray-700"
                             }`}
                             onClick={() => {
                               setSelectedExercise(exercise);
@@ -467,7 +467,7 @@ export function ExerciseModal({ isOpen, onClose, onSave, lineUserId }: ExerciseM
                       setSelectedExercise("");
                     }}
                     placeholder="หรือพิมพ์ชื่อการออกกำลังกาย..."
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent"
                   />
                 </div>
               </div>
@@ -486,7 +486,7 @@ export function ExerciseModal({ isOpen, onClose, onSave, lineUserId }: ExerciseM
                     step="5"
                     value={duration}
                     onChange={(e) => setDuration(parseInt(e.target.value))}
-                    className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-500"
+                    className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-red-500"
                   />
                   <input
                     type="number"
@@ -769,7 +769,7 @@ export function ExerciseModal({ isOpen, onClose, onSave, lineUserId }: ExerciseM
                 ? "bg-orange-500 hover:bg-orange-600 text-white"
                 : mode === "custom"
                 ? "bg-blue-500 hover:bg-blue-600 text-white"
-                : "bg-green-500 hover:bg-green-600 text-white"
+                : "bg-red-500 hover:bg-red-600 text-white"
             }`}
           >
             {isSubmitting ? "กำลังบันทึก..." : "บันทึก"}

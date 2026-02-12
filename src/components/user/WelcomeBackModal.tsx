@@ -38,7 +38,7 @@ export function WelcomeBackModal({
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header with gradient */}
-          <div className="relative bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 px-6 pt-8 pb-12 text-center">
+          <div className="relative bg-gradient-to-br from-rose-500 via-teal-500 to-cyan-500 px-6 pt-8 pb-12 text-center">
             {/* Close button */}
             <button
               onClick={onSkip}
@@ -88,7 +88,7 @@ export function WelcomeBackModal({
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={onSetNewGoal}
-                className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-2xl font-semibold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 transition-all"
+                className="w-full py-4 bg-gradient-to-r from-rose-500 to-teal-500 hover:from-rose-600 hover:to-teal-600 text-white rounded-2xl font-semibold flex items-center justify-center gap-2 shadow-lg shadow-rose-500/30 transition-all"
               >
                 <Target className="w-5 h-5" />
                 ตั้งเป้าหมายใหม่

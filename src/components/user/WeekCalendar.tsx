@@ -26,7 +26,7 @@ export function WeekCalendar({ selectedDate, onSelectDate }: WeekCalendarProps) 
         <div className="flex-1" />
         <button
           onClick={() => setShowFullCalendar(!showFullCalendar)}
-          className="w-10 h-10 rounded-2xl bg-[#E8F5E9] flex items-center justify-center"
+          className="w-10 h-10 rounded-2xl bg-[#FEF2F2] flex items-center justify-center"
         >
           <Calendar className="w-5 h-5 text-[#5C6B5C]" />
         </button>
@@ -43,8 +43,8 @@ export function WeekCalendar({ selectedDate, onSelectDate }: WeekCalendarProps) 
               className={cn(
                 "flex flex-col items-center py-3 px-1.5 rounded-2xl flex-1 min-w-[40px]",
                 isSelected
-                  ? "bg-[#4CAF50] text-white"
-                  : "bg-[#E8F5E9] text-gray-700"
+                  ? "bg-[#EF4444] text-white"
+                  : "bg-[#FEF2F2] text-gray-700"
               )}
               whileTap={{ scale: 0.95 }}
             >

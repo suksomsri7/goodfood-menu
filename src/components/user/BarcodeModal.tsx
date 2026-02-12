@@ -432,14 +432,14 @@ export function BarcodeModal({ isOpen, onClose, onSave, lineUserId }: BarcodeMod
               {/* Scan overlay */}
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="w-72 h-48 border-2 border-white rounded-2xl relative">
-                  <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-green-400 rounded-tl-xl" />
-                  <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-green-400 rounded-tr-xl" />
-                  <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-green-400 rounded-bl-xl" />
-                  <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-green-400 rounded-br-xl" />
+                  <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-red-400 rounded-tl-xl" />
+                  <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-red-400 rounded-tr-xl" />
+                  <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-red-400 rounded-bl-xl" />
+                  <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-red-400 rounded-br-xl" />
                   
                   {/* Scanning line animation */}
                   {isScanning && (
-                    <div className="absolute inset-x-2 h-0.5 bg-green-400 animate-pulse" 
+                    <div className="absolute inset-x-2 h-0.5 bg-red-400 animate-pulse" 
                          style={{ 
                            top: '50%',
                            boxShadow: '0 0 8px 2px rgba(74, 222, 128, 0.6)'
@@ -454,7 +454,7 @@ export function BarcodeModal({ isOpen, onClose, onSave, lineUserId }: BarcodeMod
                 <div className="bg-black/60 px-4 py-2 rounded-full flex items-center gap-2">
                   {isScanning ? (
                     <>
-                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                      <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse" />
                       <span className="text-white text-sm">กำลัง Scan...</span>
                     </>
                   ) : (
@@ -512,8 +512,8 @@ export function BarcodeModal({ isOpen, onClose, onSave, lineUserId }: BarcodeMod
             {/* Product info */}
             <div className="flex-1 p-6 overflow-y-auto">
               <div className="text-center mb-4">
-                <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                  <Check className="w-7 h-7 text-green-500" />
+                <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <Check className="w-7 h-7 text-red-500" />
                 </div>
                 <input
                   type="text"
@@ -933,29 +933,29 @@ export function BarcodeModal({ isOpen, onClose, onSave, lineUserId }: BarcodeMod
                 </div>
 
                 {/* Quantity - How many servings did you eat */}
-                <div className="bg-green-50 rounded-xl p-4">
-                  <p className="text-sm font-medium text-green-800 text-center mb-1">
+                <div className="bg-red-50 rounded-xl p-4">
+                  <p className="text-sm font-medium text-red-800 text-center mb-1">
                     🍴 จำนวน Serving ที่รับประทาน
                   </p>
-                  <p className="text-xs text-green-600 text-center mb-3">
+                  <p className="text-xs text-red-600 text-center mb-3">
                     (1 Serving = {formData.servingSize || 100}{formData.servingUnit || "g"})
                   </p>
                   <div className="flex items-center justify-center gap-6">
                     <button
                       onClick={() => setQuantity(Math.max(0.5, quantity - 0.5))}
-                      className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center border border-green-200"
+                      className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center border border-red-200"
                     >
-                      <Minus className="w-5 h-5 text-green-600" />
+                      <Minus className="w-5 h-5 text-red-600" />
                     </button>
                     <div className="text-center">
-                      <span className="text-3xl font-bold text-green-700">{quantity}</span>
-                      <p className="text-xs text-green-600">Serving</p>
+                      <span className="text-3xl font-bold text-red-700">{quantity}</span>
+                      <p className="text-xs text-red-600">Serving</p>
                     </div>
                     <button
                       onClick={() => setQuantity(quantity + 0.5)}
-                      className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center border border-green-200"
+                      className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center border border-red-200"
                     >
-                      <Plus className="w-5 h-5 text-green-600" />
+                      <Plus className="w-5 h-5 text-red-600" />
                     </button>
                   </div>
                 </div>

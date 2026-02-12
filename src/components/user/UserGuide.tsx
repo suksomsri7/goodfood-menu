@@ -87,7 +87,7 @@ const STEPS: TooltipStep[] = [
         {[
           { icon: Camera, label: "ถ่ายรูป", bg: "bg-blue-100", fg: "text-blue-600" },
           { icon: Barcode, label: "สแกนบาร์โค้ด", bg: "bg-purple-100", fg: "text-purple-600" },
-          { icon: Package, label: "คลังอาหาร", bg: "bg-green-100", fg: "text-green-600" },
+          { icon: Package, label: "คลังอาหาร", bg: "bg-red-100", fg: "text-red-600" },
           { icon: PenLine, label: "กรอกเอง", bg: "bg-orange-100", fg: "text-orange-600" },
           { icon: Dumbbell, label: "ออกกำลังกาย", bg: "bg-red-100", fg: "text-red-600" },
         ].map((item) => (
@@ -396,9 +396,9 @@ export function UserGuide({ isOpen, onClose }: UserGuideProps) {
                       key={i}
                       className={`h-1.5 rounded-full transition-all ${
                         i === currentStep
-                          ? "w-4 bg-green-500"
+                          ? "w-4 bg-red-500"
                           : i < currentStep
-                          ? "w-1.5 bg-green-300"
+                          ? "w-1.5 bg-red-300"
                           : "w-1.5 bg-gray-200"
                       }`}
                     />
@@ -410,7 +410,7 @@ export function UserGuide({ isOpen, onClose }: UserGuideProps) {
                   onClick={handleNext}
                   className={`flex items-center gap-0.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-colors ${
                     isLast
-                      ? "bg-green-500 text-white hover:bg-green-600"
+                      ? "bg-red-500 text-white hover:bg-red-600"
                       : "bg-gray-900 text-white hover:bg-gray-800"
                   }`}
                 >

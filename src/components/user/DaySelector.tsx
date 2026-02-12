@@ -37,7 +37,7 @@ export function DaySelector({ selectedDate, onDateChange, showGoalIcon = false, 
         {onHelpClick ? (
           <button
             onClick={onHelpClick}
-            className="p-2 text-gray-400 hover:text-green-600 transition-colors"
+            className="p-2 text-gray-400 hover:text-red-600 transition-colors"
             aria-label="คู่มือการใช้งาน"
           >
             <HelpCircle className="w-5 h-5" strokeWidth={1.5} />
@@ -71,7 +71,7 @@ export function DaySelector({ selectedDate, onDateChange, showGoalIcon = false, 
         {showGoalIcon ? (
           <button
             onClick={() => router.push("/goal")}
-            className="p-2 text-gray-500 hover:text-green-600 transition-colors"
+            className="p-2 text-gray-500 hover:text-red-600 transition-colors"
           >
             <Target className="w-5 h-5" strokeWidth={1.5} />
           </button>

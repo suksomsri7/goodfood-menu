@@ -633,7 +633,7 @@ export default function CaloriePage() {
         </button>
         <button
           onClick={() => setShowNotificationSettings(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full text-sm font-medium shadow-lg shadow-green-500/25 hover:shadow-green-500/40 transition-all active:scale-95"
+          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-red-500 to-rose-500 text-white rounded-full text-sm font-medium shadow-lg shadow-red-500/25 hover:shadow-red-500/40 transition-all active:scale-95"
         >
           <Settings className="w-4 h-4" />
           <span>ตั้งค่า</span>

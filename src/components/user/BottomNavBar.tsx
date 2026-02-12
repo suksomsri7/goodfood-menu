@@ -244,7 +244,7 @@ export function BottomNavBar() {
               onClick={() => router.push("/cal")}
               data-guide="cal-tab"
               className={`flex flex-col items-center gap-1 px-6 py-2 rounded-xl transition-colors ${
-                isCalActive ? "text-green-600" : "text-gray-500 hover:text-gray-700"
+                isCalActive ? "text-red-600" : "text-gray-500 hover:text-gray-700"
               }`}
             >
               <PieChart className="w-6 h-6" strokeWidth={isCalActive ? 2 : 1.5} />
@@ -259,7 +259,7 @@ export function BottomNavBar() {
               onClick={() => router.push("/menu")}
               data-guide="menu-tab"
               className={`flex flex-col items-center gap-1 px-6 py-2 rounded-xl transition-colors ${
-                isMenuActive ? "text-green-600" : "text-gray-500 hover:text-gray-700"
+                isMenuActive ? "text-red-600" : "text-gray-500 hover:text-gray-700"
               }`}
             >
               <UtensilsCrossed className="w-6 h-6" strokeWidth={isMenuActive ? 2 : 1.5} />
@@ -270,7 +270,7 @@ export function BottomNavBar() {
 
         {/* Center FAB button - positioned above the bar */}
         <motion.button
-          className="absolute left-1/2 -translate-x-1/2 -top-7 w-14 h-14 rounded-full bg-gray-900 flex items-center justify-center shadow-lg border-4 border-white"
+          className="absolute left-1/2 -translate-x-1/2 -top-7 w-14 h-14 rounded-full bg-red-500 flex items-center justify-center shadow-lg border-4 border-white"
           onClick={() => setIsOpen(!isOpen)}
           whileTap={{ scale: 0.95 }}
           animate={{ rotate: isOpen ? 45 : 0 }}

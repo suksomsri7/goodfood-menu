@@ -207,8 +207,8 @@ export function NotificationSettings({
       icon: Dumbbell,
       label: "แนะนำหลังออกกำลังกาย",
       description: "หลังบันทึกการออกกำลังกาย",
-      color: "text-green-500",
-      bgColor: "bg-green-100",
+      color: "text-red-500",
+      bgColor: "bg-red-100",
     },
     {
       key: "weightReminder" as const,
@@ -248,7 +248,7 @@ export function NotificationSettings({
             <div className="sticky top-0 bg-white z-10 px-6 py-4 border-b border-gray-100">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-400 to-rose-500 flex items-center justify-center">
                     <Sparkles className="w-5 h-5 text-white" />
                   </div>
                   <div>
@@ -272,14 +272,14 @@ export function NotificationSettings({
               {aiCoach && (
                 <div className="mt-4">
                   {aiCoach.status === "active" && (
-                    <div className="p-3 bg-green-50 rounded-xl">
+                    <div className="p-3 bg-red-50 rounded-xl">
                       <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-green-600" />
-                        <span className="text-sm font-medium text-green-700">
+                        <Calendar className="w-4 h-4 text-red-600" />
+                        <span className="text-sm font-medium text-red-700">
                           เหลืออีก {aiCoach.daysRemaining} วัน
                         </span>
                       </div>
-                      <p className="text-xs text-green-600 mt-1">
+                      <p className="text-xs text-red-600 mt-1">
                         หมดอายุ: {formatExpireDate(aiCoach.expireDate!)}
                       </p>
                     </div>
@@ -314,7 +314,7 @@ export function NotificationSettings({
             <div className="overflow-y-auto max-h-[calc(90vh-200px)] pb-8">
               {isLoading ? (
                 <div className="flex items-center justify-center py-12">
-                  <div className="w-8 h-8 border-3 border-green-200 border-t-green-500 rounded-full animate-spin" />
+                  <div className="w-8 h-8 border-3 border-red-200 border-t-red-500 rounded-full animate-spin" />
                 </div>
               ) : !aiCoach || aiCoach.status === "not_assigned" ? (
                 /* Not Assigned - Show contact admin message */
@@ -331,7 +331,7 @@ export function NotificationSettings({
                     </p>
                     <button
                       onClick={requestAiCoachActivation}
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors"
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-colors"
                     >
                       <MessageCircle className="w-5 h-5" />
                       ขอเปิด AI Coach
@@ -360,7 +360,7 @@ export function NotificationSettings({
                     <div className="mb-8">
                       <button
                         onClick={requestAiCoachActivation}
-                        className="inline-flex items-center gap-2 px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors"
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-colors"
                       >
                         <MessageCircle className="w-5 h-5" />
                         ขอเปิด AI Coach
@@ -407,7 +407,7 @@ export function NotificationSettings({
                         <button
                           onClick={() => updateSetting(item.key, !settings[item.key])}
                           className={`relative w-12 h-7 rounded-full transition-colors ${
-                            settings[item.key] ? "bg-green-500" : "bg-gray-300"
+                            settings[item.key] ? "bg-red-500" : "bg-gray-300"
                           }`}
                         >
                           <div

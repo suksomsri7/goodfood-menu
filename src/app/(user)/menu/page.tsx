@@ -890,7 +890,7 @@ export default function MenuPage() {
   // ==================== Restaurant Selection View ====================
   if (!selectedRestaurant) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
+      <div className="min-h-screen bg-gradient-to-b from-red-50 to-white">
         {/* Restaurant List */}
         <div className="p-4 pt-6">
           {!restaurantsLoaded ? (
@@ -918,7 +918,7 @@ export default function MenuPage() {
                   className="bg-white rounded-2xl shadow-sm overflow-hidden text-left active:scale-[0.98] transition-transform"
                 >
                   {/* Cover */}
-                  <div className="aspect-[4/3] bg-gradient-to-br from-green-400 to-green-500 relative">
+                  <div className="aspect-[4/3] bg-gradient-to-br from-red-400 to-red-500 relative">
                     {restaurant.coverUrl ? (
                       <img src={restaurant.coverUrl} alt="" className="w-full h-full object-cover" />
                     ) : (
@@ -954,7 +954,7 @@ export default function MenuPage() {
                 placeholder="ค้นหาเมนู..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-10 py-2.5 bg-gray-50 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full pl-10 pr-10 py-2.5 bg-gray-50 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
                 autoFocus
               />
               <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -999,7 +999,7 @@ export default function MenuPage() {
               onClick={() => scrollToSection(tab.id)}
               className={`flex-shrink-0 whitespace-nowrap pb-1 text-sm font-medium transition-colors ${
                 activeTab === tab.id
-                  ? "text-green-600 border-b-2 border-green-500"
+                  ? "text-red-600 border-b-2 border-red-500"
                   : "text-gray-500"
               }`}
             >
@@ -1041,7 +1041,7 @@ export default function MenuPage() {
                   <div
                     key={pkg.id}
                     onClick={() => openPackageDetail(pkg)}
-                    className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl p-4 text-white shadow-lg cursor-pointer active:scale-[0.98] transition-transform"
+                    className="bg-gradient-to-r from-red-500 to-rose-500 rounded-2xl p-4 text-white shadow-lg cursor-pointer active:scale-[0.98] transition-transform"
                   >
                     <div className="flex gap-4">
                       {pkg.imageUrl ? (
@@ -1173,14 +1173,14 @@ export default function MenuPage() {
                         {quantity > 0 ? (
                           <button 
                             onClick={() => openFoodDetail(food)}
-                            className="w-10 h-10 rounded-full border-2 border-green-500 text-green-500 flex items-center justify-center text-sm font-semibold"
+                            className="w-10 h-10 rounded-full border-2 border-red-500 text-red-500 flex items-center justify-center text-sm font-semibold"
                           >
                             {quantity}
                           </button>
                         ) : (
                           <button
                             onClick={() => openFoodDetail(food)}
-                            className="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center shadow-sm hover:bg-green-600 transition-colors"
+                            className="w-10 h-10 rounded-full bg-red-500 text-white flex items-center justify-center shadow-sm hover:bg-red-600 transition-colors"
                           >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
@@ -1234,14 +1234,14 @@ export default function MenuPage() {
                           {quantity > 0 ? (
                             <button 
                               onClick={() => openFoodDetail(food)}
-                              className="w-10 h-10 rounded-full border-2 border-green-500 text-green-500 flex items-center justify-center text-sm font-semibold"
+                              className="w-10 h-10 rounded-full border-2 border-red-500 text-red-500 flex items-center justify-center text-sm font-semibold"
                             >
                               {quantity}
                             </button>
                           ) : (
                             <button
                               onClick={() => openFoodDetail(food)}
-                              className="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center shadow-sm hover:bg-green-600 transition-colors"
+                              className="w-10 h-10 rounded-full bg-red-500 text-white flex items-center justify-center shadow-sm hover:bg-red-600 transition-colors"
                             >
                               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
@@ -1273,7 +1273,7 @@ export default function MenuPage() {
               <p className="text-gray-900 font-semibold">"{searchQuery}"</p>
               <button 
                 onClick={() => setSearchQuery("")}
-                className="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg text-sm"
+                className="mt-4 px-4 py-2 bg-red-500 text-white rounded-lg text-sm"
               >
                 ล้างการค้นหา
               </button>
@@ -1286,10 +1286,10 @@ export default function MenuPage() {
       {totalItems > 0 && (
         <button
           onClick={() => setShowCart(true)}
-          className="fixed bottom-16 left-0 right-0 bg-green-500 text-white px-4 py-4 flex items-center justify-between shadow-lg z-40 hover:bg-green-600 transition-colors"
+          className="fixed bottom-16 left-0 right-0 bg-red-500 text-white px-4 py-4 flex items-center justify-between shadow-lg z-40 hover:bg-red-600 transition-colors"
         >
           <div className="flex items-center gap-3">
-            <span className="w-7 h-7 rounded-full bg-green-400 flex items-center justify-center text-sm font-semibold">
+            <span className="w-7 h-7 rounded-full bg-red-400 flex items-center justify-center text-sm font-semibold">
               {totalItems}
             </span>
             <span className="font-medium">ตะกร้าอาหาร</span>
@@ -1301,7 +1301,7 @@ export default function MenuPage() {
           </div>
           <div className="text-right">
             {isPackageEligible && packageDiscount > 0 && (
-              <span className="text-xs text-green-200 line-through mr-1">฿{totalPrice.toFixed(0)}</span>
+              <span className="text-xs text-red-200 line-through mr-1">฿{totalPrice.toFixed(0)}</span>
             )}
             <span className="text-lg font-bold">฿{finalPrice.toFixed(2)}</span>
           </div>
@@ -1365,7 +1365,7 @@ export default function MenuPage() {
                       {/* Info */}
                       <div className="flex-1 min-w-0">
                         <h3 className="font-medium text-gray-900 truncate">{item.food.name}</h3>
-                        <p className="text-sm text-green-600 font-semibold">฿{item.food.price}</p>
+                        <p className="text-sm text-red-600 font-semibold">฿{item.food.price}</p>
                       </div>
 
                       {/* Quantity Controls */}
@@ -1387,7 +1387,7 @@ export default function MenuPage() {
                         <span className="w-6 text-center font-semibold text-gray-900">{item.quantity}</span>
                         <button
                           onClick={() => updateCartQuantity(item.food.id, item.quantity + 1)}
-                          className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:border-green-300 hover:text-green-500 transition-colors"
+                          className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:border-red-300 hover:text-red-500 transition-colors"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -1413,17 +1413,17 @@ export default function MenuPage() {
                   <div className="mb-4 space-y-2">
                     {/* Current active package discount */}
                     {activePackage && (
-                      <div className="p-3 rounded-xl bg-green-50 border border-green-200">
+                      <div className="p-3 rounded-xl bg-red-50 border border-red-200">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-lg">🎉</span>
-                          <span className="font-semibold text-green-700">
+                          <span className="font-semibold text-red-700">
                             {activePackage.name}
                           </span>
-                          <span className="text-green-500">✓</span>
+                          <span className="text-red-500">✓</span>
                         </div>
                         <div className="flex flex-wrap gap-2 text-sm">
                           {activePackage.discountType && activePackage.discountValue != null && activePackage.discountValue > 0 && (
-                            <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full">
+                            <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full">
                               💰 ลด {activePackage.discountType === "percent" ? `${activePackage.discountValue}%` : `฿${activePackage.discountValue}`}
                             </span>
                           )}
@@ -1478,7 +1478,7 @@ export default function MenuPage() {
                   
                   {/* Percentage/Fixed Discount */}
                   {isPackageEligible && activePackage?.discountType && activePackage?.discountValue != null && activePackage.discountValue > 0 && (
-                    <div className="flex items-center justify-between text-green-600">
+                    <div className="flex items-center justify-between text-red-600">
                       <span>💰 ส่วนลด {activePackage.discountType === "percent" ? `${activePackage.discountValue}%` : ""}</span>
                       <span>-฿{(activePackage.discountType === "percent" 
                         ? Math.round(totalPrice * (activePackage.discountValue / 100)) 
@@ -1507,7 +1507,7 @@ export default function MenuPage() {
                       {isPackageEligible && packageDiscount > 0 && (
                         <span className="text-sm text-gray-400 line-through mr-2">฿{totalPrice.toFixed(2)}</span>
                       )}
-                      <span className="text-2xl font-bold text-green-600">฿{(finalPrice + (selectedRestaurant?.deliveryFee || 0)).toFixed(2)}</span>
+                      <span className="text-2xl font-bold text-red-600">฿{(finalPrice + (selectedRestaurant?.deliveryFee || 0)).toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
@@ -1526,7 +1526,7 @@ export default function MenuPage() {
                     disabled={!canCheckout}
                     className={`flex-[2] py-3 rounded-xl font-semibold transition-colors ${
                       canCheckout 
-                        ? "bg-green-500 text-white hover:bg-green-600" 
+                        ? "bg-red-500 text-white hover:bg-red-600" 
                         : "bg-gray-300 text-gray-500 cursor-not-allowed"
                     }`}
                   >
@@ -1648,7 +1648,7 @@ export default function MenuPage() {
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => setModalQuantity(Math.max(1, modalQuantity - 1))}
-                  className="w-9 h-9 rounded-full border-2 border-gray-200 flex items-center justify-center text-gray-500 hover:border-green-500 hover:text-green-500 transition-colors"
+                  className="w-9 h-9 rounded-full border-2 border-gray-200 flex items-center justify-center text-gray-500 hover:border-red-500 hover:text-red-500 transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M20 12H4" />
@@ -1657,7 +1657,7 @@ export default function MenuPage() {
                 <span className="text-xl font-bold text-gray-900 w-8 text-center">{modalQuantity}</span>
                 <button
                   onClick={() => setModalQuantity(modalQuantity + 1)}
-                  className="w-9 h-9 rounded-full border-2 border-gray-200 flex items-center justify-center text-gray-500 hover:border-green-500 hover:text-green-500 transition-colors"
+                  className="w-9 h-9 rounded-full border-2 border-gray-200 flex items-center justify-center text-gray-500 hover:border-red-500 hover:text-red-500 transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
@@ -1671,7 +1671,7 @@ export default function MenuPage() {
               {/* Name & Price */}
               <div className="flex items-start justify-between mb-2">
                 <h2 className="text-xl font-bold text-gray-900 flex-1 pr-4">{selectedFood.name}</h2>
-                <p className="text-xl font-bold text-green-600">฿{selectedFood.price}</p>
+                <p className="text-xl font-bold text-red-600">฿{selectedFood.price}</p>
               </div>
 
               {/* Category */}
@@ -1697,7 +1697,7 @@ export default function MenuPage() {
                     {selectedFood.ingredients.map((ingredient, idx) => (
                       <span 
                         key={idx} 
-                        className="px-3 py-1.5 bg-green-50 text-green-700 text-sm rounded-full"
+                        className="px-3 py-1.5 bg-red-50 text-red-700 text-sm rounded-full"
                       >
                         {ingredient}
                       </span>
@@ -1711,7 +1711,7 @@ export default function MenuPage() {
             <div className="sticky bottom-0 p-4 pb-8 bg-white border-t border-gray-100">
               <button
                 onClick={addFromModal}
-                className="w-full py-4 bg-green-500 text-white rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-green-600 active:scale-[0.98] transition-all shadow-lg"
+                className="w-full py-4 bg-red-500 text-white rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-red-600 active:scale-[0.98] transition-all shadow-lg"
               >
                 <span>เพิ่มลงตะกร้า</span>
                 <span className="font-bold">฿{(selectedFood.price * modalQuantity).toFixed(2)}</span>
@@ -1747,7 +1747,7 @@ export default function MenuPage() {
                       <p className="text-gray-500 mt-4">ยังไม่มีที่อยู่จัดส่ง</p>
                       <button
                         onClick={handleAddNewAddress}
-                        className="mt-4 px-6 py-2 bg-green-500 text-white rounded-lg font-medium"
+                        className="mt-4 px-6 py-2 bg-red-500 text-white rounded-lg font-medium"
                       >
                         เพิ่มที่อยู่ใหม่
                       </button>
@@ -1760,7 +1760,7 @@ export default function MenuPage() {
                           onClick={() => setSelectedAddress(addr)}
                           className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${
                             selectedAddress?.id === addr.id
-                              ? "border-green-500 bg-green-50"
+                              ? "border-red-500 bg-red-50"
                               : "border-gray-200 hover:border-gray-300"
                           }`}
                         >
@@ -1768,7 +1768,7 @@ export default function MenuPage() {
                             <div className="flex items-center gap-2">
                               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                                 selectedAddress?.id === addr.id
-                                  ? "border-green-500 bg-green-500"
+                                  ? "border-red-500 bg-red-500"
                                   : "border-gray-300"
                               }`}>
                                 {selectedAddress?.id === addr.id && (
@@ -1780,7 +1780,7 @@ export default function MenuPage() {
                               <span className="font-semibold text-gray-900">
                                 {addr.label || "ที่อยู่"}
                                 {addr.isDefault && (
-                                  <span className="ml-2 text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full">
+                                  <span className="ml-2 text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-full">
                                     ค่าเริ่มต้น
                                   </span>
                                 )}
@@ -1791,7 +1791,7 @@ export default function MenuPage() {
                                 e.stopPropagation();
                                 handleEditAddress(addr);
                               }}
-                              className="text-sm text-green-600 hover:text-green-700"
+                              className="text-sm text-red-600 hover:text-red-700"
                             >
                               แก้ไข
                             </button>
@@ -1816,7 +1816,7 @@ export default function MenuPage() {
                       {/* Add new address button */}
                       <button
                         onClick={handleAddNewAddress}
-                        className="w-full p-4 rounded-xl border-2 border-dashed border-gray-300 text-gray-500 hover:border-green-400 hover:text-green-600 transition-all flex items-center justify-center gap-2"
+                        className="w-full p-4 rounded-xl border-2 border-dashed border-gray-300 text-gray-500 hover:border-red-400 hover:text-red-600 transition-all flex items-center justify-center gap-2"
                       >
                         <span className="text-xl">➕</span>
                         <span>เพิ่มที่อยู่ใหม่</span>
@@ -1835,7 +1835,7 @@ export default function MenuPage() {
                         <span>฿{totalPrice.toFixed(2)}</span>
                       </div>
                       {packageDiscount > 0 && (
-                        <div className="flex justify-between text-sm text-green-600">
+                        <div className="flex justify-between text-sm text-red-600">
                           <span>ส่วนลดคอร์ส</span>
                           <span>-฿{packageDiscount.toFixed(2)}</span>
                         </div>
@@ -1848,7 +1848,7 @@ export default function MenuPage() {
                       )}
                       <div className="flex justify-between pt-2 border-t">
                         <span className="font-semibold">รวมทั้งหมด</span>
-                        <span className="text-xl font-bold text-green-600">
+                        <span className="text-xl font-bold text-red-600">
                           ฿{(finalPrice + (selectedRestaurant?.deliveryFee || 0)).toFixed(2)}
                         </span>
                       </div>
@@ -1867,7 +1867,7 @@ export default function MenuPage() {
                       <button
                         onClick={handleCheckout}
                         disabled={!selectedAddress || isSubmitting}
-                        className="flex-[2] py-3 bg-green-500 text-white rounded-xl font-semibold disabled:opacity-50"
+                        className="flex-[2] py-3 bg-red-500 text-white rounded-xl font-semibold disabled:opacity-50"
                       >
                         {isSubmitting ? "กำลังสั่งซื้อ..." : "ยืนยันสั่งซื้อ"}
                       </button>
@@ -1907,7 +1907,7 @@ export default function MenuPage() {
                         value={addressForm.name}
                         onChange={(e) => setAddressForm(prev => ({ ...prev, name: e.target.value }))}
                         placeholder="ชื่อ-นามสกุล"
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-green-500"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500"
                       />
                     </div>
 
@@ -1921,7 +1921,7 @@ export default function MenuPage() {
                         value={addressForm.phone}
                         onChange={(e) => setAddressForm(prev => ({ ...prev, phone: e.target.value }))}
                         placeholder="08X-XXX-XXXX"
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-green-500"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500"
                       />
                     </div>
 
@@ -1935,7 +1935,7 @@ export default function MenuPage() {
                         onChange={(e) => setAddressForm(prev => ({ ...prev, address: e.target.value }))}
                         placeholder="123/45 ซ.สุขุมวิท 55 ถ.สุขุมวิท"
                         rows={2}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-green-500 resize-none"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500 resize-none"
                       />
                     </div>
 
@@ -1950,7 +1950,7 @@ export default function MenuPage() {
                           value={addressForm.subDistrict}
                           onChange={(e) => setAddressForm(prev => ({ ...prev, subDistrict: e.target.value }))}
                           placeholder="คลองตัน"
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-green-500"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500"
                         />
                       </div>
                       <div>
@@ -1962,7 +1962,7 @@ export default function MenuPage() {
                           value={addressForm.district}
                           onChange={(e) => setAddressForm(prev => ({ ...prev, district: e.target.value }))}
                           placeholder="วัฒนา"
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-green-500"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500"
                         />
                       </div>
                     </div>
@@ -1978,7 +1978,7 @@ export default function MenuPage() {
                           value={addressForm.province}
                           onChange={(e) => setAddressForm(prev => ({ ...prev, province: e.target.value }))}
                           placeholder="กรุงเทพฯ"
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-green-500"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500"
                         />
                       </div>
                       <div>
@@ -1990,7 +1990,7 @@ export default function MenuPage() {
                           value={addressForm.postalCode}
                           onChange={(e) => setAddressForm(prev => ({ ...prev, postalCode: e.target.value }))}
                           placeholder="10110"
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-green-500"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500"
                         />
                       </div>
                     </div>
@@ -2005,7 +2005,7 @@ export default function MenuPage() {
                         value={addressForm.label}
                         onChange={(e) => setAddressForm(prev => ({ ...prev, label: e.target.value }))}
                         placeholder="เช่น บ้าน, ที่ทำงาน, คอนโด"
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-green-500"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500"
                       />
                       <p className="text-xs text-gray-400 mt-1">💡 ช่วยให้เลือกที่อยู่ได้ง่ายขึ้น</p>
                     </div>
@@ -2020,7 +2020,7 @@ export default function MenuPage() {
                         value={addressForm.note}
                         onChange={(e) => setAddressForm(prev => ({ ...prev, note: e.target.value }))}
                         placeholder="เช่น ตึกสีฟ้า, ตรงข้าม 7-11"
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-green-500"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500"
                       />
                     </div>
 
@@ -2030,7 +2030,7 @@ export default function MenuPage() {
                         type="checkbox"
                         checked={addressForm.isDefault}
                         onChange={(e) => setAddressForm(prev => ({ ...prev, isDefault: e.target.checked }))}
-                        className="w-5 h-5 text-green-500 border-gray-300 rounded focus:ring-green-500"
+                        className="w-5 h-5 text-red-500 border-gray-300 rounded focus:ring-red-500"
                       />
                       <span className="text-gray-700">ตั้งเป็นที่อยู่หลัก</span>
                     </label>
@@ -2060,7 +2060,7 @@ export default function MenuPage() {
                     <button
                       onClick={handleSaveAddress}
                       disabled={isSavingAddress}
-                      className="flex-[2] py-3 bg-green-500 text-white rounded-xl font-semibold disabled:opacity-50"
+                      className="flex-[2] py-3 bg-red-500 text-white rounded-xl font-semibold disabled:opacity-50"
                     >
                       {isSavingAddress ? "กำลังบันทึก..." : "บันทึกที่อยู่"}
                     </button>
@@ -2081,7 +2081,7 @@ export default function MenuPage() {
             <p className="text-gray-500 mb-6">ขอบคุณที่ใช้บริการ Good Food</p>
             <button
               onClick={handleSuccessOk}
-              className="w-full py-3 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition-colors"
+              className="w-full py-3 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 transition-colors"
             >
               OK
             </button>
@@ -2110,7 +2110,7 @@ export default function MenuPage() {
 
             {/* Package Header */}
             <div className="px-4 pb-4">
-              <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl p-5 text-white">
+              <div className="bg-gradient-to-r from-red-500 to-rose-500 rounded-2xl p-5 text-white">
                 <div className="flex gap-4">
                   {selectedPackage.imageUrl ? (
                     <img
@@ -2160,10 +2160,10 @@ export default function MenuPage() {
                   {/* Manual Selection Button */}
                   <button
                     onClick={handleManualSelection}
-                    className="w-full p-4 bg-gray-50 rounded-xl border-2 border-gray-200 text-left hover:border-green-500 hover:bg-green-50 transition-all group"
+                    className="w-full p-4 bg-gray-50 rounded-xl border-2 border-gray-200 text-left hover:border-red-500 hover:bg-red-50 transition-all group"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-xl bg-gray-200 group-hover:bg-green-100 flex items-center justify-center text-3xl transition-colors">
+                      <div className="w-14 h-14 rounded-xl bg-gray-200 group-hover:bg-red-100 flex items-center justify-center text-3xl transition-colors">
                         🛒
                       </div>
                       <div>
@@ -2271,7 +2271,7 @@ export default function MenuPage() {
                 <div className="space-y-2 mb-4">
                   {aiSelectedFoods.map((food, index) => (
                     <div key={food.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                      <span className="w-6 h-6 rounded-full bg-green-500 text-white text-xs flex items-center justify-center font-semibold">
+                      <span className="w-6 h-6 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-semibold">
                         {index + 1}
                       </span>
                       {food.imageUrl ? (
@@ -2287,7 +2287,7 @@ export default function MenuPage() {
                           {food.calories} kcal • P {food.protein}g • C {food.carbs}g • F {food.fat}g
                         </p>
                       </div>
-                      <p className="text-sm font-semibold text-green-600">฿{food.price}</p>
+                      <p className="text-sm font-semibold text-red-600">฿{food.price}</p>
                     </div>
                   ))}
                 </div>
@@ -2325,20 +2325,20 @@ export default function MenuPage() {
 
                 {/* Adding Progress */}
                 {isAddingToCart && (
-                  <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
-                      <span className="text-sm font-medium text-green-700">
+                      <div className="w-6 h-6 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                      <span className="text-sm font-medium text-red-700">
                         กำลังเพิ่มลงตะกร้า ({addingProgress.current}/{addingProgress.total})
                       </span>
                     </div>
-                    <p className="text-sm text-green-600 truncate">
+                    <p className="text-sm text-red-600 truncate">
                       🛒 {addingProgress.currentFood}
                     </p>
                     {/* Progress Bar */}
-                    <div className="mt-2 h-2 bg-green-200 rounded-full overflow-hidden">
+                    <div className="mt-2 h-2 bg-red-200 rounded-full overflow-hidden">
                       <div 
-                        className="h-full bg-green-500 transition-all duration-300"
+                        className="h-full bg-red-500 transition-all duration-300"
                         style={{ width: `${(addingProgress.current / addingProgress.total) * 100}%` }}
                       />
                     </div>
@@ -2357,7 +2357,7 @@ export default function MenuPage() {
                   <button
                     onClick={addAiSelectedToCart}
                     disabled={isAddingToCart}
-                    className="flex-[2] py-3 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition-colors disabled:opacity-50"
+                    className="flex-[2] py-3 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 transition-colors disabled:opacity-50"
                   >
                     {isAddingToCart ? `กำลังเพิ่ม ${addingProgress.current}/${addingProgress.total}` : `เพิ่มลงตะกร้า ฿${aiSelectedFoods.reduce((sum, f) => sum + f.price, 0)}`}
                   </button>

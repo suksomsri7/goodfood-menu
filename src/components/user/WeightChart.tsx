@@ -95,7 +95,7 @@ export function WeightChart({
             <div
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${
                 isLosing 
-                  ? "bg-emerald-50 text-emerald-600" 
+                  ? "bg-rose-50 text-rose-600" 
                   : "bg-amber-50 text-amber-600"
               }`}
             >
@@ -186,7 +186,7 @@ export function WeightChart({
               initial={{ width: 0 }}
               animate={{ width: `${progressPercent}%` }}
               transition={{ duration: 0.6 }}
-              className="h-full bg-emerald-500 rounded-full"
+              className="h-full bg-rose-500 rounded-full"
             />
           </div>
           <div className="flex justify-between text-xs text-slate-400">

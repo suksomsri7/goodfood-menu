@@ -100,7 +100,7 @@ export function GoalSummary({
                 </div>
               </div>
               {isCompleted && (
-                <span className="text-emerald-500 text-xs">✓</span>
+                <span className="text-rose-500 text-xs">✓</span>
               )}
             </motion.div>
           );

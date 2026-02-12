@@ -25,8 +25,8 @@ const statusConfig: Record<OrderStatus, { label: string; color: string; bgColor:
   pending: { label: "รอยืนยัน", color: "text-yellow-600", bgColor: "bg-yellow-50", icon: Clock },
   confirmed: { label: "ยืนยันแล้ว", color: "text-blue-600", bgColor: "bg-blue-50", icon: CheckCircle },
   preparing: { label: "กำลังเตรียม", color: "text-orange-600", bgColor: "bg-orange-50", icon: Package },
-  ready: { label: "พร้อมส่ง", color: "text-green-600", bgColor: "bg-green-50", icon: Truck },
-  completed: { label: "เสร็จสิ้น", color: "text-emerald-600", bgColor: "bg-emerald-50", icon: CheckCircle },
+  ready: { label: "พร้อมส่ง", color: "text-red-600", bgColor: "bg-red-50", icon: Truck },
+  completed: { label: "เสร็จสิ้น", color: "text-rose-600", bgColor: "bg-rose-50", icon: CheckCircle },
   cancelled: { label: "ยกเลิก", color: "text-red-600", bgColor: "bg-red-50", icon: XCircle },
 };
 
