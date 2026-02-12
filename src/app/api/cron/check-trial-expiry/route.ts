@@ -4,20 +4,10 @@ import { NextResponse } from "next/server";
 // This cron job checks for members whose AI Coach trial has expired
 // and updates their memberType to the general type
 export async function GET(request: Request) {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'check-trial-expiry/route.ts:8',message:'Cron job started',data:{timestamp:new Date().toISOString()},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
-  // #endregion
-
   try {
     // Verify cron secret
     const authHeader = request.headers.get("authorization");
-    const isAuthorized = authHeader === `Bearer ${process.env.CRON_SECRET}`;
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'check-trial-expiry/route.ts:17',message:'Auth check',data:{isAuthorized,hasAuthHeader:!!authHeader,hasCronSecret:!!process.env.CRON_SECRET},timestamp:Date.now(),hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
-    
-    if (!isAuthorized) {
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -26,19 +16,12 @@ export async function GET(request: Request) {
       where: { id: "system" },
     });
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'check-trial-expiry/route.ts:31',message:'System settings loaded',data:{hasSettings:!!settings,generalMemberTypeId:settings?.generalMemberTypeId,trialMemberTypeId:settings?.trialMemberTypeId},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-
     if (!settings) {
       return NextResponse.json({ message: "No system settings found" });
     }
 
     // Check if generalMemberTypeId is configured
     if (!settings.generalMemberTypeId) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'check-trial-expiry/route.ts:42',message:'generalMemberTypeId not configured - SKIPPING',data:{},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       return NextResponse.json({ 
         message: "Card หลังทดลอง ไม่ได้กำหนดไว้ - ข้ามการเปลี่ยน Card อัตโนมัติ",
         skipped: true,
@@ -47,23 +30,18 @@ export async function GET(request: Request) {
 
     const now = new Date();
     
-    // Calculate threshold for Thailand timezone
+    // Calculate threshold for Thailand timezone (UTC+7)
     // If admin sets expiry to "Feb 12", stored as "2026-02-12T00:00:00Z" (UTC midnight)
-    // We want to consider it expired when it's Feb 12 in Thailand (00:00 Thailand = 17:00 UTC Feb 11)
-    // So threshold should be: end of today Thailand = start of tomorrow Thailand in UTC
-    const todayThailand = new Date(now.getTime() + (7 * 60 * 60 * 1000)); // Current time in Thailand
+    // We want to consider it expired when it's Feb 12 in Thailand
+    // Threshold = end of today Thailand = start of tomorrow Thailand in UTC
+    const todayThailand = new Date(now.getTime() + (7 * 60 * 60 * 1000));
     const tomorrowThailand = new Date(Date.UTC(
       todayThailand.getUTCFullYear(),
       todayThailand.getUTCMonth(),
-      todayThailand.getUTCDate() + 1, // Tomorrow
+      todayThailand.getUTCDate() + 1,
       0, 0, 0, 0
     ));
-    // Convert start of tomorrow Thailand to UTC (subtract 7 hours)
     const thresholdDate = new Date(tomorrowThailand.getTime() - (7 * 60 * 60 * 1000));
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'check-trial-expiry/route.ts:date-calc',message:'Date calculation for Thailand timezone',data:{now:now.toISOString(),todayThailandDate:`${todayThailand.getUTCFullYear()}-${todayThailand.getUTCMonth()+1}-${todayThailand.getUTCDate()}`,thresholdDate:thresholdDate.toISOString()},timestamp:Date.now(),hypothesisId:'timezone-fix'})}).catch(()=>{});
-    // #endregion
 
     // Find members whose AI Coach has expired
     // Expiry date stored as UTC midnight, threshold is end of today Thailand
@@ -71,7 +49,7 @@ export async function GET(request: Request) {
     const expiredMembers = await prisma.member.findMany({
       where: {
         aiCoachExpireDate: {
-          lt: thresholdDate, // Expire date is before end of today Thailand
+          lt: thresholdDate,
         },
         memberTypeId: {
           not: settings.generalMemberTypeId,
@@ -84,10 +62,6 @@ export async function GET(request: Request) {
         aiCoachExpireDate: true,
       },
     });
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'check-trial-expiry/route.ts:70',message:'Found expired members',data:{count:expiredMembers.length,now:now.toISOString(),generalMemberTypeId:settings.generalMemberTypeId,members:expiredMembers.slice(0,5).map(m=>({id:m.id,name:m.displayName,typeId:m.memberTypeId,expireDate:m.aiCoachExpireDate}))},timestamp:Date.now(),hypothesisId:'C,D'})}).catch(()=>{});
-    // #endregion
 
     if (expiredMembers.length === 0) {
       return NextResponse.json({
@@ -102,16 +76,12 @@ export async function GET(request: Request) {
         where: { id: member.id },
         data: {
           memberTypeId: settings.generalMemberTypeId,
-          aiCoachExpireDate: null, // Clear the expire date
+          aiCoachExpireDate: null,
         },
       });
     });
 
     await Promise.all(updatePromises);
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'check-trial-expiry/route.ts:95',message:'Updated members successfully',data:{count:expiredMembers.length,updatedTo:settings.generalMemberTypeId},timestamp:Date.now(),hypothesisId:'success'})}).catch(()=>{});
-    // #endregion
 
     console.log(`[Cron] Updated ${expiredMembers.length} members from trial to general AI Coach type`);
 
@@ -126,9 +96,6 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("Error checking trial expiry:", error);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'check-trial-expiry/route.ts:error',message:'Error in cron job',data:{error:String(error)},timestamp:Date.now(),hypothesisId:'error'})}).catch(()=>{});
-    // #endregion
     return NextResponse.json(
       { error: "Failed to check trial expiry" },
       { status: 500 }

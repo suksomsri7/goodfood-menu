@@ -7,19 +7,11 @@ export async function GET(request: Request) {
   const action = searchParams.get("action");
   const lineUserId = searchParams.get("lineUserId");
 
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'test-trial-expiry/route.ts:10',message:'Debug endpoint called',data:{action,lineUserId},timestamp:Date.now(),hypothesisId:'entry'})}).catch(()=>{});
-  // #endregion
-
   try {
     // Get system settings
     const settings = await prisma.systemSetting.findUnique({
       where: { id: "system" },
     });
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'test-trial-expiry/route.ts:22',message:'System settings loaded',data:{settings:{trialDays:settings?.trialDays,trialMemberTypeId:settings?.trialMemberTypeId,generalMemberTypeId:settings?.generalMemberTypeId}},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
 
     // Get all member types for reference
     const memberTypes = await prisma.memberType.findMany({
@@ -166,10 +158,6 @@ export async function GET(request: Request) {
       const failCount = testResults.filter(t => t.status === "FAIL").length;
       const warnCount = testResults.filter(t => t.status === "WARN").length;
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'test-trial-expiry/route.ts:run-all-tests',message:'All tests completed',data:{passCount,failCount,warnCount,results:testResults.map(t=>({name:t.name,status:t.status}))},timestamp:Date.now(),hypothesisId:'all-tests'})}).catch(()=>{});
-      // #endregion
-
       return NextResponse.json({
         summary: {
           total: testResults.length,
@@ -202,10 +190,6 @@ export async function GET(request: Request) {
           memberType: { select: { id: true, name: true } },
         },
       });
-
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'test-trial-expiry/route.ts:47',message:'Checking specific member',data:{member,generalMemberTypeId:settings?.generalMemberTypeId,isExpired:member?.aiCoachExpireDate?member.aiCoachExpireDate<=now:false,isAlreadyGeneral:member?.memberTypeId===settings?.generalMemberTypeId},timestamp:Date.now(),hypothesisId:'C,D'})}).catch(()=>{});
-      // #endregion
 
       if (!member) {
         return NextResponse.json({ error: "Member not found" }, { status: 404 });
@@ -253,18 +237,10 @@ export async function GET(request: Request) {
         take: 20,
       });
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'test-trial-expiry/route.ts:92',message:'Found expired members',data:{count:expiredMembers.length,members:expiredMembers.map(m=>({id:m.id,name:m.displayName,typeId:m.memberTypeId,expireDate:m.aiCoachExpireDate}))},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
-
       // Filter those that would be updated
       const wouldBeUpdated = expiredMembers.filter(m => 
         m.memberTypeId !== settings?.generalMemberTypeId
       );
-
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'test-trial-expiry/route.ts:101',message:'Filtered members for update',data:{totalExpired:expiredMembers.length,wouldBeUpdatedCount:wouldBeUpdated.length,generalMemberTypeId:settings?.generalMemberTypeId},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
 
       return NextResponse.json({
         systemSettings: {
@@ -314,10 +290,6 @@ export async function GET(request: Request) {
       if (expiredMembers.length === 0) {
         return NextResponse.json({ message: "No expired members to update", updated: 0 });
       }
-
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'test-trial-expiry/route.ts:trigger',message:'Manual trigger - updating members',data:{count:expiredMembers.length,targetTypeId:settings.generalMemberTypeId},timestamp:Date.now(),hypothesisId:'manual-trigger'})}).catch(()=>{});
-      // #endregion
 
       const updatePromises = expiredMembers.map(async (member) => {
         return prisma.member.update({
@@ -416,9 +388,6 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("Error in debug endpoint:", error);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'test-trial-expiry/route.ts:error',message:'Error in debug endpoint',data:{error:String(error)},timestamp:Date.now(),hypothesisId:'error'})}).catch(()=>{});
-    // #endregion
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }
