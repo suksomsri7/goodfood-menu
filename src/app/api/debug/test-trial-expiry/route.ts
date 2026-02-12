@@ -39,6 +39,156 @@ export async function GET(request: Request) {
     const thresholdDate = new Date(tomorrowThailand.getTime() - (7 * 60 * 60 * 1000));
     const todayThailandStr = `${todayThailand.getUTCFullYear()}-${String(todayThailand.getUTCMonth()+1).padStart(2,'0')}-${String(todayThailand.getUTCDate()).padStart(2,'0')}`;
 
+    if (action === "run-all-tests") {
+      // Comprehensive system test
+      const testResults: {
+        name: string;
+        status: "PASS" | "FAIL" | "WARN";
+        details: string;
+        data?: unknown;
+      }[] = [];
+
+      // Test 1: System Settings Configuration
+      const test1Pass = !!settings?.generalMemberTypeId && !!settings?.trialMemberTypeId;
+      testResults.push({
+        name: "1. System Settings Configuration",
+        status: test1Pass ? "PASS" : "FAIL",
+        details: test1Pass 
+          ? `generalMemberTypeId: ${settings?.generalMemberTypeId}, trialMemberTypeId: ${settings?.trialMemberTypeId}`
+          : "Missing generalMemberTypeId or trialMemberTypeId",
+        data: {
+          generalMemberTypeId: settings?.generalMemberTypeId,
+          generalMemberTypeName: memberTypes.find(t => t.id === settings?.generalMemberTypeId)?.name,
+          trialMemberTypeId: settings?.trialMemberTypeId,
+          trialMemberTypeName: memberTypes.find(t => t.id === settings?.trialMemberTypeId)?.name,
+        },
+      });
+
+      // Test 2: Timezone Calculation
+      const expectedThailandDate = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+      const test2Pass = todayThailand.getUTCDate() === expectedThailandDate.getUTCDate();
+      testResults.push({
+        name: "2. Thailand Timezone Calculation",
+        status: test2Pass ? "PASS" : "FAIL",
+        details: `UTC: ${now.toISOString()}, Thailand Date: ${todayThailandStr}, Threshold: ${thresholdDate.toISOString()}`,
+        data: {
+          nowUTC: now.toISOString(),
+          todayThailand: todayThailandStr,
+          thresholdDate: thresholdDate.toISOString(),
+        },
+      });
+
+      // Test 3: Member Types Exist
+      const trialType = memberTypes.find(t => t.id === settings?.trialMemberTypeId);
+      const generalType = memberTypes.find(t => t.id === settings?.generalMemberTypeId);
+      const test3Pass = !!trialType && !!generalType;
+      testResults.push({
+        name: "3. Member Types Exist",
+        status: test3Pass ? "PASS" : "FAIL",
+        details: test3Pass 
+          ? `Trial: "${trialType?.name}", General: "${generalType?.name}"`
+          : `Missing types - Trial: ${!!trialType}, General: ${!!generalType}`,
+      });
+
+      // Test 4: Check for members with expire date
+      const membersWithExpire = await prisma.member.findMany({
+        where: { aiCoachExpireDate: { not: null } },
+        select: {
+          id: true,
+          displayName: true,
+          memberTypeId: true,
+          aiCoachExpireDate: true,
+          memberType: { select: { name: true } },
+        },
+        take: 10,
+      });
+      testResults.push({
+        name: "4. Members with Expire Date",
+        status: membersWithExpire.length > 0 ? "PASS" : "WARN",
+        details: membersWithExpire.length > 0 
+          ? `Found ${membersWithExpire.length} member(s) with expire date`
+          : "No members with expire date found (need to set expire date to test)",
+        data: membersWithExpire.map(m => ({
+          id: m.id,
+          name: m.displayName,
+          type: m.memberType?.name,
+          expireDate: m.aiCoachExpireDate,
+          isExpired: m.aiCoachExpireDate! < thresholdDate,
+        })),
+      });
+
+      // Test 5: Expiry Logic Test (simulation)
+      const testCases = [
+        { name: "Yesterday", date: new Date(now.getTime() - 24 * 60 * 60 * 1000), shouldExpire: true },
+        { name: "Today 00:00 UTC", date: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0)), shouldExpire: true },
+        { name: "Tomorrow", date: new Date(now.getTime() + 24 * 60 * 60 * 1000), shouldExpire: false },
+      ];
+      const logicTests = testCases.map(tc => ({
+        ...tc,
+        dateISO: tc.date.toISOString(),
+        actualExpired: tc.date < thresholdDate,
+        pass: (tc.date < thresholdDate) === tc.shouldExpire,
+      }));
+      const test5Pass = logicTests.every(t => t.pass);
+      testResults.push({
+        name: "5. Expiry Logic Simulation",
+        status: test5Pass ? "PASS" : "FAIL",
+        details: test5Pass 
+          ? "All expiry logic tests passed"
+          : "Some expiry logic tests failed",
+        data: logicTests.map(t => ({
+          case: t.name,
+          date: t.dateISO,
+          shouldExpire: t.shouldExpire,
+          actualExpired: t.actualExpired,
+          result: t.pass ? "✅ PASS" : "❌ FAIL",
+        })),
+      });
+
+      // Test 6: Query Performance Test
+      const queryStart = Date.now();
+      const expiredCount = await prisma.member.count({
+        where: {
+          aiCoachExpireDate: { lt: thresholdDate },
+          memberTypeId: { not: settings?.generalMemberTypeId || "" },
+        },
+      });
+      const queryTime = Date.now() - queryStart;
+      testResults.push({
+        name: "6. Query Performance",
+        status: queryTime < 1000 ? "PASS" : "WARN",
+        details: `Found ${expiredCount} expired members in ${queryTime}ms`,
+        data: { expiredCount, queryTimeMs: queryTime },
+      });
+
+      // Summary
+      const passCount = testResults.filter(t => t.status === "PASS").length;
+      const failCount = testResults.filter(t => t.status === "FAIL").length;
+      const warnCount = testResults.filter(t => t.status === "WARN").length;
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'test-trial-expiry/route.ts:run-all-tests',message:'All tests completed',data:{passCount,failCount,warnCount,results:testResults.map(t=>({name:t.name,status:t.status}))},timestamp:Date.now(),hypothesisId:'all-tests'})}).catch(()=>{});
+      // #endregion
+
+      return NextResponse.json({
+        summary: {
+          total: testResults.length,
+          passed: passCount,
+          failed: failCount,
+          warnings: warnCount,
+          overallStatus: failCount === 0 ? (warnCount === 0 ? "✅ ALL PASS" : "⚠️ PASS WITH WARNINGS") : "❌ SOME FAILED",
+        },
+        timestamp: now.toISOString(),
+        thailandDate: todayThailandStr,
+        tests: testResults,
+        nextSteps: failCount > 0 
+          ? ["Fix the failed tests before the system will work correctly"]
+          : warnCount > 0
+          ? ["System is working. Warnings indicate areas that may need attention."]
+          : ["System is fully configured and working correctly!"],
+      });
+    }
+
     if (action === "check-member" && lineUserId) {
       // Check specific member
       const member = await prisma.member.findUnique({
@@ -252,6 +402,7 @@ export async function GET(request: Request) {
       thresholdDate: thresholdDate.toISOString(),
       explanation: "สมาชิกที่มี aiCoachExpireDate < thresholdDate จะถือว่าหมดอายุ (เทียบตามวันที่ไทย)",
       availableActions: [
+        "?action=run-all-tests - 🧪 ทดสอบระบบทั้งหมดอัตโนมัติ",
         "?action=list-expired - แสดงสมาชิกที่หมดอายุแล้ว",
         "?action=list-with-expire - แสดงสมาชิกที่มีวันหมดอายุ",
         "?action=check-member&lineUserId=xxx - ตรวจสอบสมาชิกเฉพาะคน",
