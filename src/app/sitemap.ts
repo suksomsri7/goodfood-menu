@@ -3,7 +3,7 @@ import { MetadataRoute } from "next";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl =
-    process.env.NEXT_PUBLIC_BASE_URL || "https://goodfood.app";
+    process.env.NEXT_PUBLIC_BASE_URL || "https://www.goodfood.in.th";
 
   // Static pages
   const staticPages: MetadataRoute.Sitemap = [

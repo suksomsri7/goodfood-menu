@@ -718,7 +718,7 @@ export function createOrderConfirmedFlexMessage(
   );
 
   // Build URL for quotation page
-  const quotationUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://goodfood-menu.vercel.app"}/quotation/${orderId || ""}`;
+  const quotationUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://www.goodfood.in.th"}/quotation/${orderId || ""}`;
 
   const flexContents: FlexContainer = {
     type: "bubble",
@@ -914,7 +914,7 @@ export function createOrderShippingFlexMessage(
 // Create Order Completed Flex Message (จัดส่งเรียบร้อย)
 export function createOrderCompletedFlexMessage(
   orderNumber: string,
-  baseUrl: string = "https://goodfood-menu.vercel.app"
+  baseUrl: string = "https://www.goodfood.in.th"
 ): LineFlexMessage {
   const flexContents: FlexContainer = {
     type: "bubble",
