@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLiff } from "@/components/providers/LiffProvider";
+import { LogoLoader } from "@/components/user/LogoLoader";
 import {
   Plus,
   Minus,
@@ -435,14 +436,7 @@ export default function OrdersPage() {
 
   // Loading state
   if (!isReady || isLoading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-500">กำลังโหลด...</p>
-        </div>
-      </div>
-    );
+    return <LogoLoader />;
   }
 
   // Not logged in state

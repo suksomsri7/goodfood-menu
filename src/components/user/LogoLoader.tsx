@@ -9,7 +9,7 @@ interface LogoLoaderProps {
 }
 
 export function LogoLoader({ 
-  message = "กำลังโหลด...", 
+  message = "", 
   size = "md",
   fullScreen = true 
 }: LogoLoaderProps) {

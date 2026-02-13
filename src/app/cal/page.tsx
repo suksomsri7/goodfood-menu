@@ -10,6 +10,7 @@ import { MealDetailModal } from "@/components/user/MealDetailModal";
 import { FitnessRings } from "@/components/user/FitnessRings";
 import { AnalysisModal } from "@/components/user/AnalysisModal";
 import { useLiff } from "@/components/providers/LiffProvider";
+import { LogoLoader } from "@/components/user/LogoLoader";
 import { NotificationSettings } from "@/components/user/NotificationSettings";
 import { Brain, Settings } from "lucide-react";
 import { useCalHelp } from "./help-context";
@@ -494,14 +495,7 @@ export default function CaloriePage() {
 
   // Loading state
   if (!isReady || isLoading) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-500">กำลังโหลด...</p>
-        </div>
-      </div>
-    );
+    return <LogoLoader />;
   }
 
   // Not logged in state

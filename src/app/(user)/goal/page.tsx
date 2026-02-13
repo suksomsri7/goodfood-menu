@@ -8,6 +8,7 @@ import { Target, Scale } from "lucide-react";
 import { OnboardingModal } from "@/components/user/OnboardingModal";
 import { WelcomeBackModal } from "@/components/user/WelcomeBackModal";
 import { useLiff } from "@/components/providers/LiffProvider";
+import { LogoLoader } from "@/components/user/LogoLoader";
 import type { Gender } from "@/lib/health-calculator";
 
 interface WeightData {
@@ -281,14 +282,7 @@ export default function GoalPage() {
 
   // Loading state - show while LIFF initializing, data loading, waiting for login redirect, or member not loaded
   if (!isReady || isLoading || !lineUserId || !member) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-500">กำลังโหลด...</p>
-        </div>
-      </div>
-    );
+    return <LogoLoader />;
   }
 
   // Handle Welcome Back modal actions
