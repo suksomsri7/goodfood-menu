@@ -28,29 +28,9 @@ export function LogoLoader({
         className="relative flex items-center justify-center"
         style={{ width: config.outer, height: config.outer }}
       >
-        {/* Outer Ring - Rotating */}
+        {/* Logo with Pulse - behind rings (z-0) */}
         <div 
-          className="absolute rounded-full border-4 border-transparent border-t-[#F44336] border-r-[#F44336] animate-spin"
-          style={{ 
-            width: config.outer,
-            height: config.outer,
-            top: 0,
-            left: 0,
-          }} 
-        />
-        
-        {/* Inner Ring - Counter Rotating */}
-        <div 
-          className="absolute rounded-full border-4 border-transparent border-b-gray-300 border-l-gray-300 animate-spin-reverse"
-          style={{ 
-            width: config.inner,
-            height: config.inner,
-          }} 
-        />
-        
-        {/* Logo with Pulse */}
-        <div 
-          className="relative animate-pulse-scale"
+          className="relative animate-pulse-scale z-0"
           style={{ width: config.logo, height: config.logo }}
         >
           <Image
@@ -59,6 +39,36 @@ export function LogoLoader({
             fill
             className="object-contain rounded-lg"
             priority
+          />
+        </div>
+        
+        {/* Outer Ring - Rotating (z-10, on top) */}
+        <div 
+          className="absolute rounded-full border-4 border-transparent border-t-[#F44336] border-r-[#F44336] animate-spin z-10"
+          style={{ 
+            width: config.outer,
+            height: config.outer,
+            top: 0,
+            left: 0,
+          }} 
+        />
+        
+        {/* Inner Ring - Counter Rotating (z-10, on top) */}
+        <div 
+          className="absolute z-10 flex items-center justify-center"
+          style={{ 
+            width: config.outer,
+            height: config.outer,
+            top: 0,
+            left: 0,
+          }} 
+        >
+          <div 
+            className="rounded-full border-4 border-transparent border-b-gray-300 border-l-gray-300 animate-spin-reverse"
+            style={{ 
+              width: config.inner,
+              height: config.inner,
+            }} 
           />
         </div>
       </div>
