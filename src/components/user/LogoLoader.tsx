@@ -13,42 +13,46 @@ export function LogoLoader({
   size = "md",
   fullScreen = true 
 }: LogoLoaderProps) {
-  const sizeClasses = {
-    sm: "w-24 h-24",
-    md: "w-32 h-32",
-    lg: "w-40 h-40",
+  const sizeConfig = {
+    sm: { logo: 96, outer: 112, inner: 104 },
+    md: { logo: 128, outer: 152, inner: 140 },
+    lg: { logo: 160, outer: 188, inner: 174 },
   };
+
+  const config = sizeConfig[size];
 
   const content = (
     <div className="text-center">
-      {/* Logo Container with Pulse Effect */}
-      <div className="relative inline-block">
+      {/* Logo Container */}
+      <div 
+        className="relative flex items-center justify-center"
+        style={{ width: config.outer, height: config.outer }}
+      >
         {/* Outer Ring - Rotating */}
-        <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#F44336] border-r-[#F44336] animate-spin" 
-             style={{ 
-               width: size === "sm" ? "6.5rem" : size === "md" ? "8.5rem" : "10.5rem",
-               height: size === "sm" ? "6.5rem" : size === "md" ? "8.5rem" : "10.5rem",
-               left: "50%",
-               top: "50%",
-               transform: "translate(-50%, -50%)",
-             }} 
+        <div 
+          className="absolute rounded-full border-4 border-transparent border-t-[#F44336] border-r-[#F44336] animate-spin"
+          style={{ 
+            width: config.outer,
+            height: config.outer,
+            top: 0,
+            left: 0,
+          }} 
         />
         
         {/* Inner Ring - Counter Rotating */}
-        <div className="absolute inset-0 rounded-full border-4 border-transparent border-b-black border-l-black animate-spin-reverse" 
-             style={{ 
-               width: size === "sm" ? "5.5rem" : size === "md" ? "7.5rem" : "9.5rem",
-               height: size === "sm" ? "5.5rem" : size === "md" ? "7.5rem" : "9.5rem",
-               left: "50%",
-               top: "50%",
-               transform: "translate(-50%, -50%)",
-               animationDirection: "reverse",
-               animationDuration: "1.5s",
-             }} 
+        <div 
+          className="absolute rounded-full border-4 border-transparent border-b-gray-300 border-l-gray-300 animate-spin-reverse"
+          style={{ 
+            width: config.inner,
+            height: config.inner,
+          }} 
         />
         
         {/* Logo with Pulse */}
-        <div className={`${sizeClasses[size]} relative animate-pulse-scale`}>
+        <div 
+          className="relative animate-pulse-scale"
+          style={{ width: config.logo, height: config.logo }}
+        >
           <Image
             src="/logo.jpg"
             alt="GOOD FOOD"

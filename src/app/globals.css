@@ -181,16 +181,16 @@ body {
   }
   50% {
     transform: scale(0.95);
-    opacity: 0.8;
+    opacity: 0.85;
   }
 }
 
 @keyframes spin-reverse {
   from {
-    transform: translate(-50%, -50%) rotate(0deg);
+    transform: rotate(0deg);
   }
   to {
-    transform: translate(-50%, -50%) rotate(-360deg);
+    transform: rotate(-360deg);
   }
 }
 
