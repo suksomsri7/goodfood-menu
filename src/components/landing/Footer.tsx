@@ -30,7 +30,7 @@ export function Footer() {
                 { label: "หน้าแรก", href: "/", external: false },
                 { label: "คุณสมบัติ", href: "/#features", external: false },
                 { label: "บทความ", href: "/articles", external: false },
-                { label: "เริ่มใช้งาน", href: "https://line.me/R/ti/p/@goodfood.menu", external: true },
+                { label: "เพิ่มเพื่อน LINE", href: "https://lin.ee/CPSTFxN", external: true },
               ].map((link) => (
                 <li key={link.href}>
                   {link.external ? (
