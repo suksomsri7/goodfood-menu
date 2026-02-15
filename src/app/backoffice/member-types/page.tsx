@@ -20,6 +20,10 @@ import {
   Dumbbell,
   Utensils,
   MessageSquare,
+  ToggleLeft,
+  ToggleRight,
+  Layers,
+  Hash,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -28,6 +32,9 @@ interface MemberType {
   name: string;
   description: string | null;
   color: string;
+  // AI Limit Mode
+  aiLimitMode: "by_type" | "combined";
+  totalDailyAiLimit: number;
   // AI Usage Limits
   dailyPhotoLimit: number;
   dailyAiAnalysisLimit: number;
@@ -89,6 +96,9 @@ export default function MemberTypesPage() {
     name: "",
     description: "",
     color: "#4CAF50",
+    // AI Limit Mode
+    aiLimitMode: "by_type" as "by_type" | "combined",
+    totalDailyAiLimit: 15,
     // AI Usage Limits
     dailyPhotoLimit: 3,
     dailyAiAnalysisLimit: 3,
@@ -166,6 +176,8 @@ export default function MemberTypesPage() {
       name: "",
       description: "",
       color: "#4CAF50",
+      aiLimitMode: "by_type",
+      totalDailyAiLimit: 15,
       dailyPhotoLimit: 3,
       dailyAiAnalysisLimit: 3,
       dailyAiTextAnalysisLimit: 3,
@@ -193,6 +205,8 @@ export default function MemberTypesPage() {
       name: type.name,
       description: type.description || "",
       color: type.color,
+      aiLimitMode: type.aiLimitMode ?? "by_type",
+      totalDailyAiLimit: type.totalDailyAiLimit ?? 15,
       dailyPhotoLimit: type.dailyPhotoLimit ?? 3,
       dailyAiAnalysisLimit: type.dailyAiAnalysisLimit ?? 3,
       dailyAiTextAnalysisLimit: type.dailyAiTextAnalysisLimit ?? 3,
@@ -483,6 +497,40 @@ export default function MemberTypesPage() {
 
                         {/* Limits */}
                         <div className="flex flex-wrap items-center gap-3">
+                          {/* AI Limit Mode Badge */}
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                              type.aiLimitMode === "combined" ? "bg-purple-100" : "bg-indigo-100"
+                            }`}>
+                              {type.aiLimitMode === "combined" ? (
+                                <Hash className="w-3.5 h-3.5 text-purple-600" />
+                              ) : (
+                                <Layers className="w-3.5 h-3.5 text-indigo-600" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-gray-500 text-xs">โหมด AI</p>
+                              <p className={`font-semibold text-xs ${
+                                type.aiLimitMode === "combined" ? "text-purple-700" : "text-indigo-700"
+                              }`}>
+                                {type.aiLimitMode === "combined" ? "รวมทั้งหมด" : "แยกประเภท"}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Combined Limit */}
+                          {type.aiLimitMode === "combined" && (
+                            <div className="flex items-center gap-2 text-sm px-3 py-1.5 bg-purple-100 rounded-lg border border-purple-200">
+                              <Hash className="w-4 h-4 text-purple-600" />
+                              <span className="font-semibold text-purple-700">
+                                {formatLimit(type.totalDailyAiLimit)}/วัน รวม
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Individual Limits - only show if by_type mode */}
+                          {type.aiLimitMode === "by_type" && (
+                            <>
                           <div className="flex items-center gap-2 text-sm">
                             <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center">
                               <Camera className="w-3.5 h-3.5 text-blue-600" />
@@ -566,6 +614,8 @@ export default function MemberTypesPage() {
                               </p>
                             </div>
                           </div>
+                            </>
+                          )}
 
                           <div className="flex items-center gap-2 text-sm">
                             <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center">
@@ -714,11 +764,84 @@ export default function MemberTypesPage() {
                   </div>
                 </div>
 
-                {/* Limits */}
+                {/* AI Limit Mode */}
                 <div className="border-t border-gray-200 pt-5">
                   <h4 className="font-medium text-gray-800 mb-4 flex items-center gap-2">
-                    🎯 จำกัดการใช้งาน AI (ครั้ง/วัน, 0 = ไม่จำกัด)
+                    🎯 จำกัดการใช้งาน AI
                   </h4>
+                  
+                  {/* Mode Toggle */}
+                  <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 mb-4 border border-indigo-100">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Layers className="w-5 h-5 text-indigo-600" />
+                        <span className="font-medium text-gray-800">โหมดจำกัดการใช้งาน</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, aiLimitMode: "by_type" })}
+                        className={`flex-1 px-4 py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
+                          formData.aiLimitMode === "by_type"
+                            ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20"
+                            : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+                        }`}
+                      >
+                        <Layers className="w-4 h-4" />
+                        แยกตามประเภท
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, aiLimitMode: "combined" })}
+                        className={`flex-1 px-4 py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
+                          formData.aiLimitMode === "combined"
+                            ? "bg-purple-600 text-white shadow-lg shadow-purple-600/20"
+                            : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+                        }`}
+                      >
+                        <Hash className="w-4 h-4" />
+                        รวมทั้งหมด
+                      </button>
+                    </div>
+                    
+                    <p className="text-xs text-gray-500 mt-2">
+                      {formData.aiLimitMode === "by_type" 
+                        ? "กำหนดโควต้าแยกตามประเภท AI แต่ละอย่าง"
+                        : "กำหนดโควต้ารวมทุกประเภท AI ไม่แยกแต่ละอย่าง"}
+                    </p>
+                  </div>
+
+                  {/* Combined Limit (show when mode is combined) */}
+                  {formData.aiLimitMode === "combined" && (
+                    <div className="bg-purple-50 rounded-xl p-4 mb-4 border border-purple-100">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                          <Hash className="w-5 h-5 text-purple-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-800">จำนวนครั้งรวมต่อวัน</p>
+                          <p className="text-xs text-gray-500">จำกัดการใช้ AI ทุกประเภทรวมกัน (0 = ไม่จำกัด)</p>
+                        </div>
+                      </div>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.totalDailyAiLimit}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            totalDailyAiLimit: parseInt(e.target.value) || 0,
+                          })
+                        }
+                        className="w-full px-4 py-3 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-lg font-semibold text-center"
+                      />
+                    </div>
+                  )}
+
+                  {/* Individual Limits (show when mode is by_type) */}
+                  {formData.aiLimitMode === "by_type" && (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -853,6 +976,7 @@ export default function MemberTypesPage() {
                       />
                     </div>
                   </div>
+                  )}
                 </div>
 
                 {/* AI Coach Settings */}

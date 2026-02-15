@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
-  Bell,
   Sun,
   Moon,
   Utensils,
@@ -14,16 +13,16 @@ import {
   Clock,
   Sparkles,
   Calendar,
-  AlertCircle,
   Infinity,
   Scale,
-  MessageCircle,
   Power,
   Crown,
   UtensilsCrossed,
+  ArrowLeft,
+  Check,
+  Loader2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { sendMessage, closeWindow, isInClient } from "@/lib/liff";
 
 interface NotificationSettingsProps {
   isOpen: boolean;
@@ -71,6 +70,10 @@ export function NotificationSettings({
   const [isLoading, setIsLoading] = useState(true);
   const [premiumPrice, setPremiumPrice] = useState(299);
   const [premiumDays, setPremiumDays] = useState(30);
+  const [upgradeStep, setUpgradeStep] = useState<"options" | "confirm" | "success">("options");
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+  const [orderNumber, setOrderNumber] = useState<string | null>(null);
+  const [orderId, setOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && lineUserId) {
@@ -149,30 +152,55 @@ export function NotificationSettings({
     });
   };
 
-  // Send message to admin requesting AI Coach activation
-  const requestAiCoachActivation = async () => {
-    const message = "ขอเปิด AI Coach";
-    
+  const handleUpgradePremium = async () => {
+    setIsCreatingOrder(true);
     try {
-      // Send message via LIFF to the chat
-      const success = await sendMessage(message);
-      
-      if (success) {
-        // Close LIFF window and go back to LINE chat
-        if (isInClient()) {
-          closeWindow();
-        } else {
-          // If not in LIFF client, close modal
-          onClose();
-        }
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          coursePlan: "PREMIUM_UPGRADE",
+          totalDays: premiumDays,
+          totalPrice: premiumPrice,
+          finalPrice: premiumPrice,
+          lineUserId,
+          packageName: `Premium AI Coach ${premiumDays} วัน`,
+          note: `อัพเกรดเป็น Premium - ใช้ AI ได้ไม่จำกัด ${premiumDays} วัน`,
+          items: [],
+        }),
+      });
+
+      if (res.ok) {
+        const order = await res.json();
+        setOrderNumber(order.orderNumber);
+        setOrderId(order.id);
+        setUpgradeStep("success");
       } else {
-        alert("ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง");
+        alert("ไม่สามารถสร้างคำสั่งซื้อได้ กรุณาลองใหม่อีกครั้ง");
       }
     } catch (error) {
-      console.error("Error sending message:", error);
-      alert("ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง");
+      console.error("Error creating order:", error);
+      alert("เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
+    } finally {
+      setIsCreatingOrder(false);
     }
   };
+
+  const handleViewQuotation = () => {
+    if (orderId) {
+      onClose();
+      router.push(`/quotation/${orderId}`);
+    }
+  };
+
+  // Reset upgrade step when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setUpgradeStep("options");
+      setOrderNumber(null);
+      setOrderId(null);
+    }
+  }, [isOpen]);
 
   const settingItems = [
     {
@@ -339,164 +367,281 @@ export function NotificationSettings({
                 </div>
               ) : !aiCoach || aiCoach.status === "not_assigned" ? (
                 /* Not Assigned - Show upgrade options */
-                <div className="p-6 pb-8">
-                  <div className="text-center mb-6">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                      <Sparkles className="w-8 h-8 text-gray-400" />
+                <div className="p-6 pb-16">
+                  {upgradeStep === "options" && (
+                    <>
+                      <div className="text-center mb-6">
+                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                          <Sparkles className="w-8 h-8 text-gray-400" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-700 mb-1">
+                          เปิดระบบ AI Coach
+                        </h3>
+                        <p className="text-gray-500 text-sm">
+                          เลือกวิธีเปิดใช้งาน AI Coach
+                        </p>
+                      </div>
+
+                      <div className="space-y-3">
+                        <button
+                          onClick={() => setUpgradeStep("confirm")}
+                          className="w-full flex items-start gap-3 p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border-2 border-purple-200 hover:border-purple-400 transition-colors text-left"
+                        >
+                          <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <Crown className="w-4 h-4 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-semibold text-purple-700 text-sm">อัพเกรดเป็น Premium</p>
+                            <p className="text-purple-600 text-xs font-medium">เพียง {premiumPrice} บาท ใช้ได้ Unlimited {premiumDays} วัน</p>
+                          </div>
+                          <span className="text-purple-500 text-xl">→</span>
+                        </button>
+
+                        <button
+                          onClick={() => { onClose(); router.push("/menu"); }}
+                          className="w-full flex items-start gap-3 p-3 bg-green-50 rounded-xl border border-green-200 hover:border-green-400 transition-colors text-left"
+                        >
+                          <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <UtensilsCrossed className="w-4 h-4 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium text-green-700 text-sm">สั่งอาหารจากเมนู</p>
+                            <p className="text-green-600 text-xs">ได้รับ Limit เพิ่มเมื่อสั่งอาหาร</p>
+                          </div>
+                          <span className="text-green-500 text-xl">→</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+
+                  {upgradeStep === "confirm" && (
+                    <div className="space-y-4">
+                      <button onClick={() => setUpgradeStep("options")} className="flex items-center gap-1 text-gray-500 text-sm mb-2">
+                        <ArrowLeft className="w-4 h-4" /> ย้อนกลับ
+                      </button>
+                      <div className="text-center">
+                        <div className="w-14 h-14 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                          <Crown className="w-7 h-7 text-purple-600" />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-800">อัพเกรด Premium</h3>
+                        <p className="text-gray-500 text-sm">ใช้ AI ได้ไม่จำกัด {premiumDays} วัน</p>
+                      </div>
+
+                      <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-gray-600 text-sm">แพ็คเกจ</span>
+                          <span className="font-semibold text-purple-700">Premium AI Coach</span>
+                        </div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-gray-600 text-sm">ระยะเวลา</span>
+                          <span className="font-medium text-gray-800">{premiumDays} วัน</span>
+                        </div>
+                        <div className="flex items-center justify-between pt-2 border-t border-purple-200">
+                          <span className="text-gray-700 font-medium">ราคา</span>
+                          <span className="text-2xl font-bold text-purple-600">฿{premiumPrice}</span>
+                        </div>
+                      </div>
+
+                      <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
+                        <h4 className="font-semibold text-purple-800 text-sm mb-2">สิทธิพิเศษที่ได้รับ</h4>
+                        <ul className="space-y-1.5 text-sm text-gray-700">
+                          <li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500" /> ใช้ AI วิเคราะห์อาหารได้ไม่จำกัด</li>
+                          <li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500" /> ใช้ AI Coach ได้ไม่จำกัด</li>
+                          <li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500" /> สแกนบาร์โค้ดได้ไม่จำกัด</li>
+                          <li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500" /> AI เลือกเมนูให้ได้ไม่จำกัด</li>
+                        </ul>
+                      </div>
+
+                      <button
+                        onClick={handleUpgradePremium}
+                        disabled={isCreatingOrder}
+                        className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {isCreatingOrder ? (
+                          <><Loader2 className="w-5 h-5 animate-spin" /> กำลังสร้างคำสั่งซื้อ...</>
+                        ) : (
+                          <>ยืนยันสั่งซื้อ ฿{premiumPrice}</>
+                        )}
+                      </button>
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-700 mb-1">
-                      เปิดระบบ AI Coach
-                    </h3>
-                    <p className="text-gray-500 text-sm">
-                      เลือกวิธีเปิดใช้งาน AI Coach
-                    </p>
-                  </div>
+                  )}
 
-                  {/* Options */}
-                  <div className="space-y-3">
-                    {/* Option 1: Upgrade Premium */}
-                    <button
-                      onClick={() => {
-                        onClose();
-                        router.push("/menu");
-                      }}
-                      className="w-full flex items-start gap-3 p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border-2 border-purple-200 hover:border-purple-400 transition-colors text-left"
-                    >
-                      <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Crown className="w-4 h-4 text-white" />
+                  {upgradeStep === "success" && (
+                    <div className="space-y-4">
+                      <div className="text-center">
+                        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                          <Check className="w-8 h-8 text-green-600" />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-800">สร้างคำสั่งซื้อสำเร็จ!</h3>
+                        <p className="text-gray-500 text-sm">หมายเลข: {orderNumber}</p>
                       </div>
-                      <div className="flex-1">
-                        <p className="font-semibold text-purple-700 text-sm">อัพเกรดเป็น Premium</p>
-                        <p className="text-purple-600 text-xs font-medium">เพียง {premiumPrice} บาท ใช้ได้ Unlimited {premiumDays} วัน</p>
-                      </div>
-                      <span className="text-purple-500 text-xl">→</span>
-                    </button>
 
-                    {/* Option 2: Order Food */}
-                    <button
-                      onClick={() => {
-                        onClose();
-                        router.push("/menu");
-                      }}
-                      className="w-full flex items-start gap-3 p-3 bg-green-50 rounded-xl border border-green-200 hover:border-green-400 transition-colors text-left"
-                    >
-                      <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <UtensilsCrossed className="w-4 h-4 text-white" />
+                      <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
+                        <p className="text-amber-800 text-sm">
+                          <strong>ขั้นตอนต่อไป:</strong> กรุณาโอนเงิน ฿{premiumPrice} แล้วแจ้งสลิปผ่านแชท LINE
+                        </p>
                       </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-green-700 text-sm">สั่งอาหารจากเมนู</p>
-                        <p className="text-green-600 text-xs">ได้รับ Limit เพิ่มเมื่อสั่งอาหาร</p>
-                      </div>
-                      <span className="text-green-500 text-xl">→</span>
-                    </button>
 
-                    {/* Option 3: Contact Admin */}
-                    <button
-                      onClick={requestAiCoachActivation}
-                      className="w-full flex items-start gap-3 p-3 bg-amber-50 rounded-xl border border-amber-200 hover:border-amber-400 transition-colors text-left"
-                    >
-                      <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <MessageCircle className="w-4 h-4 text-white" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-amber-700 text-sm">ติดต่อแอดมิน</p>
-                        <p className="text-amber-600 text-xs">ขอเปิด AI Coach ผ่าน LINE Chat</p>
-                      </div>
-                      <span className="text-amber-500 text-xl">→</span>
-                    </button>
-                  </div>
+                      <button
+                        onClick={handleViewQuotation}
+                        className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold shadow-lg"
+                      >
+                        รายละเอียดการชำระเงิน
+                      </button>
+                      <button onClick={onClose} className="w-full py-3 text-gray-500 text-sm font-medium">
+                        ปิด
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : aiCoach.status === "disabled" || aiCoach.status === "expired" ? (
                 /* Disabled or Expired - Show upgrade options */
-                <div className="p-6 pb-8">
-                  <div className="text-center mb-6">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-orange-100 flex items-center justify-center">
-                      <Power className="w-8 h-8 text-orange-500" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-700 mb-1">
-                      ระบบ AI Coach หมดเวลาการใช้งาน
-                    </h3>
-                    {aiCoach.status === "expired" && aiCoach.expireDate && (
-                      <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-red-100 rounded-full text-sm text-red-600 mt-2">
-                        <Calendar className="w-4 h-4" />
-                        หมดอายุเมื่อ {formatExpireDate(aiCoach.expireDate)}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Upgrade Options */}
-                  <div className="border-t pt-5">
-                    <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-purple-500" />
-                      วิธีเพิ่ม Limit การใช้งาน
-                    </h3>
-
-                    <div className="space-y-3">
-                      {/* Option 1: Wait */}
-                      <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
-                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <Clock className="w-4 h-4 text-blue-600" />
+                <div className="p-6 pb-16">
+                  {upgradeStep === "options" && (
+                    <>
+                      <div className="text-center mb-6">
+                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-orange-100 flex items-center justify-center">
+                          <Power className="w-8 h-8 text-orange-500" />
                         </div>
-                        <div>
-                          <p className="font-medium text-gray-800 text-sm">รอวันพรุ่งนี้</p>
-                          <p className="text-gray-500 text-xs">Limit รีเซ็ตทุกวันเวลา 00:00 น.</p>
-                        </div>
+                        <h3 className="text-lg font-semibold text-gray-700 mb-1">
+                          ระบบ AI Coach หมดเวลาการใช้งาน
+                        </h3>
+                        {aiCoach.status === "expired" && aiCoach.expireDate && (
+                          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-red-100 rounded-full text-sm text-red-600 mt-2">
+                            <Calendar className="w-4 h-4" />
+                            หมดอายุเมื่อ {formatExpireDate(aiCoach.expireDate)}
+                          </div>
+                        )}
                       </div>
 
-                      {/* Option 2: Upgrade Premium */}
-                      <button
-                        onClick={() => {
-                          onClose();
-                          // Trigger LimitReachedModal via a custom approach
-                          // For now, navigate to order
-                          router.push("/menu");
-                        }}
-                        className="w-full flex items-start gap-3 p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border-2 border-purple-200 hover:border-purple-400 transition-colors text-left"
-                      >
-                        <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <Crown className="w-4 h-4 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-semibold text-purple-700 text-sm">อัพเกรดเป็น Premium</p>
-                          <p className="text-purple-600 text-xs font-medium">เพียง {premiumPrice} บาท ใช้ได้ Unlimited {premiumDays} วัน</p>
-                        </div>
-                        <span className="text-purple-500 text-xl">→</span>
-                      </button>
+                      <div className="border-t pt-5">
+                        <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-purple-500" />
+                          วิธีเพิ่ม Limit การใช้งาน
+                        </h3>
 
-                      {/* Option 3: Order Food */}
-                      <button
-                        onClick={() => {
-                          onClose();
-                          router.push("/menu");
-                        }}
-                        className="w-full flex items-start gap-3 p-3 bg-green-50 rounded-xl border border-green-200 hover:border-green-400 transition-colors text-left"
-                      >
-                        <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <UtensilsCrossed className="w-4 h-4 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-medium text-green-700 text-sm">สั่งอาหารจากเมนู</p>
-                          <p className="text-green-600 text-xs">ได้รับ Limit เพิ่มเมื่อสั่งอาหาร</p>
-                        </div>
-                        <span className="text-green-500 text-xl">→</span>
-                      </button>
+                        <div className="space-y-3">
+                          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
+                            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <Clock className="w-4 h-4 text-blue-600" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-800 text-sm">รอวันพรุ่งนี้</p>
+                              <p className="text-gray-500 text-xs">Limit รีเซ็ตทุกวันเวลา 00:00 น.</p>
+                            </div>
+                          </div>
 
-                      {/* Option 4: Contact Admin */}
+                          <button
+                            onClick={() => setUpgradeStep("confirm")}
+                            className="w-full flex items-start gap-3 p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border-2 border-purple-200 hover:border-purple-400 transition-colors text-left"
+                          >
+                            <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <Crown className="w-4 h-4 text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-semibold text-purple-700 text-sm">อัพเกรดเป็น Premium</p>
+                              <p className="text-purple-600 text-xs font-medium">เพียง {premiumPrice} บาท ใช้ได้ Unlimited {premiumDays} วัน</p>
+                            </div>
+                            <span className="text-purple-500 text-xl">→</span>
+                          </button>
+
+                          <button
+                            onClick={() => { onClose(); router.push("/menu"); }}
+                            className="w-full flex items-start gap-3 p-3 bg-green-50 rounded-xl border border-green-200 hover:border-green-400 transition-colors text-left"
+                          >
+                            <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <UtensilsCrossed className="w-4 h-4 text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-medium text-green-700 text-sm">สั่งอาหารจากเมนู</p>
+                              <p className="text-green-600 text-xs">ได้รับ Limit เพิ่มเมื่อสั่งอาหาร</p>
+                            </div>
+                            <span className="text-green-500 text-xl">→</span>
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {upgradeStep === "confirm" && (
+                    <div className="space-y-4">
+                      <button onClick={() => setUpgradeStep("options")} className="flex items-center gap-1 text-gray-500 text-sm mb-2">
+                        <ArrowLeft className="w-4 h-4" /> ย้อนกลับ
+                      </button>
+                      <div className="text-center">
+                        <div className="w-14 h-14 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                          <Crown className="w-7 h-7 text-purple-600" />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-800">อัพเกรด Premium</h3>
+                        <p className="text-gray-500 text-sm">ใช้ AI ได้ไม่จำกัด {premiumDays} วัน</p>
+                      </div>
+
+                      <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-gray-600 text-sm">แพ็คเกจ</span>
+                          <span className="font-semibold text-purple-700">Premium AI Coach</span>
+                        </div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-gray-600 text-sm">ระยะเวลา</span>
+                          <span className="font-medium text-gray-800">{premiumDays} วัน</span>
+                        </div>
+                        <div className="flex items-center justify-between pt-2 border-t border-purple-200">
+                          <span className="text-gray-700 font-medium">ราคา</span>
+                          <span className="text-2xl font-bold text-purple-600">฿{premiumPrice}</span>
+                        </div>
+                      </div>
+
+                      <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
+                        <h4 className="font-semibold text-purple-800 text-sm mb-2">สิทธิพิเศษที่ได้รับ</h4>
+                        <ul className="space-y-1.5 text-sm text-gray-700">
+                          <li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500" /> ใช้ AI วิเคราะห์อาหารได้ไม่จำกัด</li>
+                          <li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500" /> ใช้ AI Coach ได้ไม่จำกัด</li>
+                          <li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500" /> สแกนบาร์โค้ดได้ไม่จำกัด</li>
+                          <li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500" /> AI เลือกเมนูให้ได้ไม่จำกัด</li>
+                        </ul>
+                      </div>
+
                       <button
-                        onClick={requestAiCoachActivation}
-                        className="w-full flex items-start gap-3 p-3 bg-amber-50 rounded-xl border border-amber-200 hover:border-amber-400 transition-colors text-left"
+                        onClick={handleUpgradePremium}
+                        disabled={isCreatingOrder}
+                        className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
                       >
-                        <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <MessageCircle className="w-4 h-4 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-medium text-amber-700 text-sm">ติดต่อแอดมิน</p>
-                          <p className="text-amber-600 text-xs">ขอเปิด AI Coach ผ่าน LINE Chat</p>
-                        </div>
-                        <span className="text-amber-500 text-xl">→</span>
+                        {isCreatingOrder ? (
+                          <><Loader2 className="w-5 h-5 animate-spin" /> กำลังสร้างคำสั่งซื้อ...</>
+                        ) : (
+                          <>ยืนยันสั่งซื้อ ฿{premiumPrice}</>
+                        )}
                       </button>
                     </div>
-                  </div>
+                  )}
+
+                  {upgradeStep === "success" && (
+                    <div className="space-y-4">
+                      <div className="text-center">
+                        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                          <Check className="w-8 h-8 text-green-600" />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-800">สร้างคำสั่งซื้อสำเร็จ!</h3>
+                        <p className="text-gray-500 text-sm">หมายเลข: {orderNumber}</p>
+                      </div>
+
+                      <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
+                        <p className="text-amber-800 text-sm">
+                          <strong>ขั้นตอนต่อไป:</strong> กรุณาโอนเงิน ฿{premiumPrice} แล้วแจ้งสลิปผ่านแชท LINE
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={handleViewQuotation}
+                        className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold shadow-lg"
+                      >
+                        รายละเอียดการชำระเงิน
+                      </button>
+                      <button onClick={onClose} className="w-full py-3 text-gray-500 text-sm font-medium">
+                        ปิด
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : settings && isAiCoachAvailable ? (
                 <div className="p-6 space-y-6">
