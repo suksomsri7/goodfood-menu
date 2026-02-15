@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { prisma } from "@/lib/prisma";
 import { checkUsageLimit, logAiUsage } from "@/lib/usage-limits";
 
 const openai = new OpenAI({
@@ -36,7 +37,6 @@ export async function POST(request: NextRequest) {
 
     // Check if OpenAI API key is configured
     if (!process.env.OPENAI_API_KEY) {
-      // Return estimated data without AI
       return NextResponse.json({
         success: true,
         data: {
@@ -51,8 +51,55 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Fetch user context for coaching
+    let userContext = "";
+    if (lineUserId) {
+      try {
+        const member = await prisma.member.findUnique({
+          where: { lineUserId },
+        });
+        if (member) {
+          const now = new Date();
+          const startOfDay = new Date(now);
+          startOfDay.setHours(0, 0, 0, 0);
+          const endOfDay = new Date(now);
+          endOfDay.setHours(23, 59, 59, 999);
+
+          const meals = await prisma.mealLog.findMany({
+            where: {
+              memberId: member.id,
+              date: { gte: startOfDay, lte: endOfDay },
+            },
+          });
+
+          const totalCalories = meals.reduce((sum, m) => sum + m.calories, 0);
+          const totalProtein = meals.reduce((sum, m) => sum + m.protein, 0);
+          const totalCarbs = meals.reduce((sum, m) => sum + m.carbs, 0);
+          const totalFat = meals.reduce((sum, m) => sum + m.fat, 0);
+
+          const goalCalories = member.dailyCalories || 2000;
+          const goalProtein = member.dailyProtein || 150;
+          const goalCarbs = member.dailyCarbs || 250;
+          const goalFat = member.dailyFat || 65;
+          const remainCal = goalCalories - totalCalories;
+          const remainPro = goalProtein - totalProtein;
+
+          userContext = `\n\n--- ข้อมูลผู้ใช้ ---
+ชื่อ: ${member.name || "ผู้ใช้"}
+เพศ: ${member.gender === "female" ? "หญิง" : "ชาย"}
+น้ำหนัก: ${member.weight || 70} kg | เป้าหมาย: ${member.goalWeight || 65} kg
+เป้าหมายวันนี้: ${goalCalories} kcal | โปรตีน ${goalProtein}g | คาร์บ ${goalCarbs}g | ไขมัน ${goalFat}g
+ทานไปแล้ววันนี้: ${totalCalories} kcal | โปรตีน ${totalProtein}g | คาร์บ ${totalCarbs}g | ไขมัน ${totalFat}g
+เหลือ: ${remainCal} kcal | โปรตีน ${remainPro}g
+จำนวนมื้อที่ทานไปแล้ว: ${meals.length} มื้อ`;
+        }
+      } catch (e) {
+        console.error("Error fetching user context:", e);
+      }
+    }
+
     // Build prompt
-    let prompt = `วิเคราะห์สารอาหารของอาหารต่อไปนี้:
+    let prompt = `วิเคราะห์สารอาหารของอาหารต่อไปนี้ พร้อมให้คำแนะนำแบบโค้ชส่วนตัว:
 
 ชื่ออาหาร: ${name}`;
 
@@ -68,6 +115,10 @@ export async function POST(request: NextRequest) {
       prompt += `\nจำนวน: ${quantity} ที่`;
     }
 
+    if (userContext) {
+      prompt += userContext;
+    }
+
     prompt += `
 
 กรุณาประมาณค่าสารอาหารต่อ 1 หน่วย และตอบเป็น JSON format เท่านั้น:
@@ -78,7 +129,14 @@ export async function POST(request: NextRequest) {
   "fat": ไขมันเป็นกรัม (number),
   "sodium": โซเดียมเป็นมิลลิกรัม (number),
   "sugar": น้ำตาลเป็นกรัม (number),
-  "description": "คำอธิบายสั้นๆ"
+  "description": "คำอธิบายสั้นๆ",
+  "coaching": {
+    "verdict": "GOOD" หรือ "OK" หรือ "CAUTION" หรือ "NOT_RECOMMENDED",
+    "verdictText": "ข้อความสั้น 1 บรรทัด เช่น 'เหมาะมาก!' หรือ 'ควรระวัง' หรือ 'ไม่แนะนำ'",
+    "reason": "เหตุผลว่าทำไมถึงเหมาะหรือไม่เหมาะ อธิบายสั้นๆ 1-2 ประโยค",
+    "impact": "ถ้าทานมื้อนี้ไปแล้ว ผลลัพธ์จะเป็นอย่างไร เช่น แคลอรี่จะเกิน/ยังเหลือเท่าไหร่",
+    "suggestion": "คำแนะนำจากโค้ช 1-2 ข้อ"
+  }
 }`;
 
     const completion = await openai.chat.completions.create({
@@ -86,15 +144,18 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: "system",
-          content: "คุณเป็นนักโภชนาการ ให้ประมาณค่าสารอาหารของอาหารไทยและอาหารทั่วไป ตอบเป็น JSON เท่านั้น ไม่ต้องมี markdown code block",
+          content: `คุณคือ "AI Coach" โค้ชโภชนาการส่วนตัวมืออาชีพ มีอาชีพเป็นนักโภชนาการ นักกำหนดอาหาร และเทรนเนอร์สุขภาพ
+ให้ประมาณค่าสารอาหารของอาหารไทยและอาหารทั่วไป พร้อมให้คำแนะนำว่าอาหารนี้เหมาะสมกับเป้าหมายของผู้ใช้หรือไม่
+ใช้น้ำเสียงเป็นกันเอง เหมือนโค้ชส่วนตัวพูดกับลูกค้า
+ตอบเป็น JSON เท่านั้น ไม่ต้องมี markdown code block`,
         },
         {
           role: "user",
           content: prompt,
         },
       ],
-      max_tokens: 500,
-      temperature: 0.3,
+      max_tokens: 1000,
+      temperature: 0.4,
     });
 
     const content = completion.choices[0]?.message?.content;
