@@ -625,31 +625,29 @@ export function CameraModal({ isOpen, onClose, onSave, lineUserId }: CameraModal
                     </div>
                   </div>
 
-                  {/* Save & Retake Buttons */}
+                  {/* Save & Action Buttons */}
                   <div className="space-y-3 pt-4 border-t border-gray-100">
                     <button
                       onClick={handleSave}
                       className="w-full py-3 bg-gray-900 text-white rounded-xl font-medium"
                     >
-                      บันทึก
+                      ทานมื้อนี้
+                    </button>
+
+                    <button
+                      onClick={handleClose}
+                      className="w-full py-3 bg-gray-100 text-gray-600 rounded-xl font-medium"
+                    >
+                      ไม่ทาน
                     </button>
                     
-                    <div className="flex gap-3">
-                      <button
-                        onClick={retakePhoto}
-                        className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium flex items-center justify-center gap-2"
-                      >
-                        <RotateCcw className="w-5 h-5" />
-                        ถ่ายใหม่
-                      </button>
-                      
-                      <button
-                        onClick={handleClose}
-                        className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium"
-                      >
-                        ยกเลิก
-                      </button>
-                    </div>
+                    <button
+                      onClick={retakePhoto}
+                      className="w-full py-2 text-gray-400 text-sm font-medium flex items-center justify-center gap-1"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      ถ่ายใหม่
+                    </button>
                   </div>
                 </>
               )}
