@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Plus, PieChart, UtensilsCrossed, Camera, Barcode, PenLine, Package, Dumbbell } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLiff } from "@/components/providers/LiffProvider";
@@ -38,6 +38,7 @@ export function BottomNavBar() {
   
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isOpen, setIsOpen] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
@@ -103,6 +104,33 @@ export function BottomNavBar() {
       fetchDailyNutrition();
     }
   }, [showStock, showManualEntry, showCamera, showBarcode, lineUserId, fetchDailyNutrition]);
+
+  // Auto-open modal from URL query param (for LIFF Rich Menu)
+  useEffect(() => {
+    const action = searchParams.get("action");
+    if (!action) return;
+
+    switch (action) {
+      case "barcode":
+        setShowBarcode(true);
+        break;
+      case "camera":
+        setShowCamera(true);
+        break;
+      case "manual":
+        setShowManualEntry(true);
+        break;
+      case "exercise":
+        setShowExercise(true);
+        break;
+      case "stock":
+        setShowStock(true);
+        break;
+    }
+
+    // Clean up URL query param
+    router.replace(pathname, { scroll: false });
+  }, [searchParams, pathname, router]);
 
   const options = [
     { icon: Dumbbell, label: "ออกกำลังกาย", action: () => setShowExercise(true), color: "text-orange-500" },
