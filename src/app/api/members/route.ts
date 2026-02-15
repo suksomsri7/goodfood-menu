@@ -8,6 +8,11 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || "";
     const limit = parseInt(searchParams.get("limit") || "50");
     const offset = parseInt(searchParams.get("offset") || "0");
+    
+    // Filter params
+    const memberTypeId = searchParams.get("memberTypeId") || "";
+    const activityStatus = searchParams.get("activityStatus") || "";
+    const goalType = searchParams.get("goalType") || "";
 
     // Build where clause
     const where: any = {};
@@ -18,6 +23,17 @@ export async function GET(request: NextRequest) {
         { email: { contains: search, mode: "insensitive" } },
         { phone: { contains: search, mode: "insensitive" } },
       ];
+    }
+    
+    // Apply filters
+    if (memberTypeId) {
+      where.memberTypeId = memberTypeId;
+    }
+    if (activityStatus) {
+      where.activityStatus = activityStatus;
+    }
+    if (goalType) {
+      where.goalType = goalType;
     }
 
     // Get members with order count

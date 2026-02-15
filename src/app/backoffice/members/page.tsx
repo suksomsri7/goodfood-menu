@@ -214,6 +214,11 @@ export default function MembersPage() {
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [showDetail, setShowDetail] = useState(false);
 
+  // Filter state
+  const [filterMemberType, setFilterMemberType] = useState<string>("");
+  const [filterActivityStatus, setFilterActivityStatus] = useState<string>("");
+  const [filterGoalType, setFilterGoalType] = useState<string>("");
+
   // Member types for dropdown
   const [memberTypes, setMemberTypes] = useState<MemberType[]>([]);
 
@@ -251,7 +256,13 @@ export default function MembersPage() {
   // Fetch members
   const fetchMembers = async () => {
     try {
-      const res = await fetch(`/api/members?search=${encodeURIComponent(searchQuery)}`);
+      const params = new URLSearchParams();
+      if (searchQuery) params.set("search", searchQuery);
+      if (filterMemberType) params.set("memberTypeId", filterMemberType);
+      if (filterActivityStatus) params.set("activityStatus", filterActivityStatus);
+      if (filterGoalType) params.set("goalType", filterGoalType);
+      
+      const res = await fetch(`/api/members?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         setMembers(data.members);
@@ -280,7 +291,7 @@ export default function MembersPage() {
   useEffect(() => {
     fetchMembers();
     fetchMemberTypes();
-  }, [searchQuery]);
+  }, [searchQuery, filterMemberType, filterActivityStatus, filterGoalType]);
 
   // Fetch member details
   const fetchMemberDetail = async (memberId: string) => {
@@ -464,17 +475,70 @@ export default function MembersPage() {
           </motion.div>
         </div>
 
-        {/* Search */}
-        <div className="flex gap-4 mb-6">
-          <div className="flex-1 relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="ค้นหาสมาชิก (ชื่อ, อีเมล, เบอร์โทร)..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent outline-none transition-all"
-            />
+        {/* Search and Filters */}
+        <div className="bg-white rounded-xl border border-gray-100 p-4 mb-6">
+          <div className="flex flex-wrap gap-4">
+            {/* Search */}
+            <div className="flex-1 min-w-[200px] relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="ค้นหาสมาชิก (ชื่อ, อีเมล, เบอร์โทร)..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-12 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent outline-none transition-all"
+              />
+            </div>
+            
+            {/* Filter: Member Type */}
+            <select
+              value={filterMemberType}
+              onChange={(e) => setFilterMemberType(e.target.value)}
+              className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent outline-none min-w-[150px]"
+            >
+              <option value="">ประเภททั้งหมด</option>
+              {memberTypes.map((type) => (
+                <option key={type.id} value={type.id}>{type.name}</option>
+              ))}
+            </select>
+            
+            {/* Filter: Activity Status */}
+            <select
+              value={filterActivityStatus}
+              onChange={(e) => setFilterActivityStatus(e.target.value)}
+              className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent outline-none min-w-[130px]"
+            >
+              <option value="">สถานะทั้งหมด</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            
+            {/* Filter: Goal Type */}
+            <select
+              value={filterGoalType}
+              onChange={(e) => setFilterGoalType(e.target.value)}
+              className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent outline-none min-w-[140px]"
+            >
+              <option value="">เป้าหมายทั้งหมด</option>
+              <option value="lose">ลดน้ำหนัก</option>
+              <option value="maintain">รักษาน้ำหนัก</option>
+              <option value="gain">เพิ่มน้ำหนัก</option>
+              <option value="muscle">เพิ่มกล้ามเนื้อ</option>
+            </select>
+            
+            {/* Clear Filters */}
+            {(filterMemberType || filterActivityStatus || filterGoalType) && (
+              <button
+                onClick={() => {
+                  setFilterMemberType("");
+                  setFilterActivityStatus("");
+                  setFilterGoalType("");
+                }}
+                className="px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm font-medium"
+              >
+                ล้าง Filter
+              </button>
+            )}
           </div>
         </div>
 
@@ -505,9 +569,6 @@ export default function MembersPage() {
                     </th>
                     <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase">
                       เป้าหมาย
-                    </th>
-                    <th className="text-center py-4 px-6 text-xs font-semibold text-gray-500 uppercase">
-                      แคลอรี่/วัน
                     </th>
                     <th className="text-center py-4 px-6 text-xs font-semibold text-gray-500 uppercase">
                       ออเดอร์
@@ -588,9 +649,6 @@ export default function MembersPage() {
                         ) : (
                           <span className="text-gray-400 text-sm">-</span>
                         )}
-                      </td>
-                      <td className="py-4 px-6 text-center font-medium text-gray-900">
-                        {member.dailyCalories?.toLocaleString() || "-"}
                       </td>
                       <td className="py-4 px-6 text-center font-medium text-gray-600">
                         {member.orderCount}
