@@ -17,6 +17,44 @@ export async function GET(request: Request) {
   const action = url.searchParams.get("action");
   const memberId = url.searchParams.get("memberId");
 
+  // Test cron authorization
+  if (action === "test-cron-auth") {
+    const cronSecret = process.env.CRON_SECRET;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.goodfood.in.th";
+    
+    if (!cronSecret) {
+      return NextResponse.json({
+        success: false,
+        error: "CRON_SECRET is not set in environment variables",
+      });
+    }
+
+    try {
+      // Call the actual cron endpoint with the secret
+      const response = await fetch(`${baseUrl}/api/cron/check-trial-expiry`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${cronSecret}`,
+        },
+      });
+      
+      const data = await response.json();
+      
+      return NextResponse.json({
+        success: response.ok,
+        status: response.status,
+        cronSecretConfigured: true,
+        cronResponse: data,
+      });
+    } catch (err) {
+      return NextResponse.json({
+        success: false,
+        error: err instanceof Error ? err.message : String(err),
+        cronSecretConfigured: true,
+      });
+    }
+  }
+
   try {
     // Get system settings
     const settings = await prisma.systemSetting.findUnique({
