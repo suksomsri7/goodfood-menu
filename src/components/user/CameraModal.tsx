@@ -2,8 +2,8 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Camera, RotateCcw, Calculator, Loader2, AlertTriangle, CheckCircle, AlertCircle, ShieldAlert, ThumbsUp } from "lucide-react";
-import { requestLimitIncrease, isInClient, closeWindow } from "@/lib/liff";
+import { X, Camera, RotateCcw, Calculator, Loader2, CheckCircle, AlertCircle, ShieldAlert, ThumbsUp } from "lucide-react";
+import { LimitReachedModal } from "./LimitReachedModal";
 
 interface CameraModalProps {
   isOpen: boolean;
@@ -122,7 +122,11 @@ export function CameraModal({ isOpen, onClose, onSave, lineUserId }: CameraModal
   } | null>(null);
   const [analysisError, setAnalysisError] = useState<string>("");
   const [showLimitModal, setShowLimitModal] = useState(false);
-  const [limitMessage, setLimitMessage] = useState("");
+  const [limitInfo, setLimitInfo] = useState<{
+    message: string;
+    limit?: number;
+    used?: number;
+  }>({ message: "" });
 
   // Analyze nutrition using GPT-4o
   const analyzeNutrition = async () => {
@@ -150,7 +154,11 @@ export function CameraModal({ isOpen, onClose, onSave, lineUserId }: CameraModal
       
       // Check for limit reached
       if (result.limitReached) {
-        setLimitMessage(result.error || "ถึงขีดจำกัดการใช้งาน AI วันนี้แล้ว");
+        setLimitInfo({
+          message: result.error || "ถึงขีดจำกัดการใช้งาน AI วันนี้แล้ว",
+          limit: result.limit,
+          used: result.used,
+        });
         setShowLimitModal(true);
         setState("preview");
         return;
@@ -651,72 +659,13 @@ export function CameraModal({ isOpen, onClose, onSave, lineUserId }: CameraModal
       </motion.div>
 
       {/* Limit Reached Modal */}
-      <AnimatePresence>
-        {showLimitModal && (
-          <motion.div
-            className="fixed inset-0 z-[70] flex items-center justify-center p-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <motion.div
-              className="absolute inset-0 bg-black/60"
-              onClick={() => setShowLimitModal(false)}
-            />
-            <motion.div
-              className="relative bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl"
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-            >
-              <div className="flex flex-col items-center text-center">
-                <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
-                  <AlertTriangle className="w-8 h-8 text-amber-500" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                  ถึงขีดจำกัดการใช้งานแล้ว
-                </h3>
-                <p className="text-gray-500 text-sm mb-6">
-                  {limitMessage}
-                </p>
-                <button
-                  onClick={async () => {
-                    if (!lineUserId) {
-                      alert("ไม่พบข้อมูลผู้ใช้");
-                      return;
-                    }
-                    try {
-                      const success = await requestLimitIncrease(lineUserId);
-                      if (success) {
-                        // Close LIFF window immediately
-                        if (isInClient()) {
-                          closeWindow();
-                        } else {
-                          setShowLimitModal(false);
-                        }
-                      } else {
-                        alert("ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง");
-                      }
-                    } catch (error) {
-                      console.error("Error:", error);
-                      alert("ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง");
-                    }
-                  }}
-                  className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold shadow-lg mb-3"
-                >
-                  วิธีเพิ่ม Limit การใช้งาน
-                </button>
-                <button
-                  onClick={() => setShowLimitModal(false)}
-                  className="text-gray-500 text-sm"
-                >
-                  ปิด
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <LimitReachedModal
+        isOpen={showLimitModal}
+        onClose={() => setShowLimitModal(false)}
+        limitType="วิเคราะห์รูปอาหาร"
+        limitCount={limitInfo.limit}
+        usedCount={limitInfo.used}
+      />
     </AnimatePresence>
   );
 }

@@ -14,6 +14,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from "@zxing/library";
+import { LimitReachedModal } from "./LimitReachedModal";
 
 interface BarcodeProduct {
   barcode: string;
@@ -76,6 +77,8 @@ export function BarcodeModal({ isOpen, onClose, onSave, lineUserId }: BarcodeMod
   const scanningRef = useRef<boolean>(false);
   const [manualBarcode, setManualBarcode] = useState("");
   const [isScanning, setIsScanning] = useState(false);
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [limitInfo, setLimitInfo] = useState<{ limit?: number; used?: number }>({});
 
   // Editable form data
   const [formData, setFormData] = useState<BarcodeProduct>({
@@ -223,8 +226,9 @@ export function BarcodeModal({ isOpen, onClose, onSave, lineUserId }: BarcodeMod
 
       // Check for limit reached
       if (result.limitReached) {
-        setError(result.error || "ถึงขีดจำกัดการใช้งานวันนี้แล้ว");
-        setState("not_found");
+        setLimitInfo({ limit: result.limit, used: result.used });
+        setShowLimitModal(true);
+        setState("scanner");
         return;
       }
 
@@ -288,7 +292,8 @@ export function BarcodeModal({ isOpen, onClose, onSave, lineUserId }: BarcodeMod
 
       // Check for limit reached
       if (result.limitReached) {
-        setError(result.error || "ถึงขีดจำกัดการใช้งาน AI วันนี้แล้ว");
+        setLimitInfo({ limit: result.limit, used: result.used });
+        setShowLimitModal(true);
         setState("photo_capture");
         return;
       }
@@ -995,6 +1000,15 @@ export function BarcodeModal({ isOpen, onClose, onSave, lineUserId }: BarcodeMod
           </div>
         )}
       </motion.div>
+
+      {/* Limit Reached Modal */}
+      <LimitReachedModal
+        isOpen={showLimitModal}
+        onClose={() => setShowLimitModal(false)}
+        limitType="สแกนบาร์โค้ด"
+        limitCount={limitInfo.limit}
+        usedCount={limitInfo.used}
+      />
     </AnimatePresence>
   );
 }

@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLiff } from "@/components/providers/LiffProvider";
-import { closeWindow, requestLimitIncrease, isInClient } from "@/lib/liff";
+import { closeWindow } from "@/lib/liff";
+import { LimitReachedModal } from "@/components/user/LimitReachedModal";
 
 interface Restaurant {
   id: string;
@@ -129,7 +130,7 @@ export default function MenuPage() {
   const [aiRecommendation, setAiRecommendation] = useState("");
   const [showAiResult, setShowAiResult] = useState(false);
   const [aiLimitReached, setAiLimitReached] = useState(false);
-  const [aiLimitMessage, setAiLimitMessage] = useState("");
+  const [aiLimitInfo, setAiLimitInfo] = useState<{ limit?: number; used?: number }>({});
 
   // Address state
   const [addresses, setAddresses] = useState<Address[]>([]);
@@ -761,14 +762,14 @@ export default function MenuPage() {
       // Check for limit reached
       if (data.limitReached) {
         setAiLimitReached(true);
-        setAiLimitMessage(data.error || "ถึงขีดจำกัดการใช้งาน AI วันนี้แล้ว");
-        setShowAiResult(true); // Show the result area to display limit message
+        setAiLimitInfo({ limit: data.limit, used: data.used });
+        // Don't show AI result, show the limit modal instead
         return;
       }
       
       // Reset limit state on success
       setAiLimitReached(false);
-      setAiLimitMessage("");
+      setAiLimitInfo({});
       
       if (res.ok) {
         // Map back to full Food objects
@@ -2201,60 +2202,6 @@ export default function MenuPage() {
                   </button>
                 </div>
               </div>
-            ) : aiLimitReached ? (
-              // AI Limit Reached
-              <div className="px-4 pb-8">
-                <div className="flex flex-col items-center justify-center py-8">
-                  <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mb-4">
-                    <span className="text-4xl">⚠️</span>
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">ถึงขีดจำกัดการใช้งานแล้ว</h3>
-                  <p className="text-gray-500 text-sm text-center mb-6 px-4">
-                    {aiLimitMessage || "คุณใช้งาน AI ครบจำนวนที่กำหนดแล้วในวันนี้"}
-                  </p>
-                  <button
-                    onClick={async () => {
-                      if (!profile?.userId) {
-                        alert("ไม่พบข้อมูลผู้ใช้");
-                        return;
-                      }
-                      try {
-                        const success = await requestLimitIncrease(profile.userId);
-                        if (success) {
-                          // Close LIFF window immediately
-                          if (isInClient()) {
-                            closeWindow();
-                          } else {
-                            setSelectedPackage(null);
-                            setShowAiResult(false);
-                            setAiLimitReached(false);
-                          }
-                        } else {
-                          alert("ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง");
-                        }
-                      } catch (error) {
-                        console.error("Error requesting limit increase:", error);
-                        alert("ไม่สามารถส่งข้อความได้ กรุณาลองใหม่อีกครั้ง");
-                      }
-                    }}
-                    className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
-                  >
-                    วิธีเพิ่ม Limit การใช้งาน
-                  </button>
-                  <p className="text-xs text-gray-400 mt-3">
-                    กดปุ่มเพื่อสอบถามแอดมิน
-                  </p>
-                  <button
-                    onClick={() => {
-                      setShowAiResult(false);
-                      setAiLimitReached(false);
-                    }}
-                    className="mt-4 text-gray-500 text-sm underline"
-                  >
-                    กลับไปเลือกวิธีอื่น
-                  </button>
-                </div>
-              </div>
             ) : (
               // AI Result
               <div className="px-4 pb-8">
@@ -2367,6 +2314,18 @@ export default function MenuPage() {
           </div>
         </div>
       )}
+
+      {/* AI Limit Reached Modal */}
+      <LimitReachedModal
+        isOpen={aiLimitReached}
+        onClose={() => {
+          setAiLimitReached(false);
+          setSelectedPackage(null);
+        }}
+        limitType="AI เลือกเมนู"
+        limitCount={aiLimitInfo.limit}
+        usedCount={aiLimitInfo.used}
+      />
     </div>
   );
 }

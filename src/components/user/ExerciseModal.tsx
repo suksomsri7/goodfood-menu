@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Flame, Clock, Dumbbell, ChevronDown, Camera, Loader2, Settings2, RotateCcw } from "lucide-react";
+import { LimitReachedModal } from "./LimitReachedModal";
 
 interface ExerciseModalProps {
   isOpen: boolean;
@@ -111,6 +112,8 @@ export function ExerciseModal({ isOpen, onClose, onSave, lineUserId }: ExerciseM
   const [customDistance, setCustomDistance] = useState<string>("");
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [limitInfo, setLimitInfo] = useState<{ limit?: number; used?: number }>({});
   const [aiResult, setAiResult] = useState<{
     name: string;
     duration: number;
@@ -265,7 +268,8 @@ export function ExerciseModal({ isOpen, onClose, onSave, lineUserId }: ExerciseM
       
       // Check for limit reached
       if (data.limitReached) {
-        alert(data.error || "ถึงขีดจำกัดการใช้งาน AI วันนี้แล้ว");
+        setLimitInfo({ limit: data.limit, used: data.used });
+        setShowLimitModal(true);
         setCapturedImage(null);
         setIsAnalyzing(false);
         return;
@@ -776,6 +780,15 @@ export function ExerciseModal({ isOpen, onClose, onSave, lineUserId }: ExerciseM
           </button>
         </div>
       </div>
+
+      {/* Limit Reached Modal */}
+      <LimitReachedModal
+        isOpen={showLimitModal}
+        onClose={() => setShowLimitModal(false)}
+        limitType="วิเคราะห์การออกกำลังกาย"
+        limitCount={limitInfo.limit}
+        usedCount={limitInfo.used}
+      />
     </div>
   );
 }

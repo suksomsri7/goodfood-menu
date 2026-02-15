@@ -91,7 +91,7 @@ export default function CaloriePage() {
   } | null>(null);
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
   const [analysisLimitReached, setAnalysisLimitReached] = useState(false);
-  const [analysisLimitMessage, setAnalysisLimitMessage] = useState("");
+  const [analysisLimitInfo, setAnalysisLimitInfo] = useState<{ limit?: number; used?: number }>({});
   
   // Notification Settings state
   const [showNotificationSettings, setShowNotificationSettings] = useState(false);
@@ -267,14 +267,14 @@ export default function CaloriePage() {
       // Check for limit reached
       if (data.limitReached) {
         setAnalysisLimitReached(true);
-        setAnalysisLimitMessage(data.error || "ถึงขีดจำกัดการใช้งาน AI วันนี้แล้ว");
+        setAnalysisLimitInfo({ limit: data.limit, used: data.used });
         setAnalysisResult(null);
         return;
       }
       
       // Reset limit state if successful
       setAnalysisLimitReached(false);
-      setAnalysisLimitMessage("");
+      setAnalysisLimitInfo({});
       
       if (res.ok) {
         // Ensure analysis has required fields with fallbacks
@@ -680,8 +680,8 @@ export default function CaloriePage() {
         isLoading={isLoadingAnalysis}
         onRefresh={fetchAnalysis}
         limitReached={analysisLimitReached}
-        limitMessage={analysisLimitMessage}
-        lineUserId={lineUserId}
+        limitCount={analysisLimitInfo.limit}
+        usedCount={analysisLimitInfo.used}
       />
 
       {/* Notification Settings Modal */}
