@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
-import { pushMessage, createOrderFlexMessage } from "@/lib/line";
+import { pushMessage, createOrderFlexMessage, createOrderConfirmedFlexMessage } from "@/lib/line";
 
 // สร้างเลข Order
 function generateOrderNumber() {
@@ -176,6 +176,8 @@ export async function POST(request: NextRequest) {
         deliveryPhone,
         deliveryAddress,
         note: note || null,
+        // Set status to "confirmed" for premium upgrades
+        ...(isPremiumUpgrade ? { status: "confirmed" } : {}),
         // Only create items if not a premium upgrade and items exist
         ...(isPremiumUpgrade || !items || items.length === 0 ? {} : {
           items: {
@@ -208,26 +210,39 @@ export async function POST(request: NextRequest) {
     // ส่ง LINE Flex Message ยืนยัน Order ให้ลูกค้า
     if (lineUserId) {
       try {
-        const flexMessage = createOrderFlexMessage({
-          orderNumber: order.orderNumber,
-          totalPrice: order.totalPrice,
-          totalDays: order.totalDays || 1,
-          coursePlan: order.coursePlan || "single",
-          items: order.items.map((item) => ({
-            foodName: item.foodName,
-            quantity: item.quantity,
-            price: item.price,
-          })),
-          status: order.status,
-          discount: order.discount || 0,
-          packageName: order.packageName || null,
-          finalPrice: order.finalPrice || order.totalPrice,
-          restaurantName: restaurantName,
-          deliveryFee: order.deliveryFee || 0,
-          deliveryName: order.deliveryName,
-          deliveryPhone: order.deliveryPhone,
-          deliveryAddress: order.deliveryAddress,
-        });
+        let flexMessage;
+        
+        if (isPremiumUpgrade) {
+          // For premium upgrades, send only the confirmed flex message
+          flexMessage = createOrderConfirmedFlexMessage(
+            order.orderNumber,
+            order.finalPrice || order.totalPrice,
+            undefined, // No payment account in flex (user will see it in quotation page)
+            order.id
+          );
+        } else {
+          // For regular orders, send the standard order flex message
+          flexMessage = createOrderFlexMessage({
+            orderNumber: order.orderNumber,
+            totalPrice: order.totalPrice,
+            totalDays: order.totalDays || 1,
+            coursePlan: order.coursePlan || "single",
+            items: order.items.map((item) => ({
+              foodName: item.foodName,
+              quantity: item.quantity,
+              price: item.price,
+            })),
+            status: order.status,
+            discount: order.discount || 0,
+            packageName: order.packageName || null,
+            finalPrice: order.finalPrice || order.totalPrice,
+            restaurantName: restaurantName,
+            deliveryFee: order.deliveryFee || 0,
+            deliveryName: order.deliveryName,
+            deliveryPhone: order.deliveryPhone,
+            deliveryAddress: order.deliveryAddress,
+          });
+        }
 
         await pushMessage(lineUserId, [flexMessage]);
         console.log(`Order confirmation sent to LINE user: ${lineUserId}`);

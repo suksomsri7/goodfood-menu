@@ -361,7 +361,7 @@ export function LimitReachedModal({
                     onClick={handleViewQuotation}
                     className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold shadow-lg flex items-center justify-center gap-2"
                   >
-                    <span>ดูใบเสนอราคา</span>
+                    <span>รายละเอียดการชำระเงิน</span>
                   </button>
                   <button
                     onClick={onClose}
