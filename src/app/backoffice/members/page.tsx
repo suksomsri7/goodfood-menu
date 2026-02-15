@@ -24,6 +24,12 @@ import {
   Edit2,
   Trash2,
   AlertTriangle,
+  Brain,
+  Camera,
+  Scan,
+  MessageCircle,
+  Dumbbell,
+  ChefHat,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { formatDistanceToNow, format } from "date-fns";
@@ -68,8 +74,20 @@ interface Member {
   memberType: MemberType | null;
   orderCount: number;
   mealLogCount: number;
+  aiUsageTotal: number;
+  aiUsageToday: number;
   createdAt: string;
   updatedAt: string;
+}
+
+interface AiUsageStats {
+  total: number;
+  today: number;
+  byType: {
+    total: Record<string, number>;
+    today: Record<string, number>;
+  };
+  recentLogs: { id: string; usageType: string; createdAt: string }[];
 }
 
 interface MemberDetail {
@@ -101,6 +119,7 @@ interface MemberDetail {
   aiCoachExpireDate: string | null;
   addresses: Address[];
   weightLogs: { id: string; weight: number; date: string }[];
+  aiUsageStats?: AiUsageStats;
   createdAt: string;
   updatedAt: string;
 }
@@ -161,6 +180,16 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   cancelled: { label: "ยกเลิก", color: "bg-red-100 text-red-700" },
 };
 
+const aiUsageTypeLabels: Record<string, { label: string; icon: any; color: string }> = {
+  photo: { label: "ถ่ายรูปอาหาร", icon: Camera, color: "text-orange-600 bg-orange-50" },
+  ai_analysis: { label: "วิเคราะห์รายวัน", icon: Brain, color: "text-purple-600 bg-purple-50" },
+  ai_text_analysis: { label: "พิมพ์อาหาร", icon: MessageCircle, color: "text-blue-600 bg-blue-50" },
+  ai_recommend: { label: "AI แนะนำ", icon: Brain, color: "text-indigo-600 bg-indigo-50" },
+  exercise_analysis: { label: "วิเคราะห์ออกกำลังกาย", icon: Dumbbell, color: "text-green-600 bg-green-50" },
+  menu_select: { label: "AI เลือกเมนู", icon: ChefHat, color: "text-pink-600 bg-pink-50" },
+  scan: { label: "สแกนบาร์โค้ด", icon: Scan, color: "text-cyan-600 bg-cyan-50" },
+};
+
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("th-TH", {
     style: "currency",
@@ -189,7 +218,7 @@ export default function MembersPage() {
   const [memberTypes, setMemberTypes] = useState<MemberType[]>([]);
 
   // Detail modal state
-  const [activeTab, setActiveTab] = useState<"profile" | "meals" | "orders">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "meals" | "orders" | "ai">("profile");
   const [memberDetail, setMemberDetail] = useState<MemberDetail | null>(null);
   const [meals, setMeals] = useState<MealLog[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -483,6 +512,9 @@ export default function MembersPage() {
                     <th className="text-center py-4 px-6 text-xs font-semibold text-gray-500 uppercase">
                       ออเดอร์
                     </th>
+                    <th className="text-center py-4 px-6 text-xs font-semibold text-gray-500 uppercase">
+                      AI Usage
+                    </th>
                     <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase">
                       เข้าใช้ล่าสุด
                     </th>
@@ -562,6 +594,14 @@ export default function MembersPage() {
                       </td>
                       <td className="py-4 px-6 text-center font-medium text-gray-600">
                         {member.orderCount}
+                      </td>
+                      <td className="py-4 px-6 text-center">
+                        <div className="flex flex-col items-center">
+                          <span className="font-medium text-purple-600">{member.aiUsageTotal}</span>
+                          {member.aiUsageToday > 0 && (
+                            <span className="text-xs text-gray-400">วันนี้ {member.aiUsageToday}</span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-4 px-6">
                         <span className="text-sm text-gray-500">
@@ -672,6 +712,7 @@ export default function MembersPage() {
                 <div className="flex gap-1 px-6">
                   {[
                     { id: "profile", label: "ข้อมูลทั่วไป", icon: User },
+                    { id: "ai", label: "AI Usage", icon: Brain },
                     { id: "meals", label: "Stock อาหาร", icon: Utensils },
                     { id: "orders", label: "ประวัติออเดอร์", icon: ShoppingBag },
                   ].map((tab) => (
@@ -1034,6 +1075,115 @@ export default function MembersPage() {
                             </div>
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* AI Usage Tab */}
+                    {activeTab === "ai" && memberDetail && (
+                      <div className="space-y-6">
+                        {/* Today vs Total Stats */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-purple-50 rounded-xl p-4 text-center">
+                            <p className="text-3xl font-bold text-purple-700">
+                              {memberDetail.aiUsageStats?.today || 0}
+                            </p>
+                            <p className="text-sm text-purple-600">ใช้วันนี้</p>
+                          </div>
+                          <div className="bg-indigo-50 rounded-xl p-4 text-center">
+                            <p className="text-3xl font-bold text-indigo-700">
+                              {memberDetail.aiUsageStats?.total || 0}
+                            </p>
+                            <p className="text-sm text-indigo-600">ใช้ทั้งหมด</p>
+                          </div>
+                        </div>
+
+                        {/* Usage by Type - Today */}
+                        <div className="bg-gray-50 rounded-xl p-6">
+                          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                            <Calendar className="w-5 h-5" />
+                            การใช้งานวันนี้ (แยกประเภท)
+                          </h3>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            {Object.entries(aiUsageTypeLabels).map(([key, { label, icon: Icon, color }]) => {
+                              const count = memberDetail.aiUsageStats?.byType.today[key] || 0;
+                              return (
+                                <div
+                                  key={key}
+                                  className={`p-3 rounded-lg ${color} flex items-center gap-3`}
+                                >
+                                  <Icon className="w-5 h-5" />
+                                  <div>
+                                    <p className="font-bold text-lg">{count}</p>
+                                    <p className="text-xs opacity-80">{label}</p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Usage by Type - Total */}
+                        <div className="bg-gray-50 rounded-xl p-6">
+                          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                            <TrendingUp className="w-5 h-5" />
+                            การใช้งานทั้งหมด (แยกประเภท)
+                          </h3>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            {Object.entries(aiUsageTypeLabels).map(([key, { label, icon: Icon, color }]) => {
+                              const count = memberDetail.aiUsageStats?.byType.total[key] || 0;
+                              return (
+                                <div
+                                  key={key}
+                                  className={`p-3 rounded-lg ${color} flex items-center gap-3`}
+                                >
+                                  <Icon className="w-5 h-5" />
+                                  <div>
+                                    <p className="font-bold text-lg">{count}</p>
+                                    <p className="text-xs opacity-80">{label}</p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Recent Activity */}
+                        <div className="bg-gray-50 rounded-xl p-6">
+                          <h3 className="font-semibold text-gray-900 mb-4">ประวัติการใช้งานล่าสุด</h3>
+                          {memberDetail.aiUsageStats?.recentLogs && memberDetail.aiUsageStats.recentLogs.length > 0 ? (
+                            <div className="space-y-2 max-h-60 overflow-y-auto">
+                              {memberDetail.aiUsageStats.recentLogs.map((log) => {
+                                const typeInfo = aiUsageTypeLabels[log.usageType] || {
+                                  label: log.usageType,
+                                  icon: Brain,
+                                  color: "text-gray-600 bg-gray-100",
+                                };
+                                const Icon = typeInfo.icon;
+                                return (
+                                  <div
+                                    key={log.id}
+                                    className="flex items-center justify-between py-2 px-3 bg-white rounded-lg border border-gray-100"
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <div className={`p-2 rounded-lg ${typeInfo.color}`}>
+                                        <Icon className="w-4 h-4" />
+                                      </div>
+                                      <span className="text-sm font-medium text-gray-700">{typeInfo.label}</span>
+                                    </div>
+                                    <span className="text-xs text-gray-400">
+                                      {format(new Date(log.createdAt), "d MMM HH:mm", { locale: th })}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="text-center py-8 text-gray-500">
+                              <Brain className="w-12 h-12 mx-auto text-gray-300 mb-4" />
+                              <p>ยังไม่มีประวัติการใช้งาน AI</p>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
 

@@ -30,7 +30,53 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(member);
+    // Get AI usage statistics
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Get total AI usage by type
+    const totalByType = await prisma.aiUsageLog.groupBy({
+      by: ['usageType'],
+      where: { memberId: id },
+      _count: { id: true },
+    });
+
+    // Get today's AI usage by type
+    const todayByType = await prisma.aiUsageLog.groupBy({
+      by: ['usageType'],
+      where: { 
+        memberId: id,
+        createdAt: { gte: today },
+      },
+      _count: { id: true },
+    });
+
+    // Get recent AI usage logs (last 20)
+    const recentLogs = await prisma.aiUsageLog.findMany({
+      where: { memberId: id },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    });
+
+    // Format AI usage stats
+    const aiUsageStats = {
+      total: totalByType.reduce((sum, t) => sum + t._count.id, 0),
+      today: todayByType.reduce((sum, t) => sum + t._count.id, 0),
+      byType: {
+        total: Object.fromEntries(totalByType.map(t => [t.usageType, t._count.id])),
+        today: Object.fromEntries(todayByType.map(t => [t.usageType, t._count.id])),
+      },
+      recentLogs: recentLogs.map(log => ({
+        id: log.id,
+        usageType: log.usageType,
+        createdAt: log.createdAt,
+      })),
+    };
+
+    return NextResponse.json({
+      ...member,
+      aiUsageStats,
+    });
   } catch (error) {
     console.error("Error fetching member:", error);
     return NextResponse.json(

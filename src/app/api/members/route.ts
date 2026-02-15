@@ -42,9 +42,34 @@ export async function GET(request: NextRequest) {
       prisma.member.count({ where }),
     ]);
 
-    // Get today's stats
+    // Get AI usage count for today and total for each member
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    
+    const memberIds = members.map(m => m.id);
+    
+    // Get total AI usage per member
+    const totalAiUsage = await prisma.aiUsageLog.groupBy({
+      by: ['memberId'],
+      where: { memberId: { in: memberIds } },
+      _count: { id: true },
+    });
+    
+    // Get today's AI usage per member
+    const todayAiUsage = await prisma.aiUsageLog.groupBy({
+      by: ['memberId'],
+      where: { 
+        memberId: { in: memberIds },
+        createdAt: { gte: today },
+      },
+      _count: { id: true },
+    });
+
+    // Create lookup maps
+    const totalAiUsageMap = new Map(totalAiUsage.map(u => [u.memberId, u._count.id]));
+    const todayAiUsageMap = new Map(todayAiUsage.map(u => [u.memberId, u._count.id]));
+
+    // Get today's stats (reuse today variable from above)
     
     // Use try-catch for new fields in case Prisma client not regenerated yet
     let activeToday = 0;
@@ -96,6 +121,8 @@ export async function GET(request: NextRequest) {
       memberType: member.memberType,
       orderCount: member._count.orders,
       mealLogCount: member._count.mealLogs,
+      aiUsageTotal: totalAiUsageMap.get(member.id) || 0,
+      aiUsageToday: todayAiUsageMap.get(member.id) || 0,
       createdAt: member.createdAt,
       updatedAt: member.updatedAt,
     }));
