@@ -122,6 +122,73 @@ export async function GET(request: Request) {
       });
     }
 
+    // Trigger actual update (like cron would do)
+    if (action === "trigger-update") {
+      if (!settings.generalMemberTypeId) {
+        return NextResponse.json({ error: "generalMemberTypeId not set" });
+      }
+
+      const expiredMembers = await prisma.member.findMany({
+        where: {
+          aiCoachExpireDate: {
+            lt: thresholdDate,
+          },
+          memberTypeId: {
+            not: settings.generalMemberTypeId,
+          },
+        },
+        select: {
+          id: true,
+          displayName: true,
+          memberTypeId: true,
+          aiCoachExpireDate: true,
+        },
+      });
+
+      if (expiredMembers.length === 0) {
+        return NextResponse.json({
+          success: false,
+          message: "No expired members found to update",
+        });
+      }
+
+      // Actually update the members
+      const updateResults = [];
+      for (const member of expiredMembers) {
+        try {
+          const updated = await prisma.member.update({
+            where: { id: member.id },
+            data: {
+              memberTypeId: settings.generalMemberTypeId,
+              aiCoachExpireDate: null,
+            },
+          });
+          updateResults.push({
+            id: member.id,
+            name: member.displayName,
+            previousType: member.memberTypeId,
+            previousTypeName: typeMap[member.memberTypeId || ''] || 'Unknown',
+            newType: settings.generalMemberTypeId,
+            newTypeName: typeMap[settings.generalMemberTypeId || ''] || 'Unknown',
+            success: true,
+          });
+        } catch (err) {
+          updateResults.push({
+            id: member.id,
+            name: member.displayName,
+            success: false,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `Processed ${expiredMembers.length} members`,
+        results: updateResults,
+      });
+    }
+
     // Simulate cron query
     if (action === "simulate-cron") {
       // #region agent log - Hypothesis B: Query simulation
