@@ -16,9 +16,6 @@ interface LimitReachedModalProps {
   lineUserId?: string;
 }
 
-const PREMIUM_PRICE = 299;
-const PREMIUM_DAYS = 30;
-
 export function LimitReachedModal({
   isOpen,
   onClose,
@@ -34,6 +31,27 @@ export function LimitReachedModal({
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
+  
+  // Premium settings from API
+  const [premiumPrice, setPremiumPrice] = useState(299);
+  const [premiumDays, setPremiumDays] = useState(30);
+
+  // Fetch premium settings
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch("/api/settings/ai-coach");
+        if (res.ok) {
+          const data = await res.json();
+          setPremiumPrice(data.premiumPrice ?? 299);
+          setPremiumDays(data.premiumDays ?? 30);
+        }
+      } catch (error) {
+        console.error("Error fetching premium settings:", error);
+      }
+    };
+    fetchSettings();
+  }, []);
 
   // Reset state when modal closes
   useEffect(() => {
@@ -53,12 +71,12 @@ export function LimitReachedModal({
     // #region agent log
     const requestBody = {
       coursePlan: "PREMIUM_UPGRADE",
-      totalDays: PREMIUM_DAYS,
-      totalPrice: PREMIUM_PRICE,
-      finalPrice: PREMIUM_PRICE,
+      totalDays: premiumDays,
+      totalPrice: premiumPrice,
+      finalPrice: premiumPrice,
       lineUserId,
-      packageName: "Premium AI Coach 30 วัน",
-      note: "อัพเกรดเป็น Premium - ใช้ AI ได้ไม่จำกัด 30 วัน",
+      packageName: `Premium AI Coach ${premiumDays} วัน`,
+      note: `อัพเกรดเป็น Premium - ใช้ AI ได้ไม่จำกัด ${premiumDays} วัน`,
       items: [], // Empty items for premium upgrade
     };
     fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LimitReachedModal.tsx:handleConfirmOrder',message:'Request body',data:{requestBody,lineUserId},timestamp:Date.now(),hypothesisId:'H1-H4'})}).catch(()=>{});
@@ -194,7 +212,7 @@ export function LimitReachedModal({
                         </div>
                         <div className="flex-1">
                           <p className="font-semibold text-purple-700 text-sm">อัพเกรดเป็น Premium</p>
-                          <p className="text-purple-600 text-xs font-medium">เพียง {PREMIUM_PRICE} บาท ใช้ได้ Unlimited {PREMIUM_DAYS} วัน</p>
+                          <p className="text-purple-600 text-xs font-medium">เพียง {premiumPrice} บาท ใช้ได้ Unlimited {premiumDays} วัน</p>
                         </div>
                         <span className="text-purple-500 text-xl">→</span>
                       </button>
@@ -250,7 +268,7 @@ export function LimitReachedModal({
                       <Crown className="w-7 h-7 text-white" />
                     </div>
                     <h2 className="text-lg font-bold text-white">อัพเกรด Premium</h2>
-                    <p className="text-white/80 text-sm">ใช้ AI ได้ไม่จำกัด {PREMIUM_DAYS} วัน</p>
+                    <p className="text-white/80 text-sm">ใช้ AI ได้ไม่จำกัด {premiumDays} วัน</p>
                   </div>
                 </div>
 
@@ -264,11 +282,11 @@ export function LimitReachedModal({
                     </div>
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-gray-600 text-sm">ระยะเวลา</span>
-                      <span className="font-medium text-gray-800">{PREMIUM_DAYS} วัน</span>
+                      <span className="font-medium text-gray-800">{premiumDays} วัน</span>
                     </div>
                     <div className="flex items-center justify-between pt-2 border-t border-purple-200">
                       <span className="text-gray-700 font-medium">ราคา</span>
-                      <span className="text-2xl font-bold text-purple-600">฿{PREMIUM_PRICE}</span>
+                      <span className="text-2xl font-bold text-purple-600">฿{premiumPrice}</span>
                     </div>
                   </div>
 
@@ -310,7 +328,7 @@ export function LimitReachedModal({
                       </>
                     ) : (
                       <>
-                        <span>ยืนยันสั่งซื้อ ฿{PREMIUM_PRICE}</span>
+                        <span>ยืนยันสั่งซื้อ ฿{premiumPrice}</span>
                       </>
                     )}
                   </button>
@@ -339,18 +357,18 @@ export function LimitReachedModal({
                 <div className="p-6 space-y-4">
                   <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
                     <p className="text-amber-800 text-sm">
-                      <strong>ขั้นตอนต่อไป:</strong> กรุณาโอนเงิน ฿{PREMIUM_PRICE} แล้วแจ้งสลิปผ่านแชท LINE เพื่อยืนยันการชำระเงิน
+                      <strong>ขั้นตอนต่อไป:</strong> กรุณาโอนเงิน ฿{premiumPrice} แล้วแจ้งสลิปผ่านแชท LINE เพื่อยืนยันการชำระเงิน
                     </p>
                   </div>
 
                   <div className="bg-gray-50 rounded-xl p-4">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-gray-600 text-sm">แพ็คเกจ</span>
-                      <span className="font-medium text-gray-800">Premium AI Coach {PREMIUM_DAYS} วัน</span>
+                      <span className="font-medium text-gray-800">Premium AI Coach {premiumDays} วัน</span>
                     </div>
                     <div className="flex items-center justify-between pt-2 border-t border-gray-200">
                       <span className="text-gray-700 font-medium">ยอดชำระ</span>
-                      <span className="text-xl font-bold text-green-600">฿{PREMIUM_PRICE}</span>
+                      <span className="text-xl font-bold text-green-600">฿{premiumPrice}</span>
                     </div>
                   </div>
                 </div>

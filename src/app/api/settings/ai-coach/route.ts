@@ -52,6 +52,9 @@ export async function PATCH(request: Request) {
       // Activity Settings
       inactiveDaysThreshold,
       gracePeriodDays,
+      // Premium Settings
+      premiumPrice,
+      premiumDays,
     } = body;
 
     const settings = await prisma.systemSetting.upsert({
@@ -63,6 +66,8 @@ export async function PATCH(request: Request) {
         ...(generalMemberTypeId !== undefined && { generalMemberTypeId: generalMemberTypeId || null }),
         ...(inactiveDaysThreshold !== undefined && { inactiveDaysThreshold }),
         ...(gracePeriodDays !== undefined && { gracePeriodDays }),
+        ...(premiumPrice !== undefined && { premiumPrice }),
+        ...(premiumDays !== undefined && { premiumDays }),
       },
       create: {
         id: "system",
@@ -72,6 +77,8 @@ export async function PATCH(request: Request) {
         generalMemberTypeId: generalMemberTypeId || null,
         inactiveDaysThreshold: inactiveDaysThreshold ?? 7,
         gracePeriodDays: gracePeriodDays ?? 2,
+        premiumPrice: premiumPrice ?? 299,
+        premiumDays: premiumDays ?? 30,
       },
     });
 

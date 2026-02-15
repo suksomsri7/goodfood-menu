@@ -15,7 +15,10 @@ import {
   Clock,
   UserX,
   Save,
-  Loader2
+  Loader2,
+  Crown,
+  Banknote,
+  Calendar
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -63,11 +66,20 @@ export default function SettingsPage() {
   const [activityLoading, setActivityLoading] = useState(true);
   const [activitySaving, setActivitySaving] = useState(false);
   
+  // Premium Settings state
+  const [premiumSettings, setPremiumSettings] = useState({
+    premiumPrice: 299,
+    premiumDays: 30,
+  });
+  const [premiumLoading, setPremiumLoading] = useState(true);
+  const [premiumSaving, setPremiumSaving] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchAccounts();
     fetchActivitySettings();
+    fetchPremiumSettings();
   }, []);
 
   const fetchAccounts = async () => {
@@ -119,6 +131,44 @@ export default function SettingsPage() {
       alert("เกิดข้อผิดพลาด");
     } finally {
       setActivitySaving(false);
+    }
+  };
+
+  const fetchPremiumSettings = async () => {
+    try {
+      const res = await fetch("/api/settings/ai-coach");
+      if (res.ok) {
+        const data = await res.json();
+        setPremiumSettings({
+          premiumPrice: data.premiumPrice ?? 299,
+          premiumDays: data.premiumDays ?? 30,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching premium settings:", error);
+    } finally {
+      setPremiumLoading(false);
+    }
+  };
+
+  const savePremiumSettings = async () => {
+    setPremiumSaving(true);
+    try {
+      const res = await fetch("/api/settings/ai-coach", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(premiumSettings),
+      });
+      if (res.ok) {
+        alert("บันทึกสำเร็จ");
+      } else {
+        alert("เกิดข้อผิดพลาด");
+      }
+    } catch (error) {
+      console.error("Error saving premium settings:", error);
+      alert("เกิดข้อผิดพลาด");
+    } finally {
+      setPremiumSaving(false);
     }
   };
 
@@ -335,6 +385,109 @@ export default function SettingsPage() {
                     className="px-6 py-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors flex items-center gap-2 disabled:opacity-50"
                   >
                     {activitySaving ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4" />
+                    )}
+                    บันทึกการตั้งค่า
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Premium Settings Section */}
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                <Crown className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <h2 className="font-semibold text-gray-800">ตั้งค่า Premium</h2>
+                <p className="text-sm text-gray-500">กำหนดราคาและระยะเวลาแพ็กเกจ Premium</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6">
+            {premiumLoading ? (
+              <div className="text-center py-8">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-400" />
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Premium Price */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <Banknote className="w-4 h-4 inline mr-2" />
+                      ราคาอัพเกรด Premium
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="number"
+                        min="1"
+                        value={premiumSettings.premiumPrice}
+                        onChange={(e) => setPremiumSettings(prev => ({
+                          ...prev,
+                          premiumPrice: parseInt(e.target.value) || 299,
+                        }))}
+                        className="w-32 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-center"
+                      />
+                      <span className="text-gray-600">บาท</span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">
+                      ราคาที่แสดงในหน้าอัพเกรดและใบเสนอราคา
+                    </p>
+                  </div>
+
+                  {/* Premium Days */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <Calendar className="w-4 h-4 inline mr-2" />
+                      จำนวนวัน Premium
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="number"
+                        min="1"
+                        value={premiumSettings.premiumDays}
+                        onChange={(e) => setPremiumSettings(prev => ({
+                          ...prev,
+                          premiumDays: parseInt(e.target.value) || 30,
+                        }))}
+                        className="w-32 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-center"
+                      />
+                      <span className="text-gray-600">วัน</span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">
+                      ระยะเวลาการใช้งาน Premium หลังชำระเงิน
+                    </p>
+                  </div>
+                </div>
+
+                {/* Info Box */}
+                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                  <h4 className="font-medium text-purple-800 mb-2">รายละเอียดแพ็กเกจ Premium</h4>
+                  <ul className="text-sm text-purple-700 space-y-1">
+                    <li>• ใช้งาน AI Coach ได้ไม่จำกัด</li>
+                    <li>• วิเคราะห์อาหารจากรูปถ่าย, สแกนบาร์โค้ด</li>
+                    <li>• AI ช่วยเลือกเมนูอาหาร</li>
+                    <li>• วิเคราะห์การออกกำลังกาย</li>
+                    <li>• รับข้อความให้กำลังใจจาก AI ทุกวัน</li>
+                  </ul>
+                </div>
+
+                {/* Save Button */}
+                <div className="flex justify-end">
+                  <button
+                    onClick={savePremiumSettings}
+                    disabled={premiumSaving}
+                    className="px-6 py-3 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-colors flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {premiumSaving ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <Save className="w-4 h-4" />

@@ -633,6 +633,10 @@ model SystemSetting {
   trialMemberTypeId        String?
   generalMemberTypeId      String?
   
+  // Premium Upgrade Settings
+  premiumPrice             Int      @default(299)  // ราคาอัพเกรด Premium (บาท)
+  premiumDays              Int      @default(30)   // จำนวนวัน Premium
+  
   // Member Activity Status Settings
   inactiveDaysThreshold    Int      @default(7)    // จำนวนวันที่ไม่เปิดแอปถึงจะเป็น Inactive
   gracePeriodDays          Int      @default(2)    // ส่งเตือนก่อนเปลี่ยนสถานะกี่วัน
