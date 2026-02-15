@@ -2,16 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, AlertTriangle, Clock, Crown, UtensilsCrossed, Sparkles, ArrowLeft, Copy, Check, QrCode, Building2, Loader2 } from "lucide-react";
+import { X, AlertTriangle, Clock, Crown, UtensilsCrossed, Sparkles, ArrowLeft, Check, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-
-interface PaymentAccount {
-  id: string;
-  bankName: string;
-  accountName: string;
-  accountNumber: string;
-  qrCodeUrl: string | null;
-}
 
 interface LimitReachedModalProps {
   isOpen: boolean;
@@ -39,10 +31,7 @@ export function LimitReachedModal({
 }: LimitReachedModalProps) {
   const router = useRouter();
   const [step, setStep] = useState<"options" | "confirm" | "success">("options");
-  const [paymentAccount, setPaymentAccount] = useState<PaymentAccount | null>(null);
-  const [isLoadingPayment, setIsLoadingPayment] = useState(false);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
 
@@ -55,56 +44,36 @@ export function LimitReachedModal({
     }
   }, [isOpen]);
 
-  // Fetch payment account when going to confirm step
-  useEffect(() => {
-    if (step === "confirm" && !paymentAccount) {
-      fetchPaymentAccount();
-    }
-  }, [step]);
-
-  const fetchPaymentAccount = async () => {
-    setIsLoadingPayment(true);
-    try {
-      const res = await fetch("/api/settings/payment-accounts/default");
-      if (res.ok) {
-        const data = await res.json();
-        setPaymentAccount(data);
-      }
-    } catch (error) {
-      console.error("Error fetching payment account:", error);
-    } finally {
-      setIsLoadingPayment(false);
-    }
-  };
-
   const handleUpgradePremium = () => {
     setStep("confirm");
   };
 
   const handleConfirmOrder = async () => {
     setIsCreatingOrder(true);
+    // #region agent log
+    const requestBody = {
+      coursePlan: "PREMIUM_UPGRADE",
+      totalDays: PREMIUM_DAYS,
+      totalPrice: PREMIUM_PRICE,
+      finalPrice: PREMIUM_PRICE,
+      lineUserId,
+      packageName: "Premium AI Coach 30 วัน",
+      note: "อัพเกรดเป็น Premium - ใช้ AI ได้ไม่จำกัด 30 วัน",
+      items: [], // Empty items for premium upgrade
+    };
+    fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LimitReachedModal.tsx:handleConfirmOrder',message:'Request body',data:{requestBody,lineUserId},timestamp:Date.now(),hypothesisId:'H1-H4'})}).catch(()=>{});
+    // #endregion
     try {
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          coursePlan: "PREMIUM_UPGRADE",
-          totalDays: PREMIUM_DAYS,
-          totalPrice: PREMIUM_PRICE,
-          finalPrice: PREMIUM_PRICE,
-          lineUserId,
-          packageName: "Premium AI Coach 30 วัน",
-          note: "อัพเกรดเป็น Premium - ใช้ AI ได้ไม่จำกัด 30 วัน",
-          items: [
-            {
-              foodId: "premium-upgrade",
-              foodName: "Premium AI Coach 30 วัน",
-              quantity: 1,
-              price: PREMIUM_PRICE,
-            },
-          ],
-        }),
+        body: JSON.stringify(requestBody),
       });
+
+      // #region agent log
+      const responseData = await res.clone().json().catch(() => null);
+      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LimitReachedModal.tsx:handleConfirmOrder:response',message:'API response',data:{status:res.status,ok:res.ok,responseData},timestamp:Date.now(),hypothesisId:'H1-H4'})}).catch(()=>{});
+      // #endregion
 
       if (res.ok) {
         const order = await res.json();
@@ -115,18 +84,13 @@ export function LimitReachedModal({
         alert("ไม่สามารถสร้างคำสั่งซื้อได้ กรุณาลองใหม่อีกครั้ง");
       }
     } catch (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LimitReachedModal.tsx:handleConfirmOrder:error',message:'Caught error',data:{error:String(error)},timestamp:Date.now(),hypothesisId:'H1-H4'})}).catch(()=>{});
+      // #endregion
       console.error("Error creating order:", error);
       alert("เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
     } finally {
       setIsCreatingOrder(false);
-    }
-  };
-
-  const copyAccountNumber = () => {
-    if (paymentAccount?.accountNumber) {
-      navigator.clipboard.writeText(paymentAccount.accountNumber);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -150,21 +114,21 @@ export function LimitReachedModal({
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop - z-[60] to be above other modals */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={step === "options" ? onClose : undefined}
-            className="fixed inset-0 bg-black/50 z-50"
+            className="fixed inset-0 bg-black/50 z-[60]"
           />
 
-          {/* Modal */}
+          {/* Modal - z-[60] to be above other modals */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed inset-x-4 top-1/2 -translate-y-1/2 max-w-md mx-auto bg-white rounded-3xl shadow-2xl z-50 overflow-hidden"
+            className="fixed inset-x-4 top-1/2 -translate-y-1/2 max-w-md mx-auto bg-white rounded-3xl shadow-2xl z-[60] overflow-hidden"
           >
             {step === "options" && (
               <>
@@ -308,71 +272,35 @@ export function LimitReachedModal({
                     </div>
                   </div>
 
-                  {/* Payment Info */}
-                  {isLoadingPayment ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
-                    </div>
-                  ) : paymentAccount ? (
-                    <div className="space-y-3">
-                      <h3 className="font-semibold text-gray-800 text-sm flex items-center gap-2">
-                        <Building2 className="w-4 h-4 text-gray-500" />
-                        ข้อมูลการชำระเงิน
-                      </h3>
-
-                      {/* QR Code */}
-                      {paymentAccount.qrCodeUrl && (
-                        <div className="flex justify-center">
-                          <div className="bg-white p-3 rounded-xl border-2 border-gray-100 shadow-sm">
-                            <img 
-                              src={paymentAccount.qrCodeUrl} 
-                              alt="QR Code" 
-                              className="w-40 h-40 object-contain"
-                            />
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Bank Details */}
-                      <div className="bg-gray-50 rounded-xl p-4 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-500 text-sm">ธนาคาร</span>
-                          <span className="font-medium text-gray-800">{paymentAccount.bankName}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-500 text-sm">ชื่อบัญชี</span>
-                          <span className="font-medium text-gray-800">{paymentAccount.accountName}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-500 text-sm">เลขบัญชี</span>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-bold text-purple-600">{paymentAccount.accountNumber}</span>
-                            <button
-                              onClick={copyAccountNumber}
-                              className="p-1.5 bg-purple-100 rounded-lg hover:bg-purple-200 transition-colors"
-                            >
-                              {copied ? (
-                                <Check className="w-4 h-4 text-green-600" />
-                              ) : (
-                                <Copy className="w-4 h-4 text-purple-600" />
-                              )}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-4 text-gray-500">
-                      ไม่พบข้อมูลบัญชีชำระเงิน
-                    </div>
-                  )}
+                  {/* Benefits */}
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
+                    <h3 className="font-semibold text-purple-800 text-sm mb-3">✨ สิทธิพิเศษที่ได้รับ</h3>
+                    <ul className="space-y-2 text-sm text-gray-700">
+                      <li className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-green-500" />
+                        <span>ใช้ AI วิเคราะห์อาหารได้ไม่จำกัด</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-green-500" />
+                        <span>ใช้ AI Coach ได้ไม่จำกัด</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-green-500" />
+                        <span>สแกนบาร์โค้ดได้ไม่จำกัด</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-green-500" />
+                        <span>AI เลือกเมนูให้ได้ไม่จำกัด</span>
+                      </li>
+                    </ul>
+                  </div>
                 </div>
 
                 {/* Footer */}
                 <div className="px-6 pb-6 space-y-3">
                   <button
                     onClick={handleConfirmOrder}
-                    disabled={isCreatingOrder || !paymentAccount}
+                    disabled={isCreatingOrder}
                     className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {isCreatingOrder ? (
@@ -411,8 +339,7 @@ export function LimitReachedModal({
                 <div className="p-6 space-y-4">
                   <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
                     <p className="text-amber-800 text-sm">
-                      <strong>ขั้นตอนต่อไป:</strong> กรุณาโอนเงิน ฿{PREMIUM_PRICE} ตามข้อมูลบัญชีด้านบน 
-                      แล้วแจ้งสลิปผ่านแชท LINE เพื่อยืนยันการชำระเงิน
+                      <strong>ขั้นตอนต่อไป:</strong> กรุณาโอนเงิน ฿{PREMIUM_PRICE} แล้วแจ้งสลิปผ่านแชท LINE เพื่อยืนยันการชำระเงิน
                     </p>
                   </div>
 
@@ -434,7 +361,6 @@ export function LimitReachedModal({
                     onClick={handleViewQuotation}
                     className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold shadow-lg flex items-center justify-center gap-2"
                   >
-                    <QrCode className="w-5 h-5" />
                     <span>ดูใบเสนอราคา</span>
                   </button>
                   <button

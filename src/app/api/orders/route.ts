@@ -99,7 +99,9 @@ export async function POST(request: NextRequest) {
       addressId, // ที่อยู่จัดส่ง
     } = body;
 
-    if (!items || items.length === 0) {
+    // Allow orders without items for premium upgrades
+    const isPremiumUpgrade = coursePlan === "PREMIUM_UPGRADE";
+    if (!isPremiumUpgrade && (!items || items.length === 0)) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -151,6 +153,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // #region agent log
+    console.log("[DEBUG] Creating order, isPremiumUpgrade:", isPremiumUpgrade, "items:", JSON.stringify(items));
+    // #endregion
+
     const order = await prisma.order.create({
       data: {
         orderNumber: generateOrderNumber(),
@@ -170,25 +176,28 @@ export async function POST(request: NextRequest) {
         deliveryPhone,
         deliveryAddress,
         note: note || null,
-        items: {
-          create: items.map((item: {
-            foodId: string;
-            foodName: string;
-            quantity: number;
-            dayNumber?: number;
-            mealType?: string;
-            price: number;
-            calories?: number;
-          }) => ({
-            foodId: item.foodId,
-            foodName: item.foodName,
-            quantity: item.quantity || 1,
-            dayNumber: item.dayNumber || null,
-            mealType: item.mealType || null,
-            price: item.price || 0,
-            calories: item.calories || null,
-          })),
-        },
+        // Only create items if not a premium upgrade and items exist
+        ...(isPremiumUpgrade || !items || items.length === 0 ? {} : {
+          items: {
+            create: items.map((item: {
+              foodId: string;
+              foodName: string;
+              quantity: number;
+              dayNumber?: number;
+              mealType?: string;
+              price: number;
+              calories?: number;
+            }) => ({
+              foodId: item.foodId,
+              foodName: item.foodName,
+              quantity: item.quantity || 1,
+              dayNumber: item.dayNumber || null,
+              mealType: item.mealType || null,
+              price: item.price || 0,
+              calories: item.calories || null,
+            })),
+          },
+        }),
       },
       include: {
         items: true,
