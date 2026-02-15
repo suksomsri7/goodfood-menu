@@ -21,6 +21,7 @@ import {
   ArrowLeft,
   Check,
   Loader2,
+  MessageCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -191,6 +192,12 @@ export function NotificationSettings({
       onClose();
       router.push(`/quotation/${orderId}`);
     }
+  };
+
+  // Open LINE chat to contact admin for AI Coach activation
+  const requestAiCoachActivation = () => {
+    // Open GoodFood LINE Official Account
+    window.open("https://lin.ee/CPSTFxN", "_blank");
   };
 
   // Reset upgrade step when modal closes
