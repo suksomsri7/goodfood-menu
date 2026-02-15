@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Camera, RotateCcw, Calculator, Loader2, AlertTriangle } from "lucide-react";
+import { X, Camera, RotateCcw, Calculator, Loader2, AlertTriangle, CheckCircle, AlertCircle, ShieldAlert, ThumbsUp } from "lucide-react";
 import { requestLimitIncrease, isInClient, closeWindow } from "@/lib/liff";
 
 interface CameraModalProps {
@@ -113,6 +113,13 @@ export function CameraModal({ isOpen, onClose, onSave, lineUserId }: CameraModal
 
   // AI analysis state
   const [aiMessage, setAiMessage] = useState<string>("");
+  const [coaching, setCoaching] = useState<{
+    verdict: string;
+    verdictText: string;
+    reason: string;
+    impact: string;
+    suggestion: string;
+  } | null>(null);
   const [analysisError, setAnalysisError] = useState<string>("");
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [limitMessage, setLimitMessage] = useState("");
@@ -124,6 +131,7 @@ export function CameraModal({ isOpen, onClose, onSave, lineUserId }: CameraModal
     setState("analyzing");
     setAnalysisError("");
     setAiMessage("");
+    setCoaching(null);
     
     try {
       const response = await fetch("/api/analyze-food", {
@@ -170,6 +178,11 @@ export function CameraModal({ isOpen, onClose, onSave, lineUserId }: CameraModal
       // Show AI description/message
       if (data.description) {
         setAiMessage(data.description);
+      }
+
+      // Show coaching advice
+      if (data.coaching) {
+        setCoaching(data.coaching);
       }
       
       // Show error message if there was one
@@ -375,7 +388,8 @@ export function CameraModal({ isOpen, onClose, onSave, lineUserId }: CameraModal
               {state === "analyzing" && (
                 <div className="py-12 flex flex-col items-center">
                   <Loader2 className="w-12 h-12 text-gray-400 animate-spin mb-4" />
-                  <p className="text-gray-600">กำลังวิเคราะห์อาหาร...</p>
+                  <p className="text-gray-600 font-medium">AI Coach กำลังวิเคราะห์...</p>
+                  <p className="text-xs text-gray-400 mt-1">วิเคราะห์สารอาหารและให้คำแนะนำ</p>
                 </div>
               )}
 
@@ -385,17 +399,75 @@ export function CameraModal({ isOpen, onClose, onSave, lineUserId }: CameraModal
                     ผลการวิเคราะห์
                   </h2>
 
-                  {/* AI Message */}
-                  {aiMessage && (
+                  {/* AI Coach Advice */}
+                  {coaching && (
+                    <div className={`mb-4 rounded-xl overflow-hidden border ${
+                      coaching.verdict === "GOOD" ? "border-green-200 bg-green-50" :
+                      coaching.verdict === "OK" ? "border-blue-200 bg-blue-50" :
+                      coaching.verdict === "CAUTION" ? "border-amber-200 bg-amber-50" :
+                      "border-red-200 bg-red-50"
+                    }`}>
+                      {/* Verdict Header */}
+                      <div className={`flex items-center gap-2 px-3 py-2 ${
+                        coaching.verdict === "GOOD" ? "bg-green-100" :
+                        coaching.verdict === "OK" ? "bg-blue-100" :
+                        coaching.verdict === "CAUTION" ? "bg-amber-100" :
+                        "bg-red-100"
+                      }`}>
+                        {coaching.verdict === "GOOD" ? (
+                          <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                        ) : coaching.verdict === "OK" ? (
+                          <ThumbsUp className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                        ) : coaching.verdict === "CAUTION" ? (
+                          <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                        ) : (
+                          <ShieldAlert className="w-5 h-5 text-red-600 flex-shrink-0" />
+                        )}
+                        <span className={`font-bold text-sm ${
+                          coaching.verdict === "GOOD" ? "text-green-700" :
+                          coaching.verdict === "OK" ? "text-blue-700" :
+                          coaching.verdict === "CAUTION" ? "text-amber-700" :
+                          "text-red-700"
+                        }`}>
+                          AI Coach: {coaching.verdictText}
+                        </span>
+                      </div>
+
+                      {/* Details */}
+                      <div className="px-3 py-2.5 space-y-2">
+                        {coaching.reason && (
+                          <div>
+                            <p className="text-xs font-semibold text-gray-500 mb-0.5">เหตุผล</p>
+                            <p className="text-sm text-gray-700">{coaching.reason}</p>
+                          </div>
+                        )}
+                        {coaching.impact && (
+                          <div>
+                            <p className="text-xs font-semibold text-gray-500 mb-0.5">ผลลัพธ์ถ้าทาน</p>
+                            <p className="text-sm text-gray-700">{coaching.impact}</p>
+                          </div>
+                        )}
+                        {coaching.suggestion && (
+                          <div>
+                            <p className="text-xs font-semibold text-gray-500 mb-0.5">คำแนะนำจากโค้ช</p>
+                            <p className="text-sm text-gray-800 font-medium">{coaching.suggestion}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* AI Description (fallback if no coaching) */}
+                  {aiMessage && !coaching && (
                     <div className="mb-4 p-3 bg-blue-50 rounded-xl">
-                      <p className="text-sm text-blue-700">💡 {aiMessage}</p>
+                      <p className="text-sm text-blue-700">{aiMessage}</p>
                     </div>
                   )}
 
                   {/* Error Message */}
                   {analysisError && (
                     <div className="mb-4 p-3 bg-yellow-50 rounded-xl">
-                      <p className="text-sm text-yellow-700">⚠️ {analysisError}</p>
+                      <p className="text-sm text-yellow-700">{analysisError}</p>
                       <p className="text-xs text-yellow-600 mt-1">คุณสามารถแก้ไขข้อมูลด้านล่างได้</p>
                     </div>
                   )}

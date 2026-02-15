@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { prisma } from "@/lib/prisma";
 import { checkUsageLimit, logAiUsage } from "@/lib/usage-limits";
 
-const SYSTEM_PROMPT = `คุณคือผู้เชี่ยวชาญด้านโภชนาการอาหาร หน้าที่ของคุณคือวิเคราะห์อาหารจากรูปภาพและข้อมูลที่ได้รับ
+const BASE_SYSTEM_PROMPT = `คุณคือ "AI Coach" โค้ชโภชนาการส่วนตัวมืออาชีพ มีอาชีพเป็นนักโภชนาการ นักกำหนดอาหาร และเทรนเนอร์สุขภาพ
 
-กรุณาวิเคราะห์และประมาณค่าสารอาหารของอาหารในรูป โดยตอบกลับเป็น JSON format เท่านั้น ดังนี้:
+หน้าที่ของคุณคือ:
+1. วิเคราะห์อาหารจากรูปภาพและประมาณค่าสารอาหาร
+2. ให้คำแนะนำแบบโค้ชส่วนตัว ว่าอาหารนี้เหมาะสมกับเป้าหมายของผู้ใช้หรือไม่
+
+กรุณาตอบกลับเป็น JSON format เท่านั้น ดังนี้:
 
 {
   "name": "ชื่ออาหาร (ภาษาไทย)",
@@ -16,12 +21,21 @@ const SYSTEM_PROMPT = `คุณคือผู้เชี่ยวชาญด
   "fat": ไขมันเป็นกรัม (number),
   "sodium": โซเดียมเป็นมิลลิกรัม (number),
   "sugar": น้ำตาลเป็นกรัม (number),
-  "description": "คำอธิบายสั้นๆ เกี่ยวกับอาหารและคุณค่าทางโภชนาการ"
+  "description": "คำอธิบายสั้นๆ เกี่ยวกับอาหาร",
+  "coaching": {
+    "verdict": "GOOD" หรือ "OK" หรือ "CAUTION" หรือ "NOT_RECOMMENDED",
+    "verdictText": "ข้อความสั้น 1 บรรทัด เช่น 'เหมาะมาก!' หรือ 'ควรระวัง' หรือ 'ไม่แนะนำ'",
+    "reason": "เหตุผลว่าทำไมถึงเหมาะหรือไม่เหมาะ อธิบายสั้นๆ 1-2 ประโยค",
+    "impact": "ถ้าทานมื้อนี้ไปแล้ว ผลลัพธ์จะเป็นอย่างไร เช่น แคลอรี่จะเกิน/ยังเหลือเท่าไหร่ โปรตีนได้ตามเป้าไหม",
+    "suggestion": "คำแนะนำจากโค้ช 1-2 ข้อ เช่น ทานได้เลย, ลดปริมาณลงครึ่งหนึ่ง, เปลี่ยนเป็นเมนูอื่น, เพิ่มผักเสริม"
+  }
 }
 
 หมายเหตุ:
 - ประมาณค่าจากขนาดจานและปริมาณอาหารที่เห็นในรูป
 - ถ้าผู้ใช้ให้ข้อมูลเพิ่มเติม ให้นำมาประกอบการวิเคราะห์ด้วย
+- ใช้น้ำเสียงเป็นกันเอง เหมือนโค้ชส่วนตัวพูดกับลูกค้า
+- ให้คำแนะนำที่เป็นประโยชน์จริงๆ ไม่ใช่แค่บอกว่า "ดี" หรือ "ไม่ดี"
 - ตอบกลับเป็น JSON เท่านั้น ไม่ต้องมีข้อความอื่น`;
 
 export async function POST(request: NextRequest) {
@@ -90,10 +104,60 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Fetch user context for coaching (goals, today's intake)
+    let userContext = "";
+    if (lineUserId) {
+      try {
+        const member = await prisma.member.findUnique({
+          where: { lineUserId },
+        });
+        if (member) {
+          const now = new Date();
+          const startOfDay = new Date(now);
+          startOfDay.setHours(0, 0, 0, 0);
+          const endOfDay = new Date(now);
+          endOfDay.setHours(23, 59, 59, 999);
+
+          const meals = await prisma.mealLog.findMany({
+            where: {
+              memberId: member.id,
+              date: { gte: startOfDay, lte: endOfDay },
+            },
+          });
+
+          const totalCalories = meals.reduce((sum, m) => sum + m.calories, 0);
+          const totalProtein = meals.reduce((sum, m) => sum + m.protein, 0);
+          const totalCarbs = meals.reduce((sum, m) => sum + m.carbs, 0);
+          const totalFat = meals.reduce((sum, m) => sum + m.fat, 0);
+
+          const goalCalories = member.dailyCalories || 2000;
+          const goalProtein = member.dailyProtein || 150;
+          const goalCarbs = member.dailyCarbs || 250;
+          const goalFat = member.dailyFat || 65;
+          const remainCal = goalCalories - totalCalories;
+          const remainPro = goalProtein - totalProtein;
+
+          userContext = `\n\n--- ข้อมูลผู้ใช้ ---
+ชื่อ: ${member.name || "ผู้ใช้"}
+เพศ: ${member.gender === "female" ? "หญิง" : "ชาย"}
+น้ำหนัก: ${member.weight || 70} kg | เป้าหมาย: ${member.goalWeight || 65} kg
+เป้าหมายวันนี้: ${goalCalories} kcal | โปรตีน ${goalProtein}g | คาร์บ ${goalCarbs}g | ไขมัน ${goalFat}g
+ทานไปแล้ววันนี้: ${totalCalories} kcal | โปรตีน ${totalProtein}g | คาร์บ ${totalCarbs}g | ไขมัน ${totalFat}g
+เหลือ: ${remainCal} kcal | โปรตีน ${remainPro}g
+จำนวนมื้อที่ทานไปแล้ว: ${meals.length} มื้อ`;
+        }
+      } catch (e) {
+        console.error("Error fetching user context:", e);
+      }
+    }
+
     // Build user message
-    let userMessage = "กรุณาวิเคราะห์อาหารในรูปนี้";
+    let userMessage = "กรุณาวิเคราะห์อาหารในรูปนี้ พร้อมให้คำแนะนำแบบโค้ชส่วนตัว";
     if (description) {
       userMessage += `\n\nข้อมูลเพิ่มเติมจากผู้ใช้: ${description}`;
+    }
+    if (userContext) {
+      userMessage += userContext;
     }
 
     // Call OpenAI GPT-4o with vision
@@ -102,7 +166,7 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: "system",
-          content: SYSTEM_PROMPT,
+          content: BASE_SYSTEM_PROMPT,
         },
         {
           role: "user",
@@ -121,8 +185,8 @@ export async function POST(request: NextRequest) {
           ],
         },
       ],
-      max_tokens: 1000,
-      temperature: 0.3,
+      max_tokens: 1500,
+      temperature: 0.4,
     });
 
     const content = response.choices[0]?.message?.content;
