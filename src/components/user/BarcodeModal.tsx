@@ -1008,6 +1008,7 @@ export function BarcodeModal({ isOpen, onClose, onSave, lineUserId }: BarcodeMod
         limitType="สแกนบาร์โค้ด"
         limitCount={limitInfo.limit}
         usedCount={limitInfo.used}
+        lineUserId={lineUserId}
       />
     </AnimatePresence>
   );

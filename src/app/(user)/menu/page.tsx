@@ -2325,6 +2325,7 @@ export default function MenuPage() {
         limitType="AI เลือกเมนู"
         limitCount={aiLimitInfo.limit}
         usedCount={aiLimitInfo.used}
+        lineUserId={lineUserId}
       />
     </div>
   );

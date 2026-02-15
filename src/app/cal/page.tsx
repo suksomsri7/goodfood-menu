@@ -682,6 +682,7 @@ export default function CaloriePage() {
         limitReached={analysisLimitReached}
         limitCount={analysisLimitInfo.limit}
         usedCount={analysisLimitInfo.used}
+        lineUserId={lineUserId}
       />
 
       {/* Notification Settings Modal */}

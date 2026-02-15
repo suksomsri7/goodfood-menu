@@ -362,6 +362,7 @@ export function ManualEntryModal({ isOpen, onClose, onSave, lineUserId }: Manual
             limitType="วิเคราะห์อาหารจากข้อความ"
             limitCount={limitInfo.limit}
             usedCount={limitInfo.used}
+            lineUserId={lineUserId}
           />
         </>
       )}

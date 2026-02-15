@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
                         },
                         {
                           type: "text",
-                          text: "เพียง 350 บาท ใช้ได้ Unlimited 30 วัน",
+                          text: "เพียง 299 บาท ใช้ได้ Unlimited 30 วัน",
                           size: "xs",
                           color: "#E91E63",
                           wrap: true,
@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
               type: "button",
               action: {
                 type: "message",
-                label: "สมัคร Premium 350 บาท",
+                label: "สมัคร Premium 299 บาท",
                 text: "สมัคร Premium",
               },
               style: "primary",

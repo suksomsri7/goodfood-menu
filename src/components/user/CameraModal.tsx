@@ -665,6 +665,7 @@ export function CameraModal({ isOpen, onClose, onSave, lineUserId }: CameraModal
         limitType="วิเคราะห์รูปอาหาร"
         limitCount={limitInfo.limit}
         usedCount={limitInfo.used}
+        lineUserId={lineUserId}
       />
     </AnimatePresence>
   );

@@ -69,6 +69,7 @@ export function AnalysisModal({
   limitReached = false,
   limitCount,
   usedCount,
+  lineUserId,
 }: AnalysisModalProps) {
   // If limit reached, show the limit modal instead
   if (limitReached) {
@@ -79,6 +80,7 @@ export function AnalysisModal({
         limitType="วิเคราะห์ AI"
         limitCount={limitCount}
         usedCount={usedCount}
+        lineUserId={lineUserId}
       />
     );
   }

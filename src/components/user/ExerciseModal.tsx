@@ -788,6 +788,7 @@ export function ExerciseModal({ isOpen, onClose, onSave, lineUserId }: ExerciseM
         limitType="วิเคราะห์การออกกำลังกาย"
         limitCount={limitInfo.limit}
         usedCount={limitInfo.used}
+        lineUserId={lineUserId}
       />
     </div>
   );
