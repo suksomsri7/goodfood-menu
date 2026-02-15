@@ -370,46 +370,85 @@ export function NotificationSettings({
                 <div className="p-6 pb-16">
                   {upgradeStep === "options" && (
                     <>
-                      <div className="text-center mb-6">
-                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                          <Sparkles className="w-8 h-8 text-gray-400" />
-                        </div>
-                        <h3 className="text-lg font-semibold text-gray-700 mb-1">
-                          เปิดระบบ AI Coach
-                        </h3>
-                        <p className="text-gray-500 text-sm">
-                          เลือกวิธีเปิดใช้งาน AI Coach
-                        </p>
+                      {/* Benefits description */}
+                      <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-4 border border-purple-100 mb-5">
+                        <h4 className="font-semibold text-purple-800 text-sm mb-3 flex items-center gap-2">
+                          <Crown className="w-4 h-4 text-purple-600" />
+                          สิทธิพิเศษเมื่อเปิดใช้ AI Coach
+                        </h4>
+                        <ul className="space-y-2 text-sm text-gray-700">
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                            <span>AI วิเคราะห์อาหารจากรูปถ่ายและข้อความ</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                            <span>โค้ชส่วนตัวแนะนำเรื่องโภชนาการ</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                            <span>สแกนบาร์โค้ดวิเคราะห์สารอาหาร</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                            <span>AI เลือกเมนูอาหารให้ตรงเป้าหมาย</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                            <span>แจ้งเตือนและสรุปผลสุขภาพทุกวัน</span>
+                          </li>
+                        </ul>
                       </div>
 
-                      <div className="space-y-3">
-                        <button
-                          onClick={() => setUpgradeStep("confirm")}
-                          className="w-full flex items-start gap-3 p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border-2 border-purple-200 hover:border-purple-400 transition-colors text-left"
-                        >
-                          <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <Crown className="w-4 h-4 text-white" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-semibold text-purple-700 text-sm">อัพเกรดเป็น Premium</p>
-                            <p className="text-purple-600 text-xs font-medium">เพียง {premiumPrice} บาท ใช้ได้ Unlimited {premiumDays} วัน</p>
-                          </div>
-                          <span className="text-purple-500 text-xl">→</span>
-                        </button>
+                      <div className="border-t pt-5">
+                        <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-purple-500" />
+                          เปิดใช้งาน AI Coach
+                        </h3>
 
-                        <button
-                          onClick={() => { onClose(); router.push("/menu"); }}
-                          className="w-full flex items-start gap-3 p-3 bg-green-50 rounded-xl border border-green-200 hover:border-green-400 transition-colors text-left"
-                        >
-                          <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <UtensilsCrossed className="w-4 h-4 text-white" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-medium text-green-700 text-sm">สั่งอาหารจากเมนู</p>
-                            <p className="text-green-600 text-xs">ได้รับ Limit เพิ่มเมื่อสั่งอาหาร</p>
-                          </div>
-                          <span className="text-green-500 text-xl">→</span>
-                        </button>
+                        <div className="space-y-3">
+                          <button
+                            onClick={() => setUpgradeStep("confirm")}
+                            className="w-full flex items-start gap-3 p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border-2 border-purple-200 hover:border-purple-400 transition-colors text-left"
+                          >
+                            <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <Crown className="w-4 h-4 text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-semibold text-purple-700 text-sm">อัพเกรดเป็น Premium</p>
+                              <p className="text-purple-600 text-xs font-medium">เพียง {premiumPrice} บาท ใช้ได้ Unlimited {premiumDays} วัน</p>
+                            </div>
+                            <span className="text-purple-500 text-xl">→</span>
+                          </button>
+
+                          <button
+                            onClick={() => { onClose(); router.push("/menu"); }}
+                            className="w-full flex items-start gap-3 p-3 bg-green-50 rounded-xl border border-green-200 hover:border-green-400 transition-colors text-left"
+                          >
+                            <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <UtensilsCrossed className="w-4 h-4 text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-medium text-green-700 text-sm">สั่งอาหารจากเมนู</p>
+                              <p className="text-green-600 text-xs">ได้รับ Limit เพิ่มเมื่อสั่งอาหาร</p>
+                            </div>
+                            <span className="text-green-500 text-xl">→</span>
+                          </button>
+
+                          <button
+                            onClick={requestAiCoachActivation}
+                            className="w-full flex items-start gap-3 p-3 bg-amber-50 rounded-xl border border-amber-200 hover:border-amber-400 transition-colors text-left"
+                          >
+                            <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <MessageCircle className="w-4 h-4 text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-medium text-amber-700 text-sm">ติดต่อแอดมิน</p>
+                              <p className="text-amber-600 text-xs">ขอเปิด AI Coach ผ่าน LINE Chat</p>
+                            </div>
+                            <span className="text-amber-500 text-xl">→</span>
+                          </button>
+                        </div>
                       </div>
                     </>
                   )}
@@ -499,20 +538,42 @@ export function NotificationSettings({
                 <div className="p-6 pb-16">
                   {upgradeStep === "options" && (
                     <>
-                      <div className="text-center mb-6">
-                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-orange-100 flex items-center justify-center">
-                          <Power className="w-8 h-8 text-orange-500" />
-                        </div>
-                        <h3 className="text-lg font-semibold text-gray-700 mb-1">
-                          ระบบ AI Coach หมดเวลาการใช้งาน
-                        </h3>
-                        {aiCoach.status === "expired" && aiCoach.expireDate && (
-                          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-red-100 rounded-full text-sm text-red-600 mt-2">
-                            <Calendar className="w-4 h-4" />
-                            หมดอายุเมื่อ {formatExpireDate(aiCoach.expireDate)}
-                          </div>
-                        )}
+                      {/* Benefits description */}
+                      <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-4 border border-purple-100 mb-5">
+                        <h4 className="font-semibold text-purple-800 text-sm mb-3 flex items-center gap-2">
+                          <Crown className="w-4 h-4 text-purple-600" />
+                          สิทธิพิเศษเมื่อเปิดใช้ AI Coach
+                        </h4>
+                        <ul className="space-y-2 text-sm text-gray-700">
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                            <span>AI วิเคราะห์อาหารจากรูปถ่ายและข้อความ</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                            <span>โค้ชส่วนตัวแนะนำเรื่องโภชนาการ</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                            <span>สแกนบาร์โค้ดวิเคราะห์สารอาหาร</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                            <span>AI เลือกเมนูอาหารให้ตรงเป้าหมาย</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                            <span>แจ้งเตือนและสรุปผลสุขภาพทุกวัน</span>
+                          </li>
+                        </ul>
                       </div>
+
+                      {aiCoach.status === "expired" && aiCoach.expireDate && (
+                        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-red-100 rounded-full text-sm text-red-600 mb-4">
+                          <Calendar className="w-4 h-4" />
+                          หมดอายุเมื่อ {formatExpireDate(aiCoach.expireDate)}
+                        </div>
+                      )}
 
                       <div className="border-t pt-5">
                         <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
@@ -521,16 +582,6 @@ export function NotificationSettings({
                         </h3>
 
                         <div className="space-y-3">
-                          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
-                            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                              <Clock className="w-4 h-4 text-blue-600" />
-                            </div>
-                            <div>
-                              <p className="font-medium text-gray-800 text-sm">รอวันพรุ่งนี้</p>
-                              <p className="text-gray-500 text-xs">Limit รีเซ็ตทุกวันเวลา 00:00 น.</p>
-                            </div>
-                          </div>
-
                           <button
                             onClick={() => setUpgradeStep("confirm")}
                             className="w-full flex items-start gap-3 p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border-2 border-purple-200 hover:border-purple-400 transition-colors text-left"
@@ -557,6 +608,20 @@ export function NotificationSettings({
                               <p className="text-green-600 text-xs">ได้รับ Limit เพิ่มเมื่อสั่งอาหาร</p>
                             </div>
                             <span className="text-green-500 text-xl">→</span>
+                          </button>
+
+                          <button
+                            onClick={requestAiCoachActivation}
+                            className="w-full flex items-start gap-3 p-3 bg-amber-50 rounded-xl border border-amber-200 hover:border-amber-400 transition-colors text-left"
+                          >
+                            <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <MessageCircle className="w-4 h-4 text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-medium text-amber-700 text-sm">ติดต่อแอดมิน</p>
+                              <p className="text-amber-600 text-xs">ขอเปิด AI Coach ผ่าน LINE Chat</p>
+                            </div>
+                            <span className="text-amber-500 text-xl">→</span>
                           </button>
                         </div>
                       </div>

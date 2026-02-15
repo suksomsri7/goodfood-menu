@@ -48,6 +48,9 @@ export async function PATCH(
       name,
       description,
       color,
+      // AI Limit Mode
+      aiLimitMode,
+      totalDailyAiLimit,
       dailyPhotoLimit,
       dailyAiAnalysisLimit,
       dailyAiTextAnalysisLimit,
@@ -82,6 +85,9 @@ export async function PATCH(
         ...(name !== undefined && { name }),
         ...(description !== undefined && { description }),
         ...(color !== undefined && { color }),
+        // AI Limit Mode
+        ...(aiLimitMode !== undefined && { aiLimitMode }),
+        ...(totalDailyAiLimit !== undefined && { totalDailyAiLimit }),
         ...(dailyPhotoLimit !== undefined && { dailyPhotoLimit }),
         ...(dailyAiAnalysisLimit !== undefined && { dailyAiAnalysisLimit }),
         ...(dailyAiTextAnalysisLimit !== undefined && { dailyAiTextAnalysisLimit }),

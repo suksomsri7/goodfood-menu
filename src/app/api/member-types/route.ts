@@ -32,6 +32,9 @@ export async function POST(request: NextRequest) {
       name,
       description,
       color,
+      // AI Limit Mode
+      aiLimitMode,
+      totalDailyAiLimit,
       dailyPhotoLimit,
       dailyAiAnalysisLimit,
       dailyAiTextAnalysisLimit,
@@ -77,6 +80,9 @@ export async function POST(request: NextRequest) {
         name,
         description: description || null,
         color: color || "#4CAF50",
+        // AI Limit Mode
+        aiLimitMode: aiLimitMode ?? "by_type",
+        totalDailyAiLimit: totalDailyAiLimit ?? 15,
         dailyPhotoLimit: dailyPhotoLimit ?? 3,
         dailyAiAnalysisLimit: dailyAiAnalysisLimit ?? 3,
         dailyAiTextAnalysisLimit: dailyAiTextAnalysisLimit ?? 3,

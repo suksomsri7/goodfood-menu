@@ -20,12 +20,24 @@ const usageTypeMap: Record<LimitType, string> = {
   dailyScanLimit: "scan",
 };
 
+// All AI-related usage types for combined mode
+const allAiUsageTypes = [
+  "photo",
+  "ai_analysis",
+  "ai_text_analysis",
+  "ai_recommend",
+  "exercise_analysis",
+  "menu_select",
+  "scan",
+];
+
 interface UsageCheckResult {
   allowed: boolean;
   limit: number;
   used: number;
   remaining: number;
   message?: string;
+  isCombinedMode?: boolean;
 }
 
 // Get today's start and end timestamps (Thai timezone)
@@ -70,8 +82,54 @@ export async function checkUsageLimit(
       };
     }
 
-    // If no member type, use default limits
-    const limit = member.memberType?.[limitType] ?? 3;
+    const memberType = member.memberType;
+    const aiLimitMode = memberType?.aiLimitMode ?? "by_type";
+    const { startOfDay, endOfDay } = getTodayRange();
+
+    // Combined mode: count all AI usage types together
+    if (aiLimitMode === "combined") {
+      const totalLimit = memberType?.totalDailyAiLimit ?? 15;
+      
+      // 0 means unlimited
+      if (totalLimit === 0) {
+        return {
+          allowed: true,
+          limit: 0,
+          used: 0,
+          remaining: Infinity,
+          isCombinedMode: true,
+        };
+      }
+
+      // Count all AI usage types for today
+      const totalUsed = await prisma.aiUsageLog.count({
+        where: {
+          memberId: member.id,
+          usageType: {
+            in: allAiUsageTypes,
+          },
+          createdAt: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
+        },
+      });
+
+      const remaining = Math.max(0, totalLimit - totalUsed);
+      const allowed = totalUsed < totalLimit;
+
+      return {
+        allowed,
+        limit: totalLimit,
+        used: totalUsed,
+        remaining,
+        message: allowed ? undefined : `ถึงขีดจำกัดการใช้งาน AI วันนี้แล้ว (${totalLimit} ครั้ง/วัน รวมทุกประเภท)`,
+        isCombinedMode: true,
+      };
+    }
+
+    // By type mode: use individual limits
+    const limit = memberType?.[limitType] ?? 3;
 
     // 0 means unlimited
     if (limit === 0) {
@@ -80,10 +138,10 @@ export async function checkUsageLimit(
         limit: 0,
         used: 0,
         remaining: Infinity,
+        isCombinedMode: false,
       };
     }
 
-    const { startOfDay, endOfDay } = getTodayRange();
     const usageType = usageTypeMap[limitType];
 
     // Count today's usage from AiUsageLog
@@ -107,6 +165,7 @@ export async function checkUsageLimit(
       used,
       remaining,
       message: allowed ? undefined : `ถึงขีดจำกัดการใช้งานวันนี้แล้ว (${limit} ครั้ง/วัน)`,
+      isCombinedMode: false,
     };
   } catch (error) {
     console.error("Error checking usage limit:", error);
@@ -156,6 +215,18 @@ export async function getAllUsageLimits(lineUserId: string) {
     return null;
   }
 
+  const aiLimitMode = member.memberType.aiLimitMode ?? "by_type";
+  
+  // If combined mode, just return one check since all types share the same limit
+  if (aiLimitMode === "combined") {
+    const combinedLimit = await checkUsageLimit(lineUserId, "dailyAiAnalysisLimit");
+    return {
+      mode: "combined" as const,
+      combined: combinedLimit,
+    };
+  }
+
+  // By type mode: return individual limits
   const limits: Record<LimitType, UsageCheckResult> = {} as Record<LimitType, UsageCheckResult>;
   
   const limitTypes: LimitType[] = [
@@ -172,5 +243,8 @@ export async function getAllUsageLimits(lineUserId: string) {
     limits[limitType] = await checkUsageLimit(lineUserId, limitType);
   }
 
-  return limits;
+  return {
+    mode: "by_type" as const,
+    limits,
+  };
 }
