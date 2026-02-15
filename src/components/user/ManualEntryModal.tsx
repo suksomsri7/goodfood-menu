@@ -438,19 +438,13 @@ export function ManualEntryModal({ isOpen, onClose, onSave, lineUserId }: Manual
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-gray-100 pb-8 space-y-3">
+            <div className="p-4 border-t border-gray-100 pb-8">
               <button
                 onClick={handleSubmit}
                 disabled={!name || !calories}
                 className="w-full py-4 bg-gray-900 text-white rounded-xl font-semibold disabled:bg-gray-200 disabled:text-gray-400 transition-colors"
               >
                 ทานมื้อนี้
-              </button>
-              <button
-                onClick={onClose}
-                className="w-full py-3 bg-gray-100 text-gray-600 rounded-xl font-medium transition-colors"
-              >
-                ไม่ทาน
               </button>
             </div>
           </motion.div>

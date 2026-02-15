@@ -633,13 +633,6 @@ export function CameraModal({ isOpen, onClose, onSave, lineUserId }: CameraModal
                     >
                       ทานมื้อนี้
                     </button>
-
-                    <button
-                      onClick={handleClose}
-                      className="w-full py-3 bg-gray-100 text-gray-600 rounded-xl font-medium"
-                    >
-                      ไม่ทาน
-                    </button>
                     
                     <button
                       onClick={retakePhoto}
