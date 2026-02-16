@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
-import { pushMessage, createOrderFlexMessage, createOrderConfirmedFlexMessage } from "@/lib/line";
+import { pushMessage, pushMessageWithDetail, createOrderFlexMessage, createOrderConfirmedFlexMessage } from "@/lib/line";
 
 // สร้างเลข Order
 function generateOrderNumber() {
@@ -248,11 +248,10 @@ export async function POST(request: NextRequest) {
 
         // #region agent log
         console.log("[DEBUG-FLEX] lineUserId:", lineUserId, "flexMessage altText:", flexMessage?.altText, "flexType:", flexMessage?.type);
-        // #endregion
-        const pushResult = await pushMessage(lineUserId, [flexMessage]);
-        // #region agent log
-        lineMessageStatus = pushResult ? "sent" : "failed";
-        console.log("[DEBUG-FLEX] pushResult:", pushResult, "lineMessageStatus:", lineMessageStatus);
+        const pushDetail = await pushMessageWithDetail(lineUserId, [flexMessage]);
+        lineMessageStatus = pushDetail.success ? "sent" : "failed";
+        lineMessageError = pushDetail.reason;
+        console.log("[DEBUG-FLEX] pushDetail:", JSON.stringify(pushDetail));
         // #endregion
       } catch (error) {
         // #region agent log
