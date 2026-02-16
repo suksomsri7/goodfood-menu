@@ -541,7 +541,12 @@ export default function MenuPage() {
 
       // #region agent log
       const resData = await res.json();
-      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'menu/page.tsx:checkout',message:'checkout response',data:{ok:res.ok,status:res.status,lineMessageStatus:resData?._debug?.lineMessageStatus,lineMessageError:resData?._debug?.lineMessageError,lineUserId:resData?._debug?.lineUserId,orderId:resData?.id,orderNumber:resData?.orderNumber},timestamp:Date.now()})}).catch(()=>{});
+      if (resData?._debug) {
+        console.log("[DEBUG-CHECKOUT]", JSON.stringify(resData._debug));
+        if (resData._debug.lineMessageStatus !== "sent") {
+          alert(`[DEBUG] LINE msg: ${resData._debug.lineMessageStatus}, err: ${resData._debug.lineMessageError || 'none'}, uid: ${resData._debug.lineUserId || 'null'}`);
+        }
+      }
       // #endregion
       if (res.ok) {
         clearCart();

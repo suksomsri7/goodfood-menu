@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Header } from "@/components/backoffice/Header";
-import { User, Phone, Mail, MessageCircle, Package, Truck, Trash2, Store, MapPin, Calendar, Clock, Edit3, Save, X, FileText, Plus, Minus, Search } from "lucide-react";
+import { User, Phone, Mail, MessageCircle, Package, Truck, Trash2, Store, MapPin, Calendar, Clock, Edit3, Save, X, FileText, Plus, Minus, Search, Bell, Volume2, VolumeX } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Member {
@@ -131,21 +131,90 @@ export default function OrdersPage() {
   const [foodSearchQuery, setFoodSearchQuery] = useState("");
   const [loadingFoods, setLoadingFoods] = useState(false);
 
+  // Real-time notification state
+  const [newOrderToast, setNewOrderToast] = useState<{ show: boolean; count: number; orders: Order[] }>({ show: false, count: 0, orders: [] });
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const previousOrdersRef = useRef<string[]>([]);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const isFirstLoadRef = useRef(true);
+
+  // Initialize audio for notification
   useEffect(() => {
-    fetchOrders();
+    // Create audio element for notification sound
+    audioRef.current = new Audio("data:audio/wav;base64,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");
+    audioRef.current.volume = 0.5;
   }, []);
 
-  const fetchOrders = async () => {
+  // Play notification sound
+  const playNotificationSound = useCallback(() => {
+    if (soundEnabled && audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(() => {
+        // Ignore autoplay errors
+      });
+    }
+  }, [soundEnabled]);
+
+  // Fetch orders with polling
+  const fetchOrdersWithCheck = useCallback(async () => {
     try {
       const res = await fetch("/api/orders");
       const data = await res.json();
-      setOrders(Array.isArray(data) ? data : []);
+      const newOrders = Array.isArray(data) ? data : [];
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orders/page.tsx:fetchOrdersWithCheck',message:'Polling executed',data:{isFirstLoad:isFirstLoadRef.current,previousCount:previousOrdersRef.current.length,newCount:newOrders.length},timestamp:Date.now(),hypothesisId:'H1-polling'})}).catch(()=>{});
+      // #endregion
+      
+      // Check for new orders (only after first load)
+      if (!isFirstLoadRef.current) {
+        const currentOrderIds = newOrders.map((o: Order) => o.id);
+        const newOrderIds = currentOrderIds.filter((id: string) => !previousOrdersRef.current.includes(id));
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orders/page.tsx:checkNewOrders',message:'Checking for new orders',data:{currentCount:currentOrderIds.length,previousCount:previousOrdersRef.current.length,newOrdersFound:newOrderIds.length},timestamp:Date.now(),hypothesisId:'H2-neworders'})}).catch(()=>{});
+        // #endregion
+        
+        if (newOrderIds.length > 0) {
+          const newOrdersList = newOrders.filter((o: Order) => newOrderIds.includes(o.id));
+          
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orders/page.tsx:showToast',message:'Showing new order toast',data:{count:newOrderIds.length,orderNumbers:newOrdersList.map((o: Order) => o.orderNumber)},timestamp:Date.now(),hypothesisId:'H3-toast'})}).catch(()=>{});
+          // #endregion
+          
+          setNewOrderToast({ show: true, count: newOrderIds.length, orders: newOrdersList });
+          playNotificationSound();
+          
+          // Auto-hide toast after 10 seconds
+          setTimeout(() => {
+            setNewOrderToast(prev => ({ ...prev, show: false }));
+          }, 10000);
+        }
+      }
+      
+      // Update previous orders reference
+      previousOrdersRef.current = newOrders.map((o: Order) => o.id);
+      isFirstLoadRef.current = false;
+      
+      setOrders(newOrders);
     } catch (error) {
       console.error("Error fetching orders:", error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [playNotificationSound]);
+
+  // Initial load and polling
+  useEffect(() => {
+    fetchOrdersWithCheck();
+    
+    // Poll every 15 seconds for new orders
+    const interval = setInterval(fetchOrdersWithCheck, 15000);
+    return () => clearInterval(interval);
+  }, [fetchOrdersWithCheck]);
+
+  // Alias for compatibility with existing code
+  const fetchOrders = fetchOrdersWithCheck;
 
   const updateOrderStatus = async (orderId: string, newStatus: string, extraData?: { trackingNumber?: string; carrier?: string }) => {
     setUpdatingStatus(true);
@@ -425,7 +494,15 @@ export default function OrdersPage() {
 
   return (
     <div>
-      <Header title="ออเดอร์" subtitle="จัดการรายการสั่งซื้อจากลูกค้า" />
+      <Header title="ออเดอร์" subtitle="จัดการรายการสั่งซื้อจากลูกค้า" actions={
+        <button
+          onClick={() => setSoundEnabled(!soundEnabled)}
+          className={`p-2 rounded-lg transition-colors ${soundEnabled ? "bg-green-50 text-green-600 hover:bg-green-100" : "bg-gray-100 text-gray-400 hover:bg-gray-200"}`}
+          title={soundEnabled ? "ปิดเสียงแจ้งเตือน" : "เปิดเสียงแจ้งเตือน"}
+        >
+          {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+        </button>
+      } />
       
       <div className="p-6">
         {/* Stats */}
@@ -1271,6 +1348,45 @@ export default function OrdersPage() {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* New Order Toast Notification */}
+      <AnimatePresence>
+        {newOrderToast.show && (
+          <motion.div
+            initial={{ opacity: 0, y: -100, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, x: "-50%" }}
+            exit={{ opacity: 0, y: -100, x: "-50%" }}
+            className="fixed top-20 left-1/2 z-[100] bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-4 rounded-2xl shadow-2xl max-w-md"
+          >
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
+                <Bell className="w-6 h-6 animate-bounce" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-lg">🎉 ออเดอร์ใหม่!</h3>
+                <p className="text-sm opacity-90 mt-1">
+                  มี {newOrderToast.count} ออเดอร์ใหม่เข้ามา
+                </p>
+                {newOrderToast.orders.slice(0, 2).map((order) => (
+                  <div key={order.id} className="mt-2 p-2 bg-white/10 rounded-lg text-sm">
+                    <span className="font-mono font-bold">{order.orderNumber}</span>
+                    <span className="mx-2">•</span>
+                    <span>{order.member?.displayName || "ลูกค้า"}</span>
+                    <span className="mx-2">•</span>
+                    <span className="font-semibold">฿{(order.finalPrice || order.totalPrice).toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => setNewOrderToast(prev => ({ ...prev, show: false }))}
+                className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors flex-shrink-0"
+              >
+                ✕
+              </button>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
