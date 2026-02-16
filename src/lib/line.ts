@@ -300,7 +300,7 @@ export function createOrderFlexMessage(order: {
     contents: [
       {
         type: "text",
-        text: `${item.foodName}`,
+        text: item.foodName || "รายการอาหาร",
         size: "sm",
         color: "#555555",
         flex: 0,
@@ -308,7 +308,7 @@ export function createOrderFlexMessage(order: {
       },
       {
         type: "text",
-        text: `x${item.quantity}`,
+        text: `x${item.quantity || 1}`,
         size: "sm",
         color: "#111111",
         align: "end",
@@ -326,15 +326,8 @@ export function createOrderFlexMessage(order: {
           text: `และอีก ${remainingCount} รายการ...`,
           size: "xs",
           color: "#AAAAAA",
-          flex: 0,
+          flex: 1,
           wrap: false,
-        },
-        {
-          type: "text",
-          text: "",
-          size: "sm",
-          color: "#111111",
-          align: "end",
         },
       ],
     });

@@ -539,15 +539,10 @@ export default function MenuPage() {
         }),
       });
 
-      // #region agent log
       const resData = await res.json();
       if (resData?._debug) {
         console.log("[DEBUG-CHECKOUT]", JSON.stringify(resData._debug));
-        if (resData._debug.lineMessageStatus !== "sent") {
-          alert(`[DEBUG] LINE msg: ${resData._debug.lineMessageStatus}, err: ${resData._debug.lineMessageError || 'none'}, uid: ${resData._debug.lineUserId || 'null'}`);
-        }
       }
-      // #endregion
       if (res.ok) {
         clearCart();
         setShowAddressModal(false);
