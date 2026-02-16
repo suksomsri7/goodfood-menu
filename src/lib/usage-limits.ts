@@ -84,10 +84,6 @@ export async function checkUsageLimit(
 
     const memberType = member.memberType;
     const aiLimitMode = memberType?.aiLimitMode ?? "by_type";
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usage-limits.ts:checkUsageLimit',message:'Limit check started',data:{lineUserId,limitType,aiLimitMode,memberTypeName:memberType?.name,totalDailyAiLimit:memberType?.totalDailyAiLimit},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
     const { startOfDay, endOfDay } = getTodayRange();
 
     // Combined mode: count all AI usage types together
@@ -121,10 +117,6 @@ export async function checkUsageLimit(
 
       const remaining = Math.max(0, totalLimit - totalUsed);
       const allowed = totalUsed < totalLimit;
-
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usage-limits.ts:combined-result',message:'Combined mode result',data:{totalLimit,totalUsed,remaining,allowed},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-      // #endregion
 
       return {
         allowed,
@@ -166,10 +158,6 @@ export async function checkUsageLimit(
 
     const remaining = Math.max(0, limit - used);
     const allowed = used < limit;
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usage-limits.ts:bytype-result',message:'By type mode result',data:{limitType,usageType:usageTypeMap[limitType],limit,used,remaining,allowed},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
-    // #endregion
 
     return {
       allowed,

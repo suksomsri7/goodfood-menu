@@ -181,7 +181,7 @@ export function ManualEntryModal({ isOpen, onClose, onSave, lineUserId }: Manual
           />
 
           <motion.div
-            className="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl overflow-hidden max-h-[90vh]"
+            className="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl max-h-[90vh] flex flex-col"
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
@@ -237,7 +237,7 @@ export function ManualEntryModal({ isOpen, onClose, onSave, lineUserId }: Manual
             </div>
 
             {/* Content */}
-            <div className="p-5 overflow-y-auto max-h-[calc(90vh-180px)]">
+            <div className="p-5 overflow-y-auto flex-1 min-h-0">
               {/* Shared: Food Name */}
               <div className="relative mb-4">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -520,7 +520,7 @@ export function ManualEntryModal({ isOpen, onClose, onSave, lineUserId }: Manual
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-gray-100 pb-20">
+            <div className="shrink-0 p-4 border-t border-gray-100 pb-8 bg-white">
               <button
                 onClick={handleSubmit}
                 disabled={!canSubmit}
