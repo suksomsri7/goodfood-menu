@@ -539,10 +539,6 @@ export default function MenuPage() {
         }),
       });
 
-      const resData = await res.json();
-      if (resData?._debug) {
-        console.log("[DEBUG-CHECKOUT]", JSON.stringify(resData._debug));
-      }
       if (res.ok) {
         clearCart();
         setShowAddressModal(false);

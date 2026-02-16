@@ -107,9 +107,7 @@ export async function replyMessage(replyToken: string, messages: LineMessage[]):
 // Send push message (ส่งข้อความหาผู้ใช้โดยตรง)
 export async function pushMessage(userId: string, messages: LineMessage[]): Promise<boolean> {
   try {
-    // #region agent log
-    console.log("[LINE] Pushing message:", { userId, hasToken: !!LINE_CHANNEL_ACCESS_TOKEN, tokenLen: LINE_CHANNEL_ACCESS_TOKEN?.length, messageCount: messages.length });
-    // #endregion
+    console.log("[LINE] Pushing message:", { userId, hasToken: !!LINE_CHANNEL_ACCESS_TOKEN, messageCount: messages.length });
 
     if (!LINE_CHANNEL_ACCESS_TOKEN) {
       console.error("[LINE] No access token configured");
@@ -130,9 +128,7 @@ export async function pushMessage(userId: string, messages: LineMessage[]): Prom
 
     if (!response.ok) {
       const error = await response.text();
-      // #region agent log
-      console.error("[LINE] Push failed:", { userId, status: response.status, error, url: `${LINE_API_BASE}/bot/message/push` });
-      // #endregion
+      console.error("[LINE] Push failed:", { userId, status: response.status, error });
       return false;
     }
 
@@ -143,34 +139,6 @@ export async function pushMessage(userId: string, messages: LineMessage[]): Prom
     return false;
   }
 }
-
-// #region agent log
-export async function pushMessageWithDetail(userId: string, messages: LineMessage[]): Promise<{ success: boolean; reason: string }> {
-  try {
-    if (!LINE_CHANNEL_ACCESS_TOKEN) {
-      return { success: false, reason: "NO_TOKEN" };
-    }
-
-    const response = await fetch(`${LINE_API_BASE}/bot/message/push`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`,
-      },
-      body: JSON.stringify({ to: userId, messages }),
-    });
-
-    if (!response.ok) {
-      const errBody = await response.text();
-      return { success: false, reason: `HTTP_${response.status}: ${errBody}` };
-    }
-
-    return { success: true, reason: "OK" };
-  } catch (error) {
-    return { success: false, reason: `EXCEPTION: ${String(error)}` };
-  }
-}
-// #endregion
 
 // Get message content (รูปภาพ, วีดีโอ, ไฟล์)
 export async function getMessageContent(messageId: string): Promise<ArrayBuffer | null> {

@@ -68,7 +68,6 @@ export function LimitReachedModal({
 
   const handleConfirmOrder = async () => {
     setIsCreatingOrder(true);
-    // #region agent log
     const requestBody = {
       coursePlan: "PREMIUM_UPGRADE",
       totalDays: premiumDays,
@@ -77,21 +76,14 @@ export function LimitReachedModal({
       lineUserId,
       packageName: `Premium AI Coach ${premiumDays} วัน`,
       note: `อัพเกรดเป็น Premium - ใช้ AI ได้ไม่จำกัด ${premiumDays} วัน`,
-      items: [], // Empty items for premium upgrade
+      items: [],
     };
-    fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LimitReachedModal.tsx:handleConfirmOrder',message:'Request body',data:{requestBody,lineUserId},timestamp:Date.now(),hypothesisId:'H1-H4'})}).catch(()=>{});
-    // #endregion
     try {
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody),
       });
-
-      // #region agent log
-      const responseData = await res.clone().json().catch(() => null);
-      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LimitReachedModal.tsx:handleConfirmOrder:response',message:'API response',data:{status:res.status,ok:res.ok,responseData},timestamp:Date.now(),hypothesisId:'H1-H4'})}).catch(()=>{});
-      // #endregion
 
       if (res.ok) {
         const order = await res.json();
@@ -102,9 +94,6 @@ export function LimitReachedModal({
         alert("ไม่สามารถสร้างคำสั่งซื้อได้ กรุณาลองใหม่อีกครั้ง");
       }
     } catch (error) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LimitReachedModal.tsx:handleConfirmOrder:error',message:'Caught error',data:{error:String(error)},timestamp:Date.now(),hypothesisId:'H1-H4'})}).catch(()=>{});
-      // #endregion
       console.error("Error creating order:", error);
       alert("เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
     } finally {

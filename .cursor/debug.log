@@ -1,9 +1,0 @@
-{"location":"orders/page.tsx:fetchOrdersWithCheck","message":"Polling executed","data":{"isFirstLoad":true,"previousCount":0,"newCount":1},"timestamp":1771215683325,"hypothesisId":"H1-polling"}
-{"location":"orders/page.tsx:checkNewOrders","message":"Checking for new orders","data":{"currentCount":1,"previousCount":1,"newOrdersFound":0},"timestamp":1771215697086,"hypothesisId":"H2-neworders"}
-{"location":"orders/page.tsx:checkNewOrders","message":"Checking for new orders","data":{"currentCount":1,"previousCount":1,"newOrdersFound":0},"timestamp":1771215712334,"hypothesisId":"H2-neworders"}
-{"location":"orders/page.tsx:fetchOrdersWithCheck","message":"Polling executed","data":{"isFirstLoad":false,"previousCount":1,"newCount":1},"timestamp":1771215726957,"hypothesisId":"H1-polling"}
-{"location":"orders/page.tsx:fetchOrdersWithCheck","message":"Polling executed","data":{"isFirstLoad":false,"previousCount":1,"newCount":1},"timestamp":1771215697085,"hypothesisId":"H1-polling"}
-{"location":"orders/page.tsx:checkNewOrders","message":"Checking for new orders","data":{"currentCount":1,"previousCount":1,"newOrdersFound":0},"timestamp":1771215726958,"hypothesisId":"H2-neworders"}
-{"location":"orders/page.tsx:fetchOrdersWithCheck","message":"Polling executed","data":{"isFirstLoad":false,"previousCount":1,"newCount":1},"timestamp":1771215712333,"hypothesisId":"H1-polling"}
-{"location":"orders/page.tsx:checkNewOrders","message":"Checking for new orders","data":{"currentCount":1,"previousCount":1,"newOrdersFound":0},"timestamp":1771215743176,"hypothesisId":"H2-neworders"}
-{"location":"orders/page.tsx:fetchOrdersWithCheck","message":"Polling executed","data":{"isFirstLoad":false,"previousCount":1,"newCount":1},"timestamp":1771215743176,"hypothesisId":"H1-polling"}

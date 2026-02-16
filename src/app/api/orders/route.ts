@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
-import { pushMessage, pushMessageWithDetail, createOrderFlexMessage, createOrderConfirmedFlexMessage } from "@/lib/line";
+import { pushMessage, createOrderFlexMessage, createOrderConfirmedFlexMessage } from "@/lib/line";
 
 // สร้างเลข Order
 function generateOrderNumber() {
@@ -153,10 +153,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // #region agent log
-    console.log("[DEBUG] Creating order, isPremiumUpgrade:", isPremiumUpgrade, "items:", JSON.stringify(items));
-    // #endregion
-
     const order = await prisma.order.create({
       data: {
         orderNumber: generateOrderNumber(),
@@ -208,10 +204,6 @@ export async function POST(request: NextRequest) {
     });
 
     // ส่ง LINE Flex Message ยืนยัน Order ให้ลูกค้า
-    // #region agent log
-    let lineMessageStatus = "skipped";
-    let lineMessageError: string | null = null;
-    // #endregion
     if (lineUserId) {
       try {
         let flexMessage;
@@ -246,29 +238,14 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        // #region agent log
-        console.log("[DEBUG-FLEX] lineUserId:", lineUserId, "flexMessage altText:", flexMessage?.altText, "flexType:", flexMessage?.type);
-        const pushDetail = await pushMessageWithDetail(lineUserId, [flexMessage]);
-        lineMessageStatus = pushDetail.success ? "sent" : "failed";
-        lineMessageError = pushDetail.reason;
-        console.log("[DEBUG-FLEX] pushDetail:", JSON.stringify(pushDetail));
-        // #endregion
+        await pushMessage(lineUserId, [flexMessage]);
+        console.log(`Order confirmation sent to LINE user: ${lineUserId}`);
       } catch (error) {
-        // #region agent log
-        lineMessageStatus = "error";
-        lineMessageError = error instanceof Error ? error.message : String(error);
-        console.error("[DEBUG-FLEX] Failed to send LINE order confirmation:", error);
-        // #endregion
+        console.error("Failed to send LINE order confirmation:", error);
       }
-    } else {
-      // #region agent log
-      console.log("[DEBUG-FLEX] No lineUserId provided, skipping LINE message");
-      // #endregion
     }
 
-    // #region agent log
-    return NextResponse.json({ ...order, _debug: { lineMessageStatus, lineMessageError, lineUserId: lineUserId || null } }, { status: 201 });
-    // #endregion
+    return NextResponse.json(order, { status: 201 });
   } catch (error) {
     console.error("Error creating order:", error);
     return NextResponse.json(
