@@ -162,26 +162,13 @@ export default function OrdersPage() {
       const data = await res.json();
       const newOrders = Array.isArray(data) ? data : [];
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orders/page.tsx:fetchOrdersWithCheck',message:'Polling executed',data:{isFirstLoad:isFirstLoadRef.current,previousCount:previousOrdersRef.current.length,newCount:newOrders.length},timestamp:Date.now(),hypothesisId:'H1-polling'})}).catch(()=>{});
-      // #endregion
-      
       // Check for new orders (only after first load)
       if (!isFirstLoadRef.current) {
         const currentOrderIds = newOrders.map((o: Order) => o.id);
         const newOrderIds = currentOrderIds.filter((id: string) => !previousOrdersRef.current.includes(id));
         
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orders/page.tsx:checkNewOrders',message:'Checking for new orders',data:{currentCount:currentOrderIds.length,previousCount:previousOrdersRef.current.length,newOrdersFound:newOrderIds.length},timestamp:Date.now(),hypothesisId:'H2-neworders'})}).catch(()=>{});
-        // #endregion
-        
         if (newOrderIds.length > 0) {
           const newOrdersList = newOrders.filter((o: Order) => newOrderIds.includes(o.id));
-          
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'orders/page.tsx:showToast',message:'Showing new order toast',data:{count:newOrderIds.length,orderNumbers:newOrdersList.map((o: Order) => o.orderNumber)},timestamp:Date.now(),hypothesisId:'H3-toast'})}).catch(()=>{});
-          // #endregion
-          
           setNewOrderToast({ show: true, count: newOrderIds.length, orders: newOrdersList });
           playNotificationSound();
           
