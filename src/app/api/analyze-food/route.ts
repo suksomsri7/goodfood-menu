@@ -46,6 +46,9 @@ export async function POST(request: NextRequest) {
     // Check usage limit if lineUserId is provided
     if (lineUserId) {
       const limitCheck = await checkUsageLimit(lineUserId, "dailyAiAnalysisLimit");
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'analyze-food/route.ts',message:'API limit check result',data:{lineUserId,allowed:limitCheck.allowed,limit:limitCheck.limit,used:limitCheck.used,isCombinedMode:limitCheck.isCombinedMode},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+      // #endregion
       if (!limitCheck.allowed) {
         return NextResponse.json(
           { 

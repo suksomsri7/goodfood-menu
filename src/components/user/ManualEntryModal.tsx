@@ -520,7 +520,7 @@ export function ManualEntryModal({ isOpen, onClose, onSave, lineUserId }: Manual
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-gray-100 pb-8">
+            <div className="p-4 border-t border-gray-100 pb-20">
               <button
                 onClick={handleSubmit}
                 disabled={!canSubmit}

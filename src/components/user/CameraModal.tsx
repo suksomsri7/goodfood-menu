@@ -152,6 +152,10 @@ export function CameraModal({ isOpen, onClose, onSave, lineUserId }: CameraModal
 
       const result = await response.json();
       
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/60d048e4-60e7-4d20-95e1-ab93262422a9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CameraModal.tsx:analyzeFood',message:'Frontend received response',data:{limitReached:result.limitReached,limit:result.limit,used:result.used,hasError:!!result.error},timestamp:Date.now(),hypothesisId:'H4-frontend'})}).catch(()=>{});
+      // #endregion
+      
       // Check for limit reached
       if (result.limitReached) {
         setLimitInfo({
