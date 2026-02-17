@@ -99,7 +99,6 @@ export default function NewFoodPage() {
           const categoriesData = await categoriesRes.json();
           // Filter active categories (handle undefined/null isActive)
           const activeCategories = categoriesData.filter((cat: Category) => cat.isActive !== false);
-          console.log("[Categories] Loaded:", categoriesData.length, "Active:", activeCategories.length);
           setAllCategories(activeCategories);
           setCategories(activeCategories);
         }
@@ -112,29 +111,10 @@ export default function NewFoodPage() {
     fetchData();
   }, []);
 
-  // กรองหมวดอาหารตามร้านที่เลือก
+  // หมวดอาหารแสดงเหมือนกันทุกร้าน (ไม่ต้อง filter ตามร้าน)
   useEffect(() => {
-    if (formData.restaurantId) {
-      // กรองเฉพาะหมวดของร้านนี้ หรือหมวดที่ไม่ได้ระบุร้าน (null, undefined, หรือ empty string)
-      const filtered = allCategories.filter(
-        (cat) => cat.restaurantId === formData.restaurantId || !cat.restaurantId
-      );
-      console.log("[Categories] Filtered for restaurant:", formData.restaurantId, "Result:", filtered.length);
-      setCategories(filtered);
-    } else {
-      setCategories(allCategories);
-    }
-    // Reset category if restaurant changes
-    if (formData.categoryId) {
-      const catExists = allCategories.find(
-        (c) => c.id === formData.categoryId && 
-        (!formData.restaurantId || c.restaurantId === formData.restaurantId || !c.restaurantId)
-      );
-      if (!catExists) {
-        setFormData((prev) => ({ ...prev, categoryId: "" }));
-      }
-    }
-  }, [formData.restaurantId, allCategories]);
+    setCategories(allCategories);
+  }, [allCategories]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>

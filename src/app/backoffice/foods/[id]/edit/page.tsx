@@ -148,16 +148,10 @@ export default function EditFoodPage({ params }: { params: Promise<{ id: string 
     fetchData();
   }, [id]);
 
-  // กรองหมวดอาหารตามร้านที่เลือก
+  // หมวดอาหารแสดงเหมือนกันทุกร้าน (ไม่ต้อง filter ตามร้าน)
   useEffect(() => {
-    if (formData.restaurantId) {
-      setCategories(allCategories.filter(
-        (cat) => cat.restaurantId === formData.restaurantId || !cat.restaurantId
-      ));
-    } else {
-      setCategories(allCategories);
-    }
-  }, [formData.restaurantId, allCategories]);
+    setCategories(allCategories);
+  }, [allCategories]);
 
   // จัดการส่วนประกอบ
   const addIngredient = () => {
