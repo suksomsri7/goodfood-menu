@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       name,
+      sku,
       description,
       ingredients,
       imageUrl,
@@ -132,6 +133,7 @@ export async function POST(request: NextRequest) {
     const food = await prisma.food.create({
       data: {
         name,
+        sku: sku || null,
         description: description || null,
         ingredients: ingredients || [],
         imageUrl: finalImageUrl,

@@ -40,6 +40,7 @@ export default function NewFoodPage() {
   
   const [formData, setFormData] = useState({
     name: "",
+    sku: "",
     restaurantId: "",
     categoryId: "",
     description: "",
@@ -172,6 +173,7 @@ export default function NewFoodPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: formData.name,
+          sku: formData.sku || null,
           description: formData.description,
           ingredients: ingredients.filter((i) => i.trim() !== ""), // กรองค่าว่างออก
           imageUrl: imagePreview, // ส่ง base64 image หรือ URL
@@ -333,19 +335,34 @@ export default function NewFoodPage() {
                 <h3 className="font-medium text-gray-900 mb-4">ข้อมูลพื้นฐาน</h3>
                 
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      ชื่อเมนู <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      placeholder="เช่น ข้าวผัดกุ้ง"
-                      required
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent"
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        ชื่อเมนู <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleInputChange}
+                        placeholder="เช่น ข้าวผัดกุ้ง"
+                        required
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        รหัสสินค้า (SKU)
+                      </label>
+                      <input
+                        type="text"
+                        name="sku"
+                        value={formData.sku}
+                        onChange={handleInputChange}
+                        placeholder="เช่น FOOD-001"
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent"
+                      />
+                    </div>
                   </div>
 
                   <div>

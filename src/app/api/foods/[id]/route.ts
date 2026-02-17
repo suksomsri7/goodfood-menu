@@ -57,6 +57,7 @@ export async function PUT(
     const body = await request.json();
     const {
       name,
+      sku,
       description,
       ingredients,
       imageUrl,
@@ -75,6 +76,7 @@ export async function PUT(
       servingUnit,
       warning,
       categoryId,
+      restaurantId,
       isActive,
     } = body;
 
@@ -152,6 +154,7 @@ export async function PUT(
       where: { id },
       data: {
         name,
+        sku: sku !== undefined ? (sku || null) : existing.sku,
         description: description || null,
         ingredients: ingredients || existing.ingredients || [],
         imageUrl: finalImageUrl,
@@ -170,6 +173,7 @@ export async function PUT(
         servingUnit: servingUnit || null,
         warning: warning !== undefined ? (warning || null) : existing.warning,
         categoryId,
+        restaurantId: restaurantId !== undefined ? (restaurantId || null) : existing.restaurantId,
         isActive: isActive !== undefined ? isActive : existing.isActive,
       },
       include: {
@@ -229,6 +233,7 @@ export async function PATCH(
     const updateData: any = {};
     
     if (body.name !== undefined) updateData.name = body.name;
+    if (body.sku !== undefined) updateData.sku = body.sku || null;
     if (body.description !== undefined) updateData.description = body.description || null;
     
     // Handle imageUrl with Bunny CDN

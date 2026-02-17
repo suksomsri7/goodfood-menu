@@ -286,6 +286,7 @@ model Category {
 
 model Food {
   id             String          @id @default(cuid())
+  sku            String?         // รหัสสินค้า
   name           String
   description    String?
   ingredients    String[]        @default([])
