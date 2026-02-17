@@ -10,19 +10,10 @@ export async function GET(
   try {
     const { id } = await params;
 
+    // Fetch restaurant basic info
     const restaurant = await prisma.restaurant.findUnique({
       where: { id },
       include: {
-        categories: {
-          where: { isActive: true },
-          orderBy: { order: "asc" },
-          include: {
-            foods: {
-              where: { isActive: true },
-              orderBy: { order: "asc" },
-            },
-          },
-        },
         packages: {
           where: { isActive: true },
           orderBy: { order: "asc" },
@@ -31,7 +22,6 @@ export async function GET(
           select: {
             foods: true,
             packages: true,
-            categories: true,
           },
         },
       },
@@ -44,7 +34,31 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(restaurant);
+    // Fetch all active categories (global - not filtered by restaurant)
+    const allCategories = await prisma.category.findMany({
+      where: { isActive: true },
+      orderBy: { order: "asc" },
+    });
+
+    // Fetch foods for THIS restaurant
+    const foods = await prisma.food.findMany({
+      where: {
+        restaurantId: id,
+        isActive: true,
+      },
+      orderBy: { order: "asc" },
+    });
+
+    // Group foods by category
+    const categoriesWithFoods = allCategories.map((cat) => ({
+      ...cat,
+      foods: foods.filter((food) => food.categoryId === cat.id),
+    })).filter((cat) => cat.foods.length > 0); // Only return categories that have foods
+
+    return NextResponse.json({
+      ...restaurant,
+      categories: categoriesWithFoods,
+    });
   } catch (error) {
     console.error("Error fetching restaurant:", error);
     return NextResponse.json(
