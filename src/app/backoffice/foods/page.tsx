@@ -37,6 +37,7 @@ interface Restaurant {
 
 interface Food {
   id: string;
+  sku?: string;
   name: string;
   description?: string;
   imageUrl?: string;
@@ -126,6 +127,13 @@ function SortableFoodRow({
             )}
           </div>
         </div>
+      </td>
+      <td className="py-3 px-4">
+        {food.sku ? (
+          <span className="text-sm font-mono text-gray-600">{food.sku}</span>
+        ) : (
+          <span className="text-xs text-gray-400">-</span>
+        )}
       </td>
       <td className="py-3 px-4">
         {food.restaurant ? (
@@ -487,6 +495,7 @@ export default function FoodsPage() {
                   <tr>
                     <th className="w-10 py-3 px-2"></th>
                     <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">เมนู</th>
+                    <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">รหัส</th>
                     <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">ร้าน</th>
                     <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">หมวด</th>
                     <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">แคล</th>
