@@ -108,7 +108,8 @@ export default function EditFoodPage({ params }: { params: Promise<{ id: string 
         
         if (categoriesRes.ok) {
           const categoriesData = await categoriesRes.json();
-          const activeCategories = categoriesData.filter((cat: Category) => cat.isActive);
+          // Filter active categories (handle undefined/null isActive)
+          const activeCategories = categoriesData.filter((cat: Category) => cat.isActive !== false);
           setAllCategories(activeCategories);
           setCategories(activeCategories);
         }

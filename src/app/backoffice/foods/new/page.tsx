@@ -97,7 +97,9 @@ export default function NewFoodPage() {
         
         if (categoriesRes.ok) {
           const categoriesData = await categoriesRes.json();
-          const activeCategories = categoriesData.filter((cat: Category) => cat.isActive);
+          // Filter active categories (handle undefined/null isActive)
+          const activeCategories = categoriesData.filter((cat: Category) => cat.isActive !== false);
+          console.log("[Categories] Loaded:", categoriesData.length, "Active:", activeCategories.length);
           setAllCategories(activeCategories);
           setCategories(activeCategories);
         }
@@ -113,10 +115,12 @@ export default function NewFoodPage() {
   // กรองหมวดอาหารตามร้านที่เลือก
   useEffect(() => {
     if (formData.restaurantId) {
-      // กรองเฉพาะหมวดของร้านนี้ หรือหมวดที่ไม่ได้ระบุร้าน
-      setCategories(allCategories.filter(
+      // กรองเฉพาะหมวดของร้านนี้ หรือหมวดที่ไม่ได้ระบุร้าน (null, undefined, หรือ empty string)
+      const filtered = allCategories.filter(
         (cat) => cat.restaurantId === formData.restaurantId || !cat.restaurantId
-      ));
+      );
+      console.log("[Categories] Filtered for restaurant:", formData.restaurantId, "Result:", filtered.length);
+      setCategories(filtered);
     } else {
       setCategories(allCategories);
     }

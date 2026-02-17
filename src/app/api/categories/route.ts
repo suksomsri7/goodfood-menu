@@ -6,7 +6,15 @@ export async function GET() {
   try {
     const categories = await prisma.category.findMany({
       orderBy: { order: "asc" },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        description: true,
+        color: true,
+        isActive: true,
+        order: true,
+        restaurantId: true,
         _count: {
           select: { foods: true },
         },
@@ -15,9 +23,15 @@ export async function GET() {
 
     // แปลง _count เป็น foodCount
     const result = categories.map((cat) => ({
-      ...cat,
+      id: cat.id,
+      name: cat.name,
+      slug: cat.slug,
+      description: cat.description,
+      color: cat.color,
+      isActive: cat.isActive,
+      order: cat.order,
+      restaurantId: cat.restaurantId,
       foodCount: cat._count.foods,
-      _count: undefined,
     }));
 
     // Add cache headers - categories change rarely
