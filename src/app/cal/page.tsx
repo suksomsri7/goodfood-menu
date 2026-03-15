@@ -5,14 +5,10 @@ import { DaySelector } from "@/components/user/DaySelector";
 import { MacroProgressBar } from "@/components/user/MacroProgressBar";
 import { MealList } from "@/components/user/MealList";
 import { ExerciseList } from "@/components/user/ExerciseList";
-import { RecommendationCard } from "@/components/user/RecommendationCard";
 import { MealDetailModal } from "@/components/user/MealDetailModal";
 import { FitnessRings } from "@/components/user/FitnessRings";
-import { AnalysisModal } from "@/components/user/AnalysisModal";
 import { useLiff } from "@/components/providers/LiffProvider";
 import { LogoLoader } from "@/components/user/LogoLoader";
-import { NotificationSettings } from "@/components/user/NotificationSettings";
-import { Brain, Settings } from "lucide-react";
 import { useCalHelp } from "./help-context";
 
 // Types
@@ -79,22 +75,6 @@ export default function CaloriePage() {
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [showMealDetail, setShowMealDetail] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [recommendation, setRecommendation] = useState<string>("");
-  const [isLoadingRecommendation, setIsLoadingRecommendation] = useState(false);
-  
-  // AI Analysis state
-  const [showAnalysis, setShowAnalysis] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<{
-    summary?: string | string[] | null;
-    goalAnalysis?: string | string[] | null;
-    recommendations?: string | string[] | null;
-  } | null>(null);
-  const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
-  const [analysisLimitReached, setAnalysisLimitReached] = useState(false);
-  const [analysisLimitInfo, setAnalysisLimitInfo] = useState<{ limit?: number; used?: number }>({});
-  
-  // Notification Settings state
-  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
 
   const lineUserId = profile?.userId;
 
@@ -221,80 +201,6 @@ export default function CaloriePage() {
       console.error("Failed to fetch exercises:", error);
     }
   }, [lineUserId, selectedDate, getDateStr, transformExercise]);
-
-  // Fetch AI recommendation
-  const fetchRecommendation = useCallback(async (forceRefresh = false) => {
-    if (!lineUserId) return;
-
-    setIsLoadingRecommendation(true);
-    try {
-      const url = forceRefresh 
-        ? `/api/recommendation?lineUserId=${lineUserId}&refresh=true`
-        : `/api/recommendation?lineUserId=${lineUserId}`;
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        setRecommendation(data.message || "");
-      }
-    } catch (error) {
-      console.error("Failed to fetch recommendation:", error);
-    } finally {
-      setIsLoadingRecommendation(false);
-    }
-  }, [lineUserId]);
-
-  // Fetch AI analysis
-  const fetchAnalysis = useCallback(async () => {
-    if (!lineUserId) return;
-
-    setIsLoadingAnalysis(true);
-    setShowAnalysis(true);
-    
-    try {
-      const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
-      
-      const res = await fetch("/api/ai-analysis", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          lineUserId,
-          dateStr,
-        }),
-      });
-      
-      const data = await res.json();
-      
-      // Check for limit reached
-      if (data.limitReached) {
-        setAnalysisLimitReached(true);
-        setAnalysisLimitInfo({ limit: data.limit, used: data.used });
-        setAnalysisResult(null);
-        return;
-      }
-      
-      // Reset limit state if successful
-      setAnalysisLimitReached(false);
-      setAnalysisLimitInfo({});
-      
-      if (res.ok) {
-        // Ensure analysis has required fields with fallbacks
-        const safeAnalysis = data.analysis ? {
-          summary: data.analysis.summary || "ไม่สามารถวิเคราะห์ได้",
-          goalAnalysis: data.analysis.goalAnalysis || [],
-          recommendations: data.analysis.recommendations || []
-        } : null;
-        
-        setAnalysisResult(safeAnalysis);
-      } else {
-        setAnalysisResult(null);
-      }
-    } catch (error) {
-      console.error("Failed to fetch analysis:", error);
-      setAnalysisResult(null);
-    } finally {
-      setIsLoadingAnalysis(false);
-    }
-  }, [lineUserId, selectedDate]);
 
   // Set page title
   useEffect(() => {
@@ -606,33 +512,6 @@ export default function CaloriePage() {
         </div>
       </div>
 
-      {/* AI Recommendation - Disabled temporarily */}
-      {/* <div className="px-6 mb-6">
-        <RecommendationCard
-          message={recommendation}
-          isLoading={isLoadingRecommendation}
-          onRefresh={() => fetchRecommendation(true)}
-        />
-      </div> */}
-
-      {/* AI Analysis & Notification Settings Buttons */}
-      <div className="flex justify-center gap-3 mb-6 px-6" data-guide="ai-button">
-        <button
-          onClick={fetchAnalysis}
-          disabled={isLoadingAnalysis}
-          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full text-sm font-medium shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all active:scale-95"
-        >
-          <Brain className={`w-4 h-4 ${isLoadingAnalysis ? 'animate-pulse' : ''}`} />
-          <span>{isLoadingAnalysis ? 'กำลังวิเคราะห์...' : 'คำแนะนำจาก AI Coach'}</span>
-        </button>
-        <button
-          onClick={() => setShowNotificationSettings(true)}
-          className="flex items-center justify-center w-10 h-10 bg-gradient-to-r from-red-500 to-rose-500 text-white rounded-full shadow-lg shadow-red-500/25 hover:shadow-red-500/40 transition-all active:scale-95"
-        >
-          <Settings className="w-4 h-4" />
-        </button>
-      </div>
-
       {/* Exercises */}
       {exercises.length > 0 && (
         <div className="px-6 mb-6">
@@ -671,25 +550,6 @@ export default function CaloriePage() {
         onDelete={handleDeleteMeal}
       />
 
-      {/* AI Analysis Modal */}
-      <AnalysisModal
-        isOpen={showAnalysis}
-        onClose={() => setShowAnalysis(false)}
-        analysis={analysisResult}
-        isLoading={isLoadingAnalysis}
-        onRefresh={fetchAnalysis}
-        limitReached={analysisLimitReached}
-        limitCount={analysisLimitInfo.limit}
-        usedCount={analysisLimitInfo.used}
-        lineUserId={lineUserId}
-      />
-
-      {/* Notification Settings Modal */}
-      <NotificationSettings
-        isOpen={showNotificationSettings}
-        onClose={() => setShowNotificationSettings(false)}
-        lineUserId={lineUserId}
-      />
     </div>
   );
 }
