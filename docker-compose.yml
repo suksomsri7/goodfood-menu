@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: goodfood-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: goodfood
+      POSTGRES_PASSWORD: goodfood_password
+      POSTGRES_DB: goodfood_db
+    ports:
+      - "127.0.0.1:5437:5432"
+    volumes:
+      - goodfood_data:/var/lib/postgresql/data
+    networks:
+      - goodfood-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U goodfood -d goodfood_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: goodfood-web
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env.production
+    ports:
+      - "127.0.0.1:3001:3000"
+    networks:
+      - goodfood-net
+
+networks:
+  goodfood-net:
+    name: goodfood-net
+    driver: bridge
+
+volumes:
+  goodfood_data:
