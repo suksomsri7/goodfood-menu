@@ -74,7 +74,7 @@ export default async function LandingPage() {
   let articles: any[] = [];
   try {
     articles = await prisma.article.findMany({
-      where: { status: "published" },
+      where: { status: "PUBLISHED" },
       orderBy: [{ isFeatured: "desc" }, { publishedAt: "desc" }],
       take: 6,
       include: {
@@ -99,7 +99,7 @@ export default async function LandingPage() {
     title: a.title,
     slug: a.slug,
     excerpt: a.excerpt,
-    imageUrl: a.imageUrl,
+    coverImage: a.coverImage,
     readTime: a.readTime,
     views: a.views,
     publishedAt: a.publishedAt?.toISOString() || null,

@@ -10,7 +10,7 @@ interface Article {
   title: string;
   slug: string;
   excerpt: string | null;
-  imageUrl: string | null;
+  coverImage: string | null;
   readTime: number;
   views: number;
   publishedAt: string | null;
@@ -63,9 +63,9 @@ export function ArticlesSection({ articles }: ArticlesSectionProps) {
                 <article className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:border-gray-200 hover:shadow-lg hover:shadow-gray-100/50 transition-all duration-300">
                   {/* Image */}
                   <div className="relative aspect-[16/10] bg-gray-100 overflow-hidden">
-                    {article.imageUrl ? (
+                    {article.coverImage ? (
                       <Image
-                        src={article.imageUrl}
+                        src={article.coverImage}
                         alt={article.title}
                         fill
                         className="object-cover group-hover:scale-105 transition-transform duration-500"

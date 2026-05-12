@@ -5,23 +5,35 @@ import Link from "next/link";
 import Image from "next/image";
 import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
+import { ArticleReadTracker } from "@/components/landing/ArticleReadTracker";
 import { ArrowLeft, Clock, Eye, Calendar, Tag } from "lucide-react";
+
+export const dynamic = "force-dynamic";
 
 interface Props {
   params: Promise<{ slug: string }>;
 }
 
-async function getArticle(slug: string) {
+const BASE_URL =
+  process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") ||
+  "https://www.goodfood.in.th";
+
+async function getArticle(rawSlug: string) {
+  const slug = (() => {
+    try {
+      return decodeURIComponent(rawSlug);
+    } catch {
+      return rawSlug;
+    }
+  })();
   try {
-    const article = await prisma.article.findUnique({
-      where: { slug, status: "published" },
+    return await prisma.article.findUnique({
+      where: { slug, status: "PUBLISHED" },
       include: {
-        category: {
-          select: { id: true, name: true, color: true, icon: true },
-        },
+        category: { select: { id: true, name: true, slug: true, color: true, icon: true } },
+        authorStaff: { select: { id: true, name: true, avatarUrl: true } },
       },
     });
-    return article;
   } catch {
     return null;
   }
@@ -35,98 +47,219 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: "ไม่พบบทความ | Good Food" };
   }
 
+  const heroImage = article.coverImage || article.ogImage || undefined;
+  const ogImage = article.ogImage || article.coverImage || undefined;
+  const description = article.metaDescription || article.excerpt || article.title;
+  const canonical = article.canonicalUrl || `${BASE_URL}/articles/${article.slug}`;
+
   return {
     title: `${article.title} | Good Food`,
-    description: article.excerpt || article.title,
+    description,
+    keywords: article.focusKeyword ? [article.focusKeyword] : undefined,
     openGraph: {
       title: article.title,
-      description: article.excerpt || article.title,
+      description,
       type: "article",
       locale: "th_TH",
       siteName: "Good Food",
+      url: canonical,
       publishedTime: article.publishedAt?.toISOString(),
-      authors: article.author ? [article.author] : undefined,
-      images: article.imageUrl ? [article.imageUrl] : [],
+      modifiedTime: article.updatedAt.toISOString(),
+      authors: article.authorStaff?.name ? [article.authorStaff.name] : undefined,
+      images: ogImage ? [{ url: ogImage, width: 1200, height: 630 }] : [],
     },
     twitter: {
       card: "summary_large_image",
       title: article.title,
-      description: article.excerpt || article.title,
-      images: article.imageUrl ? [article.imageUrl] : [],
+      description,
+      images: ogImage ? [ogImage] : [],
     },
     alternates: {
-      canonical: `/articles/${article.slug}`,
+      canonical,
+      languages: { "th-TH": canonical },
     },
   };
+}
+
+type RecipeData = {
+  prepTime?: string;
+  cookTime?: string;
+  totalTime?: string;
+  recipeYield?: string;
+  recipeCategory?: string;
+  recipeCuisine?: string;
+  ingredients?: string[];
+  instructions?: string[];
+  nutrition?: {
+    calories?: string;
+    proteinContent?: string;
+    carbohydrateContent?: string;
+    fatContent?: string;
+  };
+  rating?: { value?: number; count?: number };
+};
+
+function buildJsonLd(article: any) {
+  const url = article.canonicalUrl || `${BASE_URL}/articles/${article.slug}`;
+  const image = article.coverImage || article.ogImage || undefined;
+  const author = article.authorStaff?.name
+    ? { "@type": "Person", name: article.authorStaff.name }
+    : undefined;
+  const publisher = {
+    "@type": "Organization",
+    name: "Good Food",
+    url: BASE_URL,
+  };
+
+  const recipe = article.recipeData as RecipeData | null | undefined;
+  const isRecipe =
+    recipe && typeof recipe === "object" && Array.isArray(recipe.ingredients) && recipe.ingredients.length > 0;
+
+  const breadcrumb = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "หน้าแรก", item: BASE_URL },
+      { "@type": "ListItem", position: 2, name: "บทความ", item: `${BASE_URL}/articles` },
+      ...(article.category
+        ? [
+            {
+              "@type": "ListItem",
+              position: 3,
+              name: article.category.name,
+              item: `${BASE_URL}/articles/category/${article.category.slug}`,
+            },
+          ]
+        : []),
+      {
+        "@type": "ListItem",
+        position: article.category ? 4 : 3,
+        name: article.title,
+        item: url,
+      },
+    ],
+  };
+
+  if (isRecipe) {
+    const recipeLd = {
+      "@context": "https://schema.org",
+      "@type": "Recipe",
+      name: article.title,
+      description: article.metaDescription || article.excerpt || undefined,
+      image: image ? [image] : undefined,
+      author,
+      datePublished: article.publishedAt?.toISOString(),
+      dateModified: article.updatedAt.toISOString(),
+      prepTime: recipe.prepTime,
+      cookTime: recipe.cookTime,
+      totalTime: recipe.totalTime,
+      recipeYield: recipe.recipeYield,
+      recipeCategory: recipe.recipeCategory || article.category?.name,
+      recipeCuisine: recipe.recipeCuisine,
+      keywords: article.focusKeyword,
+      recipeIngredient: recipe.ingredients,
+      recipeInstructions: recipe.instructions?.map((step, i) => ({
+        "@type": "HowToStep",
+        position: i + 1,
+        text: step,
+      })),
+      nutrition: recipe.nutrition
+        ? {
+            "@type": "NutritionInformation",
+            calories: recipe.nutrition.calories,
+            proteinContent: recipe.nutrition.proteinContent,
+            carbohydrateContent: recipe.nutrition.carbohydrateContent,
+            fatContent: recipe.nutrition.fatContent,
+          }
+        : undefined,
+      aggregateRating: recipe.rating?.value
+        ? {
+            "@type": "AggregateRating",
+            ratingValue: recipe.rating.value,
+            ratingCount: recipe.rating.count || 1,
+          }
+        : undefined,
+      publisher,
+    };
+    return [recipeLd, breadcrumb];
+  }
+
+  const articleLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: article.title,
+    description: article.metaDescription || article.excerpt || undefined,
+    image: image ? [image] : undefined,
+    datePublished: article.publishedAt?.toISOString(),
+    dateModified: article.updatedAt.toISOString(),
+    author,
+    publisher,
+    mainEntityOfPage: { "@type": "WebPage", "@id": url },
+    keywords: article.focusKeyword || article.tags || undefined,
+  };
+  return [articleLd, breadcrumb];
 }
 
 export default async function ArticleDetailPage({ params }: Props) {
   const { slug } = await params;
   const article = await getArticle(slug);
+  if (!article) notFound();
 
-  if (!article) {
-    notFound();
-  }
-
-  // Increment view count (fire and forget)
   prisma.article
-    .update({
-      where: { id: article.id },
-      data: { views: { increment: 1 } },
-    })
+    .update({ where: { id: article.id }, data: { views: { increment: 1 } } })
     .catch(() => {});
 
-  // Fetch related articles
   let relatedArticles: any[] = [];
   try {
-    relatedArticles = await prisma.article.findMany({
-      where: {
-        status: "published",
-        id: { not: article.id },
-        ...(article.categoryId && { categoryId: article.categoryId }),
-      },
-      take: 3,
+    const candidates = await prisma.article.findMany({
+      where: { status: "PUBLISHED", id: { not: article.id } },
+      take: 30,
       orderBy: { publishedAt: "desc" },
       include: {
-        category: {
-          select: { id: true, name: true, color: true, icon: true },
-        },
+        category: { select: { id: true, name: true, color: true, icon: true } },
       },
     });
+    const articleTags = (article.tags || "").split(",").map((t) => t.trim().toLowerCase()).filter(Boolean);
+    const focusKw = (article.focusKeyword || "").toLowerCase();
+    const scored = candidates.map((c) => {
+      let score = 0;
+      if (c.categoryId && c.categoryId === article.categoryId) score += 3;
+      const cTags = (c.tags || "").split(",").map((t) => t.trim().toLowerCase()).filter(Boolean);
+      score += cTags.filter((t) => articleTags.includes(t)).length * 2;
+      if (focusKw && (c.title.toLowerCase().includes(focusKw) || (c.focusKeyword || "").toLowerCase() === focusKw)) {
+        score += 2;
+      }
+      return { article: c, score };
+    });
+    relatedArticles = scored
+      .filter((s) => s.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3)
+      .map((s) => s.article);
+    if (relatedArticles.length < 3) {
+      const filler = candidates
+        .filter((c) => !relatedArticles.some((r) => r.id === c.id))
+        .slice(0, 3 - relatedArticles.length);
+      relatedArticles = [...relatedArticles, ...filler];
+    }
   } catch {}
 
-  // JSON-LD structured data for article
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    headline: article.title,
-    description: article.excerpt,
-    image: article.imageUrl,
-    datePublished: article.publishedAt?.toISOString(),
-    dateModified: article.updatedAt.toISOString(),
-    author: article.author
-      ? { "@type": "Person", name: article.author }
-      : undefined,
-    publisher: {
-      "@type": "Organization",
-      name: "Good Food",
-    },
-    mainEntityOfPage: {
-      "@type": "WebPage",
-      "@id": `/articles/${article.slug}`,
-    },
-  };
+  const jsonLdNodes = buildJsonLd(article);
+  const hero = article.coverImage || article.ogImage;
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      {jsonLdNodes.map((node, i) => (
+        <script
+          key={i}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(node) }}
+        />
+      ))}
+      <ArticleReadTracker articleId={article.id} slug={article.slug} />
       <Navbar />
       <main className="pt-24 pb-16">
         <article className="max-w-3xl mx-auto px-6">
-          {/* Breadcrumb */}
           <div className="mb-8">
             <Link
               href="/articles"
@@ -137,15 +270,15 @@ export default async function ArticleDetailPage({ params }: Props) {
             </Link>
           </div>
 
-          {/* Header */}
           <header className="mb-8">
             {article.category && (
-              <div
+              <Link
+                href={`/articles/category/${article.category.slug}`}
                 className="inline-flex px-3 py-1 rounded-full text-xs font-medium text-white mb-4"
                 style={{ backgroundColor: article.category.color }}
               >
                 {article.category.name}
-              </div>
+              </Link>
             )}
 
             <h1 className="text-3xl md:text-4xl font-bold text-gray-900 leading-tight">
@@ -153,16 +286,17 @@ export default async function ArticleDetailPage({ params }: Props) {
             </h1>
 
             {article.excerpt && (
-              <p className="mt-4 text-lg text-gray-500 leading-relaxed">
-                {article.excerpt}
-              </p>
+              <p className="mt-4 text-lg text-gray-500 leading-relaxed">{article.excerpt}</p>
             )}
 
             <div className="mt-6 flex flex-wrap items-center gap-4 text-sm text-gray-400">
-              {article.author && (
-                <span className="font-medium text-gray-600">
-                  {article.author}
-                </span>
+              {article.authorStaff && (
+                <Link
+                  href={`/articles/author/${article.authorStaff.id}`}
+                  className="font-medium text-gray-600 hover:text-gray-900"
+                >
+                  {article.authorStaff.name}
+                </Link>
               )}
               {article.publishedAt && (
                 <span className="flex items-center gap-1.5">
@@ -185,42 +319,25 @@ export default async function ArticleDetailPage({ params }: Props) {
             </div>
           </header>
 
-          {/* Featured Image */}
-          {article.imageUrl && (
-            <div className="relative aspect-[16/9] rounded-2xl overflow-hidden mb-10">
-              <Image
-                src={article.imageUrl}
-                alt={article.title}
-                fill
-                className="object-cover"
-                priority
-              />
+          {hero && (
+            <div className="relative aspect-[3/2] rounded-2xl overflow-hidden mb-10">
+              <Image src={hero} alt={article.title} fill className="object-cover" priority />
             </div>
           )}
 
-          {/* Article Content */}
           {article.content && (
-            <div
-              className="article-content"
-              dangerouslySetInnerHTML={{ __html: article.content }}
-            />
+            <div className="article-content" dangerouslySetInnerHTML={{ __html: article.content }} />
           )}
 
-          {/* Tags */}
           {article.tags && (
             <div className="mt-10 pt-8 border-t border-gray-100">
               <div className="flex items-center gap-2 mb-3">
                 <Tag className="w-4 h-4 text-gray-400" />
-                <span className="text-sm font-medium text-gray-600">
-                  แท็ก
-                </span>
+                <span className="text-sm font-medium text-gray-600">แท็ก</span>
               </div>
               <div className="flex flex-wrap gap-2">
                 {article.tags.split(",").map((tag: string) => (
-                  <span
-                    key={tag.trim()}
-                    className="px-3 py-1.5 bg-gray-100 text-gray-600 text-sm rounded-full"
-                  >
+                  <span key={tag.trim()} className="px-3 py-1.5 bg-gray-100 text-gray-600 text-sm rounded-full">
                     #{tag.trim()}
                   </span>
                 ))}
@@ -229,24 +346,17 @@ export default async function ArticleDetailPage({ params }: Props) {
           )}
         </article>
 
-        {/* Related Articles */}
         {relatedArticles.length > 0 && (
           <section className="max-w-7xl mx-auto px-6 mt-20">
-            <h2 className="text-2xl font-bold text-gray-900 mb-8">
-              บทความที่เกี่ยวข้อง
-            </h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-8">บทความที่เกี่ยวข้อง</h2>
             <div className="grid md:grid-cols-3 gap-6">
               {relatedArticles.map((related: any) => (
-                <Link
-                  key={related.id}
-                  href={`/articles/${related.slug}`}
-                  className="group block"
-                >
+                <Link key={related.id} href={`/articles/${related.slug}`} className="group block">
                   <article className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:border-gray-200 hover:shadow-lg transition-all duration-300">
                     <div className="relative aspect-[16/10] bg-gray-100 overflow-hidden">
-                      {related.imageUrl ? (
+                      {related.coverImage ? (
                         <Image
-                          src={related.imageUrl}
+                          src={related.coverImage}
                           alt={related.title}
                           fill
                           className="object-cover group-hover:scale-105 transition-transform duration-500"

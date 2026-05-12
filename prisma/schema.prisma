@@ -406,26 +406,43 @@ model ArticleCategory {
   @@map("article_categories")
 }
 
-model Article {
-  id          String           @id @default(cuid())
-  title       String
-  slug        String           @unique
-  excerpt     String?
-  content     String?
-  imageUrl    String?
-  categoryId  String?
-  tags        String?
-  author      String?
-  isFeatured  Boolean          @default(false)
-  status      String           @default("draft")
-  publishedAt DateTime?
-  views       Int              @default(0)
-  readTime    Int              @default(5)
-  order       Int              @default(0)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  category    ArticleCategory? @relation(fields: [categoryId], references: [id])
+enum ArticleStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
 
+model Article {
+  id              String           @id @default(cuid())
+  title           String
+  slug            String           @unique
+  excerpt         String?
+  content         String?
+  coverImage      String?
+  ogImage         String?
+  categoryId      String?
+  tags            String?
+  authorId        String?
+  isFeatured      Boolean          @default(false)
+  status          ArticleStatus    @default(DRAFT)
+  publishedAt     DateTime?
+  scheduledFor    DateTime?
+  views           Int              @default(0)
+  readTime        Int              @default(5)
+  order           Int              @default(0)
+  metaDescription String?
+  focusKeyword    String?
+  canonicalUrl    String?
+  recipeData      Json?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  category        ArticleCategory? @relation(fields: [categoryId], references: [id])
+  authorStaff     Staff?           @relation("ArticleAuthor", fields: [authorId], references: [id])
+
+  @@index([status, publishedAt])
+  @@index([status, scheduledFor])
+  @@index([categoryId, status])
   @@map("articles")
 }
 
@@ -458,6 +475,7 @@ model Staff {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   role      Role     @relation(fields: [roleId], references: [id])
+  articles  Article[] @relation("ArticleAuthor")
 
   @@map("staff")
 }

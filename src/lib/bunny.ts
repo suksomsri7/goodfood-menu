@@ -146,3 +146,33 @@ export function isBase64Image(str: string): boolean {
 export function isBunnyCdnUrl(str: string): boolean {
   return str.startsWith(BUNNY_CDN_URL) || str.startsWith("https://") || str.startsWith("http://");
 }
+
+/**
+ * Upload a raw Buffer to Bunny.net Storage
+ * Used by image pipeline (sharp output) where no base64 wrapping is needed
+ */
+export async function uploadBufferToBunny(
+  buffer: Buffer,
+  folder: string,
+  fileName: string,
+  contentType: string = "application/octet-stream"
+): Promise<string> {
+  const filePath = `${folder}/${fileName}`;
+  const uploadUrl = `https://${BUNNY_STORAGE_HOST}/${BUNNY_STORAGE_ZONE}/${filePath}`;
+
+  const response = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: {
+      AccessKey: BUNNY_API_KEY,
+      "Content-Type": contentType,
+    },
+    body: new Uint8Array(buffer),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Bunny upload failed: ${response.status} - ${errorText}`);
+  }
+
+  return `${BUNNY_CDN_URL}/${filePath}`;
+}

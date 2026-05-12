@@ -6,6 +6,8 @@ import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
 import { Clock, Eye, ArrowLeft } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "บทความสุขภาพ | Good Food",
   description:
@@ -30,11 +32,11 @@ export default async function ArticlesPage() {
   try {
     [articles, categories] = await Promise.all([
       prisma.article.findMany({
-        where: { status: "published" },
+        where: { status: "PUBLISHED" },
         orderBy: [{ isFeatured: "desc" }, { publishedAt: "desc" }],
         include: {
           category: {
-            select: { id: true, name: true, color: true, icon: true },
+            select: { id: true, name: true, slug: true, color: true, icon: true },
           },
         },
       }),
@@ -73,16 +75,20 @@ export default async function ArticlesPage() {
           {/* Categories */}
           {categories.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-10">
-              <span className="px-4 py-2 bg-gray-900 text-white text-sm rounded-full">
+              <Link
+                href="/articles"
+                className="px-4 py-2 bg-gray-900 text-white text-sm rounded-full"
+              >
                 ทั้งหมด
-              </span>
+              </Link>
               {categories.map((cat: any) => (
-                <span
+                <Link
                   key={cat.id}
-                  className="px-4 py-2 bg-gray-100 text-gray-600 text-sm rounded-full hover:bg-gray-200 transition-colors cursor-pointer"
+                  href={`/articles/category/${cat.slug}`}
+                  className="px-4 py-2 bg-gray-100 text-gray-600 text-sm rounded-full hover:bg-gray-200 transition-colors"
                 >
                   {cat.name}
-                </span>
+                </Link>
               ))}
             </div>
           )}
@@ -98,9 +104,9 @@ export default async function ArticlesPage() {
                 >
                   <article className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:border-gray-200 hover:shadow-lg hover:shadow-gray-100/50 transition-all duration-300">
                     <div className="relative aspect-[16/10] bg-gray-100 overflow-hidden">
-                      {article.imageUrl ? (
+                      {article.coverImage ? (
                         <Image
-                          src={article.imageUrl}
+                          src={article.coverImage}
                           alt={article.title}
                           fill
                           className="object-cover group-hover:scale-105 transition-transform duration-500"
