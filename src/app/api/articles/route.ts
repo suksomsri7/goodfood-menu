@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { uploadToBunny, isBase64Image, deleteFromBunny } from "@/lib/bunny";
 import { generateArticleImages } from "@/lib/articleImagePipeline";
+import { isArticleWriteAuthorized } from "@/lib/articleAuth";
 import { ArticleStatus, Prisma } from "@prisma/client";
 
 const ALLOWED_STATUS = ["DRAFT", "SCHEDULED", "PUBLISHED", "ARCHIVED"] as const;
@@ -55,6 +56,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  if (!isArticleWriteAuthorized(request)) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
   try {
     const body = await request.json();
     const {

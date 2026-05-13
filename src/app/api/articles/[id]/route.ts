@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { deleteFromBunny, isBase64Image, uploadToBunny } from "@/lib/bunny";
 import { generateArticleImages } from "@/lib/articleImagePipeline";
+import { isArticleWriteAuthorized } from "@/lib/articleAuth";
 import { ArticleStatus, Prisma } from "@prisma/client";
 
 const ALLOWED_STATUS = ["DRAFT", "SCHEDULED", "PUBLISHED", "ARCHIVED"] as const;
@@ -41,6 +42,9 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!isArticleWriteAuthorized(request)) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
   try {
     const { id } = await params;
     const body = await request.json();
@@ -185,6 +189,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!isArticleWriteAuthorized(request)) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
   try {
     const { id } = await params;
     const existing = await prisma.article.findUnique({ where: { id } });
