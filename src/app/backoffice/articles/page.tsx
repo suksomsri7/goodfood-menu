@@ -95,6 +95,7 @@ interface Article {
   focusKeyword?: string;
   canonicalUrl?: string;
   recipeData?: RecipeData | null;
+  imagePrompt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1463,6 +1464,7 @@ export default function ArticlesPage() {
           excerpt: formData.excerpt || formData.metaDescription || null,
           focusKeyword: formData.focusKeyword || null,
           categorySlug: categories.find((c) => c.id === formData.categoryId)?.slug || null,
+          imagePrompt: editingArticle?.imagePrompt || null,
         }}
       />
 

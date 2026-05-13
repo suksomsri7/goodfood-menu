@@ -80,11 +80,18 @@ export async function POST(req: NextRequest) {
   const excerpt = typeof body.excerpt === "string" ? body.excerpt : null;
   const focusKeyword = typeof body.focusKeyword === "string" ? body.focusKeyword : null;
   const categorySlug = typeof body.categorySlug === "string" ? body.categorySlug : null;
+  const savedImagePrompt = typeof body.imagePrompt === "string" && body.imagePrompt.trim().length > 30
+    ? body.imagePrompt.trim()
+    : null;
 
   const promptOverride = typeof body.prompt === "string" && body.prompt.trim().length > 30
     ? body.prompt.trim()
     : null;
-  const prompt = promptOverride ?? buildFoodPrompt({ title, excerpt, focusKeyword, categorySlug });
+  // Priority: explicit override (from textarea) > saved imagePrompt (from skill) > auto-build template
+  const prompt =
+    promptOverride ??
+    savedImagePrompt ??
+    buildFoodPrompt({ title, excerpt, focusKeyword, categorySlug });
 
   const aspectRatio = DEFAULT_ASPECT; // fixed 3:2 for article covers
 

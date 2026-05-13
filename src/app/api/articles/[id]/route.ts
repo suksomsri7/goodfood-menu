@@ -69,6 +69,7 @@ export async function PATCH(
       focusKeyword,
       canonicalUrl,
       recipeData,
+      imagePrompt,
     } = body;
 
     const existing = await prisma.article.findUnique({ where: { id } });
@@ -165,6 +166,7 @@ export async function PATCH(
         ...(metaDescription !== undefined && { metaDescription }),
         ...(focusKeyword !== undefined && { focusKeyword }),
         ...(canonicalUrl !== undefined && { canonicalUrl }),
+        ...(imagePrompt !== undefined && { imagePrompt }),
         ...(recipeData !== undefined && {
           recipeData:
             recipeData === null

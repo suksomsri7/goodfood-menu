@@ -81,6 +81,7 @@ export async function POST(request: NextRequest) {
       focusKeyword,
       canonicalUrl,
       recipeData,
+      imagePrompt,
     } = body;
 
     if (!title) {
@@ -146,6 +147,7 @@ export async function POST(request: NextRequest) {
         focusKeyword: focusKeyword ?? null,
         canonicalUrl: canonicalUrl ?? null,
         recipeData: recipeData ? (recipeData as Prisma.InputJsonValue) : Prisma.JsonNull,
+        imagePrompt: imagePrompt ?? null,
       },
       include: {
         category: { select: { id: true, name: true, color: true, icon: true } },

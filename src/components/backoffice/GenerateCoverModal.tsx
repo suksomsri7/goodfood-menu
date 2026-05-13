@@ -20,6 +20,7 @@ interface GenerateCoverModalProps {
     excerpt?: string | null;
     focusKeyword?: string | null;
     categorySlug?: string | null;
+    imagePrompt?: string | null;
   };
 }
 
@@ -52,6 +53,15 @@ export function GenerateCoverModal({ open, onClose, onAccept, article }: Generat
     const key = JSON.stringify(article);
     if (key === lastArticleKey.current && prompt) return;
     lastArticleKey.current = key;
+
+    // If the article has a saved imagePrompt (from skill / hand-written), use it directly
+    // without round-tripping to the server. Otherwise ask the server to build a default.
+    if (article.imagePrompt && article.imagePrompt.trim().length > 30) {
+      setPrompt(article.imagePrompt.trim());
+      setPhase("ready");
+      return;
+    }
+
     setPhase("preview-loading");
     fetch("/api/articles/generate-cover", {
       method: "POST",
@@ -102,7 +112,10 @@ export function GenerateCoverModal({ open, onClose, onAccept, article }: Generat
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...article,
+          title: article.title,
+          excerpt: article.excerpt,
+          focusKeyword: article.focusKeyword,
+          categorySlug: article.categorySlug,
           model: modelId,
           prompt,
         }),
