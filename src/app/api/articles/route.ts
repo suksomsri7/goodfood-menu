@@ -33,20 +33,64 @@ export async function GET(request: NextRequest) {
     const categoryId = searchParams.get("categoryId");
     const featured = searchParams.get("featured");
     const limit = searchParams.get("limit");
+    const since = searchParams.get("since"); // "7d" / "30d" / number of days
+    const fields = searchParams.get("fields"); // comma-separated whitelist
 
-    const articles = await prisma.article.findMany({
-      where: {
-        ...(status && { status: status as ArticleStatus }),
-        ...(categoryId && { categoryId }),
-        ...(featured === "true" && { isFeatured: true }),
-      },
-      orderBy: [{ isFeatured: "desc" }, { order: "asc" }, { createdAt: "desc" }],
-      include: {
-        category: { select: { id: true, name: true, color: true, icon: true } },
-        authorStaff: { select: { id: true, name: true, avatarUrl: true } },
-      },
-      ...(limit && { take: parseInt(limit) }),
-    });
+    let sinceDate: Date | null = null;
+    if (since) {
+      const m = since.match(/^(\d+)d?$/);
+      if (m) sinceDate = new Date(Date.now() - parseInt(m[1]) * 86400000);
+    }
+
+    // Field whitelist for the skill / dedup callers — keeps the payload small.
+    const ALLOWED_FIELDS = new Set([
+      "id",
+      "title",
+      "slug",
+      "excerpt",
+      "categoryId",
+      "tags",
+      "focusKeyword",
+      "status",
+      "publishedAt",
+      "createdAt",
+      "updatedAt",
+    ]);
+    let select: Record<string, true> | undefined;
+    if (fields) {
+      const requested = fields
+        .split(",")
+        .map((f) => f.trim())
+        .filter((f) => ALLOWED_FIELDS.has(f));
+      if (requested.length > 0) {
+        select = Object.fromEntries(requested.map((f) => [f, true]));
+      }
+    }
+
+    const where = {
+      ...(status && { status: status as ArticleStatus }),
+      ...(categoryId && { categoryId }),
+      ...(featured === "true" && { isFeatured: true }),
+      ...(sinceDate && { createdAt: { gte: sinceDate } }),
+    };
+    const orderBy = [
+      { isFeatured: "desc" as const },
+      { order: "asc" as const },
+      { createdAt: "desc" as const },
+    ];
+    const take = limit ? parseInt(limit) : undefined;
+
+    const articles = select
+      ? await prisma.article.findMany({ where, orderBy, take, select })
+      : await prisma.article.findMany({
+          where,
+          orderBy,
+          take,
+          include: {
+            category: { select: { id: true, name: true, color: true, icon: true } },
+            authorStaff: { select: { id: true, name: true, avatarUrl: true } },
+          },
+        });
 
     return NextResponse.json(articles);
   } catch (error) {
