@@ -1,21 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isArticleWriteAuthorized } from "@/lib/articleAuth";
-import { MODELS, VALID_ASPECTS, getModel, generateImage, type AspectRatio } from "@/lib/imageGen/models";
+import { MODELS, DEFAULT_ASPECT, getModel, generateImage } from "@/lib/imageGen/models";
 import { buildFoodPrompt } from "@/lib/imageGen/foodPrompt";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-// GET — return curated model list for the picker UI.
+// GET — return full model list for the dropdown UI (grouped by provider).
 export async function GET(req: NextRequest) {
   if (!isArticleWriteAuthorized(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   return NextResponse.json({
-    models: MODELS.map((m) => ({ id: m.id, label: m.label, blurb: m.blurb, price: m.price })),
-    aspects: ["16:9", "3:2", "1:1", "4:5"],
+    models: MODELS.map((m) => ({ id: m.id, label: m.label, blurb: m.blurb, price: m.price, group: m.group })),
     defaultModel: MODELS[0].id,
-    defaultAspect: "3:2",
   });
 }
 
@@ -48,9 +46,7 @@ export async function POST(req: NextRequest) {
     : null;
   const prompt = promptOverride ?? buildFoodPrompt({ title, excerpt, focusKeyword, categorySlug });
 
-  const aspectRatio: AspectRatio = VALID_ASPECTS.has(body.aspectRatio as AspectRatio)
-    ? (body.aspectRatio as AspectRatio)
-    : "3:2";
+  const aspectRatio = DEFAULT_ASPECT; // fixed 3:2 for article covers
 
   const model = getModel(typeof body.model === "string" ? body.model : undefined);
 
@@ -72,6 +68,7 @@ export async function POST(req: NextRequest) {
       prompt,
       model: model.id,
       aspectRatio,
+      modelLabel: model.label,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

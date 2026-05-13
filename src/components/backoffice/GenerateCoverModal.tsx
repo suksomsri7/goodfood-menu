@@ -1,15 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Sparkles, X, RefreshCw, Check } from "lucide-react";
-
-type AspectRatio = "16:9" | "3:2" | "1:1" | "4:5";
 
 interface ModelOption {
   id: string;
   label: string;
   blurb: string;
   price: string;
+  group: string;
 }
 
 interface GenerateCoverModalProps {
@@ -27,7 +26,6 @@ interface GenerateCoverModalProps {
 export function GenerateCoverModal({ open, onClose, onAccept, article }: GenerateCoverModalProps) {
   const [models, setModels] = useState<ModelOption[]>([]);
   const [modelId, setModelId] = useState<string>("");
-  const [aspect, setAspect] = useState<AspectRatio>("3:2");
   const [prompt, setPrompt] = useState<string>("");
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [phase, setPhase] = useState<"idle" | "preview-loading" | "ready" | "generating" | "done" | "error">("idle");
@@ -43,7 +41,6 @@ export function GenerateCoverModal({ open, onClose, onAccept, article }: Generat
         if (d.models) {
           setModels(d.models);
           setModelId(d.defaultModel || d.models[0]?.id || "");
-          setAspect(d.defaultAspect || "3:2");
         }
       })
       .catch(() => {});
@@ -85,6 +82,17 @@ export function GenerateCoverModal({ open, onClose, onAccept, article }: Generat
     setPhase("idle");
   }, [open]);
 
+  const grouped = useMemo(() => {
+    const groups: Record<string, ModelOption[]> = {};
+    for (const m of models) {
+      if (!groups[m.group]) groups[m.group] = [];
+      groups[m.group].push(m);
+    }
+    return groups;
+  }, [models]);
+
+  const currentModel = models.find((m) => m.id === modelId);
+
   const handleGenerate = async () => {
     if (!modelId || !prompt) return;
     setPhase("generating");
@@ -96,7 +104,6 @@ export function GenerateCoverModal({ open, onClose, onAccept, article }: Generat
         body: JSON.stringify({
           ...article,
           model: modelId,
-          aspectRatio: aspect,
           prompt,
         }),
       });
@@ -133,6 +140,7 @@ export function GenerateCoverModal({ open, onClose, onAccept, article }: Generat
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-amber-500" />
             <h2 className="font-semibold text-gray-900">สร้างภาพปกด้วย AI</h2>
+            <span className="text-xs text-gray-400 ml-2">สัดส่วน 3:2 (1200×800)</span>
           </div>
           <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg" disabled={generating}>
             <X className="w-5 h-5 text-gray-600" />
@@ -151,59 +159,34 @@ export function GenerateCoverModal({ open, onClose, onAccept, article }: Generat
                 <p className="text-sm">กำลังสร้างภาพ ~15-30 วินาที...</p>
               </div>
             ) : (
-              <div className="text-gray-400 text-sm">กดปุ่ม "✨ สร้างภาพ" เพื่อเริ่ม</div>
+              <div className="text-gray-400 text-sm">เลือก Model + กด "✨ สร้างภาพ"</div>
             )}
           </div>
 
-          {/* Model picker */}
+          {/* Model dropdown */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">เลือก AI Model</label>
-            <div className="grid grid-cols-2 gap-2">
-              {models.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => setModelId(m.id)}
-                  disabled={generating}
-                  className={`text-left p-3 rounded-xl border transition-all ${
-                    modelId === m.id
-                      ? "border-amber-500 bg-amber-50"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-gray-900">{m.label}</span>
-                    <span className="text-xs text-gray-500">{m.price}</span>
-                  </div>
-                  <p className="text-xs text-gray-500 leading-relaxed">{m.blurb}</p>
-                </button>
+            <label className="block text-sm font-medium text-gray-700 mb-2">AI Model</label>
+            <select
+              value={modelId}
+              onChange={(e) => setModelId(e.target.value)}
+              disabled={generating || models.length === 0}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
+            >
+              {Object.entries(grouped).map(([group, list]) => (
+                <optgroup key={group} label={group}>
+                  {list.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.label} — {m.price}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
-            </div>
-          </div>
-
-          {/* Aspect ratio */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">สัดส่วน</label>
-            <div className="flex gap-2">
-              {(["3:2", "16:9", "1:1", "4:5"] as AspectRatio[]).map((a) => (
-                <button
-                  key={a}
-                  type="button"
-                  onClick={() => setAspect(a)}
-                  disabled={generating}
-                  className={`px-4 py-2 rounded-lg border text-sm transition-all ${
-                    aspect === a
-                      ? "border-amber-500 bg-amber-50 text-amber-900"
-                      : "border-gray-200 text-gray-600 hover:border-gray-300"
-                  }`}
-                >
-                  {a}
-                </button>
-              ))}
-              <span className="text-xs text-gray-400 self-center ml-2">
-                แนะนำ 3:2 สำหรับ cover (1200×800)
-              </span>
-            </div>
+            </select>
+            {currentModel && (
+              <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
+                {currentModel.blurb}
+              </p>
+            )}
           </div>
 
           {/* Prompt — editable */}
