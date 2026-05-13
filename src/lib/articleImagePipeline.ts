@@ -66,10 +66,15 @@ function watermarkSvg(canvasWidth: number): Buffer {
 
 async function applyWatermark(srcBuf: Buffer): Promise<Buffer> {
   const meta = await sharp(srcBuf).metadata();
-  const canvasW = meta.width ?? 1200;
-  const wmBuf = watermarkSvg(canvasW);
+  const W = meta.width ?? 1200;
+  const H = meta.height ?? 800;
+  const rasterWm = await sharp(watermarkSvg(W)).png().toBuffer();
+  const wmMeta = await sharp(rasterWm).metadata();
+  const ww = wmMeta.width ?? 0;
+  const wh = wmMeta.height ?? 0;
+  const margin = Math.max(16, Math.round(W * 0.025));
   return sharp(srcBuf)
-    .composite([{ input: wmBuf, gravity: "southeast" }])
+    .composite([{ input: rasterWm, top: Math.max(0, H - wh - margin), left: Math.max(0, W - ww - margin) }])
     .toBuffer();
 }
 
