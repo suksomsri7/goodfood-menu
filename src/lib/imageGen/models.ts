@@ -3,6 +3,7 @@
 // is kept aspect-aware so we can widen later if needed.
 
 import { fal } from "@fal-ai/client";
+import { getSecret } from "@/lib/secrets/store";
 
 export type AspectRatio = "16:9" | "3:2" | "1:1" | "4:5";
 
@@ -185,15 +186,14 @@ export function getModel(id: string | undefined): ModelAdapter {
   return MODELS.find((m) => m.id === id) ?? MODELS[0];
 }
 
-const FAL_KEY = process.env.FAL_KEY;
-if (FAL_KEY) fal.config({ credentials: FAL_KEY });
-
 export async function generateImage(
   model: ModelAdapter,
   prompt: string,
   aspectRatio: AspectRatio,
 ): Promise<string> {
-  if (!FAL_KEY) throw new Error("FAL_KEY not configured");
+  const falKey = await getSecret("FAL_KEY");
+  if (!falKey) throw new Error("FAL_KEY not configured (ไปตั้งค่าที่ /backoffice/settings/api-keys)");
+  fal.config({ credentials: falKey });
   const input = model.buildInput(prompt, aspectRatio);
   const result = await fal.subscribe(model.endpoint, { input, logs: false });
   const extract = model.extract ?? defaultExtract;

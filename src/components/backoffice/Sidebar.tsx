@@ -25,6 +25,7 @@ import {
   Store,
   Users,
   Table2,
+  Key,
 } from "lucide-react";
 import { useSidebar } from "./SidebarContext";
 import { useStaff } from "./StaffContext";
@@ -146,6 +147,12 @@ const navGroups: NavGroup[] = [
         href: "/backoffice/settings",
         label: "บัญชีรับชำระเงิน",
         icon: <CreditCard className="w-5 h-5" />,
+        moduleId: "settings",
+      },
+      {
+        href: "/backoffice/settings/api-keys",
+        label: "API Keys",
+        icon: <Key className="w-5 h-5" />,
         moduleId: "settings",
       },
     ],
