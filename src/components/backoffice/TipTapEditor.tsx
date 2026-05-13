@@ -7,7 +7,7 @@ import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import TextAlign from "@tiptap/extension-text-align";
 import Underline from "@tiptap/extension-underline";
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useState, useEffect } from "react";
 import {
   Bold,
   Italic,
@@ -27,6 +27,7 @@ import {
   Undo,
   Redo,
   Code,
+  Code2,
   Minus,
   Upload,
 } from "lucide-react";
@@ -40,6 +41,9 @@ interface TipTapEditorProps {
 
 export function TipTapEditor({ content, onChange, placeholder = "เริ่มเขียนเนื้อหา..." }: TipTapEditorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const hasUnsupportedTags = /<\s*(table|thead|tbody|tr|th|td|dl|dt|dd)\b|class\s*=\s*["']lead["']/i.test(content);
+  const [mode, setMode] = useState<"visual" | "html">(hasUnsupportedTags ? "html" : "visual");
+  const [htmlDraft, setHtmlDraft] = useState(content);
 
   const editor = useEditor({
     extensions: [
@@ -69,15 +73,33 @@ export function TipTapEditor({ content, onChange, placeholder = "เริ่ม
     ],
     content,
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
+      const html = editor.getHTML();
+      setHtmlDraft(html);
+      onChange(html);
     },
     editorProps: {
       attributes: {
         class:
-          "prose prose-sm sm:prose-base max-w-none min-h-[300px] p-4 focus:outline-none",
+          "article-content max-w-none min-h-[400px] p-6 focus:outline-none",
       },
     },
   });
+
+  useEffect(() => {
+    setHtmlDraft(content);
+  }, [content]);
+
+  const switchToVisual = useCallback(() => {
+    if (editor && htmlDraft !== editor.getHTML()) {
+      editor.commands.setContent(htmlDraft, { emitUpdate: false });
+    }
+    setMode("visual");
+  }, [editor, htmlDraft]);
+
+  const switchToHtml = useCallback(() => {
+    if (editor) setHtmlDraft(editor.getHTML());
+    setMode("html");
+  }, [editor]);
 
   const addImage = useCallback(async (file: File) => {
     if (!editor) return;
@@ -159,6 +181,52 @@ export function TipTapEditor({ content, onChange, placeholder = "เริ่ม
 
   return (
     <div className="border border-gray-200 rounded-xl overflow-hidden">
+      {/* Mode toggle bar */}
+      <div className="bg-white border-b border-gray-200 px-3 py-2 flex items-center justify-between text-xs">
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={switchToVisual}
+            className={`px-3 py-1 rounded-md transition-colors ${
+              mode === "visual"
+                ? "bg-[#4CAF50] text-white"
+                : "text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            มุมมอง
+          </button>
+          <button
+            type="button"
+            onClick={switchToHtml}
+            className={`px-3 py-1 rounded-md transition-colors flex items-center gap-1 ${
+              mode === "html"
+                ? "bg-[#4CAF50] text-white"
+                : "text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            <Code2 className="w-3.5 h-3.5" /> HTML
+          </button>
+        </div>
+        {hasUnsupportedTags && (
+          <span className="text-amber-600 text-[11px] flex items-center gap-1">
+            ⚠ มี table/dl/lead — โหมด HTML เท่านั้นที่เก็บ tag ครบ
+          </span>
+        )}
+      </div>
+
+      {mode === "html" ? (
+        <textarea
+          value={htmlDraft}
+          onChange={(e) => {
+            setHtmlDraft(e.target.value);
+            onChange(e.target.value);
+          }}
+          spellCheck={false}
+          className="w-full min-h-[400px] p-4 font-mono text-xs leading-relaxed text-gray-800 bg-gray-50 focus:outline-none resize-y"
+          placeholder="<p>เนื้อหา HTML...</p>"
+        />
+      ) : (
+        <>
       {/* Toolbar */}
       <div className="bg-gray-50 border-b border-gray-200 p-2 flex flex-wrap items-center gap-0.5">
         {/* Undo/Redo */}
@@ -322,11 +390,15 @@ export function TipTapEditor({ content, onChange, placeholder = "เริ่ม
 
       {/* Editor Content */}
       <EditorContent editor={editor} className="bg-white" />
+        </>
+      )}
 
       {/* Status Bar */}
       <div className="bg-gray-50 border-t border-gray-200 px-4 py-2 flex items-center justify-between text-xs text-gray-500">
         <span>
-          {editor.storage.characterCount?.characters?.() || 0} ตัวอักษร
+          {mode === "html"
+            ? `${htmlDraft.length} ตัวอักษร (HTML)`
+            : `${editor.storage.characterCount?.characters?.() || 0} ตัวอักษร`}
         </span>
         <span className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-green-500" />
