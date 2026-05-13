@@ -1504,13 +1504,11 @@ export default function ArticlesPage() {
                   </span>
                 </div>
 
-                <div className="prose max-w-none">
-                  {previewArticle.content ? (
-                    <div dangerouslySetInnerHTML={{ __html: previewArticle.content }} />
-                  ) : (
-                    <p className="text-gray-400 italic">ไม่มีเนื้อหา</p>
-                  )}
-                </div>
+                {previewArticle.content ? (
+                  <div className="article-content" dangerouslySetInnerHTML={{ __html: previewArticle.content }} />
+                ) : (
+                  <p className="text-gray-400 italic">ไม่มีเนื้อหา</p>
+                )}
 
                 {previewArticle.tags && (
                   <div className="mt-6 pt-6 border-t">
