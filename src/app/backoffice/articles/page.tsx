@@ -2,6 +2,7 @@
 
 import { Header } from "@/components/backoffice/Header";
 import { TipTapEditor } from "@/components/backoffice/TipTapEditor";
+import { GenerateCoverModal } from "@/components/backoffice/GenerateCoverModal";
 import { useAdmin } from "@/components/backoffice/AdminContext";
 import {
   Plus,
@@ -222,6 +223,7 @@ export default function ArticlesPage() {
   });
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [ogPreview, setOgPreview] = useState<string | null>(null);
+  const [genCoverOpen, setGenCoverOpen] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const ogInputRef = useRef<HTMLInputElement>(null);
 
@@ -921,9 +923,21 @@ export default function ArticlesPage() {
                     onChange={(e) => handleImageChange(e, "cover")}
                     className="hidden"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    ระบบจะสร้าง OG image (1200×630) ให้อัตโนมัติ
-                  </p>
+                  <div className="flex items-center justify-between mt-2 gap-2">
+                    <p className="text-xs text-gray-500">
+                      ระบบจะสร้าง OG image (1200×630) ให้อัตโนมัติ
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setGenCoverOpen(true)}
+                      disabled={!formData.title.trim()}
+                      title={formData.title.trim() ? "สร้างภาพด้วย AI" : "ใส่ชื่อบทความก่อน"}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-xs font-medium shadow-sm"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      สร้างด้วย AI
+                    </button>
+                  </div>
                 </div>
 
                 <div>
@@ -1440,6 +1454,18 @@ export default function ArticlesPage() {
       )}
 
       {/* Preview Modal */}
+      <GenerateCoverModal
+        open={genCoverOpen}
+        onClose={() => setGenCoverOpen(false)}
+        onAccept={(dataUrl) => setCoverPreview(dataUrl)}
+        article={{
+          title: formData.title,
+          excerpt: formData.excerpt || formData.metaDescription || null,
+          focusKeyword: formData.focusKeyword || null,
+          categorySlug: categories.find((c) => c.id === formData.categoryId)?.slug || null,
+        }}
+      />
+
       {showPreview && previewArticle && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
