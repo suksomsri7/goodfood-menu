@@ -107,6 +107,8 @@ export async function POST(req: NextRequest) {
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    return NextResponse.json({ error: msg }, { status: 502 });
+    const detail = e && typeof e === "object" ? JSON.stringify(e, Object.getOwnPropertyNames(e)).slice(0, 800) : null;
+    console.error("[generate-cover] failed:", msg, detail);
+    return NextResponse.json({ error: msg, detail }, { status: 502 });
   }
 }

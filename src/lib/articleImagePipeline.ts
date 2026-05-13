@@ -88,7 +88,12 @@ export async function generateArticleImages(
     .resize(1200, 630, { fit: "cover", position: "attention" })
     .toBuffer();
 
-  if (opts.watermark) {
+  // Default to watermark=true for goodfood. The resize step above wipes any
+  // pre-stamped watermark via attention-crop, so we always re-stamp here on
+  // the final dimensions so the badge sits at the exact corner of the saved
+  // image regardless of what the caller did upstream.
+  const watermark = opts.watermark !== false;
+  if (watermark) {
     coverIntermediate = await applyWatermark(coverIntermediate);
     ogIntermediate = await applyWatermark(ogIntermediate);
   }

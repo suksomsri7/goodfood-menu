@@ -34,14 +34,24 @@ export async function getSecret(key: string): Promise<string | null> {
   return null;
 }
 
+function sanitizeSecretValue(raw: string): string {
+  // strip whitespace, then strip a single matching pair of surrounding quotes
+  let v = raw.trim();
+  if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+    v = v.slice(1, -1).trim();
+  }
+  return v;
+}
+
 export async function setSecret(
   key: string,
   value: string,
   updatedBy?: string,
 ): Promise<void> {
   if (!isManagedKey(key)) throw new Error(`unknown key: ${key}`);
-  if (!value || value.length === 0) throw new Error("value is empty");
-  const valueEnc = encryptValue(value);
+  const clean = sanitizeSecretValue(value);
+  if (!clean || clean.length === 0) throw new Error("value is empty");
+  const valueEnc = encryptValue(clean);
   await prisma.secretSetting.upsert({
     where: { key },
     create: { key, valueEnc, updatedBy: updatedBy ?? null },
