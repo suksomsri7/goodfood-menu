@@ -31,7 +31,18 @@ import {
   Minus,
   Upload,
 } from "lucide-react";
-import { uploadToBunny, isBase64Image } from "@/lib/bunny";
+import { isBase64Image } from "@/lib/imageUtils";
+
+async function uploadInlineImage(base64: string): Promise<string> {
+  const res = await fetch("/api/uploads/inline", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dataUrl: base64, folder: "articles/content" }),
+  });
+  if (!res.ok) throw new Error(`upload failed: ${res.status}`);
+  const data = await res.json();
+  return data.url;
+}
 
 interface TipTapEditorProps {
   content: string;
@@ -112,7 +123,7 @@ export function TipTapEditor({ content, onChange, placeholder = "เริ่ม
       try {
         let imageUrl = base64;
         if (isBase64Image(base64)) {
-          imageUrl = await uploadToBunny(base64, "articles/content", `img-${Date.now()}.jpg`);
+          imageUrl = await uploadInlineImage(base64);
         }
         
         editor.chain().focus().setImage({ src: imageUrl }).run();

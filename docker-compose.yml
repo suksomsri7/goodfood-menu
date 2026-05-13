@@ -32,6 +32,8 @@ services:
       - .env.production
     ports:
       - "127.0.0.1:3001:3000"
+    volumes:
+      - goodfood_uploads:/app/public/uploads
     networks:
       - goodfood-net
 
@@ -42,3 +44,4 @@ networks:
 
 volumes:
   goodfood_data:
+  goodfood_uploads:
