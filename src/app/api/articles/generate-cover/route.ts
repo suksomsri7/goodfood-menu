@@ -14,16 +14,11 @@ function watermarkSvg(canvasWidth: number): Buffer {
   const h = fontSize + padY * 2;
   const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
-  <defs>
-    <filter id="s" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#000" flood-opacity="0.55"/>
-    </filter>
-  </defs>
   <text x="${w / 2}" y="${padY + fontSize * 0.82}"
         text-anchor="middle"
         font-family="DejaVu Sans, FreeSans, sans-serif"
-        font-size="${fontSize}" font-weight="700" fill="#ffffff" opacity="0.85"
-        filter="url(#s)" letter-spacing="0.5">${text}</text>
+        font-size="${fontSize}" font-weight="700" opacity="0.8"
+        letter-spacing="0.5"><tspan fill="#ffffff">Good</tspan><tspan fill="#E53935">Food</tspan></text>
 </svg>`;
   return Buffer.from(svg);
 }
