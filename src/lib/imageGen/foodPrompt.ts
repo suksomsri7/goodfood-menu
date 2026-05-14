@@ -8,29 +8,29 @@ const CATEGORY_STYLE: Record<
   string,
   { subject: string; composition: string; light: string; photographer: string }
 > = {
-  recipes: {
-    subject: "the finished dish plated naturally with visible ingredients and texture",
-    composition: "overhead 45-degree angle on a worn wooden table with linen napkin",
-    light: "soft natural window light from upper left, gentle falloff, warm tone",
-    photographer: "in the style of David Loftus or Romulo Yanes — NYT Cooking / Bon Appétit",
-  },
-  nutrition: {
-    subject: "the key ingredient sliced or cross-sectioned to reveal interior detail",
-    composition: "close-up on neutral linen or marble, scientific clarity, single subject",
-    light: "single overhead softbox with subtle shadow, clean editorial lighting",
-    photographer: "in the style of Andrew Scrivani — food science editorial",
-  },
-  "weight-loss": {
+  "weight-loss-food": {
     subject: "a portion-controlled bowl with measuring tools or fresh ingredients in frame",
     composition: "overhead flatlay, negative space, restrained palette, morning energy",
     light: "diffused morning daylight, cool clean tones, no heavy shadows",
     photographer: "in the style of Ditte Isager — Scandinavian food editorial",
   },
-  "healthy-eating": {
+  "healthy-food": {
     subject: "a colorful spread of whole foods straight from a market or farm",
     composition: "rustic overhead flatlay on aged wood, abundance not perfection",
     light: "natural afternoon daylight, soft golden warmth, organic shadows",
     photographer: "in the style of Penny De Los Santos — National Geographic food",
+  },
+  "weight-loss-tips": {
+    subject: "a notebook, tape measure, or kitchen scale next to a balanced plate — a tool-of-method tableau",
+    composition: "overhead flatlay with restrained props, instructional clarity, generous negative space",
+    light: "bright clean morning daylight, neutral white balance, soft even fill",
+    photographer: "in the style of Gentl & Hyers — Real Simple / Bon Appétit instructional",
+  },
+  "nutrition-calories": {
+    subject: "the key ingredient sliced or cross-sectioned to reveal interior detail",
+    composition: "close-up on neutral linen or marble, scientific clarity, single subject",
+    light: "single overhead softbox with subtle shadow, clean editorial lighting",
+    photographer: "in the style of Andrew Scrivani — food science editorial",
   },
   "eating-tips": {
     subject: "a hand interacting with food mid-action (holding a fork, lifting a bite, plating)",
@@ -44,9 +44,27 @@ const CATEGORY_STYLE: Record<
     light: "dramatic single-source studio light, sharp shadow as design element",
     photographer: "in the style of Bobby Doherty — Bon Appétit / WIRED food editorial",
   },
+  "clean-recipes": {
+    subject: "a clean, whole-food dish plated naturally with vibrant unprocessed ingredients visible",
+    composition: "overhead 45-degree angle on a worn wooden table with linen napkin",
+    light: "soft natural window light from upper left, gentle falloff, fresh tone",
+    photographer: "in the style of David Loftus or Romulo Yanes — NYT Cooking / Bon Appétit",
+  },
+  "keto-recipes": {
+    subject: "a keto-style plate — fats, protein and leafy greens — visibly low-carb with butter/oil sheen",
+    composition: "moody 30-degree angle on dark slate or cast iron, rich textural contrast",
+    light: "directional warm side light, deeper shadows, savory chiaroscuro",
+    photographer: "in the style of Aubrie Pick — Bon Appétit / dark-board savory editorial",
+  },
+  "exercise-health": {
+    subject: "post-workout meal or hydration setup with a subtle athletic prop (towel, water bottle, dumbbell out of focus)",
+    composition: "lifestyle three-quarter view, gym-to-kitchen storytelling, mid-action mood",
+    light: "energetic morning daylight, cool clean tones with a warm subject highlight",
+    photographer: "in the style of Linda Pugliese — active lifestyle food editorial",
+  },
 };
 
-const DEFAULT_STYLE = CATEGORY_STYLE["healthy-eating"];
+const DEFAULT_STYLE = CATEGORY_STYLE["healthy-food"];
 
 const CAMERA_ANCHOR =
   "shot on Phase One IQ4 medium format with 80mm Schneider lens at f/4, ISO 100, fine grain, faithful color, honest exposure";
