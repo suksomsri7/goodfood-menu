@@ -256,14 +256,16 @@ export default function ArticlesPage() {
     fetchData();
   }, []);
 
-  const filtered = articles.filter((article) => {
-    const matchSearch =
-      article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      article.excerpt?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchStatus = !statusFilter || article.status === statusFilter;
-    const matchCategory = !categoryFilter || article.categoryId === categoryFilter;
-    return matchSearch && matchStatus && matchCategory;
-  });
+  const filtered = articles
+    .filter((article) => {
+      const matchSearch =
+        article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        article.excerpt?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchStatus = !statusFilter || article.status === statusFilter;
+      const matchCategory = !categoryFilter || article.categoryId === categoryFilter;
+      return matchSearch && matchStatus && matchCategory;
+    })
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const featuredArticles = articles.filter((a) => a.isFeatured && a.status === "PUBLISHED");
   const publishedCount = articles.filter((a) => a.status === "PUBLISHED").length;
