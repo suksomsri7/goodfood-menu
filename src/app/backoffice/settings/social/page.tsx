@@ -31,6 +31,7 @@ export default function SocialSettingsPage() {
   });
   const [channels, setChannels] = useState<Channel[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -57,9 +58,16 @@ export default function SocialSettingsPage() {
       if (map.SHARK_BRAND_ID?.hasValue) next.SHARK_BRAND_ID = map.SHARK_BRAND_ID.masked;
       setDraft(next);
 
-      const csv = map.SHARK_CHANNEL_IDS?.masked || "";
-      const ids = csv.split(",").map((s) => s.trim()).filter(Boolean);
-      setSelectedIds(new Set(ids));
+      // Channel IDs are not secrets — fetch raw values via dedicated endpoint
+      // so the right checkboxes pre-check on reload.
+      try {
+        const sel = await fetch("/api/backoffice/social/channel-selection");
+        if (sel.ok) {
+          const { ids } = await sel.json();
+          setSelectedIds(new Set(ids));
+          setSavedIds(new Set(ids));
+        }
+      } catch {}
 
       // If connection looks complete, auto-load channels
       if (map.SHARK_URL?.hasValue && map.SHARK_BRAND_ID?.hasValue && map.SHARK_API_KEY?.hasValue) {
@@ -126,15 +134,21 @@ export default function SocialSettingsPage() {
     try {
       const csv = Array.from(selectedIds).join(",");
       await saveSecret("SHARK_CHANNEL_IDS", csv);
-      setFlash(`บันทึก ${selectedIds.size} channels แล้ว`);
-      setTimeout(() => setFlash(null), 3000);
-      await loadSecrets();
+      setSavedIds(new Set(selectedIds));
+      setFlash(`บันทึก ${selectedIds.size} channels แล้ว — บทความใหม่จะโพสต์ที่ channel เหล่านี้`);
+      setTimeout(() => setFlash(null), 5000);
     } catch (e: any) {
       setError(e?.message || "save failed");
     } finally {
       setSaving(false);
     }
   }
+
+  const isDirty = (() => {
+    if (selectedIds.size !== savedIds.size) return true;
+    for (const id of selectedIds) if (!savedIds.has(id)) return true;
+    return false;
+  })();
 
   const connected = secrets.SHARK_API_KEY?.hasValue && secrets.SHARK_BRAND_ID?.hasValue;
 
@@ -228,6 +242,7 @@ export default function SocialSettingsPage() {
             <div className="p-6 space-y-3">
               {channels.map((c) => {
                 const checked = selectedIds.has(c.id);
+                const isSaved = savedIds.has(c.id);
                 return (
                   <label
                     key={c.id}
@@ -247,7 +262,14 @@ export default function SocialSettingsPage() {
                       <div className="w-10 h-10 rounded-full bg-gray-200" />
                     )}
                     <div className="flex-1">
-                      <div className="font-medium text-gray-800">{c.name}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="font-medium text-gray-800">{c.name}</div>
+                        {isSaved && (
+                          <span className="text-[10px] font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                            ใช้งานอยู่
+                          </span>
+                        )}
+                      </div>
                       <div className="text-xs text-gray-500 font-mono">{c.platform}</div>
                     </div>
                   </label>
@@ -256,11 +278,25 @@ export default function SocialSettingsPage() {
 
               <button
                 onClick={saveChannelSelection}
-                disabled={saving}
-                className="w-full px-5 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                disabled={saving || !isDirty}
+                className={`w-full px-5 py-3 rounded-xl font-medium flex items-center justify-center gap-2 ${
+                  isDirty
+                    ? "bg-green-600 text-white hover:bg-green-700"
+                    : "bg-gray-100 text-gray-500 cursor-default"
+                }`}
               >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                บันทึก {selectedIds.size} channels
+                {saving ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : isDirty ? (
+                  <Save className="w-4 h-4" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                )}
+                {saving
+                  ? "กำลังบันทึก..."
+                  : isDirty
+                  ? `บันทึก ${selectedIds.size} channels`
+                  : `บันทึกแล้ว ${savedIds.size} channels ✓`}
               </button>
             </div>
           </div>

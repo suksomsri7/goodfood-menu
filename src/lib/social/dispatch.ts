@@ -69,9 +69,12 @@ export async function dispatchArticleSocial(articleId: string): Promise<{
 
   const card = article.socialCard as SocialCardJson;
   const channelsRaw = (await getSecret("SHARK_CHANNEL_IDS")) || "";
-  const channelIds = channelsRaw.split(",").map((s) => s.trim()).filter(Boolean);
+  const channelIds = channelsRaw
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s && !s.includes("*"));
   if (channelIds.length === 0) {
-    return { ok: false, status: "NO_CHANNELS", message: "SHARK_CHANNEL_IDS empty" };
+    return { ok: false, status: "NO_CHANNELS", message: "SHARK_CHANNEL_IDS empty or all masked" };
   }
 
   // Schedule = createdAt + 24h. If that's already in the past (e.g. retrying
