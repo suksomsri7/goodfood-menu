@@ -21,22 +21,64 @@ async function loadConfig() {
   return { url: url.replace(/\/+$/, ""), brandId, apiKey };
 }
 
+// Use Node's https module directly — the globalThis fetch that Next.js wraps in
+// route handlers was silently downgrading POST→GET despite `cache:"no-store"`.
+// This skill we use small enough that hand-rolling the request is simpler than
+// adding an HTTP-client dependency.
+async function rawRequest(
+  fullUrl: string,
+  method: string,
+  headers: Record<string, string>,
+  body?: string,
+): Promise<{ status: number; statusText: string; text: string }> {
+  const https = await import("node:https");
+  const { URL } = await import("node:url");
+  const u = new URL(fullUrl);
+  return new Promise((resolve, reject) => {
+    const req = https.request(
+      {
+        hostname: u.hostname,
+        port: u.port || 443,
+        path: u.pathname + u.search,
+        method,
+        headers: {
+          ...headers,
+          ...(body ? { "Content-Length": Buffer.byteLength(body).toString() } : {}),
+        },
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (c) => chunks.push(c));
+        res.on("end", () =>
+          resolve({
+            status: res.statusCode || 0,
+            statusText: res.statusMessage || "",
+            text: Buffer.concat(chunks).toString("utf8"),
+          }),
+        );
+      },
+    );
+    req.on("error", reject);
+    if (body) req.write(body);
+    req.end();
+  });
+}
+
 async function callShark<T>(path: string, init: RequestInit = {}): Promise<T> {
   const { url, brandId, apiKey } = await loadConfig();
   const fullPath = path.replace(":brandId", brandId);
-  const res = await fetch(`${url}${fullPath}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      "x-shark-api-key": apiKey,
-      ...(init.headers || {}),
-    },
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`SHARK ${res.status} ${res.statusText}: ${body.slice(0, 200)}`);
+  const method = (init.method as string | undefined) || "GET";
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "x-shark-api-key": apiKey,
+    ...((init.headers as Record<string, string>) || {}),
+  };
+  const body = init.body ? String(init.body) : undefined;
+  const res = await rawRequest(`${url}${fullPath}`, method, headers, body);
+  if (res.status < 200 || res.status >= 300) {
+    throw new Error(`SHARK ${res.status} ${res.statusText}: ${res.text.slice(0, 200)}`);
   }
-  return res.json() as Promise<T>;
+  return JSON.parse(res.text) as T;
 }
 
 export async function sharkListChannels(): Promise<SharkChannel[]> {
