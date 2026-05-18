@@ -26,6 +26,7 @@ import {
   Users,
   Table2,
   Key,
+  Share2,
 } from "lucide-react";
 import { useSidebar } from "./SidebarContext";
 import { useStaff } from "./StaffContext";
@@ -153,6 +154,12 @@ const navGroups: NavGroup[] = [
         href: "/backoffice/settings/api-keys",
         label: "API Keys",
         icon: <Key className="w-5 h-5" />,
+        moduleId: "settings",
+      },
+      {
+        href: "/backoffice/settings/social",
+        label: "เชื่อมต่อ FB/IG (SHARK)",
+        icon: <Share2 className="w-5 h-5" />,
         moduleId: "settings",
       },
     ],

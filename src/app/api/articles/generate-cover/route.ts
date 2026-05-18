@@ -18,7 +18,7 @@ function watermarkSvg(canvasWidth: number): Buffer {
         text-anchor="middle"
         font-family="DejaVu Sans, FreeSans, sans-serif"
         font-size="${fontSize}" font-weight="700" opacity="0.8"
-        letter-spacing="0.5"><tspan fill="#ffffff">Good</tspan><tspan fill="#E53935">Food</tspan></text>
+        letter-spacing="0.5"><tspan fill="#ffffff">Good</tspan><tspan fill="#10B981">Food</tspan></text>
 </svg>`;
   return Buffer.from(svg);
 }

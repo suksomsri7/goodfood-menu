@@ -48,6 +48,32 @@ export const SECRET_KEY_REGISTRY: SecretKeyMeta[] = [
     description: "LINE Messaging API long-lived token (สำหรับ push/reply)",
     group: "LINE",
   },
+
+  // SHARK Integration (auto-post to FB/IG via SHARK)
+  {
+    key: "SHARK_URL",
+    label: "SHARK Base URL",
+    description: "ที่อยู่ SHARK API (default https://shark.in.th)",
+    group: "Other",
+  },
+  {
+    key: "SHARK_BRAND_ID",
+    label: "SHARK Brand ID",
+    description: "Brand ID ใน SHARK ที่จะโพสต์",
+    group: "Other",
+  },
+  {
+    key: "SHARK_API_KEY",
+    label: "SHARK API Key",
+    description: "API key ที่สร้างใน SHARK app (Settings → API Keys) ขึ้นต้น sk_brnd_",
+    group: "Other",
+  },
+  {
+    key: "SHARK_CHANNEL_IDS",
+    label: "SHARK Channel IDs",
+    description: "Channel IDs ที่จะโพสต์ (คั่นด้วย comma)",
+    group: "Other",
+  },
 ];
 
 export function findKeyMeta(key: string): SecretKeyMeta | undefined {

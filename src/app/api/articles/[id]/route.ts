@@ -70,6 +70,7 @@ export async function PATCH(
       canonicalUrl,
       recipeData,
       imagePrompt,
+      socialCard,
     } = body;
 
     const existing = await prisma.article.findUnique({ where: { id } });
@@ -172,6 +173,12 @@ export async function PATCH(
             recipeData === null
               ? Prisma.JsonNull
               : (recipeData as Prisma.InputJsonValue),
+        }),
+        ...(socialCard !== undefined && {
+          socialCard:
+            socialCard === null
+              ? Prisma.JsonNull
+              : (socialCard as Prisma.InputJsonValue),
         }),
       },
       include: {

@@ -74,8 +74,7 @@ export async function GET(request: NextRequest) {
       ...(sinceDate && { createdAt: { gte: sinceDate } }),
     };
     const orderBy = [
-      { isFeatured: "desc" as const },
-      { order: "asc" as const },
+      { publishedAt: { sort: "desc" as const, nulls: "last" as const } },
       { createdAt: "desc" as const },
     ];
     const take = limit ? parseInt(limit) : undefined;
@@ -126,6 +125,7 @@ export async function POST(request: NextRequest) {
       canonicalUrl,
       recipeData,
       imagePrompt,
+      socialCard,
     } = body;
 
     if (!title) {
@@ -192,6 +192,7 @@ export async function POST(request: NextRequest) {
         canonicalUrl: canonicalUrl ?? null,
         recipeData: recipeData ? (recipeData as Prisma.InputJsonValue) : Prisma.JsonNull,
         imagePrompt: imagePrompt ?? null,
+        socialCard: socialCard ? (socialCard as Prisma.InputJsonValue) : Prisma.JsonNull,
       },
       include: {
         category: { select: { id: true, name: true, color: true, icon: true } },
