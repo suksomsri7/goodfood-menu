@@ -118,6 +118,7 @@ export async function dispatchArticleSocial(articleId: string): Promise<{
       mediaUrl: publicUrlForUpload(socialImage),
       firstComment,
       scheduledAt,
+      sourceTitle: `[GoodFood] ${article.title}`,
     });
 
     const postId =

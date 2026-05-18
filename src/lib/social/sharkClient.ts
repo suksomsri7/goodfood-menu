@@ -93,6 +93,7 @@ export type SharkPublishInput = {
   firstComment?: string;
   scheduledAt?: Date;
   now?: boolean;
+  sourceTitle?: string;
 };
 
 export async function sharkPublish(input: SharkPublishInput): Promise<any> {
