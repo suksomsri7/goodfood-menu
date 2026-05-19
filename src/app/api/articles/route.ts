@@ -106,6 +106,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       title,
+      slug: providedSlug,
       excerpt,
       content,
       imageUrl,
@@ -132,7 +133,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
     }
 
-    const baseSlug = generateBaseSlug(title);
+    // Prefer caller-provided ASCII slug (cleaner URL than URL-encoded Thai).
+    // Falls back to generateBaseSlug(title) which still allows Thai chars.
+    const isCleanSlug = (s: string) => /^[a-z0-9][a-z0-9-]{2,80}[a-z0-9]$/.test(s);
+    const cleanedProvided =
+      typeof providedSlug === "string"
+        ? providedSlug.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/(^-|-$)/g, "")
+        : "";
+    const baseSlug = isCleanSlug(cleanedProvided) ? cleanedProvided : generateBaseSlug(title);
     let slug = baseSlug;
     const existingSlug = await prisma.article.findUnique({ where: { slug } });
     if (existingSlug) slug = `${slug}-${Date.now()}`;

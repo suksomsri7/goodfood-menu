@@ -53,6 +53,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const canonical = article.canonicalUrl || `${BASE_URL}/articles/${article.slug}`;
 
   return {
+    // metadataBase resolves any relative URLs in og/twitter image fields. Without
+    // it Next.js defaults to http://localhost:3000 — so FB sees a broken URL and
+    // shows just the domain in the link preview.
+    metadataBase: new URL(BASE_URL),
     title: `${article.title} | Good Food`,
     description,
     keywords: article.focusKeyword ? [article.focusKeyword] : undefined,
