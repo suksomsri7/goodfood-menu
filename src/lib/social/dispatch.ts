@@ -39,6 +39,8 @@ function publicUrlForUpload(relPath: string): string {
  * Dispatch one article's social card to SHARK. Returns the resulting
  * SocialDispatch row. Idempotent-ish: if already DISPATCHED, returns early.
  */
+const MAX_ATTEMPTS = 3;
+
 export async function dispatchArticleSocial(articleId: string): Promise<{
   ok: boolean;
   status: string;
@@ -60,6 +62,13 @@ export async function dispatchArticleSocial(articleId: string): Promise<{
   });
   if (!article) return { ok: false, status: "NOT_FOUND" };
   if (article.socialDispatchedAt) return { ok: true, status: "ALREADY_DISPATCHED" };
+
+  const prevAttempts = await prisma.socialDispatch.count({
+    where: { articleId: article.id, status: "FAILED" },
+  });
+  if (prevAttempts >= MAX_ATTEMPTS) {
+    return { ok: false, status: "MAX_ATTEMPTS_REACHED", message: `${prevAttempts} previous failures` };
+  }
   if (!isValidSocialCard(article.socialCard)) {
     return { ok: false, status: "INVALID_CARD", message: "socialCard JSON malformed" };
   }
@@ -171,12 +180,21 @@ export async function dispatchPendingArticles(limit = 5): Promise<{
   failed: number;
   results: Array<{ id: string; status: string; error?: string }>;
 }> {
+  const overLimit = await prisma.socialDispatch.groupBy({
+    by: ["articleId"],
+    where: { status: "FAILED" },
+    _count: { _all: true },
+    having: { articleId: { _count: { gte: MAX_ATTEMPTS } } },
+  });
+  const blockedIds = overLimit.map((g) => g.articleId);
+
   const pending = await prisma.article.findMany({
     where: {
       AND: [
         { socialDispatchedAt: null },
         { coverImage: { not: null } },
         { socialCard: { not: Prisma.JsonNull } },
+        blockedIds.length > 0 ? { id: { notIn: blockedIds } } : {},
       ],
     },
     select: { id: true },
