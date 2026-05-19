@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { buildAndUploadSocialCard } from "./compositeCard";
+import { resizeAndUploadSocialBase } from "./compositeCard";
 import { sharkPublish } from "./sharkClient";
 import { getSecret } from "@/lib/secrets/store";
 
@@ -102,24 +102,28 @@ export async function dispatchArticleSocial(articleId: string): Promise<{
   });
 
   try {
-    // 1) composite image if not already done
+    // 1) resize cover to 1080×1350 raw — NO bake. SHARK composites overlay
+    //    at FB-send time, so user can edit headline/watermark in photo editor
+    //    before the scheduled send.
     let socialImage = article.socialImage;
     if (!socialImage) {
       const baseSource = article.coverImage.startsWith("/")
         ? publicUrlForUpload(article.coverImage)
         : article.coverImage;
-      socialImage = await buildAndUploadSocialCard(baseSource, card.imageText, `${article.id}`);
+      socialImage = await resizeAndUploadSocialBase(baseSource, `${article.id}`);
       await prisma.article.update({
         where: { id: article.id },
         data: { socialImage },
       });
     }
 
-    // 2) POST SHARK
-    const articleUrl = `${siteOrigin()}/articles/${article.slug}`;
-    const firstComment =
-      card.firstComment ||
-      `📖 อ่านบทความเต็ม: ${article.title}\n${articleUrl}`;
+    // 2) POST SHARK with overlay metadata (no bake) — SHARK photo editor uses
+    //    these as editable overlays + cron composites them at FB-send time.
+    // Always rebuild firstComment from the real article.slug — skill-provided
+    // URLs are stale guesses (the API auto-generates a Thai slug from title,
+    // which the skill can't predict ahead of POST).
+    const articleUrl = `${siteOrigin()}/articles/${encodeURI(article.slug)}`;
+    const firstComment = `📖 อ่านบทความเต็ม: ${article.title}\n${articleUrl}`;
 
     const result = await sharkPublish({
       channelIds,
@@ -128,6 +132,12 @@ export async function dispatchArticleSocial(articleId: string): Promise<{
       firstComment,
       scheduledAt,
       sourceTitle: article.title,
+      socialOverlay: {
+        line1: card.imageText.line1,
+        line2: card.imageText.line2,
+        watermarkText: "GoodFood",
+        accent: "#FFCC00",
+      },
     });
 
     const postId =
