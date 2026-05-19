@@ -19,7 +19,18 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-RUN apk add --no-cache fontconfig ttf-dejavu ttf-freefont && fc-cache -f
+RUN apk add --no-cache fontconfig ttf-dejavu ttf-freefont curl ca-certificates && \
+    mkdir -p /usr/share/fonts/prompt && \
+    curl -fsSL -o /usr/share/fonts/prompt/Prompt-Regular.ttf \
+      "https://github.com/google/fonts/raw/main/ofl/prompt/Prompt-Regular.ttf" && \
+    curl -fsSL -o /usr/share/fonts/prompt/Prompt-Medium.ttf \
+      "https://github.com/google/fonts/raw/main/ofl/prompt/Prompt-Medium.ttf" && \
+    curl -fsSL -o /usr/share/fonts/prompt/Prompt-Bold.ttf \
+      "https://github.com/google/fonts/raw/main/ofl/prompt/Prompt-Bold.ttf" && \
+    curl -fsSL -o /usr/share/fonts/prompt/Prompt-Black.ttf \
+      "https://github.com/google/fonts/raw/main/ofl/prompt/Prompt-Black.ttf" && \
+    fc-cache -f && \
+    apk del curl ca-certificates
 
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
 

@@ -69,10 +69,21 @@ const DEFAULT_STYLE = CATEGORY_STYLE["healthy-food"];
 const CAMERA_ANCHOR =
   "shot on Phase One IQ4 medium format with 80mm Schneider lens at f/4, ISO 100, fine grain, faithful color, honest exposure";
 
+// Universal Nat Geo wrapper applied to EVERY prompt — drives consistent editorial
+// look across all categories. Per-category style adds flavor, this drives the DNA.
+const NATGEO_CORE =
+  "National Geographic Food magazine editorial photograph, documentary realism, " +
+  "shot for a printed feature story, museum-quality composition, " +
+  "single decisive moment captured, honest light, lived-in surfaces, " +
+  "imperfections that prove the food was actually cooked, " +
+  "no studio sterility, no commercial slickness";
+
 const HARD_NEGATIVES =
   "no illustration, no cartoon, no 3d render, no CGI, no anime, no painting, no watercolor, no digital art, " +
   "no oversaturation, no HDR, no fake gloss, no plastic-looking food, no clipart, no stock-photo cliche, " +
-  "no teal-and-orange grade, no instagram filter, no airbrushed surfaces, no text, no logo, no watermark";
+  "no teal-and-orange grade, no instagram filter, no airbrushed surfaces, " +
+  "no overhead grid layout, no symmetrical product-shot framing, no isolated-on-white, " +
+  "no text in image, no logo, no watermark, no caption overlay";
 
 /**
  * Strip Midjourney-style flags so they don't end up as literal text in fal.ai prompts.
@@ -228,14 +239,15 @@ export function buildFoodPrompt(input: FoodPromptInput): string {
     : `${style.subject}, ${style.composition}`;
 
   const parts = [
+    NATGEO_CORE,
     subject,
     compositionLine,
     `${style.light}, ${mood}`,
     style.photographer,
     CAMERA_ANCHOR,
-    "editorial food photography, documentary realism, unposed natural styling, " +
-      "suspended steam or particulate where appropriate, imperfections allowed, " +
-      "shallow but honest depth of field, color-accurate, magazine-grade composition",
+    "shallow but honest depth of field, color-accurate, Kodak Portra 400 color palette, " +
+      "suspended steam or particulate where appropriate, unposed natural styling, " +
+      "lower one-third of frame deliberately uncluttered (negative space for editorial text overlay)",
     HARD_NEGATIVES,
   ];
 
