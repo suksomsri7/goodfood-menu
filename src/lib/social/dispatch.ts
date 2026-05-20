@@ -122,7 +122,7 @@ export async function dispatchArticleSocial(articleId: string): Promise<{
     // Always rebuild firstComment from the real article.slug — skill-provided
     // URLs are stale guesses (the API auto-generates a Thai slug from title,
     // which the skill can't predict ahead of POST).
-    const articleUrl = `${siteOrigin()}/articles/${encodeURI(article.slug)}`;
+    const articleUrl = `${siteOrigin()}/articles/${article.slug}`;
     const firstComment = `📖 อ่านบทความเต็ม: ${article.title}\n${articleUrl}`;
 
     const result = await sharkPublish({
