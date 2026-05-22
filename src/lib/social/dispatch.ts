@@ -20,9 +20,10 @@ function isValidSocialCard(value: unknown): value is SocialCardJson {
   return true;
 }
 
-function buildText(card: SocialCardJson): string {
+function buildText(card: SocialCardJson, articleTitle: string, articleUrl: string): string {
   const tags = card.hashtags.filter(Boolean).map((t) => (t.startsWith("#") ? t : `#${t}`)).join(" ");
-  return `${card.caption.trim()}\n\n${tags}`.trim();
+  const readMore = `📖 อ่านบทความเต็ม: ${articleTitle}\n${articleUrl}`;
+  return `${card.caption.trim()}\n\n${readMore}\n\n${tags}`.trim();
 }
 
 function siteOrigin(): string {
@@ -119,17 +120,15 @@ export async function dispatchArticleSocial(articleId: string): Promise<{
 
     // 2) POST SHARK with overlay metadata (no bake) — SHARK photo editor uses
     //    these as editable overlays + cron composites them at FB-send time.
-    // Always rebuild firstComment from the real article.slug — skill-provided
-    // URLs are stale guesses (the API auto-generates a Thai slug from title,
-    // which the skill can't predict ahead of POST).
+    // URL goes inline in the caption (not as a first comment) — Meta demotes
+    // "link in first comment" pattern, hurting reach on new Pages.
     const articleUrl = `${siteOrigin()}/articles/${article.slug}`;
-    const firstComment = `📖 อ่านบทความเต็ม: ${article.title}\n${articleUrl}`;
 
     const result = await sharkPublish({
       channelIds,
-      text: buildText(card),
+      text: buildText(card, article.title, articleUrl),
       mediaUrl: publicUrlForUpload(socialImage),
-      firstComment,
+      firstComment: "",
       scheduledAt,
       sourceTitle: article.title,
       socialOverlay: {
