@@ -63,6 +63,7 @@ model Member {
   addresses        Address[]
   aiRecommendation AiRecommendation?
   cartItems        CartItem[]
+  dailyPlans       DailyPlan[]
   exerciseLogs     ExerciseLog[]
   mealLogs         MealLog[]
   memberType       MemberType?       @relation(fields: [memberTypeId], references: [id])
@@ -72,6 +73,54 @@ model Member {
   weightLogs       WeightLog[]
 
   @@map("members")
+}
+
+// ── AI Coach: แผนรายวัน (ออกกำลังกาย + อาหาร) — เฟส 1 ──
+model DailyPlan {
+  id           String   @id @default(cuid())
+  memberId     String
+  date         DateTime // วันที่ของแผน (BKK date เก็บ 00:00 UTC ของวันนั้น -7)
+  exercisePlan Json     // {title, durationMin, items:[{name,sets?,reps?,minutes?,note}], caloriesTarget}
+  mealPlan     Json     // {meals:[{slot,menu,ingredients?,kcal,protein,carbs,fat,sodium?,sugar?}], totalKcal}
+  aiNote       String?  // เหตุผล/การปรับแผนของ AI
+  status       String   @default("planned") // planned | done | partial | skipped
+  exerciseDone Boolean  @default(false)
+  mealsDone    Json?    // {"เช้า":true,...}
+  generatedAt  DateTime @default(now())
+  weekBatchId  String?  // ผูกชุดที่ gen พร้อมกัน ใช้ตอน regenerate
+  member       Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, date])
+  @@index([memberId, date])
+  @@map("daily_plans")
+}
+
+// ── AI Coach: กันส่ง push ซ้ำต่อวัน — เฟส 2 ──
+model CoachDispatchLog {
+  id        String   @id @default(cuid())
+  memberId  String
+  date      DateTime // BKK date (00:00 UTC-7)
+  type      String   // morning | ...
+  createdAt DateTime @default(now())
+
+  @@unique([memberId, date, type])
+  @@index([memberId, date])
+  @@map("coach_dispatch_logs")
+}
+
+// ── AI Coach: ประวัติการปรับแผนอัตโนมัติ — เฟส 5 ──
+model PlanAdjustment {
+  id           String   @id @default(cuid())
+  memberId     String
+  date         DateTime @default(now())
+  reason       String   // เหตุผลที่ปรับ (plateau / on-track / ...)
+  prevCalories Int?
+  newCalories  Int?
+  detail       Json?    // {weightTrend, adherence, note}
+  createdAt    DateTime @default(now())
+
+  @@index([memberId, date])
+  @@map("plan_adjustments")
 }
 
 model AiRecommendation {
@@ -536,7 +585,8 @@ model MemberType {
   dailyExerciseAnalysisLimit Int     @default(3)   // วิเคราะห์การออกกำลังกาย
   dailyMenuSelectLimit      Int      @default(3)   // AI เลือกเมนู
   dailyScanLimit            Int      @default(5)   // สแกน Barcode
-  
+  dailyChatLimit            Int      @default(20)  // AI ตอบแชท LINE (เฟส 3)
+
   isDefault             Boolean  @default(false)
   isActive              Boolean  @default(true)
   order                 Int      @default(0)

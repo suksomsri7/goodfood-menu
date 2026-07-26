@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
-import { Plus, Camera, Barcode, PenLine, Dumbbell } from "lucide-react";
+import { Plus, Camera, Barcode, PenLine, Dumbbell, CalendarDays } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLiff } from "@/components/providers/LiffProvider";
 import { ManualEntryModal } from "./ManualEntryModal";
@@ -133,6 +133,7 @@ export function BottomNavBar() {
   }, [searchParams, pathname, router]);
 
   const options = [
+    { icon: CalendarDays, label: "แผนรายวัน", action: () => router.push("/plan"), color: "text-emerald-500" },
     { icon: Dumbbell, label: "ออกกำลังกาย", action: () => setShowExercise(true), color: "text-orange-500" },
     { icon: Barcode, label: "สแกนบาร์โค้ด", action: () => setShowBarcode(true) },
     { icon: Camera, label: "ถ่ายรูปอาหาร", action: () => setShowCamera(true) },

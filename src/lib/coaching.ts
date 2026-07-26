@@ -126,6 +126,17 @@ export function isAiCoachActive(member: {
   return member.aiCoachExpireDate >= expiryThreshold;
 }
 
+// Central gate: ดึง member (พร้อม memberType) จาก lineUserId + เช็คสิทธิ์ AI coach
+// API route ใหม่ทุกตัวเรียกตัวนี้ ห้าม copy-paste logic (RESUME §2)
+export async function requireAiCoach(lineUserId: string) {
+  const member = await prisma.member.findUnique({
+    where: { lineUserId },
+    include: { memberType: true },
+  });
+  const active = member ? isAiCoachActive(member) : false;
+  return { member, active };
+}
+
 // Check if member should receive notification
 export async function shouldSendNotification(
   memberId: string,
