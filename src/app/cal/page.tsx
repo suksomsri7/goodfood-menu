@@ -488,7 +488,13 @@ export default function CaloriePage() {
             label="โซเดียม"
             current={dailyData.sodium}
             target={goals.targetSodium}
-            color="#a78bfa"
+            color={
+              dailyData.sodium > goals.targetSodium
+                ? "#ef4444"
+                : dailyData.sodium >= goals.targetSodium * 0.8
+                ? "#f97316"
+                : "#a78bfa"
+            }
             unit="mg"
             delay={0.4}
           />
@@ -496,7 +502,13 @@ export default function CaloriePage() {
             label="น้ำตาล"
             current={dailyData.sugar}
             target={goals.targetSugar}
-            color="#f472b6"
+            color={
+              dailyData.sugar > goals.targetSugar
+                ? "#ef4444"
+                : dailyData.sugar >= goals.targetSugar * 0.8
+                ? "#f97316"
+                : "#f472b6"
+            }
             delay={0.5}
           />
           <MacroProgressBar
@@ -509,6 +521,33 @@ export default function CaloriePage() {
             hideTarget
           />
           </div>
+
+          {/* เตือนโซเดียม/น้ำตาล */}
+          {(() => {
+            const warns: string[] = [];
+            if (goals.targetSodium > 0 && dailyData.sodium > goals.targetSodium)
+              warns.push(`โซเดียมเกินเป้าแล้ว (${Math.round(dailyData.sodium)}/${Math.round(goals.targetSodium)} mg) ลดของเค็ม/น้ำจิ้มลงหน่อยนะ`);
+            else if (goals.targetSodium > 0 && dailyData.sodium >= goals.targetSodium * 0.8)
+              warns.push(`โซเดียมใกล้ถึงเป้า (${Math.round(dailyData.sodium)}/${Math.round(goals.targetSodium)} mg) ระวังของเค็ม`);
+            if (goals.targetSugar > 0 && dailyData.sugar > goals.targetSugar)
+              warns.push(`น้ำตาลเกินเป้าแล้ว (${Math.round(dailyData.sugar)}/${Math.round(goals.targetSugar)} g) เลี่ยงของหวาน/เครื่องดื่มหวาน`);
+            else if (goals.targetSugar > 0 && dailyData.sugar >= goals.targetSugar * 0.8)
+              warns.push(`น้ำตาลใกล้ถึงเป้า (${Math.round(dailyData.sugar)}/${Math.round(goals.targetSugar)} g)`);
+            if (warns.length === 0) return null;
+            const over =
+              dailyData.sodium > goals.targetSodium || dailyData.sugar > goals.targetSugar;
+            return (
+              <div
+                className={`mx-2 mt-3 rounded-xl px-3 py-2 text-xs ${
+                  over ? "bg-red-50 text-red-600" : "bg-orange-50 text-orange-600"
+                }`}
+              >
+                {warns.map((w, i) => (
+                  <p key={i}>⚠️ {w}</p>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       </div>
 

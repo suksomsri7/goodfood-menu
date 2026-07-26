@@ -1,13 +1,14 @@
 import { prisma } from "@/lib/prisma";
 
-export type LimitType = 
+export type LimitType =
   | "dailyPhotoLimit"
   | "dailyAiAnalysisLimit"
   | "dailyAiTextAnalysisLimit"
   | "dailyAiRecommendLimit"
   | "dailyExerciseAnalysisLimit"
   | "dailyMenuSelectLimit"
-  | "dailyScanLimit";
+  | "dailyScanLimit"
+  | "dailyChatLimit";
 
 // Map limit type to usage type
 const usageTypeMap: Record<LimitType, string> = {
@@ -18,6 +19,7 @@ const usageTypeMap: Record<LimitType, string> = {
   dailyExerciseAnalysisLimit: "exercise_analysis",
   dailyMenuSelectLimit: "menu_select",
   dailyScanLimit: "scan",
+  dailyChatLimit: "coach_chat",
 };
 
 // All AI-related usage types for combined mode
@@ -29,6 +31,7 @@ const allAiUsageTypes = [
   "exercise_analysis",
   "menu_select",
   "scan",
+  "coach_chat",
 ];
 
 interface UsageCheckResult {

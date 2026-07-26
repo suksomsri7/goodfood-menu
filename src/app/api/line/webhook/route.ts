@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifySignature, getUserProfile, uploadLineMediaToBunny } from "@/lib/line";
+import { handleCoachChat } from "@/lib/coachChat";
 
 // LINE Webhook Event Types
 interface LineEvent {
@@ -196,6 +197,15 @@ async function handleMessage(event: LineEvent) {
   });
 
   console.log(`Message received from ${conversation.displayName}: ${content || message.type}`);
+
+  // ── AI Coach ตอบแชท (reply ฟรี — เฉพาะข้อความ text) ──
+  if (message.type === "text" && message.text) {
+    try {
+      await handleCoachChat(userId, message.text, event.replyToken, conversation.id);
+    } catch (e) {
+      console.error("coach chat reply error:", e);
+    }
+  }
 }
 
 async function handleFollow(userId: string) {

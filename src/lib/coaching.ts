@@ -87,6 +87,17 @@ export interface MemberContext {
   } | null;
   streakDays: number;
   lastActiveAt: Date | null;
+  // แผนวันนี้จาก DailyPlan (เฟส 2 — inject ก่อนเรียก generateCoachingMessage("morning"))
+  todayPlan?: {
+    exerciseTitle: string;
+    exerciseMinutes: number;
+    mealSummary: string; // สรุปมื้อ เช่น "เช้า: ข้าวต้มไข่ · กลางวัน: ..."
+    totalKcal: number;
+  } | null;
+  // เตือนโซเดียม/น้ำตาลจากเมื่อวาน (เฟส 4 → ยัดเข้าโค้ชเช้า)
+  warnings?: string[];
+  // การปรับแผนอัตโนมัติล่าสุด (เฟส 5 → บอกในข้อความเช้า)
+  planAdjustNote?: string | null;
 }
 
 // Calculate expiry threshold using Thailand timezone
@@ -508,15 +519,18 @@ export function buildPrompt(type: CoachingType, context: MemberContext): string 
 - มื้อที่บันทึก: ${context.yesterday.mealCount} มื้อ
 
 ${context.weightChange !== null ? `การเปลี่ยนแปลงน้ำหนัก 7 วันที่ผ่านมา: ${context.weightChange > 0 ? "+" : ""}${context.weightChange.toFixed(1)} kg` : ""}
+${context.todayPlan ? `\nแผนวันนี้:\n- ออกกำลังกาย: ${context.todayPlan.exerciseTitle} (${context.todayPlan.exerciseMinutes} นาที)\n- อาหาร (~${context.todayPlan.totalKcal} kcal): ${context.todayPlan.mealSummary}` : ""}
+${context.warnings && context.warnings.length ? `\nข้อควรระวังจากเมื่อวาน: ${context.warnings.join(" / ")}` : ""}
+${context.planAdjustNote ? `\nการปรับแผนล่าสุด (ต้องบอกผู้ใช้ว่าปรับเพราะอะไร): ${context.planAdjustNote}` : ""}
 
 กรุณาส่งข้อความกำลังใจตอนเช้า:
 1. ทักทายชื่อลูกค้า
-2. สรุปผลงานเมื่อวานสั้นๆ (ดี/ต้องปรับปรุง)
-3. บอกเป้าหมายวันนี้
-4. ให้คำแนะนำเฉพาะเจาะจง 1 ข้อ
+2. สรุปผลงานเมื่อวานสั้นๆ (ดี/ต้องปรับปรุง)${context.warnings && context.warnings.length ? " + เตือนเรื่องที่ต้องระวังอย่างนุ่มนวล" : ""}
+3. บอกแผนวันนี้ (ออกกำลังกาย + อาหาร) แบบกระชับ
+4. ให้คำแนะนำปรับให้ตรงเป้า 1 ข้อ
 5. ให้กำลังใจ
 
-ความยาวไม่เกิน 200 ตัวอักษร`;
+ความยาวไม่เกิน 300 ตัวอักษร ห้ามแต่งตัวเลขที่ไม่มีในข้อมูล`;
 
     case "lunch":
       return `${baseInfo}
@@ -811,6 +825,72 @@ export function createCoachingFlexMessage(
             label: "เปิดแอป",
             uri: process.env.LIFF_URL || "https://goodfood.in.th/cal",
           },
+        },
+      ],
+    },
+  });
+}
+
+// LIFF deep-link ไปหน้าใดหน้าหนึ่ง (เปิดในแอป LINE พร้อม login)
+export function liffUrlForPath(path: string): string {
+  const id = process.env.NEXT_PUBLIC_LIFF_ID_CAL;
+  if (id) return `https://liff.line.me/${id}${path}`;
+  return `https://goodfood.in.th${path}`;
+}
+
+// Flex สำหรับโค้ชเช้า (เฟส 2) — มี section แผนวันนี้ + ปุ่มดูปฏิทิน
+export function createMorningCoachFlex(
+  message: string,
+  context: MemberContext
+): ReturnType<typeof createFlexMessage> {
+  const planContents = context.todayPlan
+    ? [
+        { type: "separator" as const, margin: "lg" as const },
+        {
+          type: "box" as const,
+          layout: "vertical" as const,
+          margin: "lg" as const,
+          spacing: "xs" as const,
+          contents: [
+            { type: "text" as const, text: "📋 แผนวันนี้", weight: "bold" as const, size: "sm" as const, color: "#1DB446" },
+            { type: "text" as const, text: `🏃 ${context.todayPlan.exerciseTitle} · ${context.todayPlan.exerciseMinutes} นาที`, size: "sm" as const, color: "#555555", wrap: true },
+            { type: "text" as const, text: `🍽️ ~${context.todayPlan.totalKcal} kcal · ${context.todayPlan.mealSummary}`, size: "sm" as const, color: "#555555", wrap: true },
+          ],
+        },
+      ]
+    : [];
+
+  return createFlexMessage("🌅 กำลังใจตอนเช้า", {
+    type: "bubble",
+    size: "mega",
+    body: {
+      type: "box",
+      layout: "vertical",
+      paddingAll: "20px",
+      contents: [
+        {
+          type: "box",
+          layout: "horizontal",
+          contents: [
+            { type: "text", text: "🌅", size: "xl", flex: 0 },
+            { type: "text", text: "โค้ชกู๊ดทักตอนเช้า", weight: "bold", size: "lg", color: "#1DB446", margin: "md" },
+          ],
+        },
+        { type: "separator", margin: "lg" },
+        { type: "text", text: message, wrap: true, size: "md", margin: "lg", color: "#333333" },
+        ...planContents,
+      ],
+    },
+    footer: {
+      type: "box",
+      layout: "horizontal",
+      spacing: "sm",
+      contents: [
+        {
+          type: "button",
+          style: "primary",
+          color: "#1DB446",
+          action: { type: "uri", label: "ดูปฏิทินแผน", uri: liffUrlForPath("/plan") },
         },
       ],
     },
