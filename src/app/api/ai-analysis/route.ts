@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { buildOpenAI, aiModel } from "@/lib/aiClient";
 import { prisma } from "@/lib/prisma";
 import { checkUsageLimit, logAiUsage } from "@/lib/usage-limits";
 import { getSecret } from "@/lib/secrets/store";
@@ -182,7 +183,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Call OpenAI for analysis
-    const openai = new OpenAI({ apiKey });
+    const openai = buildOpenAI(apiKey);
     const prompt = `คุณเป็นนักโภชนาการและผู้เชี่ยวชาญด้านสุขภาพ กรุณาวิเคราะห์ข้อมูลสุขภาพประจำวันต่อไปนี้:
 
 ข้อมูลส่วนตัว:
@@ -231,7 +232,7 @@ ${userData.today.exercises.length > 0 ?
 }`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: aiModel(apiKey, "gpt-4o"),
       messages: [
         {
           role: "system",

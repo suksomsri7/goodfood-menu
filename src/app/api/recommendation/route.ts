@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { buildOpenAI, aiModel } from "@/lib/aiClient";
 import { getSecret } from "@/lib/secrets/store";
 
 // Rate limit: 10 requests per day per user
@@ -180,10 +181,10 @@ export async function GET(request: NextRequest) {
 กรุณาให้คำแนะนำสั้นๆ สำหรับมื้อถัดไป`;
 
     try {
-      const openai = new OpenAI({ apiKey });
+      const openai = buildOpenAI(apiKey);
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: aiModel(apiKey, "gpt-4o-mini"),
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userMessage },

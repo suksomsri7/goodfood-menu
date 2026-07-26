@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { buildOpenAI, aiModel } from "@/lib/aiClient";
 import { getSecret } from "@/lib/secrets/store";
 
 export async function POST(request: NextRequest) {
@@ -75,9 +76,9 @@ ${statusMessage}
 
 ให้คำแนะนำเป็นภาษาไทย สั้นกระชับ เป็นกันเอง`;
 
-    const openai = new OpenAI({ apiKey });
+    const openai = buildOpenAI(apiKey);
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: aiModel(apiKey, "gpt-4o-mini"),
       messages: [
         {
           role: "system",

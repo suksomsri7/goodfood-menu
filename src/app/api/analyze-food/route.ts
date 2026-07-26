@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { buildOpenAI, aiModel } from "@/lib/aiClient";
 import { prisma } from "@/lib/prisma";
 import { checkUsageLimit, logAiUsage } from "@/lib/usage-limits";
 import { getSecret } from "@/lib/secrets/store";
@@ -163,7 +164,7 @@ export async function POST(request: NextRequest) {
 
     // Call OpenAI GPT-4o with vision
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: aiModel(apiKey, "gpt-4o"),
       messages: [
         {
           role: "system",

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import OpenAI from "openai";
+import { buildOpenAI, aiModel } from "@/lib/aiClient";
 import { getSecret } from "@/lib/secrets/store";
 import { pushMessage, createFlexMessage } from "@/lib/line";
 
@@ -641,11 +642,11 @@ export async function generateCoachingMessage(
   }
 
   try {
-    const openai = new OpenAI({ apiKey });
+    const openai = buildOpenAI(apiKey);
     const prompt = buildPrompt(type, context);
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: aiModel(apiKey, "gpt-4o-mini"),
       messages: [
         { role: "system", content: COACH_SYSTEM_PROMPT },
         { role: "user", content: prompt },

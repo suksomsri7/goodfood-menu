@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { buildOpenAI, aiModel } from "@/lib/aiClient";
 import { checkUsageLimit, logAiUsage } from "@/lib/usage-limits";
 import { getSecret } from "@/lib/secrets/store";
 
@@ -161,9 +162,9 @@ ${foodList}
     // Each ID takes ~3-4 tokens, plus JSON structure and recommendation
     const estimatedTokens = Math.max(500, itemsNeeded * 5 + 200);
 
-    const openai = new OpenAI({ apiKey });
+    const openai = buildOpenAI(apiKey);
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: aiModel(apiKey, "gpt-4o-mini"),
       messages: [
         {
           role: "system",
