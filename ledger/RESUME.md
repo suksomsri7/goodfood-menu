@@ -1,6 +1,17 @@
 # 🥗 GOODFOOD — แผนงาน "AI นักโภชนาการ + ฟิตเนสเทรนเนอร์" (เฟส 0-5)
 
-> **เขียน:** 2026-07-26 · **สถานะ:** รอเริ่มเฟส 0
+> ## 🎉 อัปเดต 2026-07-26 (Opus 4.8): เฟส 0-5 **CODE DONE + DEPLOYED** ทุกเฟส
+> - เฟส 0 ✅ (getSecret refactor + OpenRouter key + 3 memberType + Tu=VIP · AI จริงผ่าน)
+> - เฟส 1 ✅ DailyPlan + generateWeekPlan + /api/plan + หน้า /plan (verified: 7 วัน kcal≥BMR, 409, 403, PATCH)
+> - เฟส 2 ✅ morning-coach cron + crontab ติดตั้ง (verified: push Tu จริง quota 0→1, dedup, 401)
+> - เฟส 3 ✅ AI แชท LINE reply (coachChat เสียบ webhook) — รอ user พิมพ์เทส
+> - เฟส 4 ✅ /cal สีเตือนโซเดียม/น้ำตาล — รอ user ดูจอ
+> - เฟส 5 ✅ weekly-adjust (verified: plateau 1600→1472→BMR floor 1400, guard<7วัน)
+> - ⚠️ **key = OpenRouter (sk-or-)** → ต้องใช้ `src/lib/aiClient.ts` (buildOpenAI/aiModel) ห้าม new OpenAI() ตรง
+> - ⏳ เหลือ **user เทสมือถือ**: ปุ่ม backoffice, /plan UI, แชท LINE, สีเตือน /cal
+> - รายละเอียด signature/ไฟล์: memory `project_goodfood.md` section "เฟส 0-5 CODE DONE"
+>
+> **เขียน:** 2026-07-26 · **สถานะเดิม:** รอเริ่มเฟส 0
 > **บทบาท session ถัดไป:** Fable 5 = ผู้คุมงาน (architecture/QC gate/ตัดสินใจ) · Opus 5 = ผู้ลงมือทำ (implement ตาม WO)
 > **ภาษา:** ทุกข้อความถึง user ต้องเป็นภาษาไทย (user อ่านอังกฤษไม่ได้)
 
