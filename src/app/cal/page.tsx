@@ -422,7 +422,7 @@ export default function CaloriePage() {
   }
 
   return (
-    <div className="min-h-screen bg-white pb-28">
+    <div className="min-h-screen bg-white pb-16">
       {/* Header - Sticky */}
       <DaySelector selectedDate={selectedDate} onDateChange={setSelectedDate} showGoalIcon onHelpClick={onHelpClick} />
 

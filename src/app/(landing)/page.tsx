@@ -75,7 +75,7 @@ export default async function LandingPage() {
   try {
     articles = await prisma.article.findMany({
       where: { status: "PUBLISHED" },
-      orderBy: [{ isFeatured: "desc" }, { publishedAt: "desc" }],
+      orderBy: { publishedAt: "desc" },
       take: 6,
       include: {
         category: {

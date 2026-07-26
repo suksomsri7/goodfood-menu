@@ -79,7 +79,7 @@ export function MealDetailModal({ meal, isOpen, onClose, onDelete }: MealDetailM
                       </span>
                     )}
                     {meal.multiplier && meal.multiplier !== 1 && (
-                      <span className="text-red-400 font-medium">×{meal.multiplier}</span>
+                      <span className="text-emerald-400 font-medium">×{meal.multiplier}</span>
                     )}
                     <span className="flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5" />
@@ -103,8 +103,8 @@ export function MealDetailModal({ meal, isOpen, onClose, onDelete }: MealDetailM
               {/* Macros - Row 1 */}
               <div className="grid grid-cols-3 gap-3 mb-3">
                 {/* Protein */}
-                <div className="bg-red-50 rounded-xl p-3 text-center">
-                  <Beef className="w-5 h-5 text-red-400 mx-auto mb-1" />
+                <div className="bg-emerald-50 rounded-xl p-3 text-center">
+                  <Beef className="w-5 h-5 text-emerald-400 mx-auto mb-1" />
                   <p className="text-xs text-gray-500 mb-1">โปรตีน</p>
                   <p className="text-lg font-semibold text-gray-900">{meal.protein}g</p>
                 </div>
@@ -157,7 +157,7 @@ export function MealDetailModal({ meal, isOpen, onClose, onDelete }: MealDetailM
               {/* Delete Button */}
               <button
                 onClick={() => onDelete?.(meal.id)}
-                className="w-full py-3 px-4 bg-red-50 text-red-600 rounded-xl font-medium hover:bg-red-100 transition-colors"
+                className="w-full py-3 px-4 bg-emerald-50 text-emerald-600 rounded-xl font-medium hover:bg-emerald-100 transition-colors"
               >
                 ลบรายการนี้
               </button>

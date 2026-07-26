@@ -72,7 +72,7 @@ export function Navbar() {
               <UtensilsCrossed className="w-4 h-4 text-white" />
             </div>
             <span className="text-lg font-bold text-gray-900 tracking-wide">
-              GOOD <span className="text-red-500">FOOD</span>
+              GOOD <span className="text-emerald-500">FOOD</span>
             </span>
           </Link>
 

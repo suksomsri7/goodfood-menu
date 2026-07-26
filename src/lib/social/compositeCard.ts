@@ -10,11 +10,11 @@ export type ImageText = { line1: string; line2: string };
 const CANVAS_W = 1080;
 const CANVAS_H = 1350;
 const TEXT_LEFT = 72;                   // Left-align headline (Nat Geo editorial layout)
-const ACCENT_BAR_Y = 980;               // Yellow accent bar Y position
+const ACCENT_BAR_Y = 1015;              // Yellow accent bar top edge
 const ACCENT_BAR_W = 64;                // Width of yellow accent bar
 const ACCENT_BAR_H = 8;                 // Thickness of yellow accent bar
-const LINE1_Y = 1080;                   // Headline baseline
-const LINE2_Y = 1175;                   // Subheadline baseline
+const LINE1_Y = 1090;                   // Headline baseline (gap ~22 from accent bar)
+const LINE2_Y = 1145;                   // Subheadline baseline (visual gap ~19 between rows)
 const WATERMARK_BOTTOM_MARGIN = 48;
 
 function escapeXml(s: string): string {
@@ -127,6 +127,23 @@ export async function buildAndUploadSocialCard(
   const baseImageBuffer = await loadSource(source);
   const buf = await compositeSocialCard({ baseImageBuffer, imageText });
   return uploadBufferToBunny(buf, "social", `${fileNameBase}.webp`, "image/webp");
+}
+
+/**
+ * Raw resize only (no text/watermark bake). Used by the dispatch flow when
+ * overlays are sent to SHARK as separate data — SHARK composites at FB-send
+ * time, so it can show editable overlays in the photo editor.
+ */
+export async function resizeAndUploadSocialBase(
+  source: string,
+  fileNameBase: string,
+): Promise<string> {
+  const baseImageBuffer = await loadSource(source);
+  const out = await sharp(baseImageBuffer)
+    .resize(CANVAS_W, CANVAS_H, { fit: "cover", position: "top" })
+    .webp({ quality: 92 })
+    .toBuffer();
+  return uploadBufferToBunny(out, "social", `${fileNameBase}-raw.webp`, "image/webp");
 }
 
 async function loadSource(input: string): Promise<Buffer> {

@@ -132,7 +132,7 @@ export function HeroSection() {
                       {[
                         { label: "โปรตีน", w: "70%", color: "bg-blue-400" },
                         { label: "คาร์บ", w: "45%", color: "bg-amber-400" },
-                        { label: "ไขมัน", w: "60%", color: "bg-rose-400" },
+                        { label: "ไขมัน", w: "60%", color: "bg-emerald-400" },
                       ].map((bar) => (
                         <div key={bar.label} className="space-y-1">
                           <div className="flex justify-between text-xs">

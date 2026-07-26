@@ -349,7 +349,7 @@ export function StockModal({ isOpen, onClose, lineUserId, dailyNutrition, onSele
                             {item.name}
                           </h3>
                           {item.restaurantName && (
-                            <p className="text-xs text-rose-600 mt-0.5">🏪 {item.restaurantName}</p>
+                            <p className="text-xs text-emerald-600 mt-0.5">🏪 {item.restaurantName}</p>
                           )}
                           <p className="text-xs text-gray-500 mt-1">
                             {item.calories} Kcal • P {item.protein}g • C {item.carbs}g • F {item.fat}g
@@ -410,7 +410,7 @@ export function StockModal({ isOpen, onClose, lineUserId, dailyNutrition, onSele
                     {selectedItem.name}
                   </h3>
                   {selectedItem.restaurantName && (
-                    <p className="text-sm text-rose-600 text-center mb-2">🏪 {selectedItem.restaurantName}</p>
+                    <p className="text-sm text-emerald-600 text-center mb-2">🏪 {selectedItem.restaurantName}</p>
                   )}
                   <p className="text-sm text-gray-500 text-center mb-6">
                     คงเหลือ ×{selectedItem.quantity}

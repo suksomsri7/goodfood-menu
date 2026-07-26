@@ -77,7 +77,7 @@ export function MenuCard({ food, onAdd }: Props) {
         
         {/* Nutrition Pills */}
         <div className="flex gap-1.5 mt-2">
-          <span className="px-2 py-0.5 bg-red-50 text-red-500 rounded-md text-xs font-medium">
+          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-500 rounded-md text-xs font-medium">
             P {food.protein}g
           </span>
           <span className="px-2 py-0.5 bg-amber-50 text-amber-600 rounded-md text-xs font-medium">

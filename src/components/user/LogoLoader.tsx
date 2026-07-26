@@ -44,7 +44,7 @@ export function LogoLoader({
         
         {/* Outer Ring - Rotating (z-10, on top) */}
         <div 
-          className="absolute rounded-full border-4 border-transparent border-t-[#F44336] border-r-[#F44336] animate-spin z-10"
+          className="absolute rounded-full border-4 border-transparent border-t-[#1B8B2A] border-r-[#1B8B2A] animate-spin z-10"
           style={{ 
             width: config.outer,
             height: config.outer,
@@ -78,9 +78,9 @@ export function LogoLoader({
         <div className="mt-6 space-y-2">
           <p className="text-gray-600 font-medium animate-pulse">{message}</p>
           <div className="flex justify-center gap-1">
-            <span className="w-2 h-2 bg-[#F44336] rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-            <span className="w-2 h-2 bg-[#F44336] rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-            <span className="w-2 h-2 bg-[#F44336] rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+            <span className="w-2 h-2 bg-[#1B8B2A] rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+            <span className="w-2 h-2 bg-[#1B8B2A] rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+            <span className="w-2 h-2 bg-[#1B8B2A] rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
           </div>
         </div>
       )}

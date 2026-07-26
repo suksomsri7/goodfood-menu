@@ -296,7 +296,7 @@ export function OnboardingModal({
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-3">
-                    เพศ <span className="text-red-500">*</span>
+                    เพศ <span className="text-emerald-500">*</span>
                   </label>
                   <div className="grid grid-cols-2 gap-3">
                     <SelectButton
@@ -503,7 +503,7 @@ export function OnboardingModal({
                     {/* Macro Bar */}
                     <div className="flex h-3 rounded-full overflow-hidden mt-3">
                       <div
-                        className="bg-red-500"
+                        className="bg-emerald-500"
                         style={{ width: `${(healthProfile.macros.carbs * 4) / healthProfile.dailyCalories * 100}%` }}
                       />
                       <div
@@ -560,7 +560,7 @@ export function OnboardingModal({
                 </div>
 
                 {/* Summary Card */}
-                <div className="bg-gradient-to-br from-primary-500 to-red-500 rounded-2xl p-5 text-white">
+                <div className="bg-gradient-to-br from-primary-500 to-emerald-500 rounded-2xl p-5 text-white">
                   <h3 className="font-semibold text-lg mb-4">
                     🎯 เป้าหมายของ {formData.name}
                   </h3>
@@ -689,7 +689,7 @@ function InputField({
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-2">
-        {label} {required && <span className="text-red-500">*</span>}
+        {label} {required && <span className="text-emerald-500">*</span>}
       </label>
       <div className="relative">
         {icon && (
@@ -787,12 +787,12 @@ function MacroBox({
   color: "green" | "blue" | "yellow";
 }) {
   const bgColors = {
-    green: "bg-red-50",
+    green: "bg-emerald-50",
     blue: "bg-blue-50",
     yellow: "bg-yellow-50",
   };
   const textColors = {
-    green: "text-red-700",
+    green: "text-emerald-700",
     blue: "text-blue-700",
     yellow: "text-yellow-700",
   };

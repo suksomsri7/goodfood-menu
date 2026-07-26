@@ -71,10 +71,20 @@ export async function dispatchArticleSocial(articleId: string): Promise<{
     return { ok: false, status: "MAX_ATTEMPTS_REACHED", message: `${prevAttempts} previous failures` };
   }
   if (!isValidSocialCard(article.socialCard)) {
-    return { ok: false, status: "INVALID_CARD", message: "socialCard JSON malformed" };
+    // Mark as dispatched so cron won't retry this article forever
+    await prisma.article.update({
+      where: { id: article.id },
+      data: { socialDispatchedAt: new Date() },
+    });
+    return { ok: false, status: "INVALID_CARD", message: "socialCard JSON malformed — marked dispatched to stop retries" };
   }
   if (!article.coverImage) {
-    return { ok: false, status: "NO_COVER", message: "article has no coverImage to composite" };
+    // Mark as dispatched so cron won't retry this article forever
+    await prisma.article.update({
+      where: { id: article.id },
+      data: { socialDispatchedAt: new Date() },
+    });
+    return { ok: false, status: "NO_COVER", message: "article has no coverImage — marked dispatched to stop retries" };
   }
 
   const card = article.socialCard as SocialCardJson;

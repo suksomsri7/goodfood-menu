@@ -25,7 +25,7 @@ const SECRET_KEYS = ["SHARK_URL", "SHARK_BRAND_ID", "SHARK_API_KEY", "SHARK_CHAN
 export default function SocialSettingsPage() {
   const [secrets, setSecrets] = useState<Record<string, Secret>>({});
   const [draft, setDraft] = useState({
-    SHARK_URL: "https://shark.in.th",
+    SHARK_URL: "https://shark.guide",
     SHARK_BRAND_ID: "",
     SHARK_API_KEY: "",
   });
@@ -189,7 +189,7 @@ export default function SocialSettingsPage() {
                 type="text"
                 value={draft.SHARK_URL}
                 onChange={(e) => setDraft((p) => ({ ...p, SHARK_URL: e.target.value }))}
-                placeholder="https://shark.in.th"
+                placeholder="https://shark.guide"
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -313,7 +313,7 @@ export default function SocialSettingsPage() {
               <li>วางในช่อง API Key ด้านบน แล้วกดทดสอบเชื่อมต่อ</li>
             </ol>
             <a
-              href="https://shark.in.th"
+              href="https://shark.guide"
               target="_blank"
               rel="noopener"
               className="inline-flex items-center gap-1 text-blue-600 hover:underline mt-2"

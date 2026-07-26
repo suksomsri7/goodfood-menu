@@ -413,14 +413,14 @@ export function CameraModal({ isOpen, onClose, onSave, lineUserId }: CameraModal
                       coaching.verdict === "GOOD" ? "border-green-200 bg-green-50" :
                       coaching.verdict === "OK" ? "border-blue-200 bg-blue-50" :
                       coaching.verdict === "CAUTION" ? "border-amber-200 bg-amber-50" :
-                      "border-red-200 bg-red-50"
+                      "border-emerald-200 bg-emerald-50"
                     }`}>
                       {/* Verdict Header */}
                       <div className={`flex items-center gap-2 px-3 py-2 ${
                         coaching.verdict === "GOOD" ? "bg-green-100" :
                         coaching.verdict === "OK" ? "bg-blue-100" :
                         coaching.verdict === "CAUTION" ? "bg-amber-100" :
-                        "bg-red-100"
+                        "bg-emerald-100"
                       }`}>
                         {coaching.verdict === "GOOD" ? (
                           <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
@@ -429,13 +429,13 @@ export function CameraModal({ isOpen, onClose, onSave, lineUserId }: CameraModal
                         ) : coaching.verdict === "CAUTION" ? (
                           <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
                         ) : (
-                          <ShieldAlert className="w-5 h-5 text-red-600 flex-shrink-0" />
+                          <ShieldAlert className="w-5 h-5 text-emerald-600 flex-shrink-0" />
                         )}
                         <span className={`font-bold text-sm ${
                           coaching.verdict === "GOOD" ? "text-green-700" :
                           coaching.verdict === "OK" ? "text-blue-700" :
                           coaching.verdict === "CAUTION" ? "text-amber-700" :
-                          "text-red-700"
+                          "text-emerald-700"
                         }`}>
                           AI Coach: {coaching.verdictText}
                         </span>

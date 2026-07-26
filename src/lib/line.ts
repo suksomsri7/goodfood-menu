@@ -1,8 +1,8 @@
 import crypto from "crypto";
 
 // LINE Configuration
-const LINE_CHANNEL_ID = process.env.LINE_CHANNEL_ID || "2009042388";
-const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET || "36a019f5fd41c43ecf404204faceecd0";
+const LINE_CHANNEL_ID = process.env.LINE_CHANNEL_ID || "";
+const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET || "";
 const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || "";
 
 const LINE_API_BASE = "https://api.line.me/v2";

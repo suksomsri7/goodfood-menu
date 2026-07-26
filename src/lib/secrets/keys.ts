@@ -53,7 +53,7 @@ export const SECRET_KEY_REGISTRY: SecretKeyMeta[] = [
   {
     key: "SHARK_URL",
     label: "SHARK Base URL",
-    description: "ที่อยู่ SHARK API (default https://shark.in.th)",
+    description: "ที่อยู่ SHARK API (default https://shark.guide)",
     group: "Other",
   },
   {

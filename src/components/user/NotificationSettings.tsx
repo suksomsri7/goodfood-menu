@@ -231,8 +231,8 @@ export function NotificationSettings({
       icon: Utensils,
       label: "แนะนำมื้อเย็น",
       description: schedule ? `เวลา ${schedule.dinnerReminderTime}` : "",
-      color: "text-red-500",
-      bgColor: "bg-red-100",
+      color: "text-emerald-500",
+      bgColor: "bg-emerald-100",
     },
     {
       key: "eveningSummary" as const,
@@ -263,8 +263,8 @@ export function NotificationSettings({
       icon: Dumbbell,
       label: "แนะนำหลังออกกำลังกาย",
       description: "หลังบันทึกการออกกำลังกาย",
-      color: "text-red-500",
-      bgColor: "bg-red-100",
+      color: "text-emerald-500",
+      bgColor: "bg-emerald-100",
     },
     {
       key: "weightReminder" as const,
@@ -304,7 +304,7 @@ export function NotificationSettings({
             <div className="sticky top-0 bg-white z-10 px-6 py-4 border-b border-gray-100">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-400 to-rose-500 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-500 flex items-center justify-center">
                     <Sparkles className="w-5 h-5 text-white" />
                   </div>
                   <div>
@@ -328,14 +328,14 @@ export function NotificationSettings({
               {aiCoach && (
                 <div className="mt-4">
                   {aiCoach.status === "active" && (
-                    <div className="p-3 bg-red-50 rounded-xl">
+                    <div className="p-3 bg-emerald-50 rounded-xl">
                       <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-red-600" />
-                        <span className="text-sm font-medium text-red-700">
+                        <Calendar className="w-4 h-4 text-emerald-600" />
+                        <span className="text-sm font-medium text-emerald-700">
                           เหลืออีก {aiCoach.daysRemaining} วัน
                         </span>
                       </div>
-                      <p className="text-xs text-red-600 mt-1">
+                      <p className="text-xs text-emerald-600 mt-1">
                         หมดอายุ: {formatExpireDate(aiCoach.expireDate!)}
                       </p>
                     </div>
@@ -370,7 +370,7 @@ export function NotificationSettings({
             <div className="overflow-y-auto max-h-[calc(90vh-200px)] pb-8">
               {isLoading ? (
                 <div className="flex items-center justify-center py-12">
-                  <div className="w-8 h-8 border-3 border-red-200 border-t-red-500 rounded-full animate-spin" />
+                  <div className="w-8 h-8 border-3 border-emerald-200 border-t-emerald-500 rounded-full animate-spin" />
                 </div>
               ) : !aiCoach || aiCoach.status === "not_assigned" ? (
                 /* Not Assigned - Show upgrade options */
@@ -576,7 +576,7 @@ export function NotificationSettings({
                       </div>
 
                       {aiCoach.status === "expired" && aiCoach.expireDate && (
-                        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-red-100 rounded-full text-sm text-red-600 mb-4">
+                        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-100 rounded-full text-sm text-emerald-600 mb-4">
                           <Calendar className="w-4 h-4" />
                           หมดอายุเมื่อ {formatExpireDate(aiCoach.expireDate)}
                         </div>
@@ -754,7 +754,7 @@ export function NotificationSettings({
                         <button
                           onClick={() => updateSetting(item.key, !settings[item.key])}
                           className={`relative w-12 h-7 rounded-full transition-colors ${
-                            settings[item.key] ? "bg-red-500" : "bg-gray-300"
+                            settings[item.key] ? "bg-emerald-500" : "bg-gray-300"
                           }`}
                         >
                           <div

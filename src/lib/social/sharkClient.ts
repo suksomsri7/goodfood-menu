@@ -94,6 +94,19 @@ export type SharkPublishInput = {
   scheduledAt?: Date;
   now?: boolean;
   sourceTitle?: string;
+  /**
+   * Overlay data — text headlines + watermark settings. When present, SHARK
+   * stores it on the draft and composites raw image + overlay at FB-send time
+   * (so the user can edit the headline/watermark in the SHARK photo editor
+   * before the scheduled send). Without this field, SHARK falls through to
+   * the legacy "image is already baked" flow.
+   */
+  socialOverlay?: {
+    line1: string;
+    line2: string;
+    watermarkText?: string;   // default "GoodFood"
+    accent?: string;          // hex color of Nat Geo bar, default "#FFCC00"
+  };
 };
 
 export async function sharkPublish(input: SharkPublishInput): Promise<any> {

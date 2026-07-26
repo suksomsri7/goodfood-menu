@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Plus, PieChart, UtensilsCrossed, Camera, Barcode, PenLine, Package, Dumbbell } from "lucide-react";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
+import { Plus, Camera, Barcode, PenLine, Dumbbell } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLiff } from "@/components/providers/LiffProvider";
 import { ManualEntryModal } from "./ManualEntryModal";
@@ -134,7 +134,6 @@ export function BottomNavBar() {
 
   const options = [
     { icon: Dumbbell, label: "ออกกำลังกาย", action: () => setShowExercise(true), color: "text-orange-500" },
-    { icon: Package, label: "คลังอาหาร", action: () => setShowStock(true) },
     { icon: Barcode, label: "สแกนบาร์โค้ด", action: () => setShowBarcode(true) },
     { icon: Camera, label: "ถ่ายรูปอาหาร", action: () => setShowCamera(true) },
     { icon: PenLine, label: "กรอกเอง", action: () => setShowManualEntry(true) },
@@ -215,9 +214,6 @@ export function BottomNavBar() {
     }
   };
 
-  const isCalActive = pathname === "/cal";
-  const isMenuActive = pathname === "/menu";
-
   return (
     <>
       {/* Backdrop for FAB menu */}
@@ -233,10 +229,10 @@ export function BottomNavBar() {
         )}
       </AnimatePresence>
 
-      {/* FAB Options */}
+      {/* FAB Options - anchored above FAB button at bottom-right */}
       <AnimatePresence>
         {isOpen && (
-          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3">
+          <div className="fixed bottom-24 right-6 z-50 flex flex-col items-end gap-3">
             {options.map((option, index) => (
               <motion.button
                 key={option.label}
@@ -250,64 +246,29 @@ export function BottomNavBar() {
                   option.action();
                 }}
               >
-                <div className="w-11 h-11 rounded-full bg-white shadow-lg flex items-center justify-center">
-                  <option.icon className={`w-5 h-5 ${"color" in option ? option.color : "text-gray-700"}`} strokeWidth={1.5} />
-                </div>
                 <span className="text-sm text-gray-700 bg-white px-4 py-2 rounded-full shadow-lg">
                   {option.label}
                 </span>
+                <div className="w-11 h-11 rounded-full bg-white shadow-lg flex items-center justify-center">
+                  <option.icon className={`w-5 h-5 ${"color" in option ? option.color : "text-gray-700"}`} strokeWidth={1.5} />
+                </div>
               </motion.button>
             ))}
           </div>
         )}
       </AnimatePresence>
 
-      {/* Bottom Navigation Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-50" data-guide="bottom-nav">
-        {/* Background bar */}
-        <div className="bg-white border-t border-gray-200 shadow-lg">
-          <div className="flex items-center justify-around h-16 px-6">
-            {/* Cal button */}
-            <button
-              onClick={() => router.push("/cal")}
-              data-guide="cal-tab"
-              className={`flex flex-col items-center gap-1 px-6 py-2 rounded-xl transition-colors ${
-                isCalActive ? "text-red-600" : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <PieChart className="w-6 h-6" strokeWidth={isCalActive ? 2 : 1.5} />
-              <span className="text-xs font-medium">แคลอรี่</span>
-            </button>
-
-            {/* Spacer for center button */}
-            <div className="w-16" />
-
-            {/* Menu button */}
-            <button
-              onClick={() => router.push("/menu")}
-              data-guide="menu-tab"
-              className={`flex flex-col items-center gap-1 px-6 py-2 rounded-xl transition-colors ${
-                isMenuActive ? "text-red-600" : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <UtensilsCrossed className="w-6 h-6" strokeWidth={isMenuActive ? 2 : 1.5} />
-              <span className="text-xs font-medium">สั่งอาหาร</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Center FAB button - positioned above the bar */}
-        <motion.button
-          className="absolute left-1/2 -translate-x-1/2 -top-7 w-14 h-14 rounded-full bg-gray-900 flex items-center justify-center shadow-lg border-4 border-white"
-          onClick={() => setIsOpen(!isOpen)}
-          whileTap={{ scale: 0.95 }}
-          animate={{ rotate: isOpen ? 45 : 0 }}
-          transition={{ duration: 0.2 }}
-          data-guide="fab-button"
-        >
-          <Plus className="w-6 h-6 text-white" strokeWidth={2} />
-        </motion.button>
-      </div>
+      {/* FAB button - bottom right */}
+      <motion.button
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-gray-900 flex items-center justify-center shadow-lg"
+        onClick={() => setIsOpen(!isOpen)}
+        whileTap={{ scale: 0.95 }}
+        animate={{ rotate: isOpen ? 45 : 0 }}
+        transition={{ duration: 0.2 }}
+        data-guide="fab-button"
+      >
+        <Plus className="w-6 h-6 text-white" strokeWidth={2} />
+      </motion.button>
 
       {/* Manual Entry Modal */}
       <ManualEntryModal

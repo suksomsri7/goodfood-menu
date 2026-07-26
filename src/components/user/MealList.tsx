@@ -63,7 +63,7 @@ export function MealList({ meals, onMealClick }: MealListProps) {
                   {meal.weight && ` (${meal.weight}g)`}
                 </span>
                 {meal.multiplier && meal.multiplier !== 1 && (
-                  <span className="text-red-400 font-medium"> ×{meal.multiplier}</span>
+                  <span className="text-emerald-400 font-medium"> ×{meal.multiplier}</span>
                 )}
               </h3>
               <span className="text-sm font-medium text-gray-900 tabular-nums flex-shrink-0">

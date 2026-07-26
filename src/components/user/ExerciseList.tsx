@@ -21,7 +21,7 @@ interface ExerciseListProps {
 const INTENSITY_COLORS: Record<string, string> = {
   low: "bg-blue-100 text-blue-600",
   moderate: "bg-yellow-100 text-yellow-600",
-  high: "bg-red-100 text-red-600",
+  high: "bg-emerald-100 text-emerald-600",
 };
 
 const INTENSITY_LABELS: Record<string, string> = {
@@ -43,7 +43,7 @@ export function ExerciseList({ exercises, onDelete }: ExerciseListProps) {
       {exercises.map((exercise) => (
         <div
           key={exercise.id}
-          className="bg-gradient-to-r from-orange-50 to-red-50 rounded-2xl p-4 border border-orange-100"
+          className="bg-gradient-to-r from-orange-50 to-emerald-50 rounded-2xl p-4 border border-orange-100"
         >
           <div className="flex items-start justify-between">
             <div className="flex-1">
@@ -79,7 +79,7 @@ export function ExerciseList({ exercises, onDelete }: ExerciseListProps) {
               {onDelete && (
                 <button
                   onClick={() => onDelete(exercise.id)}
-                  className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                  className="p-2 text-gray-400 hover:text-emerald-500 transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>

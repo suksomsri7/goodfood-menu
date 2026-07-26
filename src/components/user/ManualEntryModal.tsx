@@ -316,13 +316,13 @@ export function ManualEntryModal({ isOpen, onClose, onSave, lineUserId }: Manual
                       coaching.verdict === "GOOD" ? "border-green-200 bg-green-50" :
                       coaching.verdict === "OK" ? "border-blue-200 bg-blue-50" :
                       coaching.verdict === "CAUTION" ? "border-amber-200 bg-amber-50" :
-                      "border-red-200 bg-red-50"
+                      "border-emerald-200 bg-emerald-50"
                     }`}>
                       <div className={`flex items-center gap-2 px-3 py-2 ${
                         coaching.verdict === "GOOD" ? "bg-green-100" :
                         coaching.verdict === "OK" ? "bg-blue-100" :
                         coaching.verdict === "CAUTION" ? "bg-amber-100" :
-                        "bg-red-100"
+                        "bg-emerald-100"
                       }`}>
                         {coaching.verdict === "GOOD" ? (
                           <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
@@ -331,13 +331,13 @@ export function ManualEntryModal({ isOpen, onClose, onSave, lineUserId }: Manual
                         ) : coaching.verdict === "CAUTION" ? (
                           <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
                         ) : (
-                          <ShieldAlert className="w-5 h-5 text-red-600 flex-shrink-0" />
+                          <ShieldAlert className="w-5 h-5 text-emerald-600 flex-shrink-0" />
                         )}
                         <span className={`font-bold text-sm ${
                           coaching.verdict === "GOOD" ? "text-green-700" :
                           coaching.verdict === "OK" ? "text-blue-700" :
                           coaching.verdict === "CAUTION" ? "text-amber-700" :
-                          "text-red-700"
+                          "text-emerald-700"
                         }`}>
                           AI Coach: {coaching.verdictText}
                         </span>
@@ -375,7 +375,7 @@ export function ManualEntryModal({ isOpen, onClose, onSave, lineUserId }: Manual
                           <p className="text-[10px] text-gray-400">แคลอรี่</p>
                         </div>
                         <div className="text-center p-2 bg-white rounded-lg">
-                          <p className="text-lg font-bold text-red-500">{aiResult.protein}g</p>
+                          <p className="text-lg font-bold text-emerald-500">{aiResult.protein}g</p>
                           <p className="text-[10px] text-gray-400">โปรตีน</p>
                         </div>
                         <div className="text-center p-2 bg-white rounded-lg">
@@ -465,9 +465,9 @@ export function ManualEntryModal({ isOpen, onClose, onSave, lineUserId }: Manual
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-red-600 mb-1">โปรตีน</label>
+                        <label className="block text-xs font-medium text-emerald-600 mb-1">โปรตีน</label>
                         <div className="relative">
-                          <input type="number" placeholder="0" value={protein} onChange={(e) => setProtein(e.target.value)} className="w-full px-4 py-3 bg-red-50 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200" />
+                          <input type="number" placeholder="0" value={protein} onChange={(e) => setProtein(e.target.value)} className="w-full px-4 py-3 bg-emerald-50 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-200" />
                           <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">g</span>
                         </div>
                       </div>

@@ -139,7 +139,7 @@ export function AISection() {
                         {
                           label: "ไขมัน",
                           value: "18g",
-                          color: "text-rose-400",
+                          color: "text-emerald-400",
                         },
                       ].map((item) => (
                         <div

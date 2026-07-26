@@ -33,7 +33,7 @@ export default async function ArticlesPage() {
     [articles, categories] = await Promise.all([
       prisma.article.findMany({
         where: { status: "PUBLISHED" },
-        orderBy: [{ isFeatured: "desc" }, { publishedAt: "desc" }],
+        orderBy: { publishedAt: "desc" },
         include: {
           category: {
             select: { id: true, name: true, slug: true, color: true, icon: true },

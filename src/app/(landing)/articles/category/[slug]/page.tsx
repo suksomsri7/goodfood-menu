@@ -24,7 +24,7 @@ async function getCategoryWithArticles(slug: string) {
   if (!category) return null;
   const articles = await prisma.article.findMany({
     where: { categoryId: category.id, status: "PUBLISHED" },
-    orderBy: [{ isFeatured: "desc" }, { publishedAt: "desc" }],
+    orderBy: { publishedAt: "desc" },
     include: {
       category: { select: { id: true, name: true, slug: true, color: true, icon: true } },
     },

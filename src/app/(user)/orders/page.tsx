@@ -58,9 +58,9 @@ const statusConfig: Record<string, { label: string; color: string; bgColor: stri
   confirmed: { label: "ยืนยันแล้ว", color: "text-blue-600", bgColor: "bg-blue-50", icon: CheckCircle },
   preparing: { label: "รับชำระเงิน", color: "text-purple-600", bgColor: "bg-purple-50", icon: Package },
   shipping: { label: "กำลังจัดส่ง", color: "text-blue-600", bgColor: "bg-blue-50", icon: Truck },
-  ready: { label: "พร้อมรับ", color: "text-red-600", bgColor: "bg-red-50", icon: Truck },
-  completed: { label: "จัดส่งเรียบร้อย", color: "text-rose-600", bgColor: "bg-rose-50", icon: CheckCircle },
-  cancelled: { label: "ยกเลิก", color: "text-red-600", bgColor: "bg-red-50", icon: XCircle },
+  ready: { label: "พร้อมรับ", color: "text-emerald-600", bgColor: "bg-emerald-50", icon: Truck },
+  completed: { label: "จัดส่งเรียบร้อย", color: "text-emerald-600", bgColor: "bg-emerald-50", icon: CheckCircle },
+  cancelled: { label: "ยกเลิก", color: "text-emerald-600", bgColor: "bg-emerald-50", icon: XCircle },
 };
 
 const defaultStatusConfig = { label: "ไม่ทราบสถานะ", color: "text-gray-600", bgColor: "bg-gray-50", icon: Clock };
@@ -562,7 +562,7 @@ export default function OrdersPage() {
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-slate-900 truncate">{item.foodName}</h3>
                       {item.restaurantName && (
-                        <p className="text-xs text-rose-600 mt-0.5">🏪 {item.restaurantName}</p>
+                        <p className="text-xs text-emerald-600 mt-0.5">🏪 {item.restaurantName}</p>
                       )}
                       <p className="text-xs text-slate-500 mt-1">
                         {food?.calories || item.calories || 0} kcal • P {food?.protein || 0}g • C {food?.carbs || 0}g • F {food?.fat || 0}g
@@ -621,8 +621,8 @@ export default function OrdersPage() {
 
                   {/* Restaurant Name */}
                   {order.restaurant?.name && (
-                    <div className="mb-3 px-3 py-2 bg-rose-50 rounded-lg border border-rose-100">
-                      <p className="text-sm text-rose-700 font-medium">
+                    <div className="mb-3 px-3 py-2 bg-emerald-50 rounded-lg border border-emerald-100">
+                      <p className="text-sm text-emerald-700 font-medium">
                         🏪 {order.restaurant.name}
                       </p>
                     </div>
