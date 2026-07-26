@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { checkUsageLimit, logAiUsage } from "@/lib/usage-limits";
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+import { getSecret } from "@/lib/secrets/store";
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,7 +31,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if API key is configured
-    if (!process.env.OPENAI_API_KEY) {
+    const apiKey = await getSecret("OPENAI_API_KEY");
+    if (!apiKey) {
       console.log("OpenAI API key not configured, returning mock data");
       return NextResponse.json({
         name: "ลู่วิ่ง",
@@ -46,6 +44,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const openai = new OpenAI({ apiKey });
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [

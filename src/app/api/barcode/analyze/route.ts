@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { checkUsageLimit, logAiUsage } from "@/lib/usage-limits";
+import { getSecret } from "@/lib/secrets/store";
 
 const SYSTEM_PROMPT = `คุณคือผู้เชี่ยวชาญด้านโภชนาการ หน้าที่ของคุณคือวิเคราะห์ข้อมูลโภชนาการจากรูปถ่ายฉลากสินค้า
 
@@ -29,7 +30,7 @@ const SYSTEM_PROMPT = `คุณคือผู้เชี่ยวชาญด
 
 export async function POST(request: NextRequest) {
   try {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = await getSecret("OPENAI_API_KEY");
     
     if (!apiKey) {
       return NextResponse.json(

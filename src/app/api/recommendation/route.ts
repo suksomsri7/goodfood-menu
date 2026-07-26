@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getSecret } from "@/lib/secrets/store";
 
 // Rate limit: 10 requests per day per user
 const DAILY_REQUEST_LIMIT = 10;
@@ -95,7 +96,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check for API key
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = await getSecret("OPENAI_API_KEY");
     if (!apiKey) {
       console.log("OPENAI_API_KEY not configured, using fallback");
       return NextResponse.json({ message: getRandomFallback() });

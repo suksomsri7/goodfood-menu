@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSecret } from "@/lib/secrets/store";
 import { 
   sendCoachingMessage, 
   shouldSendNotification, 
@@ -128,8 +129,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Step 5: Check environment
+    const hasOpenAiKey = !!(await getSecret("OPENAI_API_KEY"));
     results.environment = {
-      hasOpenAiKey: !!process.env.OPENAI_API_KEY,
+      hasOpenAiKey,
       hasLineToken: !!process.env.LINE_CHANNEL_ACCESS_TOKEN,
       hasLiffUrl: !!process.env.LIFF_URL,
       liffUrl: process.env.LIFF_URL || "https://liff.line.me/2009033721-Ou7cdCtC (fallback)",
@@ -156,7 +158,7 @@ export async function GET(request: NextRequest) {
     if (!process.env.LINE_CHANNEL_ACCESS_TOKEN) {
       issues.push("❌ LINE_CHANNEL_ACCESS_TOKEN ไม่ได้ตั้งค่า");
     }
-    if (!process.env.OPENAI_API_KEY) {
+    if (!hasOpenAiKey) {
       issues.push("⚠️ OPENAI_API_KEY ไม่ได้ตั้งค่า (จะใช้ fallback message)");
     }
     if (member.notificationsPausedUntil && member.notificationsPausedUntil > new Date()) {

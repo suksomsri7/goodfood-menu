@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { prisma } from "@/lib/prisma";
 import { checkUsageLimit, logAiUsage } from "@/lib/usage-limits";
+import { getSecret } from "@/lib/secrets/store";
 
 const BASE_SYSTEM_PROMPT = `คุณคือ "AI Coach" โค้ชโภชนาการส่วนตัวมืออาชีพ มีอาชีพเป็นนักโภชนาการ นักกำหนดอาหาร และเทรนเนอร์สุขภาพ
 
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Debug: Log API key status
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = await getSecret("OPENAI_API_KEY");
     console.log("=== Food Analysis API ===");
     console.log("API Key exists:", !!apiKey);
     console.log("API Key length:", apiKey?.length || 0);

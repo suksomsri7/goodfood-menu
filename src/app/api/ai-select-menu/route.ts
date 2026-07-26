@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { checkUsageLimit, logAiUsage } from "@/lib/usage-limits";
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+import { getSecret } from "@/lib/secrets/store";
 
 interface Food {
   id: string;
@@ -90,7 +87,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if OpenAI API key is configured
-    if (!process.env.OPENAI_API_KEY) {
+    const apiKey = await getSecret("OPENAI_API_KEY");
+    if (!apiKey) {
       // Return random selection without AI
       const shuffled = [...availableFoods].sort(() => Math.random() - 0.5);
       const selected = shuffled.slice(0, Math.min(itemsNeeded, availableFoods.length));
@@ -162,7 +160,8 @@ ${foodList}
     // Calculate appropriate max_tokens based on items needed
     // Each ID takes ~3-4 tokens, plus JSON structure and recommendation
     const estimatedTokens = Math.max(500, itemsNeeded * 5 + 200);
-    
+
+    const openai = new OpenAI({ apiKey });
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [

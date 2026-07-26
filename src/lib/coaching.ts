@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import OpenAI from "openai";
+import { getSecret } from "@/lib/secrets/store";
 import { pushMessage, createFlexMessage } from "@/lib/line";
 
 // AI Coach System Prompt
@@ -632,8 +633,8 @@ export async function generateCoachingMessage(
   type: CoachingType,
   context: MemberContext
 ): Promise<string> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  
+  const apiKey = await getSecret("OPENAI_API_KEY");
+
   if (!apiKey) {
     console.log("OPENAI_API_KEY not configured, using fallback");
     return getFallbackMessage(type, context);

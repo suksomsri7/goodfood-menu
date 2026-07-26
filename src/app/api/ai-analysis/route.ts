@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { prisma } from "@/lib/prisma";
 import { checkUsageLimit, logAiUsage } from "@/lib/usage-limits";
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+import { getSecret } from "@/lib/secrets/store";
 
 export async function POST(request: NextRequest) {
   try {
@@ -170,7 +167,8 @@ export async function POST(request: NextRequest) {
     };
 
     // Check if OpenAI API key is configured
-    if (!process.env.OPENAI_API_KEY) {
+    const apiKey = await getSecret("OPENAI_API_KEY");
+    if (!apiKey) {
       // Return mock analysis
       return NextResponse.json({
         success: true,
@@ -184,6 +182,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Call OpenAI for analysis
+    const openai = new OpenAI({ apiKey });
     const prompt = `คุณเป็นนักโภชนาการและผู้เชี่ยวชาญด้านสุขภาพ กรุณาวิเคราะห์ข้อมูลสุขภาพประจำวันต่อไปนี้:
 
 ข้อมูลส่วนตัว:

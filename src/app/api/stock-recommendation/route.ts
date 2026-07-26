@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+import { getSecret } from "@/lib/secrets/store";
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,7 +15,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if OpenAI API key is configured
-    if (!process.env.OPENAI_API_KEY) {
+    const apiKey = await getSecret("OPENAI_API_KEY");
+    if (!apiKey) {
       // Return a simple calculated recommendation
       const caloriesAfter = dailyNutrition.consumed.calories + selectedFood.calories;
       const remaining = dailyNutrition.target.calories - caloriesAfter;
@@ -77,6 +75,7 @@ ${statusMessage}
 
 ให้คำแนะนำเป็นภาษาไทย สั้นกระชับ เป็นกันเอง`;
 
+    const openai = new OpenAI({ apiKey });
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
