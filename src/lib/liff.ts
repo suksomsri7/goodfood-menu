@@ -21,10 +21,12 @@ let isInitialized = false;
 let currentLiffId = "";
 
 export function getLiffIdForPath(pathname: string): string {
+  // Pages without their own LIFF app fall back to the default one — a single
+  // LIFF endpoint serves every path, so an empty per-page ID must not stall init.
   if (pathname.includes("/cal")) return LIFF_IDS.cal;
-  if (pathname.includes("/goal")) return LIFF_IDS.goal;
-  if (pathname.includes("/menu")) return LIFF_IDS.menu;
-  if (pathname.includes("/orders")) return LIFF_IDS.orders;
+  if (pathname.includes("/goal")) return LIFF_IDS.goal || LIFF_IDS.cal;
+  if (pathname.includes("/menu")) return LIFF_IDS.menu || LIFF_IDS.cal;
+  if (pathname.includes("/orders")) return LIFF_IDS.orders || LIFF_IDS.cal;
   return LIFF_IDS.cal; // default
 }
 

@@ -41,6 +41,7 @@ export default function GoalPage() {
   const [showResetGoal, setShowResetGoal] = useState(false);
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
   const [showWeightModal, setShowWeightModal] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const lineUserId = profile?.userId;
 
@@ -60,6 +61,11 @@ export default function GoalPage() {
             setShowWelcomeBack(true);
           }
           return; // Success - exit retry loop
+        }
+        // New user - no member record yet: show onboarding instead of spinner
+        if (res.status === 404) {
+          setShowOnboarding(true);
+          return;
         }
       } catch (error) {
         if (attempt < 3) {
@@ -280,6 +286,18 @@ export default function GoalPage() {
     ? currentWeight - weekAgoWeight
     : 0;
 
+  // New user (no member record) - show full onboarding instead of spinner
+  if (showOnboarding && lineUserId) {
+    return (
+      <OnboardingModal
+        isOpen={true}
+        lineUserId={lineUserId}
+        displayName={profile?.displayName}
+        onComplete={() => window.location.reload()}
+      />
+    );
+  }
+
   // Loading state - show while LIFF initializing, data loading, waiting for login redirect, or member not loaded
   if (!isReady || isLoading || !lineUserId || !member) {
     return <LogoLoader />;
@@ -383,8 +401,8 @@ export default function GoalPage() {
               <p
                 className={`text-2xl font-semibold ${
                   weeklyWeightChange <= 0
-                    ? "text-rose-600"
-                    : "text-red-500"
+                    ? "text-emerald-600"
+                    : "text-emerald-500"
                 }`}
               >
                 {weeklyWeightChange > 0 ? "+" : ""}
@@ -414,7 +432,7 @@ export default function GoalPage() {
         <div className="flex gap-3">
           <button
             onClick={() => setShowWeightModal(true)}
-            className="flex-1 py-3.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-colors shadow-lg shadow-rose-500/30"
+            className="flex-1 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-colors shadow-lg shadow-emerald-500/30"
           >
             <Scale className="w-4 h-4" />
             อัพเดทน้ำหนัก
