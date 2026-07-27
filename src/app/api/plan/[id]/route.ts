@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAiCoach } from "@/lib/coaching";
+import { isAiCoachActive } from "@/lib/coaching";
+import { memberFromReq } from "@/lib/memberAuth";
 
 export const dynamic = "force-dynamic";
 
-// PATCH /api/plan/[id] { lineUserId, exerciseDone?, mealsDone? }
+// PATCH /api/plan/[id] { lineUserId?, exerciseDone?, mealsDone? }  (+ Bearer native)
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -12,13 +13,10 @@ export async function PATCH(
   try {
     const { id } = await params;
     const { lineUserId, exerciseDone, mealsDone } = await request.json();
-    if (!lineUserId) {
-      return NextResponse.json({ error: "lineUserId is required" }, { status: 400 });
-    }
 
-    const { member, active } = await requireAiCoach(lineUserId);
+    const member = await memberFromReq(request, lineUserId);
     if (!member) return NextResponse.json({ error: "Member not found" }, { status: 404 });
-    if (!active) {
+    if (!isAiCoachActive(member)) {
       return NextResponse.json({ error: "ฟีเจอร์นี้สำหรับสมาชิกคอร์ส", locked: true }, { status: 403 });
     }
 
