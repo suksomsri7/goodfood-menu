@@ -17,7 +17,7 @@ import { bkkDateKey } from "@/lib/planGenerator";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const member = await resolveMember(req, body.lineUserId);
+    const member = await resolveMember(req);
     if (!member) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
     const source: string = body.source || "healthkit";
@@ -46,12 +46,15 @@ export async function POST(req: NextRequest) {
     }
 
     for (const wt of body.weights || []) {
+      const w = Number(wt.weight);
+      if (!Number.isFinite(w) || w <= 0 || w > 500) continue; // F4: กัน NaN/ค่าเพี้ยน
       const date = wt.date ? new Date(wt.date) : new Date();
+      if (isNaN(date.getTime())) continue;
       const dup = await prisma.weightLog.findFirst({
-        where: { memberId: member.id, weight: Number(wt.weight), date: { gte: new Date(date.getTime() - 12 * 3600e3), lte: new Date(date.getTime() + 12 * 3600e3) } },
+        where: { memberId: member.id, weight: w, date: { gte: new Date(date.getTime() - 12 * 3600e3), lte: new Date(date.getTime() + 12 * 3600e3) } },
       });
       if (dup) continue;
-      await prisma.weightLog.create({ data: { memberId: member.id, weight: Number(wt.weight), date, note: "sync" } });
+      await prisma.weightLog.create({ data: { memberId: member.id, weight: w, date, note: "sync" } });
       counts.weights++;
     }
 

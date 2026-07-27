@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     const { message } = body;
     if (!message?.trim()) return NextResponse.json({ error: "message required" }, { status: 400 });
 
-    const member = await resolveMember(req, body.lineUserId);
+    const member = await resolveMember(req);
     if (!member) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     if (!coachActive(member)) {
       return NextResponse.json({

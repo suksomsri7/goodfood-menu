@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { buildOpenAI, aiModel } from "@/lib/aiClient";
 import { getSecret } from "@/lib/secrets/store";
 import { getAuthedMember } from "@/lib/coachAuth";
+import { coachActive } from "@/lib/coachResolve";
 
 /**
  * ถ่ายรูปปุ่มเดียว (ข้อ 2) — AI แยกเองว่าเป็น "จานอาหาร" หรือ "ฉลากโภชนาการ"
@@ -48,9 +49,11 @@ export async function POST(req: NextRequest) {
     const { image, description } = body;
     if (!image) return NextResponse.json({ error: "image required" }, { status: 400 });
 
-    // รองรับทั้ง JWT (native) และ lineUserId (LIFF เดิม)
+    // F2: ต้อง auth เสมอ (กันยิง AI ฟรีไม่ระบุตัวตน) + gate สิทธิ์โค้ช
     const authed = await getAuthedMember(req);
-    const lineUserId = authed?.lineUserId ?? body.lineUserId ?? undefined;
+    if (!authed) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    if (!coachActive(authed)) return NextResponse.json({ error: "locked" }, { status: 403 });
+    const lineUserId = authed.lineUserId ?? undefined;
 
     const kind = await classify(image);
     const base = process.env.APP_INTERNAL_BASE || "http://127.0.0.1:3000";
