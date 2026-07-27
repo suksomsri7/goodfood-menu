@@ -12,7 +12,7 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const { lineUserId, exerciseDone, mealsDone } = await request.json();
+    const { lineUserId, exerciseDone, mealsDone, exerciseItemsDone } = await request.json();
 
     const member = await memberFromReq(request, lineUserId);
     if (!member) return NextResponse.json({ error: "Member not found" }, { status: 404 });
@@ -27,7 +27,16 @@ export async function PATCH(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const nextExerciseDone = typeof exerciseDone === "boolean" ? exerciseDone : plan.exerciseDone;
+    // ติ๊กรายท่า (Coach native): merge แล้ว derive exerciseDone = ครบทุกท่า
+    const nextItemsDone =
+      exerciseItemsDone && typeof exerciseItemsDone === "object"
+        ? { ...(plan.exerciseItemsDone as Record<string, boolean> | null), ...exerciseItemsDone }
+        : (plan.exerciseItemsDone as Record<string, boolean> | null);
+    const exItems = (plan.exercisePlan as { items?: { name: string }[] } | null)?.items ?? [];
+    let nextExerciseDone = typeof exerciseDone === "boolean" ? exerciseDone : plan.exerciseDone;
+    if (exerciseItemsDone && exItems.length > 0) {
+      nextExerciseDone = exItems.every((it) => (nextItemsDone || {})[it.name]);
+    }
     const nextMealsDone =
       mealsDone && typeof mealsDone === "object"
         ? { ...(plan.mealsDone as Record<string, boolean> | null), ...mealsDone }
@@ -51,6 +60,7 @@ export async function PATCH(
       data: {
         exerciseDone: nextExerciseDone,
         mealsDone: nextMealsDone ?? undefined,
+        exerciseItemsDone: nextItemsDone ?? undefined,
         status,
       },
     });
@@ -61,6 +71,7 @@ export async function PATCH(
       status: updated.status,
       exerciseDone: updated.exerciseDone,
       mealsDone: updated.mealsDone,
+      exerciseItemsDone: updated.exerciseItemsDone,
     });
   } catch (error) {
     console.error("Error updating plan:", error);

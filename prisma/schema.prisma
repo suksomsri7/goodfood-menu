@@ -208,6 +208,7 @@ model DailyPlan {
   status       String   @default("planned") // planned | done | partial | skipped
   exerciseDone Boolean  @default(false)
   mealsDone    Json?    // {"เช้า":true,...}
+  exerciseItemsDone Json? // {"ชื่อท่า":true,...} ติ๊กรายท่า (Coach native)
   generatedAt  DateTime @default(now())
   weekBatchId  String?  // ผูกชุดที่ gen พร้อมกัน ใช้ตอน regenerate
   member       Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)

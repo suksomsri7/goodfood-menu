@@ -105,6 +105,20 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
+    // Coach native: รายการน้ำ (timeline) + การนอนของวันนี้ (ring นอน)
+    const [waterLogs, sleepLogs] = await Promise.all([
+      prisma.waterLog.findMany({
+        where: { memberId: member.id, date: { gte: startOfDay, lte: endOfDay } },
+        orderBy: { date: "asc" },
+        select: { id: true, amount: true, date: true },
+      }),
+      prisma.sleepLog.findMany({
+        where: { memberId: member.id, date: { gte: startOfDay, lte: endOfDay } },
+        select: { minutesAsleep: true },
+      }),
+    ]);
+    const sleepMinutes = sleepLogs.reduce((s, x) => s + x.minutesAsleep, 0);
+
     // Calculate totals
     const waterTotal = waterResult._sum.amount || 0;
     const exerciseBurned = exercisesResult.reduce((sum, ex) => sum + ex.calories, 0);
@@ -117,7 +131,9 @@ export async function GET(request: NextRequest) {
       meals,
       water: {
         total: waterTotal,
+        items: waterLogs,
       },
+      sleep: { minutes: sleepMinutes },
       exercises: {
         items: exercisesResult,
         totalBurned: exerciseBurned,
