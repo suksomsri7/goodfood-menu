@@ -1,22 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAiCoach } from "@/lib/coaching";
+import { isAiCoachActive } from "@/lib/coaching";
+import { memberFromReq } from "@/lib/memberAuth";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/plan?lineUserId=..&month=YYYY-MM  → แผนทั้งเดือน (BKK)
+// GET /api/plan?lineUserId=..&month=YYYY-MM  → แผนทั้งเดือน (BKK)  (+ Bearer สำหรับ native)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const lineUserId = searchParams.get("lineUserId");
     const month = searchParams.get("month"); // YYYY-MM
-    if (!lineUserId) {
-      return NextResponse.json({ error: "lineUserId is required" }, { status: 400 });
-    }
 
-    const { member, active } = await requireAiCoach(lineUserId);
+    const member = await memberFromReq(request, lineUserId);
     if (!member) return NextResponse.json({ error: "Member not found" }, { status: 404 });
-    if (!active) {
+    if (!isAiCoachActive(member)) {
       return NextResponse.json(
         { error: "ฟีเจอร์นี้สำหรับสมาชิกคอร์ส", locked: true },
         { status: 403 }

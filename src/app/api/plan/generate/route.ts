@@ -1,25 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAiCoach } from "@/lib/coaching";
+import { isAiCoachActive } from "@/lib/coaching";
+import { memberFromReq } from "@/lib/memberAuth";
 import { checkUsageLimit, logAiUsage } from "@/lib/usage-limits";
 import { generateWeekPlan, bkkTodayKey, addDays } from "@/lib/planGenerator";
 
 export const dynamic = "force-dynamic";
 
-// POST /api/plan/generate { lineUserId, start?: "today" | "nextWeek" }
+// POST /api/plan/generate { lineUserId?, start? }  (+ Bearer สำหรับ native)
 export async function POST(request: NextRequest) {
   try {
     const { lineUserId, start } = await request.json();
-    if (!lineUserId) {
-      return NextResponse.json({ error: "lineUserId is required" }, { status: 400 });
-    }
 
-    // gate สิทธิ์
-    const { member, active } = await requireAiCoach(lineUserId);
+    // gate สิทธิ์ (JWT native หรือ lineUserId LIFF)
+    const member = await memberFromReq(request, lineUserId);
     if (!member) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
-    if (!active) {
+    if (!isAiCoachActive(member)) {
       return NextResponse.json(
         { error: "ฟีเจอร์นี้สำหรับสมาชิกคอร์ส กรุณาติดต่อแอดมิน", locked: true },
         { status: 403 }
@@ -41,18 +39,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // เช็คโควตา AI (นับรวมกับ recommend)
-    const limit = await checkUsageLimit(lineUserId, "dailyAiRecommendLimit");
-    if (!limit.allowed) {
-      return NextResponse.json(
-        { error: limit.message, limitReached: true, limit: limit.limit, used: limit.used },
-        { status: 429 }
-      );
+    // เช็คโควตา AI (เฉพาะ LIFF ที่มี lineUserId — native gate ด้วย isAiCoachActive)
+    if (member.lineUserId) {
+      const limit = await checkUsageLimit(member.lineUserId, "dailyAiRecommendLimit");
+      if (!limit.allowed) {
+        return NextResponse.json(
+          { error: limit.message, limitReached: true, limit: limit.limit, used: limit.used },
+          { status: 429 }
+        );
+      }
     }
 
     const result = await generateWeekPlan(member.id, startKey);
-    if (!result.usedFallback) {
-      await logAiUsage(lineUserId, "dailyAiRecommendLimit");
+    if (!result.usedFallback && member.lineUserId) {
+      await logAiUsage(member.lineUserId, "dailyAiRecommendLimit");
     }
 
     return NextResponse.json({

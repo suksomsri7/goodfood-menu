@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { memberFromReq } from "@/lib/memberAuth";
 
 // Combined API endpoint to fetch all initial data for /cal page in ONE request
 // This reduces 4 API calls to 1, significantly improving initial load time
@@ -13,36 +14,8 @@ export async function GET(request: NextRequest) {
     const dateStr = searchParams.get("date"); // YYYY-MM-DD
     const tzOffset = parseInt(searchParams.get("tzOffset") || "0", 10);
 
-    if (!lineUserId) {
-      return NextResponse.json(
-        { error: "lineUserId is required" },
-        { status: 400 }
-      );
-    }
-
-    // Find member first
-    const member = await prisma.member.findUnique({
-      where: { lineUserId },
-      select: {
-        id: true,
-        lineUserId: true,
-        displayName: true,
-        pictureUrl: true,
-        dailyCalories: true,
-        dailyProtein: true,
-        dailyCarbs: true,
-        dailyFat: true,
-        dailySodium: true,
-        dailySugar: true,
-        dailyWater: true,
-        bmr: true,
-        tdee: true,
-        goalType: true,
-        weight: true,
-        goalWeight: true,
-        isActive: true,
-      },
-    });
+    // รองรับ JWT (native) หรือ lineUserId (LIFF)
+    const member = await memberFromReq(request, lineUserId);
 
     if (!member) {
       return NextResponse.json(

@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthedMember } from "@/lib/coachAuth";
 
-// POST - Complete onboarding
+// POST - Complete onboarding  (+ Bearer สำหรับ Coach native)
 export async function POST(request: NextRequest) {
   try {
+    const authed = await getAuthedMember(request);
     const body = await request.json();
     const {
       lineUserId,
@@ -28,9 +30,9 @@ export async function POST(request: NextRequest) {
       dailyWater,
     } = body;
 
-    if (!lineUserId) {
+    if (!authed && !lineUserId) {
       return NextResponse.json(
-        { error: "lineUserId is required" },
+        { error: "auth required (Bearer หรือ lineUserId)" },
         { status: 400 }
       );
     }
@@ -53,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     // Update or create member with all onboarding data
     const member = await prisma.member.upsert({
-      where: { lineUserId },
+      where: authed ? { id: authed.id } : { lineUserId },
       update: {
         name,
         email,

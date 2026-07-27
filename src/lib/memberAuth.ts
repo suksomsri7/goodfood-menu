@@ -1,0 +1,19 @@
+/**
+ * helper กลางสำหรับ endpoint ที่เดิมใช้ lineUserId (LIFF) แต่ต้องรองรับ Coach native (JWT) ด้วย
+ * - มี Bearer → ใช้ member จาก JWT (เช็ค isActive แล้ว)
+ * - ไม่มี → fallback lineUserId เดิม (LIFF ไม่กระทบ)
+ * quota (usage-limits) ผูกกับ lineUserId → native (lineUserId null) จะข้าม quota
+ * (สมาชิก native ถูก gate ด้วย isAiCoachActive อยู่แล้ว — quota รายฟีเจอร์เป็น follow-up WO-0.2)
+ */
+import { NextRequest } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getAuthedMember } from "@/lib/coachAuth";
+
+export async function memberFromReq(req: NextRequest, lineUserId?: string | null) {
+  const authed = await getAuthedMember(req);
+  if (authed) return authed;
+  if (lineUserId) {
+    return prisma.member.findUnique({ where: { lineUserId }, include: { memberType: true } });
+  }
+  return null;
+}
