@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { pushMessage } from "@/lib/line";
+import { sendPush, hasDevice } from "@/lib/push";
 import {
   gatherMemberContext,
   generateCoachingMessage,
@@ -80,7 +81,7 @@ export async function runMorningCoach(opts?: {
   const members = await prisma.member.findMany({
     where: {
       notifyMorningCoach: true,
-      lineUserId: { not: "" },
+      // รวมสมาชิก native (lineUserId = null) ด้วย — จะส่งผ่าน push แทน
       OR: [{ notificationsPausedUntil: null }, { notificationsPausedUntil: { lt: now } }],
       ...(opts?.onlyMemberId ? { id: opts.onlyMemberId } : {}),
     },
@@ -104,7 +105,12 @@ export async function runMorningCoach(opts?: {
     });
     if (already) { skipped++; details.push({ memberId: m.id, name: m.name, status: "already-sent" }); continue; }
 
-    if (remainingCap <= 0) { capped = true; details.push({ memberId: m.id, name: m.name, status: "cap-reached" }); break; }
+    // ช่องทางส่ง: มี device (ลงแอป) → push (ไม่กินโควตา LINE) · ไม่งั้น fallback LINE (นับ cap)
+    const viaApp = await hasDevice(m.id);
+    if (!viaApp) {
+      if (!m.lineUserId) { skipped++; details.push({ memberId: m.id, name: m.name, status: "no-channel" }); continue; }
+      if (remainingCap <= 0) { capped = true; details.push({ memberId: m.id, name: m.name, status: "cap-reached" }); continue; }
+    }
 
     const context = await gatherMemberContext(m.id);
     if (!context) { skipped++; details.push({ memberId: m.id, name: m.name, status: "no-context" }); continue; }
@@ -135,15 +141,22 @@ export async function runMorningCoach(opts?: {
     context.planAdjustNote = recentAdjust?.reason ?? null;
 
     const msg = await generateCoachingMessage("morning", context);
-    const flex = createMorningCoachFlex(msg, context);
-    const ok = m.lineUserId ? await pushMessage(m.lineUserId, [flex]) : false;
+    let ok = false;
+    if (viaApp) {
+      // ส่ง push เข้าแอป (ไม่กินโควตา LINE)
+      const n = await sendPush(m.id, { title: "โค้ชเช้า 🌅", body: msg, data: { screen: "plan" } });
+      ok = n > 0;
+    } else if (m.lineUserId) {
+      const flex = createMorningCoachFlex(msg, context);
+      ok = await pushMessage(m.lineUserId, [flex]);
+    }
     if (ok) {
       await prisma.coachDispatchLog.create({
         data: { memberId: m.id, date: todayKey, type: "morning" },
       });
       sent++;
-      remainingCap--;
-      details.push({ memberId: m.id, name: m.name, status: "sent" });
+      if (!viaApp) remainingCap--; // นับ cap เฉพาะ LINE
+      details.push({ memberId: m.id, name: m.name, status: viaApp ? "sent-push" : "sent-line" });
     } else {
       skipped++;
       details.push({ memberId: m.id, name: m.name, status: "push-failed" });

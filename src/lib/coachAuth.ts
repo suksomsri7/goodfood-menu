@@ -47,7 +47,7 @@ export async function signSession(memberId: string): Promise<{ accessToken: stri
 export async function verifySession(token: string, typ: "access" | "refresh" = "access"): Promise<string | null> {
   try {
     const key = await sessionKey();
-    const { payload } = await jwtVerify(token, key, { issuer: ISSUER });
+    const { payload } = await jwtVerify(token, key, { issuer: ISSUER, algorithms: ["HS256"] });
     if (payload.typ !== typ || !payload.sub) return null;
     return payload.sub as string;
   } catch {
@@ -55,75 +55,105 @@ export async function verifySession(token: string, typ: "access" | "refresh" = "
   }
 }
 
-/** ดึง member จาก Authorization: Bearer <accessToken> — null ถ้าไม่ผ่าน */
+/** ดึง member จาก Authorization: Bearer <accessToken> — null ถ้าไม่ผ่าน / บัญชีถูกปิด */
 export async function getAuthedMember(req: NextRequest) {
   const h = req.headers.get("authorization") || req.headers.get("Authorization");
   if (!h?.startsWith("Bearer ")) return null;
   const memberId = await verifySession(h.slice(7), "access");
   if (!memberId) return null;
-  return prisma.member.findUnique({ where: { id: memberId }, include: { memberType: true } });
+  const member = await prisma.member.findUnique({ where: { id: memberId }, include: { memberType: true } });
+  if (!member || member.isActive === false) return null;
+  return member;
 }
 
 // ── provider verification ──
 const appleJwks = createRemoteJWKSet(new URL("https://appleid.apple.com/auth/keys"));
 const googleJwks = createRemoteJWKSet(new URL("https://www.googleapis.com/oauth2/v3/certs"));
 
-async function allowedAudiences(secretKey: string): Promise<string[] | null> {
+/** fail-closed: ต้องตั้ง client id เสมอ ไม่งั้น throw (กัน token จากแอปอื่นในโลกยิงเข้ามา) */
+async function requiredAudiences(secretKey: string): Promise<string[]> {
   const raw = await getSecret(secretKey);
-  if (!raw) return null; // ไม่ตั้งค่า = ข้าม audience check (ต้องตั้งก่อน production)
-  return raw.split(",").map((s) => s.trim()).filter(Boolean);
+  const list = (raw || "").split(",").map((s) => s.trim()).filter(Boolean);
+  if (list.length === 0) {
+    throw new Error(`${secretKey} not configured — ตั้งค่าใน /backoffice/settings/api-keys ก่อนเปิดใช้ auth`);
+  }
+  return list;
 }
 
-export type VerifiedIdentity = { provider: "apple" | "google"; providerId: string; email?: string };
+export type VerifiedIdentity = { provider: "apple" | "google"; providerId: string; email?: string; emailVerified: boolean };
 
 export async function verifyAppleToken(identityToken: string): Promise<VerifiedIdentity> {
-  const aud = await allowedAudiences("APPLE_CLIENT_ID");
+  const aud = await requiredAudiences("APPLE_CLIENT_ID");
   const { payload } = await jwtVerify(identityToken, appleJwks, {
     issuer: "https://appleid.apple.com",
-    ...(aud ? { audience: aud } : {}),
+    audience: aud,
+    algorithms: ["RS256"],
   });
   if (!payload.sub) throw new Error("apple token missing sub");
-  return { provider: "apple", providerId: payload.sub, email: payload.email as string | undefined };
+  // Apple ส่ง email_verified เป็น boolean หรือ "true"
+  const ev = (payload as any).email_verified;
+  return {
+    provider: "apple",
+    providerId: payload.sub,
+    email: payload.email as string | undefined,
+    emailVerified: ev === true || ev === "true",
+  };
 }
 
 export async function verifyGoogleToken(idToken: string): Promise<VerifiedIdentity> {
-  const aud = await allowedAudiences("GOOGLE_CLIENT_ID");
+  const aud = await requiredAudiences("GOOGLE_CLIENT_ID");
   const { payload } = await jwtVerify(idToken, googleJwks, {
     issuer: ["https://accounts.google.com", "accounts.google.com"],
-    ...(aud ? { audience: aud } : {}),
+    audience: aud,
+    algorithms: ["RS256"],
   });
   if (!payload.sub) throw new Error("google token missing sub");
-  return { provider: "google", providerId: payload.sub, email: payload.email as string | undefined };
+  const ev = (payload as any).email_verified;
+  return {
+    provider: "google",
+    providerId: payload.sub,
+    email: payload.email as string | undefined,
+    emailVerified: ev === true || ev === "true",
+  };
 }
 
-/** ผูก identity → member (สร้างใหม่ถ้ายังไม่มี) แล้วออก session */
+/**
+ * ผูก identity → member แล้วออก session
+ * ปลอดภัย: ผูกด้วย (provider, providerId) ที่ provider ยืนยันเท่านั้น
+ * ไม่ auto-link ด้วย email (กัน account takeover — Member.email ในระบบเราไม่เคย verify)
+ * การรวมบัญชี LINE เดิมเข้ากับ Apple/Google = flow ยืนยันตัวตนแยกภายหลัง
+ */
 export async function loginWithIdentity(id: VerifiedIdentity, displayName?: string) {
-  const existing = await prisma.authIdentity.findUnique({
-    where: { provider_providerId: { provider: id.provider, providerId: id.providerId } },
-    include: { member: true },
-  });
+  const find = () =>
+    prisma.authIdentity.findUnique({
+      where: { provider_providerId: { provider: id.provider, providerId: id.providerId } },
+      include: { member: { include: { memberType: true } } },
+    });
 
-  let member = existing?.member;
-  if (!member) {
-    // ผูกกับ member เดิมที่ email ตรง (ถ้ามีและยังไม่มี identity provider นี้) มิฉะนั้นสร้างใหม่
-    const byEmail = id.email
-      ? await prisma.member.findFirst({ where: { email: id.email } })
-      : null;
-    member =
-      byEmail ||
-      (await prisma.member.create({
+  let existing = await find();
+  if (!existing) {
+    try {
+      const member = await prisma.member.create({
         data: {
           name: displayName || null,
-          email: id.email || null,
+          // เก็บ email ไว้อ้างอิงเท่านั้น (ไม่ใช้ match/ผูกบัญชี)
+          email: id.emailVerified ? id.email || null : null,
           isOnboarded: false,
           activityStatus: "inactive",
         },
-      }));
-    await prisma.authIdentity.create({
-      data: { memberId: member.id, provider: id.provider, providerId: id.providerId, email: id.email || null },
-    });
+      });
+      await prisma.authIdentity.create({
+        data: { memberId: member.id, provider: id.provider, providerId: id.providerId, email: id.email || null },
+      });
+      existing = await find();
+    } catch {
+      // race: อีก request สร้าง identity นี้ไปแล้ว → อ่านซ้ำ
+      existing = await find();
+    }
   }
+  if (!existing?.member) throw new Error("login failed");
 
+  const member = existing.member;
   const tokens = await signSession(member.id);
   return { member, tokens, isNew: !member.isOnboarded };
 }
