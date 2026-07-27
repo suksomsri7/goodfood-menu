@@ -136,7 +136,7 @@ export async function runMorningCoach(opts?: {
 
     const msg = await generateCoachingMessage("morning", context);
     const flex = createMorningCoachFlex(msg, context);
-    const ok = await pushMessage(m.lineUserId, [flex]);
+    const ok = m.lineUserId ? await pushMessage(m.lineUserId, [flex]) : false;
     if (ok) {
       await prisma.coachDispatchLog.create({
         data: { memberId: m.id, date: todayKey, type: "morning" },

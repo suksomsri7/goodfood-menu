@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Get usage limits
-      const limits = await getAllUsageLimits(member.lineUserId);
+      const limits = await getAllUsageLimits(member.lineUserId ?? "");
 
       // Get today's usage logs
       const now = new Date();

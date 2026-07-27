@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
             const message = await generateCoachingMessage("inactive", context);
             const flexMessage = createCoachingFlexMessage("inactive", message, context);
             
-            const success = await pushMessage(member.lineUserId, [flexMessage]);
+            const success = member.lineUserId ? await pushMessage(member.lineUserId, [flexMessage]) : false;
             testResult = {
               sent: success,
               message: success ? "ส่งข้อความทดสอบสำเร็จ" : "ส่งข้อความไม่สำเร็จ",

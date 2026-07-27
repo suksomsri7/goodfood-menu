@@ -9,7 +9,7 @@ datasource db {
 
 model Member {
   id               String            @id @default(cuid())
-  lineUserId       String            @unique
+  lineUserId       String?           @unique
   displayName      String?
   pictureUrl       String?
   name             String?
@@ -71,8 +71,130 @@ model Member {
   progressPhotos   ProgressPhoto[]
   waterLogs        WaterLog[]
   weightLogs       WeightLog[]
+  authIdentities   AuthIdentity[]
+  deviceTokens     DeviceToken[]
+  sleepLogs        SleepLog[]
+  dailyMetrics     DailyMetric[]
+  workoutSessions  WorkoutSession[]
+  coachMemories    CoachMemory[]
+  behaviorInsights BehaviorInsight[]
 
   @@map("members")
+}
+
+// ── Coach (native app) : Auth / identity ──
+model AuthIdentity {
+  id         String   @id @default(cuid())
+  memberId   String
+  provider   String   // "apple" | "google" | "line"
+  providerId String   // sub / userId
+  email      String?
+  createdAt  DateTime @default(now())
+  member     Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+  @@index([memberId])
+  @@map("auth_identities")
+}
+
+model DeviceToken {
+  id        String   @id @default(cuid())
+  memberId  String
+  platform  String   // "ios" | "android"
+  token     String   @unique // Expo push token / APNs / FCM
+  lastSeen  DateTime @default(now())
+  createdAt DateTime @default(now())
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId])
+  @@map("device_tokens")
+}
+
+// ── Coach : Health sync ──
+model SleepLog {
+  id            String   @id @default(cuid())
+  memberId      String
+  date          DateTime // BKK date key ของคืนที่ตื่น
+  minutesAsleep Int
+  quality       Float?
+  stages        Json?    // {deep,rem,light,awake} นาที
+  source        String   @default("healthkit")
+  sourceId      String?
+  createdAt     DateTime @default(now())
+  member        Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, date, source])
+  @@index([memberId, date])
+  @@map("sleep_logs")
+}
+
+model DailyMetric {
+  id         String   @id @default(cuid())
+  memberId   String
+  date       DateTime
+  steps      Int?
+  restingHR  Int?
+  activeKcal Int?
+  source     String   @default("healthkit")
+  createdAt  DateTime @default(now())
+  member     Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, date, source])
+  @@index([memberId, date])
+  @@map("daily_metrics")
+}
+
+// ── Coach : Live workout (realtime) ──
+model WorkoutSession {
+  id            String    @id @default(cuid())
+  memberId      String
+  startedAt     DateTime
+  endedAt       DateTime?
+  type          String    // run|walk|bike|strength|...
+  avgHR         Int?
+  maxHR         Int?
+  kcal          Int?
+  distanceM     Int?
+  nudges        Json?     // [{tAt, text, kind}]
+  exerciseLogId String?
+  createdAt     DateTime  @default(now())
+  member        Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, startedAt])
+  @@map("workout_sessions")
+}
+
+// ── Coach : Personalization (จำพฤติกรรมเฉพาะตัว user) ──
+model CoachMemory {
+  id         String   @id @default(cuid())
+  memberId   String
+  kind       String   // preference | pattern | constraint | goal_note | dislike | injury | schedule | context
+  fact       String
+  confidence Float    @default(0.6)
+  source     String   // "chat" | "log_pattern" | "onboarding" | "user_stated"
+  active     Boolean  @default(true)
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  member     Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, kind, active])
+  @@map("coach_memories")
+}
+
+model BehaviorInsight {
+  id         String   @id @default(cuid())
+  memberId   String
+  periodType String   // "weekly" | "monthly"
+  periodKey  String   // "2026-W30"
+  metric     String   // sodium_trend | protein_gap | sleep_avg | adherence | weight_trend
+  value      Json
+  createdAt  DateTime @default(now())
+  member     Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, periodType, periodKey, metric])
+  @@index([memberId])
+  @@map("behavior_insights")
 }
 
 // ── AI Coach: แผนรายวัน (ออกกำลังกาย + อาหาร) — เฟส 1 ──
@@ -151,6 +273,7 @@ model MealLog {
   sugar       Float?
   imageUrl    String?
   ingredients String?
+  via         String   @default("manual") // photo | barcode | voice | manual
   date        DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -194,6 +317,8 @@ model ExerciseLog {
   calories  Float
   intensity String?
   note      String?
+  source    String   @default("manual") // manual | healthkit | watch | ai_photo
+  sourceId  String?  // dedup กับ HealthKit/Watch
   date      DateTime @default(now())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
