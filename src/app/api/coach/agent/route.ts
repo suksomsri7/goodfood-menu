@@ -3,7 +3,6 @@ import { buildOpenAI, aiModel } from "@/lib/aiClient";
 import { getSecret } from "@/lib/secrets/store";
 import { prisma } from "@/lib/prisma";
 import { gatherMemberContext, COACH_SYSTEM_PROMPT } from "@/lib/coaching";
-import { memoriesAsText } from "@/lib/coachMemory";
 import { resolveMember, coachActive } from "@/lib/coachResolve";
 import { bkkTodayKey } from "@/lib/planGenerator";
 
@@ -56,22 +55,23 @@ export async function POST(req: NextRequest) {
     if (!apiKey) return NextResponse.json({ error: "AI not configured" }, { status: 503 });
 
     const todayKey = bkkTodayKey();
-    const [context, plan, memText, history] = await Promise.all([
+    const [context, plan, history] = await Promise.all([
       gatherMemberContext(member.id),
       prisma.dailyPlan.findUnique({ where: { memberId_date: { memberId: member.id, date: todayKey } } }),
-      memoriesAsText(member.id),
       // บทสนทนาเก่า 10 ข้อความ (เก็บ backend เงียบๆ — Siri style ไม่แสดงใน UI)
       prisma.coachChatLog.findMany({ where: { memberId: member.id }, orderBy: { createdAt: "desc" }, take: 10 }),
     ]);
+    // WO-P.3 — memory + insight มากับ context แล้ว (แยกออกจาก JSON กันซ้ำซ้อนใน prompt)
+    const { personalization, ...contextData } = context ?? { personalization: undefined };
     const historyMsgs = history.reverse().map((h) => ({
       role: (h.role === "assistant" ? "assistant" : "user") as "assistant" | "user",
       content: h.content,
     }));
 
     const contextBlob = [
-      `ข้อมูลผู้ใช้ (จริง): ${JSON.stringify(context)}`,
+      `ข้อมูลผู้ใช้ (จริง): ${JSON.stringify(contextData)}`,
       `แผนวันนี้: ${plan ? JSON.stringify({ exercise: plan.exercisePlan, meal: plan.mealPlan }) : "ยังไม่มีแผน"}`,
-      `สิ่งที่โค้ชจำเกี่ยวกับ user:\n${memText}`,
+      personalization?.text || "สิ่งที่โค้ชจำเกี่ยวกับ user: (ยังไม่มีข้อมูลเฉพาะตัว)",
     ].join("\n\n");
 
     const openai = buildOpenAI(apiKey);

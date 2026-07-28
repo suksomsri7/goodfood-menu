@@ -39,6 +39,8 @@ function buildContextText(
     const ep = plan.exercisePlan as { title?: string };
     lines.push(`แผนวันนี้: ออกกำลังกาย ${ep?.title || "-"}; อาหาร ~${mp?.totalKcal || 0} kcal (${(mp?.meals || []).map((m) => `${m.slot}:${m.menu}`).join(", ")})`);
   }
+  // WO-P.3 — memory + insight เฉพาะตัว
+  if (context.personalization?.text) lines.push("", context.personalization.text);
   return lines.join("\n");
 }
 

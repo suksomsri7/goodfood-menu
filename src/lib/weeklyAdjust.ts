@@ -131,6 +131,7 @@ export async function runWeeklyAdjust(opts?: {
       });
 
       // regenerate สัปดาห์หน้า (เริ่มพรุ่งนี้ ไม่แตะแผนวันนี้)
+      // WO-P.3: generateWeekPlan ดึง CoachMemory+BehaviorInsight เองแล้ว (personalization.ts)
       const start = addDays(bkkTodayKey(), 1);
       await prisma.dailyPlan.deleteMany({
         where: { memberId: m.id, date: { gte: start, lte: addDays(start, 6) } },

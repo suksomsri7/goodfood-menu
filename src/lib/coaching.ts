@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import { buildOpenAI, aiModel } from "@/lib/aiClient";
 import { getSecret } from "@/lib/secrets/store";
 import { pushMessage, createFlexMessage } from "@/lib/line";
+import { getPersonalizationSafe, type Personalization } from "@/lib/personalization";
 
 // AI Coach System Prompt
 export const COACH_SYSTEM_PROMPT = `คุณคือ "โค้ชกู๊ด" โค้ชโภชนาการส่วนตัวมืออาชีพจาก GoodFood
@@ -98,6 +99,8 @@ export interface MemberContext {
   warnings?: string[];
   // การปรับแผนอัตโนมัติล่าสุด (เฟส 5 → บอกในข้อความเช้า)
   planAdjustNote?: string | null;
+  // WO-P.3 (สาย P) — CoachMemory + BehaviorInsight ของ user (จุดเดียว ทุก AI path ใช้ร่วมกัน)
+  personalization: Personalization;
 }
 
 // Calculate expiry threshold using Thailand timezone
@@ -393,6 +396,9 @@ export async function gatherMemberContext(memberId: string): Promise<MemberConte
   // Calculate streak
   const streakDays = await calculateStreak(memberId);
 
+  // WO-P.3 — memory + insight เฉพาะตัว (จุดเดียวที่ป้อนเข้า context กลาง)
+  const personalization = await getPersonalizationSafe(memberId);
+
   // AI Coach status
   const courseDuration = member.memberType?.courseDuration || 0;
   const aiCoachStatus = getAiCoachStatus(member.aiCoachExpireDate, courseDuration);
@@ -442,6 +448,7 @@ export async function gatherMemberContext(memberId: string): Promise<MemberConte
       : null,
     streakDays,
     lastActiveAt: member.updatedAt,
+    personalization,
   };
 }
 
@@ -493,6 +500,9 @@ export function buildPrompt(type: CoachingType, context: MemberContext): string 
       ? `เหลือ ${context.aiCoach.daysRemaining} วัน` 
       : "หมดอายุ";
 
+  // WO-P.3 — ข้อมูลเฉพาะตัว (memory + insight) เข้าทุกข้อความโค้ช
+  const personalBlock = context.personalization?.text ? `\n${context.personalization.text}\n` : "";
+
   const baseInfo = `
 ข้อมูลลูกค้า:
 - ชื่อ: ${context.name}
@@ -507,7 +517,7 @@ export function buildPrompt(type: CoachingType, context: MemberContext): string 
 - โปรตีน: ${context.targets.protein}g
 - คาร์บ: ${context.targets.carbs}g
 - ไขมัน: ${context.targets.fat}g
-`;
+${personalBlock}`;
 
   switch (type) {
     case "morning":
