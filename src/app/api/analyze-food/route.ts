@@ -94,10 +94,8 @@ export async function POST(request: NextRequest) {
     
     console.log("API Key found, proceeding with OpenAI call...");
     
-    // Create OpenAI client with the API key
-    const openai = new OpenAI({
-      apiKey: apiKey,
-    });
+    // ต้องผ่าน buildOpenAI (รองรับ OpenRouter key sk-or-) — ห้าม new OpenAI() ตรง
+    const openai = buildOpenAI(apiKey);
 
     if (!image) {
       return NextResponse.json(
