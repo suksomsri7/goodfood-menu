@@ -56,11 +56,17 @@ export async function POST(req: NextRequest) {
     if (!apiKey) return NextResponse.json({ error: "AI not configured" }, { status: 503 });
 
     const todayKey = bkkTodayKey();
-    const [context, plan, memText] = await Promise.all([
+    const [context, plan, memText, history] = await Promise.all([
       gatherMemberContext(member.id),
       prisma.dailyPlan.findUnique({ where: { memberId_date: { memberId: member.id, date: todayKey } } }),
       memoriesAsText(member.id),
+      // บทสนทนาเก่า 10 ข้อความ (เก็บ backend เงียบๆ — Siri style ไม่แสดงใน UI)
+      prisma.coachChatLog.findMany({ where: { memberId: member.id }, orderBy: { createdAt: "desc" }, take: 10 }),
     ]);
+    const historyMsgs = history.reverse().map((h) => ({
+      role: (h.role === "assistant" ? "assistant" : "user") as "assistant" | "user",
+      content: h.content,
+    }));
 
     const contextBlob = [
       `ข้อมูลผู้ใช้ (จริง): ${JSON.stringify(context)}`,
@@ -74,6 +80,7 @@ export async function POST(req: NextRequest) {
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: `${AGENT_INSTRUCTION}\n\n${contextBlob}` },
+        ...historyMsgs,
         { role: "user", content: message },
       ],
       temperature: 0.5,
@@ -86,6 +93,14 @@ export async function POST(req: NextRequest) {
     } catch {
       parsed = { reply: "ขอโทษครับ ลองพูดอีกครั้งได้ไหมครับ", actions: [], memory: [] };
     }
+
+    // เก็บบทสนทนาลง backend (ไม่แสดงใน UI)
+    prisma.coachChatLog.createMany({
+      data: [
+        { memberId: member.id, role: "user", content: message },
+        ...(parsed.reply ? [{ memberId: member.id, role: "assistant", content: parsed.reply }] : []),
+      ],
+    }).catch(() => {});
 
     return NextResponse.json({
       reply: parsed.reply || "",

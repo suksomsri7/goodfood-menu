@@ -78,6 +78,7 @@ model Member {
   workoutSessions  WorkoutSession[]
   coachMemories    CoachMemory[]
   behaviorInsights BehaviorInsight[]
+  coachChatLogs    CoachChatLog[]
 
   @@map("members")
 }
@@ -180,6 +181,19 @@ model CoachMemory {
 
   @@index([memberId, kind, active])
   @@map("coach_memories")
+}
+
+// ── Coach : บทสนทนาเสียง (เก็บ backend ไม่แสดงใน UI — Siri style) ──
+model CoachChatLog {
+  id        String   @id @default(cuid())
+  memberId  String
+  role      String   // "user" | "assistant"
+  content   String
+  createdAt DateTime @default(now())
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, createdAt])
+  @@map("coach_chat_logs")
 }
 
 model BehaviorInsight {
