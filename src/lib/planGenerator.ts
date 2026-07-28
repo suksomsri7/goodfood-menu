@@ -148,18 +148,64 @@ const AVOID_LEXICON = [
   "วิ่ง", "กระโดด", "สควอท", "แพลงก์", "ลันจ์", "ยกน้ำหนัก", "เวท", "ว่ายน้ำ", "จักรยาน", "ซิทอัพ", "วิดพื้น",
 ];
 
-/** ดึงคำต้องห้ามจากข้อความ memory (ภาษาไทยไม่มีเว้นวรรค → เทียบกับ lexicon) + คำที่ AI ระบุเอง */
-export function deriveAvoidKeywords(avoidFacts: string[], aiKeywords: string[] = []): string[] {
+// ข้อจำกัดแบบ "หมวด" — พูดคำเดียวแต่ห้ามของหลายอย่าง (เทียบ keyword ตรง ๆ จับไม่ได้)
+const CATEGORY_RULES: Array<{ match: string[]; add: string[] }> = [
+  {
+    match: ["มังสวิรัติ", "ไม่กินเนื้อสัตว์", "ไม่ทานเนื้อสัตว์", "วีแกน", "vegan", "vegetarian", "กินเจ", "อาหารเจ"],
+    add: ["หมู", "ไก่", "เนื้อ", "ปลา", "กุ้ง", "ปู", "หอย", "ทูน่า", "ตับ", "เบคอน", "ไส้กรอก", "แฮม", "ลูกชิ้น", "น้ำปลา"],
+  },
+  { match: ["วีแกน", "vegan", "กินเจ", "อาหารเจ"], add: ["นม", "ชีส", "เนย", "โยเกิร์ต", "ไข่"] },
+  { match: ["แพ้นม", "แลคโตส", "lactose"], add: ["นม", "ชีส", "เนย", "โยเกิร์ต", "ครีม"] },
+  { match: ["กลูเตน", "gluten", "แพ้แป้งสาลี"], add: ["แป้งสาลี", "ขนมปัง", "บะหมี่", "พาสต้า", "ซีอิ๊ว"] },
+  { match: ["ฮาลาล", "halal", "ไม่กินหมู", "มุสลิม"], add: ["หมู", "เบคอน", "แฮม", "ไส้กรอก", "แอลกอฮอล์"] },
+];
+
+/**
+ * ไทยไม่มีเว้นวรรค → คำสั้นติดกลางคำอื่นได้ (เจอจริง: "กิ[นม]ังสวิรัติ" ทำให้ห้าม "นม")
+ * คำกลุ่มนี้ต้องเจอเป็นวลีที่มีบริบทเท่านั้น
+ */
+const TERM_PHRASES: Record<string, string[]> = {
+  นม: ["แพ้นม", "ไม่กินนม", "ไม่ดื่มนม", "งดนม", "เลี่ยงนม", "นมวัว", "แลคโตส", "lactose"],
+  ปู: ["แพ้ปู", "ไม่กินปู", "งดปู", "เนื้อปู", "ปูม้า", "ปูทะเล"],
+};
+
+/** คำที่ตามด้วยตัวอักษรนี้แล้วกลายเป็นคนละความหมาย (ปลา→ปลายเท้า, เวท→เวทนา) */
+const TERM_NEGATIVE_NEXT: Record<string, string[]> = {
+  ปลา: ["ย"],
+  เวท: ["นา"],
+};
+
+function termInText(blob: string, term: string): boolean {
+  const phrases = TERM_PHRASES[term];
+  if (phrases) return phrases.some((p) => blob.includes(p));
+
+  const neg = TERM_NEGATIVE_NEXT[term];
+  if (!neg) return blob.includes(term);
+
+  for (let i = blob.indexOf(term); i >= 0; i = blob.indexOf(term, i + 1)) {
+    const rest = blob.slice(i + term.length);
+    if (!neg.some((n) => rest.startsWith(n))) return true;
+  }
+  return false;
+}
+
+/**
+ * ดึงคำต้องห้ามจากข้อความ memory — ภาษาไทยไม่มีเว้นวรรค จึงใช้ lexicon + กฎหมวด
+ * (เคยลองให้ AI คืน forbiddenKeywords เอง แต่ได้ทั้งคำที่จับไม่ได้ ("เนื้อสัตว์" ไม่ตรงกับ "หมูสับ")
+ *  และ false positive (สั่งห้าม "นม" ทั้งที่มังสวิรัติดื่มนมได้) → ใช้กฎ deterministic ล้วน)
+ */
+export function deriveAvoidKeywords(avoidFacts: string[]): string[] {
   const blob = avoidFacts.join(" ");
   const hits = new Set<string>();
-  for (const term of AVOID_LEXICON) if (blob.includes(term)) hits.add(term);
-  for (const k of aiKeywords) {
-    const t = String(k || "").trim();
-    if (t.length >= 2) hits.add(t);
+  for (const term of AVOID_LEXICON) if (termInText(blob, term)) hits.add(term);
+  for (const rule of CATEGORY_RULES) {
+    if (rule.match.some((m) => blob.toLowerCase().includes(m.toLowerCase())))
+      rule.add.forEach((t) => hits.add(t));
   }
-  // ตัดคำที่เป็นส่วนย่อยของคำอื่นที่เจอแล้ว (เจอ "อาหารทะเล" แล้วไม่ต้องแบน "ปลา" ทั้งหมด)
+  // เก็บคำกว้างไว้ ตัดคำที่แคบกว่าออก (เจอทั้ง "เนื้อ" และ "เนื้อวัว" → เก็บ "เนื้อ" ครอบคลุมกว่า)
+  // ฝั่งความปลอดภัยของคนแพ้อาหาร: กรองเกินดีกว่ากรองไม่พอ
   const all = [...hits];
-  return all.filter((t) => !all.some((o) => o !== t && o.includes(t)));
+  return all.filter((t) => !all.some((o) => o !== t && t.includes(o)));
 }
 
 function hitKeyword(text: string | undefined, kws: string[]): string | null {
@@ -215,13 +261,17 @@ export function enforceAvoid(days: DayPlan[], kws: string[]): { days: DayPlan[];
 }
 
 // ── validate + clamp แผน 1 วันจาก AI ──
-function sanitizeDay(raw: unknown, pm: PlanMember, dayIndex: number): DayPlan {
+// คืนเหตุผลด้วย เพื่อให้ generateWeekPlan ขอ AI ซ่อมเฉพาะวันที่ตก แทนทิ้งทั้งวันไปใช้เมนู hardcode
+type DayResult = { day: DayPlan; fellBack: boolean; reason?: "lowKcal" | "invalid"; totalKcal?: number };
+
+function sanitizeDay(raw: unknown, pm: PlanMember, dayIndex: number): DayResult {
   try {
     const r = raw as Record<string, unknown>;
     const ep = (r.exercisePlan ?? {}) as Record<string, unknown>;
     const mp = (r.mealPlan ?? {}) as Record<string, unknown>;
     const rawMeals = Array.isArray(mp.meals) ? (mp.meals as Record<string, unknown>[]) : [];
-    if (rawMeals.length === 0) return fallbackDay(pm, dayIndex);
+    if (rawMeals.length === 0)
+      return { day: fallbackDay(pm, dayIndex), fellBack: true, reason: "invalid" };
 
     const meals: MealPlanItem[] = rawMeals.map((m) => ({
       slot: String(m.slot ?? "มื้อ"),
@@ -234,11 +284,11 @@ function sanitizeDay(raw: unknown, pm: PlanMember, dayIndex: number): DayPlan {
       sodium: m.sodium != null ? Math.max(0, Math.round(Number(m.sodium))) : undefined,
       sugar: m.sugar != null ? Math.max(0, Math.round(Number(m.sugar))) : undefined,
     }));
-    let totalKcal = meals.reduce((s, m) => s + m.kcal, 0);
+    const totalKcal = meals.reduce((s, m) => s + m.kcal, 0);
 
-    // กติกาความปลอดภัย: แคลอรี่รวมต้อง ≥ BMR — ถ้าต่ำกว่า ใช้แผนสำรองแทนทั้งวัน
+    // กติกาความปลอดภัย: แคลอรี่รวมต้อง ≥ BMR — ต่ำกว่านี้ส่งกลับไปให้ AI ซ่อม (ดู repairLowDays)
     if (totalKcal < pm.bmr) {
-      return fallbackDay(pm, dayIndex);
+      return { day: fallbackDay(pm, dayIndex), fellBack: true, reason: "lowKcal", totalKcal };
     }
 
     const items = Array.isArray(ep.items) ? (ep.items as Record<string, unknown>[]) : [];
@@ -258,12 +308,16 @@ function sanitizeDay(raw: unknown, pm: PlanMember, dayIndex: number): DayPlan {
     };
 
     return {
-      exercisePlan,
-      mealPlan: { meals, totalKcal },
-      aiNote: r.aiNote ? String(r.aiNote) : undefined,
+      day: {
+        exercisePlan,
+        mealPlan: { meals, totalKcal },
+        aiNote: r.aiNote ? String(r.aiNote) : undefined,
+      },
+      fellBack: false,
+      totalKcal,
     };
   } catch {
-    return fallbackDay(pm, dayIndex);
+    return { day: fallbackDay(pm, dayIndex), fellBack: true, reason: "invalid" };
   }
 }
 
@@ -279,15 +333,119 @@ function buildWeekPrompt(pm: PlanMember, personal: Personalization): string {
 เป้าต่อวัน: แคลอรี่ ${pm.targetKcal} kcal, โปรตีน ${pm.protein}g, คาร์บ ${pm.carbs}g, ไขมัน ${pm.fat}g, โซเดียม ≤${pm.sodium}mg, น้ำตาล ≤${pm.sugar}g
 ${personalBlock}
 กติกาสำคัญ:
-- แคลอรี่รวมของแต่ละวันต้องไม่ต่ำกว่า ${pm.bmr} kcal (ค่า BMR) เด็ดขาด${avoidRule}
+- ผลรวม kcal ของ 4 มื้อในแต่ละวันต้องได้ ${pm.targetKcal} kcal (±10%) และห้ามต่ำกว่า ${pm.bmr} kcal (BMR) เด็ดขาด — บวกเลข kcal ของทุกมื้อตรวจก่อนตอบทุกวัน${avoidRule}
 - ใช้ข้อมูลเฉพาะตัวข้างต้น (ถ้ามี) ปรับเมนู/ท่า/ตารางให้เข้ากับชีวิตจริงของสมาชิก ห้ามแต่งข้อมูลที่ไม่ได้ให้มา
 - เมนูเป็นอาหารไทยหาซื้อได้ทั่วไปหรือทำเองง่าย ไม่ระบุชื่อร้าน
 - ท่าออกกำลังกายระดับเริ่มต้น-กลาง ไม่ต้องใช้อุปกรณ์ยิม (ยกเว้นระดับกิจกรรมสูงเพิ่มเวทได้) มีวันพัก 1 วัน
 - แต่ละวันมี 4 มื้อ: เช้า/กลางวัน/เย็น/ว่าง
+- เขียนสั้นเพื่อให้ตอบครบ 7 วัน: aiNote ไม่เกิน 60 ตัวอักษร · ingredients ไม่เกิน 60 ตัวอักษร
 
 ตอบเป็น JSON เท่านั้น รูปแบบ:
-{"forbiddenKeywords":["คำ/วัตถุดิบ/ท่า ที่ห้ามปรากฏในแผนตามข้อห้ามของสมาชิก"],"days":[{"exercisePlan":{"title":"...","durationMin":30,"items":[{"name":"...","sets":3,"reps":12,"minutes":20,"note":"..."}],"caloriesTarget":200},"mealPlan":{"meals":[{"slot":"เช้า","menu":"...","ingredients":"...","kcal":400,"protein":25,"carbs":45,"fat":12,"sodium":500,"sugar":6}],"totalKcal":1600},"aiNote":"เหตุผล/คำแนะนำสั้น ๆ"}]}
-ต้องมี days ครบ 7 รายการ · forbiddenKeywords ว่าง [] ได้ถ้าไม่มีข้อห้าม`;
+{"days":[{"exercisePlan":{"title":"...","durationMin":30,"items":[{"name":"...","sets":3,"reps":12,"minutes":20,"note":"..."}],"caloriesTarget":200},"mealPlan":{"meals":[{"slot":"เช้า","menu":"...","ingredients":"...","kcal":400,"protein":25,"carbs":45,"fat":12,"sodium":500,"sugar":6}],"totalKcal":1600},"aiNote":"เหตุผล/คำแนะนำสั้น ๆ"}]}
+ต้องมี days ครบ 7 รายการ`;
+}
+
+/**
+ * กู้ JSON ที่ถูกตัดกลางคัน (max_tokens หมด) — ดึงเฉพาะ object ของวันที่ปิดวงเล็บครบ
+ * ต้นตอที่เจอจริง: คำตอบ 7 วันยาวเกิน max_tokens → JSON.parse พัง → ทั้งสัปดาห์กลายเป็นแผนสำรอง
+ */
+export function salvageDays(content: string): unknown[] {
+  const keyAt = content.indexOf('"days"');
+  const arrStart = keyAt >= 0 ? content.indexOf("[", keyAt) : -1;
+  if (arrStart < 0) return [];
+
+  const out: unknown[] = [];
+  let depth = 0;
+  let objStart = -1;
+  let inStr = false;
+  let esc = false;
+
+  for (let i = arrStart + 1; i < content.length; i++) {
+    const ch = content[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === "\\") esc = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') inStr = true;
+    else if (ch === "{") {
+      if (depth === 0) objStart = i;
+      depth++;
+    } else if (ch === "}") {
+      depth--;
+      if (depth === 0 && objStart >= 0) {
+        try {
+          out.push(JSON.parse(content.slice(objStart, i + 1)));
+        } catch {
+          /* วันนี้กู้ไม่ได้ ข้ามไป */
+        }
+        objStart = -1;
+      }
+    } else if (ch === "]" && depth === 0) break;
+  }
+  return out;
+}
+
+/**
+ * รอบซ่อม: วันที่ AI ให้แคลอรี่ต่ำกว่า BMR จะถูกส่งกลับไปให้ AI เพิ่มปริมาณ/มื้อ
+ * (เดิมทิ้งทั้งวันไปใช้ fallbackDay ซึ่งเป็นเมนู hardcode → ของจริงกลายเป็นแผนสำรองเกือบทุกวัน
+ *  และแผนสำรองก็ไม่รู้จักข้อมูลเฉพาะตัวของ user เลย)
+ */
+async function repairLowDays(
+  openai: ReturnType<typeof buildOpenAI>,
+  model: string,
+  pm: PlanMember,
+  personal: Personalization,
+  low: Array<{ index: number; raw: unknown; totalKcal: number }>
+): Promise<Map<number, DayPlan>> {
+  const fixed = new Map<number, DayPlan>();
+  const avoidRule = personal.avoid.length
+    ? `\nข้อห้ามของสมาชิกที่ต้องคงไว้: ${personal.avoid.join(" · ")}`
+    : "";
+
+  const prompt = `แผนรายวันด้านล่างมีแคลอรี่รวมต่ำเกินไป (ต่ำกว่า BMR ${pm.bmr} kcal) ให้แก้เฉพาะวันเหล่านี้
+เป้าต่อวัน: ${pm.targetKcal} kcal (±10%), โปรตีน ${pm.protein}g, คาร์บ ${pm.carbs}g, ไขมัน ${pm.fat}g, โซเดียม ≤${pm.sodium}mg, น้ำตาล ≤${pm.sugar}g
+
+วิธีแก้: เพิ่มปริมาณอาหารในมื้อเดิม หรือเพิ่ม/ปรับเมนูให้ได้พลังงานตามเป้า — ห้ามแค่แก้ตัวเลขโดยไม่ปรับเมนู
+- ผลรวม kcal ของทุกมื้อในวันนั้นต้อง ≥ ${pm.bmr} และใกล้ ${pm.targetKcal} kcal (บวกเลขตรวจก่อนตอบ)
+- คงรูปแบบอาหารไทยหาซื้อง่าย และคงแผนออกกำลังกายเดิมของวันนั้นไว้${avoidRule}
+
+วันที่ต้องแก้ (kcal ที่ได้ตอนนี้ในวงเล็บ):
+${low.map((d) => `[วันที่ ${d.index + 1}] (รวม ${d.totalKcal} kcal)\n${JSON.stringify(d.raw)}`).join("\n\n")}
+
+ตอบเป็น JSON เท่านั้น: {"days":[{"dayNumber":1,"exercisePlan":{...},"mealPlan":{"meals":[...],"totalKcal":0},"aiNote":"..."}]}
+ต้องมีครบทุกวันที่ระบุ`;
+
+  const resp = await openai.chat.completions.create({
+    model,
+    messages: [
+      { role: "system", content: "คุณเป็นนักโภชนาการ ตอบเป็น JSON ภาษาไทยเท่านั้น" },
+      { role: "user", content: prompt },
+    ],
+    response_format: { type: "json_object" },
+    max_tokens: 4000,
+    temperature: 0.5,
+  });
+
+  const content = resp.choices[0]?.message?.content ?? "{}";
+  let rawDays: unknown[] = [];
+  try {
+    const parsed = JSON.parse(content) as { days?: unknown[] };
+    rawDays = Array.isArray(parsed.days) ? parsed.days : [];
+  } catch {
+    rawDays = salvageDays(content); // คำตอบถูกตัด → กู้เท่าที่ครบ
+  }
+
+  for (const raw of rawDays) {
+    const r = raw as Record<string, unknown>;
+    const dayNumber = Number(r.dayNumber);
+    const index = Number.isFinite(dayNumber) ? dayNumber - 1 : NaN;
+    if (!low.some((d) => d.index === index)) continue;
+    const res = sanitizeDay(raw, pm, index);
+    if (!res.fellBack) fixed.set(index, res.day); // ยังต่ำอยู่ → คงแผนสำรองไว้ (กติกาความปลอดภัยเดิม)
+  }
+  return fixed;
 }
 
 export interface GenerateResult {
@@ -311,7 +469,6 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
 
   // WO-P.3 — memory/insight ของ user (จุดเดียวกับที่โค้ชใช้) · ใช้ทั้งใน prompt และด่านกันข้อห้าม
   const personal = await getPersonalizationSafe(memberId);
-  let aiKeywords: string[] = [];
 
   const apiKey = await getSecret("OPENAI_API_KEY");
   if (apiKey) {
@@ -324,17 +481,41 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
           { role: "user", content: buildWeekPrompt(pm, personal) },
         ],
         response_format: { type: "json_object" },
-        max_tokens: 3500,
+        max_tokens: 8000,
         temperature: 0.7,
       });
       const content = resp.choices[0]?.message?.content ?? "";
-      const parsed = JSON.parse(content) as { days?: unknown[]; forbiddenKeywords?: unknown };
-      if (Array.isArray(parsed.forbiddenKeywords))
-        aiKeywords = parsed.forbiddenKeywords.map((k) => String(k));
-      const rawDays = Array.isArray(parsed.days) ? parsed.days : [];
-      days = Array.from({ length: 7 }, (_, i) =>
-        i < rawDays.length ? sanitizeDay(rawDays[i], pm, i) : fallbackDay(pm, i)
+      let rawDays: unknown[] = [];
+      try {
+        const parsed = JSON.parse(content) as { days?: unknown[] };
+        rawDays = Array.isArray(parsed.days) ? parsed.days : [];
+      } catch {
+        // คำตอบถูกตัดกลางคัน → กู้วันที่ครบ แล้วให้วันที่เหลือเข้ารอบซ่อม/แผนสำรอง
+        rawDays = salvageDays(content);
+        console.warn(`[planGenerator] JSON ถูกตัด — กู้ได้ ${rawDays.length}/7 วัน member=${memberId}`);
+      }
+      const results: DayResult[] = Array.from({ length: 7 }, (_, i) =>
+        i < rawDays.length
+          ? sanitizeDay(rawDays[i], pm, i)
+          : { day: fallbackDay(pm, i), fellBack: true, reason: "invalid" }
       );
+      days = results.map((r) => r.day);
+
+      // รอบซ่อม: เฉพาะวันที่ AI ให้แคลอรี่ต่ำกว่า BMR (1 call, เฉพาะเมื่อจำเป็น)
+      const low = results
+        .map((r, i) => ({ index: i, raw: rawDays[i], totalKcal: r.totalKcal ?? 0, r }))
+        .filter((x) => x.r.reason === "lowKcal" && x.raw != null);
+      if (low.length) {
+        try {
+          const fixed = await repairLowDays(openai, aiModel(apiKey, "gpt-4o-mini"), pm, personal, low);
+          for (const [i, day] of fixed) days[i] = day;
+          console.log(
+            `[planGenerator] ซ่อมวันแคลอรี่ต่ำ ${fixed.size}/${low.length} วัน member=${memberId}`
+          );
+        } catch (e) {
+          console.error("[planGenerator] repairLowDays failed (คงแผนสำรองไว้):", e);
+        }
+      }
     } catch (e) {
       console.error("[planGenerator] AI failed, using fallback:", e);
       usedFallback = true;
@@ -346,7 +527,7 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
   }
 
   // WO-P.3 — ด่านสุดท้าย: แผนต้องไม่ขัดข้อห้าม (ครอบทั้งแผน AI และแผนสำรอง)
-  const avoidKeywords = deriveAvoidKeywords(personal.avoid, aiKeywords);
+  const avoidKeywords = deriveAvoidKeywords(personal.avoid);
   const enforced = enforceAvoid(days, avoidKeywords);
   if (enforced.fixed > 0) {
     console.log(`[planGenerator] enforceAvoid แก้ ${enforced.fixed} จุด (${avoidKeywords.join(",")}) member=${memberId}`);
