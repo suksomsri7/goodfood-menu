@@ -105,8 +105,8 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    // Coach native: รายการน้ำ (timeline) + การนอนของวันนี้ (ring นอน)
-    const [waterLogs, sleepLogs] = await Promise.all([
+    // Coach native: รายการน้ำ (timeline) + การนอน + activeKcal/ก้าว จาก HealthKit
+    const [waterLogs, sleepLogs, dayMetrics] = await Promise.all([
       prisma.waterLog.findMany({
         where: { memberId: member.id, date: { gte: startOfDay, lte: endOfDay } },
         orderBy: { date: "asc" },
@@ -116,8 +116,14 @@ export async function GET(request: NextRequest) {
         where: { memberId: member.id, date: { gte: startOfDay, lte: endOfDay } },
         select: { minutesAsleep: true },
       }),
+      prisma.dailyMetric.findMany({
+        where: { memberId: member.id, date: { gte: startOfDay, lte: endOfDay } },
+        select: { activeKcal: true, steps: true },
+      }),
     ]);
     const sleepMinutes = sleepLogs.reduce((s, x) => s + x.minutesAsleep, 0);
+    const activeKcal = dayMetrics.reduce((s, x) => s + (x.activeKcal || 0), 0);
+    const daySteps = dayMetrics.reduce((s, x) => s + (x.steps || 0), 0);
 
     // Calculate totals
     const waterTotal = waterResult._sum.amount || 0;
@@ -134,6 +140,7 @@ export async function GET(request: NextRequest) {
         items: waterLogs,
       },
       sleep: { minutes: sleepMinutes },
+      metrics: { activeKcal, steps: daySteps },
       exercises: {
         items: exercisesResult,
         totalBurned: exerciseBurned,

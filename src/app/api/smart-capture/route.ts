@@ -70,12 +70,20 @@ export async function POST(req: NextRequest) {
     });
     const json = await res.json();
 
+    // กันค่าตัวอย่างสำรองของ endpoint เดิม (AI ล้ม → mock 300 kcal) — บอกตรงๆ ให้ถ่ายใหม่
+    const name = json.data?.name || "";
+    if (!json.success || !json.data || /ไม่สามารถวิเคราะห์|ตัวอย่าง|Mock/i.test(name)) {
+      return NextResponse.json(
+        { error: "วิเคราะห์ไม่สำเร็จ ลองถ่ายใหม่ให้เห็นอาหาร/ฉลากชัดขึ้นครับ" },
+        { status: 422 }
+      );
+    }
+
     return NextResponse.json({
       kind,
       routedTo: target,
-      success: json.success ?? false,
-      data: json.data ?? null,
-      error: json.error,
+      success: true,
+      data: json.data,
     });
   } catch (e: any) {
     console.error("[smart-capture]", e);
