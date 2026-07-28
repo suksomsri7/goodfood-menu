@@ -12,7 +12,8 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const { lineUserId, exerciseDone, mealsDone, exerciseItemsDone } = await request.json();
+    const { lineUserId, exerciseDone, mealsDone, exerciseItemsDone, logAt } = await request.json();
+    const logDate = logAt ? new Date(logAt) : new Date();
 
     const member = await memberFromReq(request, lineUserId);
     if (!member) return NextResponse.json({ error: "Member not found" }, { status: 404 });
@@ -54,6 +55,49 @@ export async function PATCH(
     if (nextExerciseDone && allMealsDone) status = "done";
     else if (nextExerciseDone || doneMeals > 0) status = "partial";
     else status = "planned";
+
+    // ── ติ๊ก = บันทึกจริงลง timeline (สร้าง/ลบ log ตาม transition) ──
+    const mp = plan.mealPlan as { meals?: { slot: string; menu: string; kcal: number; protein: number; carbs: number; fat: number; sodium?: number; sugar?: number }[] } | null;
+    if (mealsDone && typeof mealsDone === "object" && mp?.meals) {
+      const prev = (plan.mealsDone as Record<string, boolean> | null) || {};
+      for (const [slot, val] of Object.entries(mealsDone as Record<string, boolean>)) {
+        const meal = mp.meals.find((m) => m.slot === slot);
+        if (!meal) continue;
+        if (val && !prev[slot]) {
+          await prisma.mealLog.create({
+            data: {
+              memberId: member.id, name: meal.menu,
+              calories: meal.kcal || 0, protein: meal.protein || 0, carbs: meal.carbs || 0, fat: meal.fat || 0,
+              sodium: meal.sodium ?? null, sugar: meal.sugar ?? null,
+              via: "plan", date: logDate,
+            },
+          });
+        } else if (!val && prev[slot]) {
+          const last = await prisma.mealLog.findFirst({
+            where: { memberId: member.id, via: "plan", name: meal.menu },
+            orderBy: { createdAt: "desc" },
+          });
+          if (last) await prisma.mealLog.delete({ where: { id: last.id } });
+        }
+      }
+    }
+    const ep = plan.exercisePlan as { title?: string; durationMin?: number; caloriesTarget?: number } | null;
+    if (nextExerciseDone !== plan.exerciseDone && ep?.title) {
+      if (nextExerciseDone) {
+        await prisma.exerciseLog.create({
+          data: {
+            memberId: member.id, name: ep.title, duration: ep.durationMin || 0,
+            calories: ep.caloriesTarget || 0, source: "plan", date: logDate,
+          },
+        });
+      } else {
+        const last = await prisma.exerciseLog.findFirst({
+          where: { memberId: member.id, source: "plan", name: ep.title },
+          orderBy: { createdAt: "desc" },
+        });
+        if (last) await prisma.exerciseLog.delete({ where: { id: last.id } });
+      }
+    }
 
     const updated = await prisma.dailyPlan.update({
       where: { id },

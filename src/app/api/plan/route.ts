@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
         status: p.status,
         exerciseDone: p.exerciseDone,
         mealsDone: p.mealsDone,
+        exerciseItemsDone: p.exerciseItemsDone,
         exercisePlan: p.exercisePlan,
         mealPlan: p.mealPlan,
         aiNote: p.aiNote,
