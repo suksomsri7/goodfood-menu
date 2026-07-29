@@ -9,6 +9,36 @@ import { bkkDateKey, bkkTodayKey } from "@/lib/planGenerator";
  * POST { actions:[{tool,args}], acceptMemory?:[{kind,fact}], lineUserId? } (+ Bearer)
  *  → { done:[...], memorySaved }
  */
+
+const BKK_OFFSET_MS = 7 * 3600 * 1000;
+
+/**
+ * เวลาที่ user บอกมาเอง ("ตอน 10 โมงครึ่งดื่มน้ำ 1 ลิตร") → Date จริง
+ * AI ส่ง time="HH:MM" (+ date="YYYY-MM-DD" ถ้าไม่ใช่วันนี้) ตามเวลาไทย
+ * ไม่ระบุ/รูปแบบผิด/เกิน 14 วัน/อนาคตเกิน 1 ชม. → คืน undefined = ใช้เวลาปัจจุบัน
+ */
+function resolveLogTime(g: any): Date | undefined {
+  const time = typeof g?.time === "string" ? g.time.trim() : "";
+  if (!/^\d{1,2}:\d{2}$/.test(time)) return undefined;
+  const [hh, mm] = time.split(":").map(Number);
+  if (hh > 23 || mm > 59) return undefined;
+
+  const nowBkk = new Date(Date.now() + BKK_OFFSET_MS);
+  const dateStr =
+    typeof g?.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(g.date)
+      ? g.date
+      : nowBkk.toISOString().slice(0, 10);
+
+  // เวลาไทยที่ระบุ → UTC (ลบ 7 ชม.)
+  const utc = new Date(`${dateStr}T${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00.000Z`);
+  if (isNaN(utc.getTime())) return undefined;
+  const when = new Date(utc.getTime() - BKK_OFFSET_MS);
+
+  const ageMs = Date.now() - when.getTime();
+  if (ageMs < -3600_000 || ageMs > 14 * 24 * 3600_000) return undefined; // อนาคต/เก่าเกินไป = ไม่เชื่อ
+  return when;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -23,6 +53,7 @@ export async function POST(req: NextRequest) {
 
     for (const a of actions) {
       const g = a.args || {};
+      const at = resolveLogTime(g); // เวลาที่ user บอกเอง (ถ้ามี)
       if (a.tool === "log_meal") {
         await prisma.mealLog.create({
           data: {
@@ -37,11 +68,14 @@ export async function POST(req: NextRequest) {
             sugar: g.sugar != null ? num(g.sugar, 1000) : null,
             ingredients: g.ingredients ?? null,
             via: g.via || "voice",
+            ...(at ? { date: at } : {}),
           },
         });
         done.push("log_meal");
       } else if (a.tool === "log_water") {
-        await prisma.waterLog.create({ data: { memberId: member.id, amount: num(g.amount, 5000) } });
+        await prisma.waterLog.create({
+          data: { memberId: member.id, amount: num(g.amount, 5000), ...(at ? { date: at } : {}) },
+        });
         done.push("log_water");
       } else if (a.tool === "log_exercise") {
         await prisma.exerciseLog.create({
@@ -53,6 +87,7 @@ export async function POST(req: NextRequest) {
             calories: num(g.calories, 6000),
             intensity: g.intensity ?? null,
             source: "manual",
+            ...(at ? { date: at } : {}),
           },
         });
         done.push("log_exercise");
@@ -87,7 +122,9 @@ export async function POST(req: NextRequest) {
       } else if (a.tool === "log_weight") {
         const w = Number(g.weight);
         if (Number.isFinite(w) && w > 0 && w <= 500) {
-          await prisma.weightLog.create({ data: { memberId: member.id, weight: w, note: "voice" } });
+          await prisma.weightLog.create({
+            data: { memberId: member.id, weight: w, note: "voice", ...(at ? { date: at } : {}) },
+          });
           done.push("log_weight");
         }
       }
