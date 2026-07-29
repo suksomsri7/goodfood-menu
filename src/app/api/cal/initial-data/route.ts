@@ -105,8 +105,8 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    // Coach native: รายการน้ำ (timeline) + การนอน + activeKcal/ก้าว จาก HealthKit
-    const [waterLogs, sleepLogs, dayMetrics] = await Promise.all([
+    // Coach native: รายการน้ำ (timeline) + การนอน + activeKcal/ก้าว จาก HealthKit + badge แจ้งเตือน
+    const [waterLogs, sleepLogs, dayMetrics, unreadNotifications] = await Promise.all([
       prisma.waterLog.findMany({
         where: { memberId: member.id, date: { gte: startOfDay, lte: endOfDay } },
         orderBy: { date: "asc" },
@@ -120,6 +120,7 @@ export async function GET(request: NextRequest) {
         where: { memberId: member.id, date: { gte: startOfDay, lte: endOfDay } },
         select: { activeKcal: true, steps: true },
       }),
+      prisma.coachNotification.count({ where: { memberId: member.id, readAt: null } }),
     ]);
     const sleepMinutes = sleepLogs.reduce((s, x) => s + x.minutesAsleep, 0);
     const activeKcal = dayMetrics.reduce((s, x) => s + (x.activeKcal || 0), 0);
@@ -141,6 +142,8 @@ export async function GET(request: NextRequest) {
       },
       sleep: { minutes: sleepMinutes },
       metrics: { activeKcal, steps: daySteps },
+      // badge ศูนย์แจ้งเตือน (แอปเรียก endpoint นี้ทุกครั้งที่เปิด/เปลี่ยนวันอยู่แล้ว)
+      notifications: { unread: unreadNotifications },
       exercises: {
         items: exercisesResult,
         totalBurned: exerciseBurned,

@@ -93,7 +93,7 @@ export async function runNudges(now = new Date()) {
     }
     if (!picked) { details.push({ memberId: m.id, status: "nothing" }); continue; }
 
-    const n = await sendPush(m.id, { title: picked.title, body: picked.body, data: { screen: "today", nudge: picked.type } });
+    const n = await sendPush(m.id, { title: picked.title, body: picked.body, data: { screen: "today", nudge: picked.type } }, "nudge");
     if (n > 0) {
       await prisma.coachDispatchLog.create({ data: { memberId: m.id, date: todayKey, type: picked.type } });
       sent++;

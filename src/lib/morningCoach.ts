@@ -144,7 +144,7 @@ export async function runMorningCoach(opts?: {
     let ok = false;
     if (viaApp) {
       // ส่ง push เข้าแอป (ไม่กินโควตา LINE)
-      const n = await sendPush(m.id, { title: "โค้ชเช้า 🌅", body: msg, data: { screen: "plan" } });
+      const n = await sendPush(m.id, { title: "โค้ชเช้า 🌅", body: msg, data: { screen: "plan" } }, "morning");
       ok = n > 0;
     } else if (m.lineUserId) {
       const flex = createMorningCoachFlex(msg, context);

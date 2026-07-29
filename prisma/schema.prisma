@@ -79,6 +79,7 @@ model Member {
   coachMemories    CoachMemory[]
   behaviorInsights BehaviorInsight[]
   coachChatLogs    CoachChatLog[]
+  coachNotifications CoachNotification[]
 
   @@map("members")
 }
@@ -194,6 +195,22 @@ model CoachChatLog {
 
   @@index([memberId, createdAt])
   @@map("coach_chat_logs")
+}
+
+// ── Coach : ศูนย์แจ้งเตือนในแอป (mirror push ทุกใบ — user ปัดซ้าย/กด × เพื่อลบ) ──
+model CoachNotification {
+  id        String    @id @default(cuid())
+  memberId  String
+  type      String    @default("system") // morning | nudge | insight | plan_adjust | system
+  title     String
+  body      String
+  data      Json? // { screen, nudge, ... } สำหรับกดแล้วพาไปหน้าที่เกี่ยวข้อง
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  member    Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, createdAt])
+  @@map("coach_notifications")
 }
 
 model BehaviorInsight {

@@ -9,8 +9,31 @@ const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 
 export type PushPayload = { title: string; body: string; data?: Record<string, unknown> };
 
-/** ส่ง push ไปทุก device ของ member — คืนจำนวนที่ส่งสำเร็จ */
-export async function sendPush(memberId: string, payload: PushPayload): Promise<number> {
+/**
+ * ทุก push ต้องโผล่ในศูนย์แจ้งเตือนของแอปด้วย (เหมือน Notification Center ของ iPhone)
+ * เขียนที่จุดเดียวตรงนี้ → เพิ่ม push ที่ไหนใหม่ก็ได้ในแอปอัตโนมัติ
+ * เก็บแม้ส่ง push ไม่สำเร็จ/ยังไม่มี device — user เปิดแอปแล้วต้องเห็นย้อนหลัง
+ */
+async function recordNotification(memberId: string, payload: PushPayload, type: string) {
+  try {
+    await prisma.coachNotification.create({
+      data: {
+        memberId,
+        type,
+        title: payload.title,
+        body: payload.body,
+        data: (payload.data as object) ?? undefined,
+      },
+    });
+  } catch (e) {
+    console.error("[push] บันทึกศูนย์แจ้งเตือนไม่สำเร็จ", e);
+  }
+}
+
+/** ส่ง push ไปทุก device ของ member + บันทึกลงศูนย์แจ้งเตือน — คืนจำนวนที่ส่งสำเร็จ */
+export async function sendPush(memberId: string, payload: PushPayload, type = "system"): Promise<number> {
+  await recordNotification(memberId, payload, type);
+
   const tokens = await prisma.deviceToken.findMany({ where: { memberId } });
   if (tokens.length === 0) return 0;
 
