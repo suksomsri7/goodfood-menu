@@ -155,11 +155,9 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Add cache headers - cache for 30 seconds, stale-while-revalidate for 60 seconds
-    response.headers.set(
-      "Cache-Control",
-      "private, max-age=30, stale-while-revalidate=60"
-    );
+    // ห้ามแคช: เป็นข้อมูลสดรายบุคคล — เคยตั้ง max-age=30 แล้วเจอบั๊ก
+    // ติ๊กแผนเสร็จ → โหลดใหม่ได้ค่าเก่าจากแคชของเครื่อง (แหวน/ไทม์ไลน์ไม่ขยับจนกว่าจะปิดเปิดแอป)
+    response.headers.set("Cache-Control", "no-store, must-revalidate");
 
     return response;
   } catch (error) {
