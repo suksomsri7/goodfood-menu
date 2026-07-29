@@ -45,7 +45,8 @@ const AGENT_INSTRUCTION = `คุณคือ "โค้ช" ผู้ช่ว�
     {"tool":"log_water","args":{"amount":0},"humanLabel":"💧 ... ml"},
     {"tool":"log_exercise","args":{"name":"...","duration":0,"calories":0,"intensity":"low|medium|high"},"humanLabel":"🏃 ..."},
     {"tool":"log_sleep","args":{"minutes":0,"date":"YYYY-MM-DD"},"humanLabel":"😴 นอน x ชม. y นาที"},
-    {"tool":"log_weight","args":{"weight":0},"humanLabel":"⚖️ xx.x กก."}
+    {"tool":"log_weight","args":{"weight":0},"humanLabel":"⚖️ xx.x กก."},
+    {"tool":"set_equipment","args":{"equipment":"none|home|gym"},"humanLabel":"🏋️ อุปกรณ์: ..."}
   ],
   "memory": [ {"kind":"preference|dislike|constraint|injury|schedule|pattern","fact":"..."} ]
 }
@@ -55,7 +56,9 @@ const AGENT_INSTRUCTION = `คุณคือ "โค้ช" ผู้ช่ว�
 - การนอน: คิดนาทีรวมจากเวลาเข้านอน→ตื่น ข้ามเที่ยงคืนให้ถูก (เช่น "นอน 3 ทุ่ม ตื่น 7 โมง" = 600 นาที)
   · **ห้ามเดาวันที่** — ตัด field date ออกไปเลยถ้า user ไม่ได้ระบุวันชัดเจน (ระบบจะลงเป็นวันนี้ให้เอง)
   · ใส่ date เฉพาะเมื่อ user บอกวันตรง ๆ เท่านั้น โดยยึด "วันนี้" ที่ระบุในข้อมูลด้านล่าง
-- ประมาณแคลอรี่/มาโครอาหารไทยจากความรู้จริง อย่าใส่ 0 ถ้าเดาได้`;
+- ประมาณแคลอรี่/มาโครอาหารไทยจากความรู้จริง อย่าใส่ 0 ถ้าเดาได้
+- set_equipment: ใช้เมื่อ user บอกว่ามีอุปกรณ์อะไร/ออกกำลังกายที่ไหน (none=ตัวเปล่า · home=ดัมเบล/ยางยืด · gym=ฟิตเนส)
+  มีผลกับท่าในแผนรอบถัดไป · ถ้า user ถามว่าทำไมได้ท่านี้ ให้บอกได้ว่าอิงอุปกรณ์ที่มี + เป้าหมาย + ข้อจำกัดที่โค้ชจำไว้`;
 
 export async function POST(req: NextRequest) {
   try {

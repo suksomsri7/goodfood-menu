@@ -77,6 +77,13 @@ export async function POST(req: NextRequest) {
             done.push("log_sleep");
           }
         }
+      } else if (a.tool === "set_equipment") {
+        // user บอกด้วยเสียงว่ามีอุปกรณ์อะไร → มีผลกับท่าในแผนรอบถัดไป
+        const eq = String(g.equipment || "");
+        if (["none", "home", "gym"].includes(eq)) {
+          await prisma.member.update({ where: { id: member.id }, data: { equipment: eq } });
+          done.push("set_equipment");
+        }
       } else if (a.tool === "log_weight") {
         const w = Number(g.weight);
         if (Number.isFinite(w) && w > 0 && w <= 500) {

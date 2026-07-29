@@ -2,9 +2,14 @@ import { prisma } from "@/lib/prisma";
 import { buildOpenAI, aiModel } from "@/lib/aiClient";
 import { getSecret } from "@/lib/secrets/store";
 import { getPersonalizationSafe, type Personalization } from "@/lib/personalization";
+import {
+  catalogFor, catalogPromptList, matchExercise, defaultExercise,
+  type CatalogExercise, type EquipmentTier,
+} from "@/lib/exerciseCatalog";
 
 // ── โครงข้อมูลแผนรายวัน ──
 export interface ExercisePlanItem {
+  key?: string; // key ในคลังท่า (exerciseCatalog) — ใช้ผูกสื่อสาธิต + คุมชื่อให้คงที่
   name: string;
   sets?: number;
   reps?: number;
@@ -67,6 +72,7 @@ interface PlanMember {
   activityLevel: string;
   dietType: string;
   goalType: string;
+  equipment: EquipmentTier;
 }
 
 async function loadPlanMember(memberId: string): Promise<PlanMember | null> {
@@ -87,6 +93,8 @@ async function loadPlanMember(memberId: string): Promise<PlanMember | null> {
     activityLevel: m.activityLevel ?? "moderate",
     dietType: m.dietType ?? "ทั่วไป",
     goalType: m.goalType ?? "ลดน้ำหนัก",
+    // ไม่เคยถาม = ถือว่าไม่มีอุปกรณ์ (ปลอดภัยสุด) — user บอกโค้ชด้วยเสียงเพื่ออัปเดตได้
+    equipment: (["none", "home", "gym"].includes(m.equipment || "") ? m.equipment : "none") as EquipmentTier,
   };
 }
 
@@ -112,20 +120,26 @@ function fallbackDay(pm: PlanMember, dayIndex: number): DayPlan {
   const totalKcal = meals.reduce((s, m) => s + m.kcal, 0);
   const isHigh = pm.activityLevel === "active" || pm.activityLevel === "very_active";
   const restDay = dayIndex % 7 === 6; // วันที่ 7 = พัก
+  const pool = catalogFor(pm.equipment);
+  const pick = (key: string, kind: "cardio" | "strength" | "mobility") =>
+    pool.find((e) => e.key === key) || defaultExercise(pool, kind);
+  const asItem = (e: CatalogExercise, extra: Partial<ExercisePlanItem>): ExercisePlanItem => ({
+    key: e.key, name: e.name, note: e.cue, ...extra,
+  });
   const exercisePlan: ExercisePlan = restDay
     ? {
         title: "วันพักฟื้น",
         durationMin: 20,
-        items: [{ name: "ยืดเหยียดกล้ามเนื้อเบา ๆ", minutes: 20, note: "ผ่อนคลาย ฟื้นฟูร่างกาย" }],
+        items: [asItem(pick("stretch_full", "mobility"), { minutes: 20 })],
         caloriesTarget: 80,
       }
     : {
         title: isHigh ? "คาร์ดิโอ + เวทเทรนนิ่ง" : "คาร์ดิโอเบา + บอดี้เวท",
         durationMin: 30,
         items: [
-          { name: "เดินเร็ว/วิ่งเหยาะ", minutes: 20, note: "โซนเบา-ปานกลาง" },
-          { name: "สควอท", sets: 3, reps: 12 },
-          { name: "แพลงก์", sets: 3, minutes: 1 },
+          asItem(pick("walk_fast", "cardio"), { minutes: 20 }),
+          asItem(pick("squat_bw", "strength"), { sets: 3, reps: 12 }),
+          asItem(pick("plank", "strength"), { sets: 3, minutes: 1 }),
         ],
         caloriesTarget: isHigh ? 300 : 180,
       };
@@ -222,7 +236,96 @@ const SAFE_MENUS: Record<string, string[]> = {
   ว่าง: ["ผลไม้สด", "ผักแท่งจิ้มน้ำสลัดใส", "ธัญพืชอบไม่ใส่น้ำตาล"],
 };
 
-const SAFE_EXERCISE = "เดินเร็วบนพื้นราบ";
+const SAFE_EXERCISE = "เดินเร็ว"; // = catalog key walk_fast
+
+/**
+ * บังคับให้ทุกท่าในแผนเป็นท่าจากคลัง (ชื่อคงที่ + มี key ผูกสื่อสาธิต + อยู่ในอุปกรณ์ที่ user มี)
+ * AI ชอบแต่งชื่อเอง ("โปรแกรมวันจันทร์", "เดินเร็ว/วิ่งเหยาะ") → จับคู่กลับเข้าคลัง
+ */
+export function snapExercises(days: DayPlan[], pool: CatalogExercise[]): { days: DayPlan[]; snapped: number } {
+  let snapped = 0;
+  const out = days.map((d) => {
+    const seen = new Set<string>();
+    const items: ExercisePlanItem[] = [];
+    for (const it of d.exercisePlan.items) {
+      const hit = matchExercise(it.name || "", pool);
+      const e = hit || defaultExercise(pool, it.minutes && !it.sets ? "cardio" : "strength");
+      if (!hit || e.name !== it.name) snapped++;
+      if (seen.has(e.key)) continue; // กันท่าซ้ำหลังจับคู่
+      seen.add(e.key);
+      items.push({
+        key: e.key,
+        name: e.name,
+        sets: it.sets,
+        reps: e.unit === "reps" ? it.reps ?? 12 : undefined,
+        minutes: e.unit === "minutes" ? it.minutes ?? 20 : it.minutes,
+        note: it.note || e.cue,
+      });
+    }
+    if (!items.length) {
+      const e = defaultExercise(pool, "cardio");
+      items.push({ key: e.key, name: e.name, minutes: 20, note: e.cue });
+    }
+    return { ...d, exercisePlan: { ...d.exercisePlan, items } };
+  });
+  return { days: out, snapped };
+}
+
+/**
+ * prompt อย่างเดียวไม่พอ: AI ชอบให้ท่าเดียวต่อวัน และไม่ยอมใช้อุปกรณ์ที่ user มี
+ * (คนมีฟิตเนสครบได้แต่ท่าตัวเปล่า) → บังคับที่ปลายทาง
+ */
+export function ensureVariety(
+  days: DayPlan[],
+  pool: CatalogExercise[],
+  tier: EquipmentTier,
+  minItems = 3
+): { days: DayPlan[]; added: number } {
+  let added = 0;
+  const byKey = new Map(pool.map((e) => [e.key, e]));
+
+  const out = days.map((d) => {
+    const items = [...d.exercisePlan.items];
+    const isRest = /พัก|ฟื้นฟู/.test(d.exercisePlan.title || "") ||
+      items.every((it) => byKey.get(it.key || "")?.kind === "mobility");
+    if (isRest) return d;
+
+    const used = new Set(items.map((it) => it.key || ""));
+    const push = (e: CatalogExercise) => {
+      used.add(e.key);
+      added++;
+      items.push(
+        e.unit === "reps"
+          ? { key: e.key, name: e.name, sets: 3, reps: 12, note: e.cue }
+          : { key: e.key, name: e.name, minutes: 15, note: e.cue }
+      );
+    };
+
+    // 1) มีอุปกรณ์แต่ไม่ได้ใช้เลย → เติมท่าที่ใช้อุปกรณ์
+    if (tier !== "none") {
+      const usesGear = items.some((it) => (byKey.get(it.key || "")?.equipment ?? "none") !== "none");
+      if (!usesGear) {
+        const gear = pool.filter((e) => e.equipment !== "none" && e.kind === "strength" && !used.has(e.key));
+        if (gear.length) push(gear[(added + items.length) % gear.length]);
+      }
+    }
+
+    // 2) ท่าน้อยเกินไป → เติมให้ครบ (คาร์ดิโอ 1 + กำลังที่เหลือ)
+    let guard = 0;
+    while (items.length < minItems && guard++ < 6) {
+      const needCardio = !items.some((it) => byKey.get(it.key || "")?.kind === "cardio");
+      const cand = pool.filter(
+        (e) => !used.has(e.key) && e.kind === (needCardio ? "cardio" : "strength")
+      );
+      if (!cand.length) break;
+      push(cand[(items.length + guard) % cand.length]);
+    }
+
+    return { ...d, exercisePlan: { ...d.exercisePlan, items } };
+  });
+
+  return { days: out, added };
+}
 
 /** กรองแผนทั้งสัปดาห์ให้ไม่ขัดข้อห้าม — คืนจำนวนจุดที่แก้ */
 export function enforceAvoid(days: DayPlan[], kws: string[]): { days: DayPlan[]; fixed: number } {
@@ -242,7 +345,7 @@ export function enforceAvoid(days: DayPlan[], kws: string[]): { days: DayPlan[];
       const hit = hitKeyword(it.name, kws) || hitKeyword(it.note, kws);
       if (!hit) return it;
       fixed++;
-      return { name: SAFE_EXERCISE, minutes: it.minutes ?? 20, note: `โค้ชปรับให้เข้ากับข้อจำกัดของคุณ (เลี่ยงท่า "${hit}")` };
+      return { key: "walk_fast", name: SAFE_EXERCISE, minutes: it.minutes ?? 20, note: `โค้ชปรับให้เข้ากับข้อจำกัดของคุณ (เลี่ยงท่า "${hit}")` };
     });
     // กันซ้ำ: ถ้าโดนแทนหลายท่าจนเหลือท่าเดียวกันหมด ให้เหลือรายการเดียว
     const dedup = items.filter(
@@ -321,7 +424,7 @@ function sanitizeDay(raw: unknown, pm: PlanMember, dayIndex: number): DayResult 
   }
 }
 
-function buildWeekPrompt(pm: PlanMember, personal: Personalization): string {
+function buildWeekPrompt(pm: PlanMember, personal: Personalization, pool: CatalogExercise[]): string {
   // WO-P.3 — memory + insight เฉพาะตัวเข้าแผนทุกครั้ง (รวมถึงตอน weeklyAdjust regenerate)
   const personalBlock = personal.text ? `\n${personal.text}\n` : "";
   const avoidRule = personal.avoid.length
@@ -330,13 +433,19 @@ function buildWeekPrompt(pm: PlanMember, personal: Personalization): string {
 
   return `คุณเป็นนักโภชนาการและเทรนเนอร์คนไทย ออกแบบแผน 7 วันสำหรับสมาชิก
 เป้าหมาย: ${pm.goalType} · รูปแบบอาหาร: ${pm.dietType} · ระดับกิจกรรม: ${pm.activityLevel}
+อุปกรณ์ที่สมาชิกมี: ${{ none: "ไม่มีอุปกรณ์ (ตัวเปล่า)", home: "ดัมเบล/ยางยืดที่บ้าน", gym: "ฟิตเนสครบ" }[pm.equipment]}
 เป้าต่อวัน: แคลอรี่ ${pm.targetKcal} kcal, โปรตีน ${pm.protein}g, คาร์บ ${pm.carbs}g, ไขมัน ${pm.fat}g, โซเดียม ≤${pm.sodium}mg, น้ำตาล ≤${pm.sugar}g
 ${personalBlock}
 กติกาสำคัญ:
 - ผลรวม kcal ของ 4 มื้อในแต่ละวันต้องได้ ${pm.targetKcal} kcal (±10%) และห้ามต่ำกว่า ${pm.bmr} kcal (BMR) เด็ดขาด — บวกเลข kcal ของทุกมื้อตรวจก่อนตอบทุกวัน${avoidRule}
 - ใช้ข้อมูลเฉพาะตัวข้างต้น (ถ้ามี) ปรับเมนู/ท่า/ตารางให้เข้ากับชีวิตจริงของสมาชิก ห้ามแต่งข้อมูลที่ไม่ได้ให้มา
 - เมนูเป็นอาหารไทยหาซื้อได้ทั่วไปหรือทำเองง่าย ไม่ระบุชื่อร้าน
-- ท่าออกกำลังกายระดับเริ่มต้น-กลาง ไม่ต้องใช้อุปกรณ์ยิม (ยกเว้นระดับกิจกรรมสูงเพิ่มเวทได้) มีวันพัก 1 วัน
+- **ท่าออกกำลังกายต้องเลือกจากรายการนี้เท่านั้น และเขียนชื่อให้ตรงเป๊ะ** (เลือกให้เข้ากับเป้าหมาย/ระดับกิจกรรม สลับกลุ่มกล้ามเนื้อ มีวันพัก 1 วัน):
+${catalogPromptList(pool)}
+- ท่าที่นับเป็นครั้งให้ใส่ sets+reps · ท่าที่นับเป็นเวลาให้ใส่ minutes
+- วันที่ไม่ใช่วันพัก ให้มี 3-5 ท่า ผสมคาร์ดิโอ + กำลัง และสลับกลุ่มกล้ามเนื้อในแต่ละวัน
+- **ใช้อุปกรณ์ที่สมาชิกมีให้คุ้ม**: มีดัมเบล/ยางยืด → อย่างน้อย 2 ท่าต่อวันเป็นท่าที่ใช้อุปกรณ์ ·
+  มีฟิตเนสครบ → อย่างน้อย 2 ท่าต่อวันเป็นท่าเครื่อง/บาร์เบล (คนที่ไม่มีอุปกรณ์ใช้ท่าตัวเปล่าล้วน)
 - แต่ละวันมี 4 มื้อ: เช้า/กลางวัน/เย็น/ว่าง
 - เขียนสั้นเพื่อให้ตอบครบ 7 วัน: aiNote ไม่เกิน 60 ตัวอักษร · ingredients ไม่เกิน 60 ตัวอักษร
 
@@ -469,6 +578,7 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
 
   // WO-P.3 — memory/insight ของ user (จุดเดียวกับที่โค้ชใช้) · ใช้ทั้งใน prompt และด่านกันข้อห้าม
   const personal = await getPersonalizationSafe(memberId);
+  const pool = catalogFor(pm.equipment); // ท่าที่ user ทำได้จริงตามอุปกรณ์
 
   const apiKey = await getSecret("OPENAI_API_KEY");
   if (apiKey) {
@@ -478,7 +588,7 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
         model: aiModel(apiKey, "gpt-4o-mini"),
         messages: [
           { role: "system", content: "คุณเป็นนักโภชนาการและเทรนเนอร์ ตอบเป็น JSON ภาษาไทยเท่านั้น" },
-          { role: "user", content: buildWeekPrompt(pm, personal) },
+          { role: "user", content: buildWeekPrompt(pm, personal, pool) },
         ],
         response_format: { type: "json_object" },
         max_tokens: 8000,
@@ -525,6 +635,19 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
     usedFallback = true;
     days = Array.from({ length: 7 }, (_, i) => fallbackDay(pm, i));
   }
+
+  // ท่าทั้งหมดต้องเป็นท่าจากคลัง (ชื่อคงที่ + ตรงกับอุปกรณ์ที่มี)
+  const snappedResult = snapExercises(days, pool);
+  if (snappedResult.snapped > 0) {
+    console.log(`[planGenerator] จับท่าเข้าคลัง ${snappedResult.snapped} จุด (${pm.equipment}) member=${memberId}`);
+  }
+  days = snappedResult.days;
+
+  const variety = ensureVariety(days, pool, pm.equipment);
+  if (variety.added > 0) {
+    console.log(`[planGenerator] เติมท่าให้ครบ/ให้ใช้อุปกรณ์ ${variety.added} ท่า member=${memberId}`);
+  }
+  days = variety.days;
 
   // WO-P.3 — ด่านสุดท้าย: แผนต้องไม่ขัดข้อห้าม (ครอบทั้งแผน AI และแผนสำรอง)
   const avoidKeywords = deriveAvoidKeywords(personal.avoid);

@@ -22,6 +22,7 @@ model Member {
   goalWeight       Float?
   goalType         String?
   activityLevel    String?
+  equipment        String?           // none | home (ดัมเบล/ยางยืด) | gym — ใช้เลือกท่าออกกำลังกาย
   dietType         String?
   targetMonths     Int?
   bmr              Float?
