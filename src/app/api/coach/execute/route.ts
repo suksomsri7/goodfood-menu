@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resolveMember, coachActive } from "@/lib/coachResolve";
 import { upsertMemories } from "@/lib/coachMemory";
+import { bkkDateKey, bkkTodayKey } from "@/lib/planGenerator";
 
 /**
  * execute action ที่ user ยืนยันแล้ว (มาจาก /api/coach/agent)
@@ -55,6 +56,33 @@ export async function POST(req: NextRequest) {
           },
         });
         done.push("log_exercise");
+      } else if (a.tool === "log_sleep") {
+        // นอน: คีย์เป็น "วันที่ตื่น" (BKK) · source=voice แยกจาก healthkit กันทับกัน
+        const minutes = Math.round(num(g.minutes, 1440));
+        if (minutes > 0) {
+          // ไม่เชื่อวันที่จาก AI ตรง ๆ — เคยเดาย้อนไป 2 วัน · อนาคต/เก่ากว่า 14 วัน = ใช้วันนี้แทน
+          const today = bkkTodayKey();
+          let date = today;
+          if (typeof g.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(g.date)) {
+            const asked = bkkDateKey(new Date(`${g.date}T00:00:00.000Z`));
+            const ageDays = (today.getTime() - asked.getTime()) / 86400000;
+            if (!isNaN(asked.getTime()) && ageDays >= 0 && ageDays <= 14) date = asked;
+          }
+          {
+            await prisma.sleepLog.upsert({
+              where: { memberId_date_source: { memberId: member.id, date, source: "voice" } },
+              update: { minutesAsleep: minutes },
+              create: { memberId: member.id, date, minutesAsleep: minutes, source: "voice" },
+            });
+            done.push("log_sleep");
+          }
+        }
+      } else if (a.tool === "log_weight") {
+        const w = Number(g.weight);
+        if (Number.isFinite(w) && w > 0 && w <= 500) {
+          await prisma.weightLog.create({ data: { memberId: member.id, weight: w, note: "voice" } });
+          done.push("log_weight");
+        }
       }
       // adjust_plan → เก็บไว้เฟสหลัง (ต้อง regenerate) — ข้ามอย่างปลอดภัย
     }

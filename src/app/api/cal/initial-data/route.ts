@@ -122,7 +122,8 @@ export async function GET(request: NextRequest) {
       }),
       prisma.coachNotification.count({ where: { memberId: member.id, readAt: null } }),
     ]);
-    const sleepMinutes = sleepLogs.reduce((s, x) => s + x.minutesAsleep, 0);
+    // คืนเดียวอาจมีทั้งจาก HealthKit และที่ user บอกโค้ชเอง → เอาค่ามากสุด ไม่ใช่บวกกัน (กันนับซ้ำ)
+    const sleepMinutes = sleepLogs.reduce((s, x) => Math.max(s, x.minutesAsleep), 0);
     const activeKcal = dayMetrics.reduce((s, x) => s + (x.activeKcal || 0), 0);
     const daySteps = dayMetrics.reduce((s, x) => s + (x.steps || 0), 0);
 

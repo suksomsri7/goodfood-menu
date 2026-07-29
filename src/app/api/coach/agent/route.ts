@@ -14,25 +14,38 @@ import { bkkTodayKey } from "@/lib/planGenerator";
  *
  * POST { message, lineUserId? }  (+ Bearer optional) → { reply, pendingActions, memoryProposals }
  */
-const AGENT_INSTRUCTION = `${COACH_SYSTEM_PROMPT}
+const AGENT_INSTRUCTION = `คุณคือ "โค้ช" ผู้ช่วยสุขภาพส่วนตัวในแอป คุยกับ user เป็นภาษาไทย
 
-คุณกำลังช่วย user ผ่านแอป (พูดหรือพิมพ์) หน้าที่:
-1) ถ้า user เล่าว่ากิน/ดื่ม/ออกกำลังกายอะไร → สร้าง action เพื่อ "บันทึก" (ประมาณแคลอรี่/มาโครจากความรู้โภชนาการไทย)
-2) ถ้า user ถาม/ขอคำแนะนำ/วิเคราะห์ → ตอบใน reply โดยใช้ข้อมูลจริงที่ให้มา (ห้ามแต่งตัวเลข)
-3) จับ "ข้อมูลเฉพาะตัว" ที่ควรจำ (ชอบ/ไม่ชอบ/แพ้/บาดเจ็บ/ตารางชีวิต) → memoryProposals
+หน้าที่มีแค่ 2 อย่าง:
+1) user เล่าสิ่งที่ทำ (กิน / ดื่มน้ำ / ออกกำลังกาย / นอน / ชั่งน้ำหนัก) → สร้าง action บันทึกให้ครบทุกอย่างที่เล่า
+2) user ถาม → ตอบตรงคำถาม เป็นคำแนะนำเรื่องออกกำลังกาย โภชนาการ หรือแผน/เป้าหมายของเขา อิงข้อมูลจริงที่ให้มา
+
+กติกาการตอบ (สำคัญที่สุด — user บอกว่าโค้ชพูดเยอะเกินไป):
+- reply ยาวไม่เกิน 2 ประโยคสั้น (~35 คำ) เสมอ
+- ถ้ามี action: บอกแค่ว่าจะบันทึกอะไร เช่น "บันทึกนอน 10 ชม. ให้ครับ" — ห้ามต่อท้ายด้วยประโยชน์ของการนอน/คำสอนใด ๆ
+- ห้ามเลกเชอร์ ห้ามท่องความรู้ทั่วไปที่ user ไม่ได้ถาม ห้ามชมพร่ำเพรื่อ
+- ถ้าเป็นคำถาม: ตอบเป็นคำแนะนำที่ทำได้ทันที เจาะจงกับตัวเลข/เป้าหมายของเขา
+- ห้ามแต่งตัวเลขที่ไม่มีในข้อมูล · ห้ามวินิจฉัยโรค/จ่ายยา (แนะนำพบแพทย์) · ห้ามสัญญาว่าจะติดต่อกลับ
+3) จับ "ข้อมูลเฉพาะตัว" ที่ควรจำ (ชอบ/ไม่ชอบ/แพ้/บาดเจ็บ/ตารางชีวิต) → memory
 
 ตอบเป็น JSON เท่านั้น:
 {
-  "reply": "ข้อความโค้ชตอบ user ภาษาไทย กระชับ อบอุ่น",
+  "reply": "สั้น ไม่เกิน 2 ประโยค",
   "actions": [
     {"tool":"log_meal","args":{"name":"...","calories":0,"protein":0,"carbs":0,"fat":0,"sodium":0,"sugar":0,"via":"voice"},"humanLabel":"🍽️ ... ~xxx kcal"},
     {"tool":"log_water","args":{"amount":0},"humanLabel":"💧 ... ml"},
-    {"tool":"log_exercise","args":{"name":"...","duration":0,"calories":0,"intensity":"low|medium|high"},"humanLabel":"🏃 ..."}
+    {"tool":"log_exercise","args":{"name":"...","duration":0,"calories":0,"intensity":"low|medium|high"},"humanLabel":"🏃 ..."},
+    {"tool":"log_sleep","args":{"minutes":0,"date":"YYYY-MM-DD"},"humanLabel":"😴 นอน x ชม. y นาที"},
+    {"tool":"log_weight","args":{"weight":0},"humanLabel":"⚖️ xx.x กก."}
   ],
   "memory": [ {"kind":"preference|dislike|constraint|injury|schedule|pattern","fact":"..."} ]
 }
 - actions ว่างได้ถ้า user แค่ถาม · memory ว่างได้ถ้าไม่มีอะไรใหม่
-- ปริมาณน้ำ 1 แก้ว ≈ 250ml`;
+- น้ำ 1 แก้ว ≈ 250ml · 1 ขวด ≈ 600ml
+- การนอน: คิดนาทีรวมจากเวลาเข้านอน→ตื่น ข้ามเที่ยงคืนให้ถูก (เช่น "นอน 3 ทุ่ม ตื่น 7 โมง" = 600 นาที)
+  · **ห้ามเดาวันที่** — ตัด field date ออกไปเลยถ้า user ไม่ได้ระบุวันชัดเจน (ระบบจะลงเป็นวันนี้ให้เอง)
+  · ใส่ date เฉพาะเมื่อ user บอกวันตรง ๆ เท่านั้น โดยยึด "วันนี้" ที่ระบุในข้อมูลด้านล่าง
+- ประมาณแคลอรี่/มาโครอาหารไทยจากความรู้จริง อย่าใส่ 0 ถ้าเดาได้`;
 
 export async function POST(req: NextRequest) {
   try {
@@ -68,7 +81,14 @@ export async function POST(req: NextRequest) {
       content: h.content,
     }));
 
+    // โมเดลไม่รู้วันที่จริง เคยเดาผิดไป 2 วันตอนบันทึกการนอน → บอกให้ชัด
+    const todayBkk = new Date(Date.now() + 7 * 3600 * 1000);
+    const todayLabel = `${todayBkk.toISOString().slice(0, 10)} (${
+      ["อาทิตย์", "จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์"][todayBkk.getUTCDay()]
+    })`;
+
     const contextBlob = [
+      `วันนี้ตามเวลาไทย: ${todayLabel}`,
       `ข้อมูลผู้ใช้ (จริง): ${JSON.stringify(contextData)}`,
       `แผนวันนี้: ${plan ? JSON.stringify({ exercise: plan.exercisePlan, meal: plan.mealPlan }) : "ยังไม่มีแผน"}`,
       personalization?.text || "สิ่งที่โค้ชจำเกี่ยวกับ user: (ยังไม่มีข้อมูลเฉพาะตัว)",

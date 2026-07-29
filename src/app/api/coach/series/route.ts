@@ -42,7 +42,8 @@ export async function GET(req: NextRequest) {
   meals.forEach((m) => { const k = key(m.date); if (byDay[k]) byDay[k].kcal += m.calories; });
   exercises.forEach((e) => { const k = key(e.date); if (byDay[k]) byDay[k].burned += e.calories; });
   waters.forEach((w) => { const k = key(w.date); if (byDay[k]) byDay[k].water += w.amount; });
-  sleeps.forEach((s) => { const k = key(s.date); if (byDay[k]) byDay[k].sleepMin += s.minutesAsleep; });
+  // นับซ้ำไม่ได้: คืนเดียวอาจมีทั้ง healthkit และที่ user บอกโค้ช → เอาค่ามากสุดของวันนั้น
+  sleeps.forEach((s) => { const k = key(s.date); if (byDay[k]) byDay[k].sleepMin = Math.max(byDay[k].sleepMin, s.minutesAsleep); });
 
   return NextResponse.json({
     days: Object.entries(byDay).map(([date, v]) => ({ date, ...v })),
