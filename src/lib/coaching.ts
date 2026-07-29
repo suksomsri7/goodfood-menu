@@ -297,26 +297,28 @@ export async function gatherMemberContext(memberId: string): Promise<MemberConte
   const startOfYesterday = new Date(startOfDay);
   startOfYesterday.setDate(startOfYesterday.getDate() - 1);
 
-  // Get today's meals
-  const todayMeals = await prisma.mealLog.findMany({
-    where: {
-      memberId,
-      date: { gte: startOfDay },
-    },
-  });
+  // P2: เดิม await เรียงแถว ~8 จุด (+streak เดิมอีก 30 query) ทุกครั้งที่คุยกับโค้ช → ยิงขนานชุดเดียว
+  const [todayMeals, yesterdayMeals, waterLogs, recentOrders, weightLogs, exerciseToday, streakDays, personalization] =
+    await Promise.all([
+      prisma.mealLog.findMany({ where: { memberId, date: { gte: startOfDay } } }),
+      prisma.mealLog.findMany({ where: { memberId, date: { gte: startOfYesterday, lt: startOfDay } } }),
+      prisma.waterLog.aggregate({ where: { memberId, date: { gte: startOfDay } }, _sum: { amount: true } }),
+      prisma.order.findMany({
+        where: { memberId, status: { in: ["confirmed", "preparing", "ready", "delivered"] } },
+        include: { items: { include: { food: true } } },
+        take: 3,
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.weightLog.findMany({
+        where: { memberId, date: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
+        orderBy: { date: "desc" },
+        take: 2,
+      }),
+      prisma.exerciseLog.findFirst({ where: { memberId, date: { gte: startOfDay } }, orderBy: { date: "desc" } }),
+      calculateStreak(memberId),
+      getPersonalizationSafe(memberId), // WO-P.3 — จุดเดียวที่ป้อน memory+insight เข้า context กลาง
+    ]);
 
-  // Get yesterday's meals
-  const yesterdayMeals = await prisma.mealLog.findMany({
-    where: {
-      memberId,
-      date: {
-        gte: startOfYesterday,
-        lt: startOfDay,
-      },
-    },
-  });
-
-  // Calculate totals
   const todayTotals = todayMeals.reduce(
     (acc, meal) => ({
       calories: acc.calories + meal.calories,
@@ -337,32 +339,6 @@ export async function gatherMemberContext(memberId: string): Promise<MemberConte
     { calories: 0, protein: 0, carbs: 0, fat: 0 }
   );
 
-  // Get water logs
-  const waterLogs = await prisma.waterLog.aggregate({
-    where: {
-      memberId,
-      date: { gte: startOfDay },
-    },
-    _sum: { amount: true },
-  });
-
-  // Get stock (recent orders)
-  const recentOrders = await prisma.order.findMany({
-    where: {
-      memberId,
-      status: { in: ["confirmed", "preparing", "ready", "delivered"] },
-    },
-    include: {
-      items: {
-        include: {
-          food: true,
-        },
-      },
-    },
-    take: 3,
-    orderBy: { createdAt: "desc" },
-  });
-
   const stockItems = recentOrders.flatMap((order) =>
     order.items.map((item) => ({
       name: item.foodName,
@@ -371,33 +347,8 @@ export async function gatherMemberContext(memberId: string): Promise<MemberConte
     }))
   );
 
-  // Get weight change (last 7 days)
-  const weightLogs = await prisma.weightLog.findMany({
-    where: {
-      memberId,
-      date: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
-    },
-    orderBy: { date: "desc" },
-    take: 2,
-  });
-
   const weightChange =
     weightLogs.length >= 2 ? weightLogs[0].weight - weightLogs[1].weight : null;
-
-  // Get today's exercise
-  const exerciseToday = await prisma.exerciseLog.findFirst({
-    where: {
-      memberId,
-      date: { gte: startOfDay },
-    },
-    orderBy: { date: "desc" },
-  });
-
-  // Calculate streak
-  const streakDays = await calculateStreak(memberId);
-
-  // WO-P.3 — memory + insight เฉพาะตัว (จุดเดียวที่ป้อนเข้า context กลาง)
-  const personalization = await getPersonalizationSafe(memberId);
 
   // AI Coach status
   const courseDuration = member.memberType?.courseDuration || 0;
@@ -454,33 +405,22 @@ export async function gatherMemberContext(memberId: string): Promise<MemberConte
 
 // Calculate meal logging streak
 async function calculateStreak(memberId: string): Promise<number> {
+  // P1: เดิมยิง COUNT ทีละวันสูงสุด 30 query ต่อเนื่อง (ทุกครั้งที่คุยกับโค้ช/โค้ชเช้า)
+  // → query เดียว: วันที่ (BKK) ที่มีบันทึกใน 30 วัน แล้วเดินนับต่อเนื่องใน JS
+  const rows = await prisma.$queryRaw<Array<{ d: Date }>>`
+    SELECT DISTINCT ("date" + interval '7 hours')::date AS d
+    FROM meal_logs
+    WHERE "memberId" = ${memberId} AND "date" >= now() - interval '31 days'
+  `;
+  const days = new Set(rows.map((r) => new Date(r.d).toISOString().slice(0, 10)));
+
   let streak = 0;
-  let date = new Date();
-
+  const cursor = new Date(Date.now() + 7 * 3600 * 1000); // วันนี้ตาม BKK
   for (let i = 0; i < 30; i++) {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    const mealCount = await prisma.mealLog.count({
-      where: {
-        memberId,
-        date: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
-      },
-    });
-
-    if (mealCount > 0) {
-      streak++;
-      date.setDate(date.getDate() - 1);
-    } else {
-      break;
-    }
+    if (!days.has(cursor.toISOString().slice(0, 10))) break;
+    streak++;
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
   }
-
   return streak;
 }
 

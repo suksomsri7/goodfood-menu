@@ -108,7 +108,8 @@ export async function POST(req: NextRequest) {
       prisma.coachChatLog.findMany({ where: { memberId: member.id }, orderBy: { createdAt: "desc" }, take: 10 }),
     ]);
     // WO-P.3 — memory + insight มากับ context แล้ว (แยกออกจาก JSON กันซ้ำซ้อนใน prompt)
-    const { personalization, ...contextData } = context ?? { personalization: undefined };
+    // P3: ตัด stock (ออเดอร์ร้าน goodfood) ด้วย — แอปโค้ชไม่ใช้ เปลือง token ทุกคำตอบ
+    const { personalization, stock: _stock, ...contextData } = (context ?? { personalization: undefined }) as any;
     const historyMsgs = history.reverse().map((h) => ({
       role: (h.role === "assistant" ? "assistant" : "user") as "assistant" | "user",
       content: h.content,
