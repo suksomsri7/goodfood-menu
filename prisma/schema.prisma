@@ -81,6 +81,7 @@ model Member {
   behaviorInsights BehaviorInsight[]
   coachChatLogs    CoachChatLog[]
   coachNotifications CoachNotification[]
+  refreshTokens    RefreshToken[]
 
   @@map("members")
 }
@@ -98,6 +99,20 @@ model AuthIdentity {
   @@unique([provider, providerId])
   @@index([memberId])
   @@map("auth_identities")
+}
+
+// ── Coach : refresh token ที่ track ได้ (S3 — rotate ทุกครั้งที่ใช้ + เพิกถอนได้) ──
+model RefreshToken {
+  id         String    @id // = jti ใน JWT
+  memberId   String
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  replacedBy String? // jti ตัวใหม่ที่ rotate ไป (ไว้ตรวจ reuse)
+  createdAt  DateTime  @default(now())
+  member     Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId])
+  @@map("refresh_tokens")
 }
 
 model DeviceToken {

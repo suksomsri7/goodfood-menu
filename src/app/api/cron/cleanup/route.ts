@@ -16,10 +16,18 @@ export async function GET(req: NextRequest) {
   }
 
   const cutoff = new Date(Date.now() - 90 * 24 * 3600 * 1000);
-  const [notifications, chats] = await Promise.all([
+  const weekAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000);
+  const [notifications, chats, tokens] = await Promise.all([
     prisma.coachNotification.deleteMany({ where: { createdAt: { lt: cutoff } } }),
     prisma.coachChatLog.deleteMany({ where: { createdAt: { lt: cutoff } } }),
+    // refresh token: หมดอายุแล้ว หรือถูกเพิกถอนเกิน 7 วัน (เก็บช่วงสั้นไว้ตรวจ reuse)
+    prisma.refreshToken.deleteMany({
+      where: { OR: [{ expiresAt: { lt: new Date() } }, { revokedAt: { lt: weekAgo } }] },
+    }),
   ]);
 
-  return NextResponse.json({ ok: true, deleted: { notifications: notifications.count, chats: chats.count } });
+  return NextResponse.json({
+    ok: true,
+    deleted: { notifications: notifications.count, chats: chats.count, refreshTokens: tokens.count },
+  });
 }

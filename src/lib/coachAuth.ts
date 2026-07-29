@@ -4,6 +4,7 @@
  * เก็บ mapping provider→member ใน AuthIdentity (schema.prisma)
  */
 import { NextRequest } from "next/server";
+import { randomUUID } from "crypto";
 import { SignJWT, jwtVerify, createRemoteJWKSet, decodeJwt } from "jose";
 import { prisma } from "@/lib/prisma";
 import { getSecret } from "@/lib/secrets/store";
@@ -34,14 +35,35 @@ export async function signSession(memberId: string): Promise<{ accessToken: stri
     .setIssuedAt()
     .setExpirationTime(ACCESS_TTL)
     .sign(key);
+
+  // S3: refresh มี jti + แถวใน DB → rotate/เพิกถอนได้ (เดิม stateless หลุดแล้วใช้ได้ยาว 60 วัน)
+  const jti = randomUUID();
+  await prisma.refreshToken.create({
+    data: { id: jti, memberId, expiresAt: new Date(Date.now() + 60 * 24 * 3600 * 1000) },
+  });
   const refreshToken = await new SignJWT({ typ: "refresh" })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(memberId)
+    .setJti(jti)
     .setIssuer(ISSUER)
     .setIssuedAt()
     .setExpirationTime(REFRESH_TTL)
     .sign(key);
   return { accessToken, refreshToken };
+}
+
+/** อ่าน refresh token แบบละเอียด — jti = null คือ token รุ่นเก่า (ก่อนมี rotation) */
+export async function verifyRefreshDetailed(
+  token: string
+): Promise<{ memberId: string; jti: string | null } | null> {
+  try {
+    const key = await sessionKey();
+    const { payload } = await jwtVerify(token, key, { issuer: ISSUER, algorithms: ["HS256"] });
+    if (payload.typ !== "refresh" || !payload.sub) return null;
+    return { memberId: payload.sub as string, jti: (payload.jti as string) || null };
+  } catch {
+    return null;
+  }
 }
 
 export async function verifySession(token: string, typ: "access" | "refresh" = "access"): Promise<string | null> {
