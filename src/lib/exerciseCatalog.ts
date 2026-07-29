@@ -21,9 +21,23 @@ export interface CatalogExercise {
   impact: "low" | "high";
   muscles: string;
   cue: string; // ทิปฟอร์มสั้น ๆ แสดงในหน้า "ดูท่า"
+  /** สื่อสาธิต (ถ้ามี) — เสิร์ฟจาก /uploads/coach-exercise/<key>.{webp,mp4,jpg} */
+  media?: { webp: string; mp4: string; poster: string };
 }
 
-export const EXERCISE_CATALOG: CatalogExercise[] = [
+const MEDIA_BASE = "/uploads/coach-exercise";
+/** ท่าที่มีคลิปสาธิตแล้ว (สร้างด้วย fal.ai Veo 3 Fast + คนตรวจฟอร์มก่อนปล่อย) */
+const WITH_MEDIA = new Set<string>(["squat_bw"]);
+
+function attachMedia(list: CatalogExercise[]): CatalogExercise[] {
+  return list.map((e) =>
+    WITH_MEDIA.has(e.key)
+      ? { ...e, media: { webp: `${MEDIA_BASE}/${e.key}.webp`, mp4: `${MEDIA_BASE}/${e.key}.mp4`, poster: `${MEDIA_BASE}/${e.key}.jpg` } }
+      : e
+  );
+}
+
+const CATALOG_RAW: CatalogExercise[] = [
   // ── ตัวเปล่า: คาร์ดิโอ ──
   { key: "walk_fast", name: "เดินเร็ว", equipment: "none", kind: "cardio", unit: "minutes", impact: "low", muscles: "ทั้งตัว", cue: "อกตั้ง แกว่งแขนธรรมชาติ ก้าวยาวพอสบาย" },
   { key: "jog_light", name: "วิ่งเหยาะ", equipment: "none", kind: "cardio", unit: "minutes", impact: "high", muscles: "ขา หัวใจ", cue: "ลงกลางเท้า ไหล่ผ่อน หายใจเป็นจังหวะ" },
@@ -80,6 +94,8 @@ export const EXERCISE_CATALOG: CatalogExercise[] = [
   { key: "barbell_squat", name: "บาร์เบลสควอท", equipment: "gym", kind: "strength", unit: "reps", impact: "low", muscles: "ขา ก้น", cue: "แกนกลางเกร็ง ลงจนต้นขาขนานพื้น" },
   { key: "pullup_assist", name: "พูลอัพแบบมีตัวช่วย", equipment: "gym", kind: "strength", unit: "reps", impact: "low", muscles: "หลัง แขน", cue: "เริ่มจากแรงช่วยเยอะแล้วค่อยลด" },
 ];
+
+export const EXERCISE_CATALOG: CatalogExercise[] = attachMedia(CATALOG_RAW);
 
 const TIER_ORDER: Record<EquipmentTier, number> = { none: 0, home: 1, gym: 2 };
 

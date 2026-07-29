@@ -10,6 +10,7 @@ import {
 // ── โครงข้อมูลแผนรายวัน ──
 export interface ExercisePlanItem {
   key?: string; // key ในคลังท่า (exerciseCatalog) — ใช้ผูกสื่อสาธิต + คุมชื่อให้คงที่
+  media?: { webp: string; mp4: string; poster: string }; // คลิปสาธิต (ถ้าท่านั้นมีแล้ว)
   name: string;
   sets?: number;
   reps?: number;
@@ -124,7 +125,7 @@ function fallbackDay(pm: PlanMember, dayIndex: number): DayPlan {
   const pick = (key: string, kind: "cardio" | "strength" | "mobility") =>
     pool.find((e) => e.key === key) || defaultExercise(pool, kind);
   const asItem = (e: CatalogExercise, extra: Partial<ExercisePlanItem>): ExercisePlanItem => ({
-    key: e.key, name: e.name, note: e.cue, ...extra,
+    key: e.key, media: e.media, name: e.name, note: e.cue, ...extra,
   });
   const exercisePlan: ExercisePlan = restDay
     ? {
@@ -255,6 +256,7 @@ export function snapExercises(days: DayPlan[], pool: CatalogExercise[]): { days:
       seen.add(e.key);
       items.push({
         key: e.key,
+        media: e.media,
         name: e.name,
         sets: it.sets,
         reps: e.unit === "reps" ? it.reps ?? 12 : undefined,
@@ -264,7 +266,7 @@ export function snapExercises(days: DayPlan[], pool: CatalogExercise[]): { days:
     }
     if (!items.length) {
       const e = defaultExercise(pool, "cardio");
-      items.push({ key: e.key, name: e.name, minutes: 20, note: e.cue });
+      items.push({ key: e.key, media: e.media, name: e.name, minutes: 20, note: e.cue });
     }
     return { ...d, exercisePlan: { ...d.exercisePlan, items } };
   });
@@ -296,8 +298,8 @@ export function ensureVariety(
       added++;
       items.push(
         e.unit === "reps"
-          ? { key: e.key, name: e.name, sets: 3, reps: 12, note: e.cue }
-          : { key: e.key, name: e.name, minutes: 15, note: e.cue }
+          ? { key: e.key, media: e.media, name: e.name, sets: 3, reps: 12, note: e.cue }
+          : { key: e.key, media: e.media, name: e.name, minutes: 15, note: e.cue }
       );
     };
 
