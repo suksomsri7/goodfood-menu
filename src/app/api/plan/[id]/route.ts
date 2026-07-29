@@ -23,6 +23,12 @@ export async function PATCH(
 
     const plan = await prisma.dailyPlan.findUnique({ where: { id } });
     if (!plan) return NextResponse.json({ error: "Plan not found" }, { status: 404 });
+
+    // B1: ขอบเขตวันของแผน (plan.date = UTC midnight ของวัน BKK → วัน BKK จริงใน UTC = [−7h, +17h))
+    // ใช้กรองตอน "ติ๊กออก" — เดิมลบ log "ชื่อเดียวกัน แถวล่าสุด" โดยไม่ดูวัน
+    // แผนใช้เมนู/ท่าซ้ำกันหลายวัน → ติ๊กออกวันนี้เคยเสี่ยงไปลบบันทึกของวันอื่นเงียบ ๆ
+    const dayStart = new Date(plan.date.getTime() - 7 * 3600 * 1000);
+    const dayEnd = new Date(plan.date.getTime() + 17 * 3600 * 1000);
     // ownership
     if (plan.memberId !== member.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -74,7 +80,7 @@ export async function PATCH(
           });
         } else if (!val && prev[slot]) {
           const last = await prisma.mealLog.findFirst({
-            where: { memberId: member.id, via: "plan", name: meal.menu },
+            where: { memberId: member.id, via: "plan", name: meal.menu, date: { gte: dayStart, lt: dayEnd } },
             orderBy: { createdAt: "desc" },
           });
           if (last) await prisma.mealLog.delete({ where: { id: last.id } });
@@ -92,7 +98,7 @@ export async function PATCH(
         });
       } else {
         const last = await prisma.exerciseLog.findFirst({
-          where: { memberId: member.id, source: "plan", name: ep.title },
+          where: { memberId: member.id, source: "plan", name: ep.title, date: { gte: dayStart, lt: dayEnd } },
           orderBy: { createdAt: "desc" },
         });
         if (last) await prisma.exerciseLog.delete({ where: { id: last.id } });

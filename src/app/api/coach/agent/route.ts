@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { gatherMemberContext, COACH_SYSTEM_PROMPT } from "@/lib/coaching";
 import { resolveMember, coachActive } from "@/lib/coachResolve";
 import { bkkTodayKey } from "@/lib/planGenerator";
+import { checkUsageLimitForMember, logAiUsageByMemberId } from "@/lib/usage-limits";
 
 /**
  * Agentic coach (ข้อ 3+4) — user พูด/พิมพ์เป็นภาษาคน → AI แยกเป็น:
@@ -52,6 +53,7 @@ const AGENT_INSTRUCTION = `คุณคือ "โค้ช" ผู้ช่ว�
   "memory": [ {"kind":"preference|dislike|constraint|injury|schedule|pattern","fact":"..."} ]
 }
 - actions ว่างได้ถ้า user แค่ถาม หรือกำลังถามข้อมูลเพิ่ม (needsInput=true) · memory ว่างได้ถ้าไม่มีอะไรใหม่
+- **สร้าง action จากข้อความล่าสุดของ user เท่านั้น** — เรื่องในประวัติการคุยที่บันทึกไปแล้ว ห้ามเสนอบันทึกซ้ำ
 - needsInput = true เมื่อ reply เป็นคำถามที่รอ user ตอบเพื่อบันทึก (แอปจะเปิดไมค์ฟังต่อทันที)
 - **เวลา (field "time")**: ถ้า user บอกเวลาที่ทำสิ่งนั้น ให้ใส่เป็น 24 ชม. "HH:MM" ตามเวลาไทย
   เช่น "ตอน 10 โมงครึ่งดื่มน้ำ 1 ลิตร" → time "10:30" · "บ่าย 2 กินข้าว" → "14:00"
@@ -80,6 +82,18 @@ export async function POST(req: NextRequest) {
         pendingActions: [],
         memoryProposals: [],
         locked: true,
+      });
+    }
+
+    // S1: เดิมฝั่ง native ไม่มีโควตาเลย (quota เดิมผูก lineUserId) → ยิงได้ไม่จำกัด
+    const quota = await checkUsageLimitForMember(member, "dailyChatLimit");
+    if (!quota.allowed) {
+      return NextResponse.json({
+        reply: "วันนี้คุยกับโค้ชครบโควตาแล้วครับ พรุ่งนี้มาคุยกันใหม่นะครับ 😊",
+        pendingActions: [],
+        memoryProposals: [],
+        needsInput: false,
+        limitReached: true,
       });
     }
 
@@ -140,6 +154,8 @@ export async function POST(req: NextRequest) {
         ...(parsed.reply ? [{ memberId: member.id, role: "assistant", content: parsed.reply }] : []),
       ],
     }).catch(() => {});
+
+    logAiUsageByMemberId(member.id, "dailyChatLimit").catch(() => {});
 
     const pendingActions = Array.isArray(parsed.actions) ? parsed.actions : [];
     // เคยเจอโมเดลคืน reply ว่าง → แอปจะพูดเงียบ ๆ แล้ว user งง · ขอใหม่ดีกว่า

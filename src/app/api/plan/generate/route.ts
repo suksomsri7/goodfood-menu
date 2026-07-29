@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAiCoachActive } from "@/lib/coaching";
 import { memberFromReq } from "@/lib/memberAuth";
-import { checkUsageLimit, logAiUsage } from "@/lib/usage-limits";
+import { checkUsageLimitForMember, logAiUsageByMemberId } from "@/lib/usage-limits";
 import { generateWeekPlan, bkkTodayKey, addDays } from "@/lib/planGenerator";
 
 export const dynamic = "force-dynamic";
@@ -39,20 +39,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // เช็คโควตา AI (เฉพาะ LIFF ที่มี lineUserId — native gate ด้วย isAiCoachActive)
-    if (member.lineUserId) {
-      const limit = await checkUsageLimit(member.lineUserId, "dailyAiRecommendLimit");
-      if (!limit.allowed) {
-        return NextResponse.json(
-          { error: limit.message, limitReached: true, limit: limit.limit, used: limit.used },
-          { status: 429 }
-        );
-      }
+    // S1: โควตา AI ครอบทุกช่องทาง (เดิมเช็คเฉพาะ LIFF → native generate ได้ไม่จำกัด)
+    const limit = await checkUsageLimitForMember(member, "dailyAiRecommendLimit");
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { error: limit.message, limitReached: true, limit: limit.limit, used: limit.used },
+        { status: 429 }
+      );
     }
 
     const result = await generateWeekPlan(member.id, startKey);
-    if (!result.usedFallback && member.lineUserId) {
-      await logAiUsage(member.lineUserId, "dailyAiRecommendLimit");
+    if (!result.usedFallback) {
+      await logAiUsageByMemberId(member.id, "dailyAiRecommendLimit");
     }
 
     return NextResponse.json({

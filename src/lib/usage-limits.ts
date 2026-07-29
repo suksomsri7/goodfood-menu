@@ -63,6 +63,83 @@ function getTodayRange() {
   return { startOfDay: startUTC, endOfDay: endUTC };
 }
 
+
+type MemberWithType = {
+  id: string;
+  memberType: ({ aiLimitMode: string | null; totalDailyAiLimit: number | null } & Record<string, any>) | null;
+};
+
+/** เพดานกันเหตุ runaway เมื่อ admin ตั้ง 0 (=ไม่จำกัด) — สูงพอที่ผู้ใช้จริงไม่มีวันชน */
+const UNLIMITED_SAFETY_CEILING = 300;
+
+/**
+ * เช็คโควตาจาก member ตรง ๆ (native JWT ไม่มี lineUserId)
+ * semantics เดียวกับ checkUsageLimit เดิมทุกอย่าง ยกเว้น: limit 0 → ใช้เพดานกันเหตุแทน Infinity
+ */
+export async function checkUsageLimitForMember(
+  member: MemberWithType,
+  limitType: LimitType
+): Promise<UsageCheckResult> {
+  try {
+    const memberType = member.memberType;
+    const aiLimitMode = memberType?.aiLimitMode ?? "by_type";
+    const { startOfDay, endOfDay } = getTodayRange();
+
+    if (aiLimitMode === "combined") {
+      const raw = memberType?.totalDailyAiLimit ?? 15;
+      const totalLimit = raw === 0 ? UNLIMITED_SAFETY_CEILING : raw;
+      const totalUsed = await prisma.aiUsageLog.count({
+        where: {
+          memberId: member.id,
+          usageType: { in: allAiUsageTypes },
+          createdAt: { gte: startOfDay, lte: endOfDay },
+        },
+      });
+      const allowed = totalUsed < totalLimit;
+      return {
+        allowed,
+        limit: totalLimit,
+        used: totalUsed,
+        remaining: Math.max(0, totalLimit - totalUsed),
+        message: allowed ? undefined : `ถึงขีดจำกัดการใช้งาน AI วันนี้แล้ว (${totalLimit} ครั้ง/วัน รวมทุกประเภท)`,
+        isCombinedMode: true,
+      };
+    }
+
+    const rawLimit = (memberType as any)?.[limitType] ?? 3;
+    const limit = rawLimit === 0 ? UNLIMITED_SAFETY_CEILING : rawLimit;
+    const usageType = usageTypeMap[limitType];
+    const used = await prisma.aiUsageLog.count({
+      where: {
+        memberId: member.id,
+        usageType,
+        createdAt: { gte: startOfDay, lte: endOfDay },
+      },
+    });
+    const allowed = used < limit;
+    return {
+      allowed,
+      limit,
+      used,
+      remaining: Math.max(0, limit - used),
+      message: allowed ? undefined : `ถึงขีดจำกัดการใช้งานวันนี้แล้ว (${limit} ครั้ง/วัน)`,
+      isCombinedMode: false,
+    };
+  } catch (error) {
+    console.error("Error checking usage limit (member):", error);
+    return { allowed: true, limit: 0, used: 0, remaining: 0 }; // เน็ต/DB มีปัญหา อย่า block user
+  }
+}
+
+/** บันทึกการใช้ AI ด้วย memberId ตรง ๆ (native) */
+export async function logAiUsageByMemberId(memberId: string, limitType: LimitType): Promise<void> {
+  try {
+    await prisma.aiUsageLog.create({ data: { memberId, usageType: usageTypeMap[limitType] } });
+  } catch (error) {
+    console.error("Error logging AI usage (member):", error);
+  }
+}
+
 // Check if user can perform an action based on their member type limits
 export async function checkUsageLimit(
   lineUserId: string,
