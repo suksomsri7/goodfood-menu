@@ -67,6 +67,8 @@ export async function POST(req: NextRequest) {
             sodium: g.sodium != null ? num(g.sodium, 20000) : null,
             sugar: g.sugar != null ? num(g.sugar, 1000) : null,
             ingredients: g.ingredients ?? null,
+            imageUrl:
+              typeof g.imageUrl === "string" && /^\/uploads\/[\w\-./]+$/.test(g.imageUrl) ? g.imageUrl : null,
             via: g.via || "voice",
             ...(at ? { date: at } : {}),
           },

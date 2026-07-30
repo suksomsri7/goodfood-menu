@@ -140,7 +140,15 @@ export async function runMorningCoach(opts?: {
     });
     context.planAdjustNote = recentAdjust?.reason ?? null;
 
-    const msg = await generateCoachingMessage("morning", context);
+    let msg = await generateCoachingMessage("morning", context);
+
+    // ④ ไม่มีข้อมูลการนอนของเมื่อคืน (ไม่มี Watch = แหวนนอนว่างตลอด) → ชวนบอกโค้ชด้วยเสียง
+    const sleptLastNight = await prisma.sleepLog.count({
+      where: { memberId: m.id, date: todayKey },
+    });
+    if (sleptLastNight === 0) {
+      msg += "\n\n💤 เมื่อคืนนอนกี่ชั่วโมงครับ? แตะวงกลมแล้วบอกโค้ชได้เลย";
+    }
     let ok = false;
     if (viaApp) {
       // ส่ง push เข้าแอป (ไม่กินโควตา LINE)

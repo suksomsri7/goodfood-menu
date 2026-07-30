@@ -4,6 +4,26 @@ import { getSecret } from "@/lib/secrets/store";
 import { getAuthedMember } from "@/lib/coachAuth";
 import { coachActive } from "@/lib/coachResolve";
 import { checkUsageLimitForMember, logAiUsageByMemberId } from "@/lib/usage-limits";
+import { writeFile, mkdir } from "fs/promises";
+import path from "path";
+import { randomUUID } from "crypto";
+
+/** เก็บรูปที่ถ่ายลง /uploads/coach-food (volume เดิมของ goodfood) → คืน public path · ล้มเหลว = ไม่เป็นไร ข้อมูลตัวเลขยังบันทึกได้ */
+async function saveFoodImage(dataUrl: string): Promise<string | null> {
+  try {
+    const m = dataUrl.match(/^data:image\/(jpe?g|png|webp);base64,(.+)$/);
+    if (!m) return null;
+    const ext = m[1] === "jpeg" ? "jpg" : m[1];
+    const dir = path.join(process.cwd(), "public", "uploads", "coach-food");
+    await mkdir(dir, { recursive: true });
+    const name = `${Date.now()}-${randomUUID().slice(0, 8)}.${ext}`;
+    await writeFile(path.join(dir, name), Buffer.from(m[2], "base64"));
+    return `/uploads/coach-food/${name}`;
+  } catch (e) {
+    console.warn("[smart-capture] save image failed", e);
+    return null;
+  }
+}
 
 /**
  * ถ่ายรูปปุ่มเดียว (ข้อ 2) — AI แยกเองว่าเป็น "จานอาหาร" หรือ "ฉลากโภชนาการ"
@@ -70,7 +90,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const kind = await classify(image);
+    // ③ เก็บรูปลง timeline — เดิมวิเคราะห์เสร็จรูปหายไปเลย (MealLog.imageUrl ว่างตลอด)
+    const [kind, imageUrl] = await Promise.all([classify(image), saveFoodImage(image)]);
     const base = process.env.APP_INTERNAL_BASE || "http://127.0.0.1:3000";
     const target = kind === "label" ? "/api/barcode/analyze" : "/api/analyze-food";
 
@@ -100,6 +121,7 @@ export async function POST(req: NextRequest) {
       kind,
       routedTo: target,
       success: true,
+      imageUrl, // ③ path รูปที่เก็บไว้ — แอปแนบเข้า action → MealLog.imageUrl
       data: json.data,
     });
   } catch (e: any) {
