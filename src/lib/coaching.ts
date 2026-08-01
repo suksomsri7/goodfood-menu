@@ -87,6 +87,14 @@ export interface MemberContext {
     calories: number;
   } | null;
   streakDays: number;
+  /** วง Move/Stand/Exercise ของ Apple (ผ่าน HealthKit) — ใช้เป็นบริบทให้โค้ช ไม่ได้โชว์เป็นวงในแอป */
+  activity: {
+    steps: number;
+    activeKcal: number;
+    standHours: number;
+    exerciseMin: number;
+    hasWatchData: boolean;
+  };
   lastActiveAt: Date | null;
   // แผนวันนี้จาก DailyPlan (เฟส 2 — inject ก่อนเรียก generateCoachingMessage("morning"))
   todayPlan?: {
@@ -298,7 +306,7 @@ export async function gatherMemberContext(memberId: string): Promise<MemberConte
   startOfYesterday.setDate(startOfYesterday.getDate() - 1);
 
   // P2: เดิม await เรียงแถว ~8 จุด (+streak เดิมอีก 30 query) ทุกครั้งที่คุยกับโค้ช → ยิงขนานชุดเดียว
-  const [todayMeals, yesterdayMeals, waterLogs, recentOrders, weightLogs, exerciseToday, streakDays, personalization] =
+  const [todayMeals, yesterdayMeals, waterLogs, recentOrders, weightLogs, exerciseToday, streakDays, personalization, todayMetrics] =
     await Promise.all([
       prisma.mealLog.findMany({ where: { memberId, date: { gte: startOfDay } } }),
       prisma.mealLog.findMany({ where: { memberId, date: { gte: startOfYesterday, lt: startOfDay } } }),
@@ -317,6 +325,11 @@ export async function gatherMemberContext(memberId: string): Promise<MemberConte
       prisma.exerciseLog.findFirst({ where: { memberId, date: { gte: startOfDay } }, orderBy: { date: "desc" } }),
       calculateStreak(memberId),
       getPersonalizationSafe(memberId), // WO-P.3 — จุดเดียวที่ป้อน memory+insight เข้า context กลาง
+      // วง Move/Stand/Exercise จาก Apple Health — ไม่โชว์เป็นวงในแอป แต่ให้โค้ชรู้ว่าวันนี้ขยับแค่ไหน
+      prisma.dailyMetric.findMany({
+        where: { memberId, date: { gte: startOfDay } },
+        select: { steps: true, activeKcal: true, standHours: true, exerciseMin: true },
+      }),
     ]);
 
   const todayTotals = todayMeals.reduce(
@@ -349,6 +362,16 @@ export async function gatherMemberContext(memberId: string): Promise<MemberConte
 
   const weightChange =
     weightLogs.length >= 2 ? weightLogs[0].weight - weightLogs[1].weight : null;
+
+  const maxOf = (k: "steps" | "activeKcal" | "standHours" | "exerciseMin") =>
+    todayMetrics.reduce((s2, m) => Math.max(s2, m[k] ?? 0), 0);
+  const activity = {
+    steps: maxOf("steps"),
+    activeKcal: maxOf("activeKcal"),
+    standHours: maxOf("standHours"), // เป้าแบบ Apple = 12 ชม./วัน (ต้องมี Watch ถึงจะมีค่า)
+    exerciseMin: maxOf("exerciseMin"), // เป้าแบบ Apple = 30 นาที/วัน
+    hasWatchData: todayMetrics.some((m) => (m.standHours ?? 0) > 0),
+  };
 
   // AI Coach status
   const courseDuration = member.memberType?.courseDuration || 0;
@@ -398,6 +421,7 @@ export async function gatherMemberContext(memberId: string): Promise<MemberConte
       ? { name: exerciseToday.name, calories: exerciseToday.calories }
       : null,
     streakDays,
+    activity,
     lastActiveAt: member.updatedAt,
     personalization,
   };
@@ -443,6 +467,17 @@ export function buildPrompt(type: CoachingType, context: MemberContext): string 
   // WO-P.3 — ข้อมูลเฉพาะตัว (memory + insight) เข้าทุกข้อความโค้ช
   const personalBlock = context.personalization?.text ? `\n${context.personalization.text}\n` : "";
 
+  // การขยับตัววันนี้จาก Apple Health (มีเฉพาะคนที่เชื่อม) — โค้ชใช้ทักเรื่องนั่งนาน/ขยับน้อยได้
+  const a = context.activity;
+  const activityBits: string[] = [];
+  if (a?.steps) activityBits.push(`เดิน ${a.steps.toLocaleString()} ก้าว`);
+  if (a?.activeKcal) activityBits.push(`เผาจากการเคลื่อนไหว ${a.activeKcal} kcal`);
+  if (a?.exerciseMin) activityBits.push(`ออกกำลังกาย ${a.exerciseMin} นาที (เป้า Apple 30)`);
+  if (a?.hasWatchData) activityBits.push(`ลุกยืน ${a.standHours}/12 ชม.`);
+  const activityBlock = activityBits.length
+    ? `- การขยับตัววันนี้: ${activityBits.join(" · ")}`
+    : "";
+
   const baseInfo = `
 ข้อมูลลูกค้า:
 - ชื่อ: ${context.name}
@@ -451,7 +486,7 @@ export function buildPrompt(type: CoachingType, context: MemberContext): string 
 - น้ำหนักเป้าหมาย: ${context.goal.targetWeight || "ไม่ระบุ"} kg
 - AI Coach: ${aiCoachStatusText}
 - Streak บันทึกอาหาร: ${context.streakDays} วันติด
-
+${activityBlock}
 เป้าหมายวันนี้:
 - แคลอรี่: ${context.targets.calories} kcal
 - โปรตีน: ${context.targets.protein}g

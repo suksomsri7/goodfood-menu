@@ -10,7 +10,7 @@ import { bkkDateKey } from "@/lib/planGenerator";
  *   workouts?: [{sourceId,type,startedAt,duration(min),calories,avgHR?,distanceM?}],
  *   weights?:  [{weight,date}],
  *   sleeps?:   [{sourceId,date,minutesAsleep,quality?,stages?}],
- *   metrics?:  [{date,steps?,restingHR?,activeKcal?}],
+ *   metrics?:  [{date,steps?,restingHR?,activeKcal?,standHours?,exerciseMin?}],
  *   lineUserId?
  * } (+ Bearer) → { workouts, weights, sleeps, metrics } (จำนวนที่บันทึก/อัปเดต)
  */
@@ -72,8 +72,15 @@ export async function POST(req: NextRequest) {
       const date = bkkDateKey(new Date(m.date));
       await prisma.dailyMetric.upsert({
         where: { memberId_date_source: { memberId: member.id, date, source } },
-        update: { steps: m.steps ?? null, restingHR: m.restingHR ?? null, activeKcal: m.activeKcal ?? null },
-        create: { memberId: member.id, date, steps: m.steps ?? null, restingHR: m.restingHR ?? null, activeKcal: m.activeKcal ?? null, source },
+        update: {
+          steps: m.steps ?? null, restingHR: m.restingHR ?? null, activeKcal: m.activeKcal ?? null,
+          // วง Stand/Exercise ของ Apple — เก็บไว้ให้โค้ชใช้เป็นบริบท (ไม่ได้โชว์เป็นวงในหน้าหลัก)
+          standHours: m.standHours ?? null, exerciseMin: m.exerciseMin ?? null,
+        },
+        create: {
+          memberId: member.id, date, steps: m.steps ?? null, restingHR: m.restingHR ?? null,
+          activeKcal: m.activeKcal ?? null, standHours: m.standHours ?? null, exerciseMin: m.exerciseMin ?? null, source,
+        },
       });
       counts.metrics++;
     }

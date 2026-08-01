@@ -52,11 +52,16 @@ export async function runNudges(now = new Date()) {
     if (nudgesToday >= DAILY_CAP) { details.push({ memberId: m.id, status: "capped" }); continue; }
 
     // รวมข้อมูลวันนี้
-    const [mealAgg, waterAgg, mealCount, sleeps] = await Promise.all([
+    const [mealAgg, waterAgg, mealCount, sleeps, metrics] = await Promise.all([
       prisma.mealLog.aggregate({ where: { memberId: m.id, date: { gte: start, lt: end } }, _sum: { calories: true, protein: true, sodium: true, sugar: true } }),
       prisma.waterLog.aggregate({ where: { memberId: m.id, date: { gte: start, lt: end } }, _sum: { amount: true } }),
       prisma.mealLog.count({ where: { memberId: m.id, date: { gte: start, lt: end } } }),
       prisma.sleepLog.findMany({ where: { memberId: m.id }, orderBy: { date: "desc" }, take: 3 }),
+      // วง Stand/Exercise จาก Apple Watch (ถ้าเชื่อมไว้) — ใช้เตือนเรื่องนั่งนาน/ยังไม่ได้ขยับ
+      prisma.dailyMetric.findMany({
+        where: { memberId: m.id, date: { gte: start, lt: end } },
+        select: { standHours: true, exerciseMin: true },
+      }),
     ]);
 
     const protein = mealAgg._sum.protein || 0;
@@ -67,6 +72,10 @@ export async function runNudges(now = new Date()) {
     const tSodium = m.dailySodium || 2300;
     const tSugar = m.dailySugar || 50;
     const tWater = m.dailyWater || 2000;
+    // Apple: ยืนครบ 12 ชม. · ออกกำลังกาย 30 นาที · มีค่าเฉพาะคนที่ใส่ Watch
+    const standHours = metrics.reduce((s2, x) => Math.max(s2, x.standHours ?? 0), 0);
+    const exerciseMin = metrics.reduce((s2, x) => Math.max(s2, x.exerciseMin ?? 0), 0);
+    const hasWatch = metrics.some((x) => (x.standHours ?? 0) > 0);
 
     // เลือก nudge ที่เหมาะที่สุด 1 อัน (เรียงความสำคัญ) ที่ยังไม่ส่งวันนี้
     const candidates: Nudge[] = [];
@@ -80,6 +89,11 @@ export async function runNudges(now = new Date()) {
       candidates.push({ type: "nudge_water", pref: "notifyWaterReminder", title: "ดื่มน้ำ 💧", body: `วันนี้ดื่มน้ำ ${water}/${tWater} ml ยังน้อยอยู่ จิบน้ำเพิ่มหน่อยนะครับ` });
     if (hour >= 13 && mealCount === 0)
       candidates.push({ type: "nudge_nolog", pref: "notifyMorningCoach", title: "ยังไม่ได้บันทึกมื้อเลย 🍽️", body: "วันนี้ยังไม่มีบันทึกอาหารเลยครับ กดถ่ายรูปหรือพูดกับโค้ชได้เลย" });
+    // นั่งติดเก้าอี้: บ่ายแล้วแต่ยืนไม่ถึงครึ่งของชั่วโมงที่ผ่านมา (เทียบเวลาตื่นคร่าว ๆ 07:00)
+    if (hasWatch && hour >= 14 && standHours < Math.floor((hour - 7) * 0.5))
+      candidates.push({ type: "nudge_stand", pref: "notifyWaterReminder", title: "ลุกยืดเส้นหน่อย 🧍", body: `วันนี้ลุกยืนไป ${standHours}/12 ชม. นั่งนานเกินไปแล้วครับ ลุกเดิน 2-3 นาทีทุกชั่วโมงช่วยได้เยอะ` });
+    if (hour >= 18 && exerciseMin > 0 && exerciseMin < 15)
+      candidates.push({ type: "nudge_move", pref: "notifyWaterReminder", title: "ขยับอีกนิด 🏃", body: `วันนี้ขยับไป ${exerciseMin} นาที (เป้า 30) เดินเร็ว 15 นาทีก็ครบแล้วครับ` });
     if (sleeps.length >= 3 && sleeps.every((sl) => sl.minutesAsleep < 360) && hour >= 20)
       candidates.push({ type: "nudge_sleep", pref: "notifyEveningSummary", title: "พักผ่อนหน่อยนะ 😴", body: "3 คืนที่ผ่านมานอนน้อยกว่า 6 ชม. คืนนี้ลองเข้านอนเร็วขึ้นเพื่อให้ร่างกายฟื้นตัวนะครับ" });
 
