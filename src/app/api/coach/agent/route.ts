@@ -6,6 +6,7 @@ import { gatherMemberContext, COACH_SYSTEM_PROMPT } from "@/lib/coaching";
 import { resolveMember, coachActive } from "@/lib/coachResolve";
 import { bkkTodayKey } from "@/lib/planGenerator";
 import { checkUsageLimitForMember, logAiUsageByMemberId } from "@/lib/usage-limits";
+import { frequentFoods } from "@/lib/foodCache";
 
 /**
  * Agentic coach (ข้อ 3+4) — user พูด/พิมพ์เป็นภาษาคน → AI แยกเป็น:
@@ -121,11 +122,13 @@ export async function POST(req: NextRequest) {
     if (!apiKey) return NextResponse.json({ error: "AI not configured" }, { status: 503 });
 
     const todayKey = bkkTodayKey();
-    const [context, plan, history] = await Promise.all([
+    const [context, plan, history, favourites] = await Promise.all([
       gatherMemberContext(member.id),
       prisma.dailyPlan.findUnique({ where: { memberId_date: { memberId: member.id, date: todayKey } } }),
       // บทสนทนาเก่า 10 ข้อความ (เก็บ backend เงียบๆ — Siri style ไม่แสดงใน UI)
       prisma.coachChatLog.findMany({ where: { memberId: member.id }, orderBy: { createdAt: "desc" }, take: 10 }),
+      // เมนูที่เคยบันทึกแล้ว — ใช้ตัวเลขเดิมแทนให้ AI ประมาณใหม่ทุกครั้ง (แม่นกว่า + ประหยัด)
+      frequentFoods(member.id).catch(() => ""),
     ]);
     // WO-P.3 — memory + insight มากับ context แล้ว (แยกออกจาก JSON กันซ้ำซ้อนใน prompt)
     // P3: ตัด stock (ออเดอร์ร้าน goodfood) ด้วย — แอปโค้ชไม่ใช้ เปลือง token ทุกคำตอบ
@@ -146,7 +149,8 @@ export async function POST(req: NextRequest) {
       `ข้อมูลผู้ใช้ (จริง): ${JSON.stringify(contextData)}`,
       `แผนวันนี้: ${plan ? JSON.stringify({ exercise: plan.exercisePlan, meal: plan.mealPlan }) : "ยังไม่มีแผน"}`,
       personalization?.text || "สิ่งที่โค้ชจำเกี่ยวกับ user: (ยังไม่มีข้อมูลเฉพาะตัว)",
-    ].join("\n\n");
+      favourites || "",
+    ].filter(Boolean).join("\n\n");
 
     const openai = buildOpenAI(apiKey);
     const askModel = () =>

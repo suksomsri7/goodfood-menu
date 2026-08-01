@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { buildOpenAI, aiModel , aiOutageReason } from "@/lib/aiClient";
+import { modelsFor, isExplicitModel, shouldFallback } from "@/lib/aiModels";
 import { prisma } from "@/lib/prisma";
 import { checkUsageLimit, logAiUsage } from "@/lib/usage-limits";
 import { getSecret } from "@/lib/secrets/store";
@@ -160,37 +161,41 @@ export async function POST(request: NextRequest) {
       userMessage += userContext;
     }
 
-    // Call OpenAI GPT-4o with vision
-    const response = await openai.chat.completions.create({
-      model: aiModel(apiKey, "gpt-4o"),
-      messages: [
-        {
-          role: "system",
-          content: BASE_SYSTEM_PROMPT,
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: userMessage,
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: image, // base64 data URL
-                detail: "high",
-              },
-            },
-          ],
-        },
-      ],
-      max_tokens: 1500,
-      temperature: 0.4,
-    });
+    // โมเดลตั้งค่าได้จาก backoffice · ชั้นแรกฟรี ล้มแล้วค่อยตกไปตัวเสียเงินที่ถูกมาก
+    const { primary, fallback } = await modelsFor("vision");
+    const callVision = (name: string) =>
+      openai.chat.completions.create({
+        model: isExplicitModel(name) ? name : aiModel(apiKey, name),
+        messages: [
+          { role: "system", content: BASE_SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: userMessage },
+              // detail auto: ประหยัด token ราวครึ่งหนึ่ง แทบไม่ต่างกับอาหารจานเดี่ยว
+              { type: "image_url", image_url: { url: image, detail: "auto" } },
+            ],
+          },
+        ],
+        // ผลลัพธ์เป็น JSON สั้น ๆ — 1,500 เดิมเผื่อไว้เกินความจำเป็น
+        max_tokens: 700,
+        temperature: 0.4,
+      });
+
+    let response;
+    let usedModel = primary;
+    try {
+      response = await callVision(primary);
+      if (!response.choices[0]?.message?.content) throw new Error("no response from AI");
+    } catch (err: any) {
+      if (!shouldFallback(err) || fallback === primary) throw err;
+      console.warn(`[analyze-food] ${primary} ล้ม (${err?.status || err?.message}) → ใช้ ${fallback}`);
+      usedModel = fallback;
+      response = await callVision(fallback);
+    }
 
     const content = response.choices[0]?.message?.content;
-    
+
     if (!content) {
       throw new Error("No response from AI");
     }
