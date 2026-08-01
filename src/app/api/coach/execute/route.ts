@@ -55,10 +55,14 @@ export async function POST(req: NextRequest) {
       const g = a.args || {};
       const at = resolveLogTime(g); // เวลาที่ user บอกเอง (ถ้ามี)
       if (a.tool === "log_meal") {
+        // ปริมาณที่ตกลงกัน ("3 ไม้", "แก้วกลาง") ต่อท้ายชื่อ → ไทม์ไลน์อ่านแล้วรู้ว่าบันทึกเท่าไร
+        const baseName = String(g.name || "อาหาร").trim();
+        const portion = typeof g.portion === "string" ? g.portion.trim() : "";
+        const fullName = portion && !baseName.includes(portion) ? `${baseName} ${portion}` : baseName;
         await prisma.mealLog.create({
           data: {
             memberId: member.id,
-            name: String(g.name || "อาหาร").slice(0, 120),
+            name: fullName.slice(0, 120),
             weight: g.weight != null ? num(g.weight, 5000) : null,
             calories: num(g.calories, 6000),
             protein: num(g.protein, 500),
