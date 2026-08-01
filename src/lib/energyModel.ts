@@ -24,7 +24,9 @@ export type EnergySource = "adaptive" | "measured" | "formula";
 
 export interface EnergyEstimate {
   tdee: number;
-  target: number; // แคลอรี่ที่ควรกินต่อวัน
+  /** พลังงานของ "วันที่ไม่ได้ออกกำลังกาย" — ใช้เป็นฐานของงบรายวัน (ดู dailyBudget.ts) */
+  baseTdee: number;
+  target: number; // แคลอรี่ที่ควรกินต่อวัน (ฐาน — ยังไม่รวมที่คืนจากการออกกำลังกาย)
   bmr: number;
   source: EnergySource;
   confidence: "high" | "medium" | "low";
@@ -95,7 +97,7 @@ export async function estimateEnergy(memberId: string, days = 21): Promise<Energ
       ? calculateBMR(weight, member.height, calculateAge(member.birthDate), member.gender as "male" | "female")
       : Math.round(member.bmr ?? weight * 22);
 
-  const [mealRows, weights, metrics] = await Promise.all([
+  const [mealRows, weights, metrics, exerciseRows] = await Promise.all([
     // แคลอรี่ต่อวัน (วัน BKK) — ใช้ดูทั้งค่าเฉลี่ยและความสม่ำเสมอของการบันทึก
     prisma.$queryRaw<Array<{ d: Date; kcal: number }>>`
       SELECT ("date" + interval '7 hours')::date AS d, SUM(calories)::float AS kcal
@@ -111,6 +113,11 @@ export async function estimateEnergy(memberId: string, days = 21): Promise<Energ
       where: { memberId, date: { gte: since } },
       select: { activeKcal: true, date: true },
     }),
+    // แคลอรี่จากการออกกำลังกายที่บันทึกไว้ — ใช้ถอดออกจาก TDEE เพื่อหา "ฐานวันไม่ออกกำลังกาย"
+    prisma.exerciseLog.findMany({
+      where: { memberId, date: { gte: since } },
+      select: { calories: true, date: true },
+    }),
   ]);
 
   const loggedDays = mealRows.filter((r) => Number(r.kcal) > 300); // วันที่บันทึกจริง (ไม่ใช่แค่แตะ ๆ)
@@ -120,6 +127,8 @@ export async function estimateEnergy(memberId: string, days = 21): Promise<Energ
 
   const activity = (member.activityLevel ?? "moderate") as ActivityLevel;
   const formulaTdee = calculateTDEE(bmr, activity);
+  // เฉลี่ยแคลอรี่ออกกำลังกายต่อวัน (หารด้วยจำนวนวันทั้งช่วง ไม่ใช่เฉพาะวันที่ออก)
+  const avgExercisePerDay = exerciseRows.reduce((s2, e) => s2 + (e.calories || 0), 0) / days;
 
   let tdee = formulaTdee;
   let source: EnergySource = "formula";
@@ -162,10 +171,17 @@ export async function estimateEnergy(memberId: string, days = 21): Promise<Energ
     }
   }
 
+  // ฐาน = พลังงานของ "วันที่ไม่ได้ออกกำลังกาย"
+  //  · source=formula → ใช้ NEAT อย่างเดียว (BMR × 1.35) ไม่ใช้ตัวคูณกิจกรรมที่ user เลือก
+  //    เพราะส่วนออกกำลังกายถูกคืนให้เป็นรายวันแล้ว (dailyBudget.ts) — ไม่งั้นนับซ้ำ
+  //  · source=measured/adaptive → ถอดแคลอรี่ออกกำลังกายเฉลี่ยออกจาก TDEE ที่วัดได้
+  // clamp: NEAT ล้วนอยู่ในช่วง BMR×1.2 – BMR×1.6
+  const rawBase = source === "formula" ? bmr * 1.35 : tdee - avgExercisePerDay;
+  const baseTdee = Math.round(Math.min(Math.max(rawBase, bmr * 1.2), bmr * 1.6));
   const target = targetFromTdee(tdee, goalType, bmr);
   const { macros, basis } = macroTargets(target, weight, member.goalWeight, goalType);
 
-  return { tdee: Math.round(tdee), target: Math.round(target), bmr, source, confidence, dataDays, explain, macros, proteinBasis: basis, warning };
+  return { tdee: Math.round(tdee), baseTdee, target: Math.round(target), bmr, source, confidence, dataDays, explain, macros, proteinBasis: basis, warning };
 }
 
 /** ข้อความบอกว่า "ยังต้องการอะไรอีก" เพื่อให้โค้ชคำนวณแม่นขึ้น */

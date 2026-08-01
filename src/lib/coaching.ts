@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getDailyBudget } from "@/lib/dailyBudget";
 import OpenAI from "openai";
 import { buildOpenAI, aiModel } from "@/lib/aiClient";
 import { getSecret } from "@/lib/secrets/store";
@@ -87,6 +88,12 @@ export interface MemberContext {
     calories: number;
   } | null;
   streakDays: number;
+  /** งบแคลอรี่วันนี้แบบฐาน+คืน (dailyBudget.ts) */
+  budget: {
+    base: number; earned: number; target: number; remaining: number;
+    week: { budget: number; used: number; remaining: number; daysLeft: number; perDayLeft: number; startLabel: string };
+    explain: string;
+  } | null;
   /** วง Move/Stand/Exercise ของ Apple (ผ่าน HealthKit) — ใช้เป็นบริบทให้โค้ช ไม่ได้โชว์เป็นวงในแอป */
   activity: {
     steps: number;
@@ -306,7 +313,7 @@ export async function gatherMemberContext(memberId: string): Promise<MemberConte
   startOfYesterday.setDate(startOfYesterday.getDate() - 1);
 
   // P2: เดิม await เรียงแถว ~8 จุด (+streak เดิมอีก 30 query) ทุกครั้งที่คุยกับโค้ช → ยิงขนานชุดเดียว
-  const [todayMeals, yesterdayMeals, waterLogs, recentOrders, weightLogs, exerciseToday, streakDays, personalization, todayMetrics] =
+  const [todayMeals, yesterdayMeals, waterLogs, recentOrders, weightLogs, exerciseToday, streakDays, personalization, budget, todayMetrics] =
     await Promise.all([
       prisma.mealLog.findMany({ where: { memberId, date: { gte: startOfDay } } }),
       prisma.mealLog.findMany({ where: { memberId, date: { gte: startOfYesterday, lt: startOfDay } } }),
@@ -325,6 +332,7 @@ export async function gatherMemberContext(memberId: string): Promise<MemberConte
       prisma.exerciseLog.findFirst({ where: { memberId, date: { gte: startOfDay } }, orderBy: { date: "desc" } }),
       calculateStreak(memberId),
       getPersonalizationSafe(memberId), // WO-P.3 — จุดเดียวที่ป้อน memory+insight เข้า context กลาง
+      getDailyBudget(memberId).catch(() => null), // งบวันนี้ = ฐาน + คืนจากที่ออกกำลังกาย
       // วง Move/Stand/Exercise จาก Apple Health — ไม่โชว์เป็นวงในแอป แต่ให้โค้ชรู้ว่าวันนี้ขยับแค่ไหน
       prisma.dailyMetric.findMany({
         where: { memberId, date: { gte: startOfDay } },
@@ -405,8 +413,12 @@ export async function gatherMemberContext(memberId: string): Promise<MemberConte
       fat: Math.round(yesterdayTotals.fat),
       mealCount: yesterdayMeals.length,
     },
+    budget: budget
+      ? { base: budget.base, earned: budget.earned, target: budget.target, remaining: budget.remaining, week: budget.week, explain: budget.explain }
+      : null,
     targets: {
-      calories: member.dailyCalories || 2000,
+      // เป้าแคลอรี่ของ "วันนี้" (ฐานวันไม่ออกกำลังกาย + ที่คืนจากการออกกำลังกายจริง)
+      calories: budget?.target || member.dailyCalories || 2000,
       protein: member.dailyProtein || 100,
       carbs: member.dailyCarbs || 250,
       fat: member.dailyFat || 65,
@@ -474,6 +486,12 @@ export function buildPrompt(type: CoachingType, context: MemberContext): string 
   if (a?.activeKcal) activityBits.push(`เผาจากการเคลื่อนไหว ${a.activeKcal} kcal`);
   if (a?.exerciseMin) activityBits.push(`ออกกำลังกาย ${a.exerciseMin} นาที (เป้า Apple 30)`);
   if (a?.hasWatchData) activityBits.push(`ลุกยืน ${a.standHours}/12 ชม.`);
+  // เป้าวันนี้เป็นแบบ "ฐาน + คืนจากที่ออกกำลังกาย" → โค้ชต้องอธิบายได้ถ้า user ถามว่าทำไมวันนี้กินได้เท่านี้
+  const b = context.budget;
+  const budgetNote = b
+    ? ` (ฐานวันไม่ออกกำลังกาย ${b.base}${b.earned > 0 ? ` + ${b.earned} จากที่ออกกำลังกายวันนี้` : ""} · เหลืออีก ${b.remaining} kcal` +
+      ` · งบทั้งสัปดาห์เหลือ ${b.week.remaining} kcal ใน ${b.week.daysLeft} วัน)`
+    : "";
   const activityBlock = activityBits.length
     ? `- การขยับตัววันนี้: ${activityBits.join(" · ")}`
     : "";
@@ -488,7 +506,7 @@ export function buildPrompt(type: CoachingType, context: MemberContext): string 
 - Streak บันทึกอาหาร: ${context.streakDays} วันติด
 ${activityBlock}
 เป้าหมายวันนี้:
-- แคลอรี่: ${context.targets.calories} kcal
+- แคลอรี่: ${context.targets.calories} kcal${budgetNote}
 - โปรตีน: ${context.targets.protein}g
 - คาร์บ: ${context.targets.carbs}g
 - ไขมัน: ${context.targets.fat}g

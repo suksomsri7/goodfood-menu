@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { memberFromReq } from "@/lib/memberAuth";
+import { getDailyBudget } from "@/lib/dailyBudget";
+import { estimateEnergy } from "@/lib/energyModel";
 
 // Combined API endpoint to fetch all initial data for /cal page in ONE request
 // This reduces 4 API calls to 1, significantly improving initial load time
@@ -106,7 +108,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Coach native: รายการน้ำ (timeline) + การนอน + activeKcal/ก้าว จาก HealthKit + badge แจ้งเตือน
-    const [waterLogs, sleepLogs, dayMetrics, unreadNotifications] = await Promise.all([
+    const [waterLogs, sleepLogs, dayMetrics, unreadNotifications, energyEst] = await Promise.all([
       prisma.waterLog.findMany({
         where: { memberId: member.id, date: { gte: startOfDay, lte: endOfDay } },
         orderBy: { date: "asc" },
@@ -121,7 +123,11 @@ export async function GET(request: NextRequest) {
         select: { activeKcal: true, steps: true },
       }),
       prisma.coachNotification.count({ where: { memberId: member.id, readAt: null } }),
+      // ฐานพลังงานของ "วันที่ไม่ได้ออกกำลังกาย" (วัด/เรียนจากข้อมูลจริงถ้ามี)
+      estimateEnergy(member.id).catch(() => null),
     ]);
+    // งบวันนี้ = ฐาน + คืน 60% ของที่ออกกำลังกายจริง · พร้อมงบทั้งสัปดาห์
+    const budget = await getDailyBudget(member.id, { baseTdee: energyEst?.baseTdee }).catch(() => null);
     // คืนเดียวอาจมีทั้งจาก HealthKit และที่ user บอกโค้ชเอง → เอาค่ามากสุด ไม่ใช่บวกกัน (กันนับซ้ำ)
     const sleepMinutes = sleepLogs.reduce((s, x) => Math.max(s, x.minutesAsleep), 0);
     const activeKcal = dayMetrics.reduce((s, x) => s + (x.activeKcal || 0), 0);
@@ -142,6 +148,15 @@ export async function GET(request: NextRequest) {
         items: waterLogs,
       },
       sleep: { minutes: sleepMinutes },
+      // งบแคลอรี่แบบ "ฐาน + คืนบางส่วน" (แอปใช้ตัวนี้แทน member.dailyCalories ตรง ๆ)
+      energy: budget
+        ? {
+            base: budget.base, earned: budget.earned, target: budget.target,
+            exerciseKcal: budget.exerciseKcal, eaten: budget.eaten, remaining: budget.remaining,
+            week: budget.week, explain: budget.explain,
+            source: energyEst?.source ?? "formula",
+          }
+        : null,
       metrics: { activeKcal, steps: daySteps },
       // badge ศูนย์แจ้งเตือน (แอปเรียก endpoint นี้ทุกครั้งที่เปิด/เปลี่ยนวันอยู่แล้ว)
       notifications: { unread: unreadNotifications },
