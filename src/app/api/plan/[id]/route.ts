@@ -39,7 +39,9 @@ export async function PATCH(
       exerciseItemsDone && typeof exerciseItemsDone === "object"
         ? { ...(plan.exerciseItemsDone as Record<string, boolean> | null), ...exerciseItemsDone }
         : (plan.exerciseItemsDone as Record<string, boolean> | null);
-    const exItems = (plan.exercisePlan as { items?: { name: string }[] } | null)?.items ?? [];
+    const exItemsFull =
+      (plan.exercisePlan as { items?: { name: string; minutes?: number; sets?: number; reps?: number }[] } | null)?.items ?? [];
+    const exItems = exItemsFull;
     let nextExerciseDone = typeof exerciseDone === "boolean" ? exerciseDone : plan.exerciseDone;
     if (exerciseItemsDone && exItems.length > 0) {
       nextExerciseDone = exItems.every((it) => (nextItemsDone || {})[it.name]);
@@ -88,7 +90,46 @@ export async function PATCH(
       }
     }
     const ep = plan.exercisePlan as { title?: string; durationMin?: number; caloriesTarget?: number } | null;
-    if (nextExerciseDone !== plan.exerciseDone && ep?.title) {
+    // ── ติ๊กรายท่า = บันทึกทีละท่าทันที (ไม่ต้องรอครบทุกท่า) ──
+    // เดิมสร้าง log ก้อนเดียวตอนครบทุกท่า → user ติ๊ก 1/3 แล้วไม่มีอะไรเข้า timeline/แหวนเลย
+    const itemLevel = !!(exerciseItemsDone && typeof exerciseItemsDone === "object" && exItemsFull.length > 0);
+    if (itemLevel) {
+      const prevItems = (plan.exerciseItemsDone as Record<string, boolean> | null) || {};
+      // แบ่ง kcal เป้าตามน้ำหนักเวลาของแต่ละท่า (ท่านับครั้ง ≈ 1.5 นาที/เซ็ต)
+      const weightOf = (it: { minutes?: number; sets?: number }) =>
+        Number(it.minutes) > 0 ? Number(it.minutes) : Math.max(1, Number(it.sets) || 1) * 1.5;
+      const totalW = exItemsFull.reduce((s, it) => s + weightOf(it), 0) || 1;
+      for (const [name, val] of Object.entries(exerciseItemsDone as Record<string, boolean>)) {
+        const it = exItemsFull.find((x) => x.name === name);
+        if (!it) continue;
+        const w = weightOf(it);
+        if (val && !prevItems[name]) {
+          await prisma.exerciseLog.create({
+            data: {
+              memberId: member.id, name,
+              duration: Math.round(w),
+              calories: Math.round(((ep?.caloriesTarget || 0) * w) / totalW),
+              source: "plan", date: logDate,
+            },
+          });
+        } else if (!val && prevItems[name]) {
+          const last = await prisma.exerciseLog.findFirst({
+            where: { memberId: member.id, source: "plan", name, date: { gte: dayStart, lt: dayEnd } },
+            orderBy: { createdAt: "desc" },
+          });
+          if (last) await prisma.exerciseLog.delete({ where: { id: last.id } });
+        }
+      }
+      // แผนที่เคยติ๊กครบด้วยเวอร์ชันเก่าจะมี log ก้อนรวม (ชื่อ = title) ค้างอยู่ → เก็บกวาดตอนติ๊กออก
+      if (!nextExerciseDone && plan.exerciseDone && ep?.title) {
+        const legacy = await prisma.exerciseLog.findFirst({
+          where: { memberId: member.id, source: "plan", name: ep.title, date: { gte: dayStart, lt: dayEnd } },
+          orderBy: { createdAt: "desc" },
+        });
+        if (legacy) await prisma.exerciseLog.delete({ where: { id: legacy.id } });
+      }
+    } else if (nextExerciseDone !== plan.exerciseDone && ep?.title) {
+      // ทางเดิม (LIFF ส่ง exerciseDone มาตรง ๆ ไม่มีรายท่า) = log ก้อนเดียวทั้งเซสชัน
       if (nextExerciseDone) {
         await prisma.exerciseLog.create({
           data: {
