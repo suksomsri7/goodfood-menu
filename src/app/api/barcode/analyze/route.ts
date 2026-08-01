@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import { buildOpenAI, aiModel } from "@/lib/aiClient";
+import { buildOpenAI, aiModel, aiOutageReason } from "@/lib/aiClient";
 import { checkUsageLimit, logAiUsage } from "@/lib/usage-limits";
 import { getSecret } from "@/lib/secrets/store";
 
@@ -159,6 +159,8 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
+    const outage = aiOutageReason(error);
+    if (outage) return NextResponse.json({ error: outage.message, reason: outage.code, success: false }, { status: 503 });
     console.error("Barcode analyze error:", error);
     
     return NextResponse.json(

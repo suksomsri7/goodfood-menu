@@ -64,6 +64,21 @@ async function classify(image: string): Promise<"food" | "label" | "unknown"> {
   }
 }
 
+/** แจ้งผู้ดูแลเมื่อ AI ใช้ไม่ได้ (ไม่งั้นไม่มีใครรู้จนกว่า user จะบ่น) — กันสแปมด้วยช่วงเวลา */
+let lastOutageNotify = 0;
+function notifyAiOutage(code: string, message: string) {
+  const now = Date.now();
+  if (now - lastOutageNotify < 30 * 60 * 1000) return;
+  lastOutageNotify = now;
+  const url = process.env.OPS_ALERT_WEBHOOK;
+  if (!url) return;
+  fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: `🔴 Coach AI ใช้ไม่ได้ (${code}): ${message}` }),
+  }).catch(() => {});
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -107,6 +122,12 @@ export async function POST(req: NextRequest) {
     const json = await res.json();
 
     logAiUsageByMemberId(authed.id, "dailyPhotoLimit").catch(() => {});
+
+    // ระบบ AI ใช้ไม่ได้ (เครดิตหมด/คีย์/แน่น) — คนละเรื่องกับ "รูปไม่ชัด" ต้องบอกตามจริง
+    if (res.status === 503 && json.reason) {
+      notifyAiOutage(json.reason, json.error);
+      return NextResponse.json({ error: json.error, reason: json.reason }, { status: 503 });
+    }
 
     // กันค่าตัวอย่างสำรองของ endpoint เดิม (AI ล้ม → mock 300 kcal) — บอกตรงๆ ให้ถ่ายใหม่
     const name = json.data?.name || "";

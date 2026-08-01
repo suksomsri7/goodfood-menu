@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { buildOpenAI, aiModel } from "@/lib/aiClient";
+import { buildOpenAI, aiModel, aiOutageReason } from "@/lib/aiClient";
 import { getSecret } from "@/lib/secrets/store";
 import { prisma } from "@/lib/prisma";
 import { gatherMemberContext, COACH_SYSTEM_PROMPT } from "@/lib/coaching";
@@ -204,6 +204,14 @@ export async function POST(req: NextRequest) {
     });
   } catch (e: any) {
     console.error("[coach/agent]", e);
+    const outage = aiOutageReason(e);
+    if (outage) {
+      // ให้แอปพูดข้อความนี้ออกมาเลย ดีกว่าให้ user เดาว่าตัวเองพูดไม่ชัด
+      return NextResponse.json({
+        reply: outage.message, pendingActions: [], memoryProposals: [],
+        needsInput: false, aiOutage: outage.code,
+      });
+    }
     return NextResponse.json({ error: e.message || "agent failed" }, { status: 500 });
   }
 }
