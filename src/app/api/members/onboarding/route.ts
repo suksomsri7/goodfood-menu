@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { macroTargets } from "@/lib/energyModel";
 import { getAuthedMember } from "@/lib/coachAuth";
 
 // POST - Complete onboarding  (+ Bearer สำหรับ Coach native)
@@ -119,6 +120,21 @@ export async function POST(request: NextRequest) {
         ...trialData,
       },
     });
+
+    // เซิร์ฟเวอร์เป็นเจ้าของสูตรมาโคร — แอปส่งค่าที่คำนวณเองมา แต่ของเดิมคิดโปรตีนเป็น % ของแคลอรี่
+    // ทำให้คนแคลอรี่สูงได้เป้าโปรตีนเกินจริง (เคสจริง: 258 g/วัน) → คิดใหม่เป็น ก./กก. ตรงนี้เสมอ
+    if (member.dailyCalories && member.weight) {
+      const { macros } = macroTargets(member.dailyCalories, member.weight, member.goalWeight, member.goalType ?? "maintain");
+      if (macros.protein !== member.dailyProtein || macros.fat !== member.dailyFat) {
+        await prisma.member.update({
+          where: { id: member.id },
+          data: { dailyProtein: macros.protein, dailyCarbs: macros.carbs, dailyFat: macros.fat },
+        });
+        member.dailyProtein = macros.protein;
+        member.dailyCarbs = macros.carbs;
+        member.dailyFat = macros.fat;
+      }
+    }
 
     // Create initial weight log
     if (weight) {

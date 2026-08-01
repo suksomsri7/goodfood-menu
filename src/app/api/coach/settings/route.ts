@@ -9,6 +9,7 @@ import {
   calculateAge,
   type ActivityLevel,
 } from "@/lib/health-calculator";
+import { estimateEnergy, targetFromTdee, macroTargets } from "@/lib/energyModel";
 
 export const dynamic = "force-dynamic";
 
@@ -71,12 +72,18 @@ export async function PATCH(req: NextRequest) {
     const activity = ((data.activityLevel as string) ?? member.activityLevel ?? "moderate") as ActivityLevel;
     const age = calculateAge(member.birthDate);
     const bmr = calculateBMR(weight, member.height, age, member.gender as "male" | "female");
-    const tdee = calculateTDEE(bmr, activity);
-    const dailyCalories = calculateDailyCalories(tdee, goalType);
-    const dietType = ["balanced", "high_protein", "low_fat"].includes(member.dietType || "")
-      ? (member.dietType as "balanced" | "high_protein" | "low_fat")
-      : "balanced"; // สมาชิกเก่าบางคนเก็บเป็นข้อความไทย ("ทั่วไป") → กัน NaN
-    const macros = calculateMacros(dailyCalories, dietType);
+    // เป้าพลังงาน: ใช้ค่าที่วัด/เรียนจากข้อมูลจริงถ้ามี (energyModel) — สูตร BMR×ตัวคูณเป็นทางสำรอง
+    const est = await estimateEnergy(member.id);
+    const useReal = est && est.source !== "formula";
+    const tdee = useReal ? est!.tdee : calculateTDEE(bmr, activity);
+    const dailyCalories = targetFromTdee(tdee, goalType, bmr);
+    // มาโครคิดโปรตีนเป็น ก./กก. ก่อน (ของเดิมคิดเป็น % ทำให้โปรตีนพุ่งเกินจริงเมื่อแคลอรี่สูง)
+    const { macros } = macroTargets(
+      dailyCalories,
+      weight,
+      (data.goalWeight as number) ?? member.goalWeight ?? null,
+      goalType
+    );
     Object.assign(data, {
       bmr,
       tdee,

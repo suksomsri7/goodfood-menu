@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { isAiCoachActive } from "@/lib/coaching";
 import { generateWeekPlan, bkkTodayKey, addDays } from "@/lib/planGenerator";
+import { estimateEnergy, targetFromTdee, macroTargets } from "@/lib/energyModel";
 
 const MAX_STEP = 0.1; // ปรับได้ไม่เกิน ±10% ต่อรอบ
 const STEP = 0.08; // ก้าวปรับจริง 8%
@@ -64,18 +65,22 @@ export async function runWeeklyAdjust(opts?: {
       continue;
     }
 
-    // เทรนด์น้ำหนัก 14 วัน
+    // พลังงานที่วัด/เรียนได้จริง (21 วัน) — ถ้ามี ใช้ตัวนี้เป็นหลัก ไม่ต้องรอเทรนด์น้ำหนัก 14 วัน
+    const est = await estimateEnergy(m.id);
+    const hasReal = !!est && est.source !== "formula" && est.confidence !== "low";
+
+    // เทรนด์น้ำหนัก 14 วัน (ทางสำรองเมื่อยังวัดจริงไม่ได้)
     const since = new Date(now.getTime() - 14 * 24 * 3600 * 1000);
     const weights = await prisma.weightLog.findMany({
       where: { memberId: m.id, date: { gte: since } },
       orderBy: { date: "asc" },
       select: { weight: true, date: true },
     });
-    if (weights.length < 2) {
+    if (weights.length < 2 && !hasReal) {
       details.push({ memberId: m.id, name: m.name, status: "skipped-nodata" });
       continue;
     }
-    const trend = weights[weights.length - 1].weight - weights[0].weight; // + = ขึ้น, - = ลง
+    const trend = weights.length >= 2 ? weights[weights.length - 1].weight - weights[0].weight : 0;
 
     const adherence = await computeAdherence(m.id);
     const goalType = m.goalType || "ลดน้ำหนัก";
@@ -97,7 +102,9 @@ export async function runWeeklyAdjust(opts?: {
       } else if (trend < -0.1) {
         reason = `กำลังลดได้ดี (${trend.toFixed(1)} kg) คงแผนเดิมไว้ ทำต่อเลยครับ 💪`;
       } else {
-        reason = `ผลยังไม่ชัด ลองทำตามแผนให้สม่ำเสมออีกสัปดาห์แล้วค่อยประเมินใหม่นะครับ`;
+        reason = weights.length >= 2
+          ? `ผลยังไม่ชัด ลองทำตามแผนให้สม่ำเสมออีกสัปดาห์แล้วค่อยประเมินใหม่นะครับ`
+          : `ยังไม่มีน้ำหนักเทียบ 2 จุด — ชั่งน้ำหนักสัปดาห์ละ 2 ครั้งเพื่อให้โค้ชปรับเป้าได้แม่นขึ้น`;
       }
     } else if (gaining) {
       if (trend <= 0.1 && onTrackAdherence) {
@@ -110,23 +117,36 @@ export async function runWeeklyAdjust(opts?: {
       reason = `รักษาน้ำหนักได้ดี (${trend >= 0 ? "+" : ""}${trend.toFixed(1)} kg) คงแผนเดิมครับ`;
     }
 
-    // clamp ±10% และไม่ต่ำกว่า BMR
+    // ── ชั้นที่แม่นกว่า: ใช้พลังงานที่ "วัดได้จริง" แทนการเดา ±8% ──
+    // (adaptive = เรียนจากน้ำหนัก+อาหารจริง · measured = Apple Health) — ยังคง clamp ±10% ต่อรอบ
+    // เพื่อไม่ให้เป้ากระโดดจนคนตามไม่ทัน แล้วจะค่อย ๆ ลู่เข้าหาค่าจริงในไม่กี่สัปดาห์
     let newCal = prevCal;
-    if (deltaPct !== 0) {
+    if (hasReal && est) {
+      const want = targetFromTdee(est.tdee, goalType, bmr);
+      newCal = Math.round(clamp(want, prevCal * (1 - MAX_STEP), prevCal * (1 + MAX_STEP)));
+      newCal = Math.max(newCal, bmr);
+      if (Math.abs(newCal - prevCal) >= 30) {
+        reason = `${est.explain} → โค้ชปรับเป้าเป็น ${newCal.toLocaleString("th-TH")} kcal/วัน` +
+          (newCal !== want ? " (ค่อย ๆ ปรับทีละขั้นเพื่อไม่ให้กระชาก)" : "");
+      } else {
+        newCal = prevCal; // ต่างกันไม่ถึง 30 kcal = ถือว่าตรงแล้ว
+      }
+    } else if (deltaPct !== 0) {
       newCal = Math.round(clamp(prevCal * (1 + deltaPct), prevCal * (1 - MAX_STEP), prevCal * (1 + MAX_STEP)));
       newCal = Math.max(newCal, bmr);
     }
 
     if (newCal !== prevCal) {
-      // scale macro ตามสัดส่วนแคลอรี่
-      const ratio = newCal / prevCal;
+      // มาโครคิดใหม่ทั้งชุด (โปรตีน ก./กก. ก่อน) — ของเดิม scale ตามแคลอรี่ทำให้โปรตีนบานตามไปด้วย
+      const { macros } = macroTargets(newCal, m.weight ?? 70, m.goalWeight, goalType);
       await prisma.member.update({
         where: { id: m.id },
         data: {
           dailyCalories: newCal,
-          dailyProtein: m.dailyProtein ? Math.round(m.dailyProtein * ratio) : m.dailyProtein,
-          dailyCarbs: m.dailyCarbs ? Math.round(m.dailyCarbs * ratio) : m.dailyCarbs,
-          dailyFat: m.dailyFat ? Math.round(m.dailyFat * ratio) : m.dailyFat,
+          tdee: est?.tdee ?? m.tdee,
+          dailyProtein: macros.protein,
+          dailyCarbs: macros.carbs,
+          dailyFat: macros.fat,
         },
       });
 
