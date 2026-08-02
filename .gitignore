@@ -44,3 +44,6 @@ next-env.d.ts
 
 .vercel
 .env*.local
+
+# โฟลเดอร์ชั่วคราวของสคริปต์ seed คลังอาหาร (tsc output)
+.tmp-food-catalog/

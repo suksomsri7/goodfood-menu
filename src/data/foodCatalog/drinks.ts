@@ -1,0 +1,87 @@
+import type { FoodSeed } from "./types";
+
+/** เครื่องดื่ม (ไม่มีแอลกอฮอล์) — กาแฟ ชา ชานมไข่มุก น้ำอัดลม น้ำผลไม้ สมูทตี้ */
+const CAT = "เครื่องดื่ม";
+
+export const drinks: FoodSeed[] = [
+  // ── กาแฟ ──
+  { name: "อเมริกาโน่ร้อนไม่ใส่น้ำตาล", aliases: ["อเมริกาโน่ร้อน", "americano hot", "กาแฟดำร้อน"], category: CAT, portion: "1 แก้ว (240 มล.)", calories: 10, protein: 0.5, carbs: 2, fat: 0, sodium: 10, sugar: 0 },
+  { name: "อเมริกาโน่เย็นไม่ใส่น้ำตาล", aliases: ["อเมริกาโน่เย็น", "iced americano", "กาแฟดำเย็น"], category: CAT, portion: "1 แก้ว 16oz", calories: 15, protein: 0.6, carbs: 3, fat: 0, sodium: 15, sugar: 0 },
+  { name: "อเมริกาโน่เย็นหวานน้อย", aliases: ["อเมริกาโน่หวานน้อย"], category: CAT, portion: "1 แก้ว 16oz", calories: 70, protein: 0.6, carbs: 17, fat: 0, sodium: 15, sugar: 15 },
+  { name: "เอสเพรสโซ่", aliases: ["espresso", "ช็อตกาแฟ"], category: CAT, portion: "1 ช็อต (30 มล.)", calories: 5, protein: 0.3, carbs: 1, fat: 0, sodium: 5, sugar: 0 },
+  { name: "ลาเต้ร้อน", aliases: ["latte hot", "กาแฟลาเต้ร้อน"], category: CAT, portion: "1 แก้ว (350 มล.)", calories: 180, protein: 10, carbs: 18, fat: 8, sodium: 130, sugar: 16 },
+  { name: "ลาเต้เย็น", aliases: ["iced latte", "ลาเต้เย็นหวานปกติ"], category: CAT, portion: "1 แก้ว 16oz", calories: 210, protein: 9, carbs: 28, fat: 7, sodium: 120, sugar: 26 },
+  { name: "ลาเต้เย็นไม่ใส่น้ำตาล", aliases: ["ลาเต้เย็นหวาน 0%"], category: CAT, portion: "1 แก้ว 16oz", calories: 130, protein: 9, carbs: 13, fat: 5, sodium: 120, sugar: 12 },
+  { name: "คาปูชิโน่ร้อน", aliases: ["cappuccino", "คาปูชิโน"], category: CAT, portion: "1 แก้ว (300 มล.)", calories: 140, protein: 8, carbs: 14, fat: 6, sodium: 110, sugar: 12 },
+  { name: "มอคค่าเย็น", aliases: ["iced mocha", "มอคค่า"], category: CAT, portion: "1 แก้ว 16oz", calories: 320, protein: 9, carbs: 46, fat: 11, sodium: 150, sugar: 40 },
+  { name: "คาราเมลมัคคิอาโต้เย็น", aliases: ["caramel macchiato", "คาราเมลมัคคิอาโต"], category: CAT, portion: "1 แก้ว 16oz", calories: 290, protein: 9, carbs: 42, fat: 9, sodium: 150, sugar: 38 },
+  { name: "กาแฟเย็น (โอเลี้ยงยกล้อ)", aliases: ["กาแฟเย็นรถเข็น", "โอเลี้ยงยกล้อ", "กาแฟเย็นนมข้น"], category: CAT, portion: "1 แก้ว (400 มล.)", calories: 260, protein: 4, carbs: 44, fat: 8, sodium: 120, sugar: 40 },
+  { name: "โอเลี้ยง", aliases: ["โอเลี้ยงเย็น", "กาแฟดำเย็นใส่น้ำตาล"], category: CAT, portion: "1 แก้ว (400 มล.)", calories: 130, protein: 0.5, carbs: 32, fat: 0, sodium: 40, sugar: 30 },
+  { name: "กาแฟโบราณร้อน", aliases: ["โกปี๊", "กาแฟร้อนใส่นมข้น"], category: CAT, portion: "1 แก้ว (200 มล.)", calories: 180, protein: 3, carbs: 30, fat: 5, sodium: 90, sugar: 28 },
+  { name: "กาแฟสำเร็จรูป 3in1", aliases: ["กาแฟซอง", "เนสกาแฟ 3in1"], category: CAT, portion: "1 ซอง (18 ก.)", calories: 80, protein: 1, carbs: 14, fat: 2.5, sodium: 40, sugar: 11 },
+  { name: "กาแฟดำไม่ใส่น้ำตาล", aliases: ["แบล็คคอฟฟี่", "black coffee"], category: CAT, portion: "1 แก้ว (240 มล.)", calories: 5, protein: 0.3, carbs: 1, fat: 0, sodium: 5, sugar: 0 },
+  { name: "เอสเพรสโซ่เย็นใส่นมอัลมอนด์", aliases: ["ลาเต้นมอัลมอนด์"], category: CAT, portion: "1 แก้ว 16oz", calories: 90, protein: 2, carbs: 12, fat: 4, sodium: 130, sugar: 8 },
+  { name: "ดัลโกน่ากาแฟ", aliases: ["dalgona coffee"], category: CAT, portion: "1 แก้ว 16oz", calories: 260, protein: 8, carbs: 40, fat: 7, sodium: 130, sugar: 36 },
+
+  // ── ชา ──
+  { name: "ชาไทยเย็น", aliases: ["ชาเย็น", "ชานมเย็น", "thai tea"], category: CAT, portion: "1 แก้ว (400 มล.)", calories: 300, protein: 5, carbs: 48, fat: 10, sodium: 130, sugar: 44 },
+  { name: "ชาเขียวเย็น", aliases: ["ชาเขียวนมเย็น", "green tea latte iced"], category: CAT, portion: "1 แก้ว (400 มล.)", calories: 280, protein: 6, carbs: 46, fat: 8, sodium: 130, sugar: 40 },
+  { name: "ชาเขียวร้อนไม่ใส่น้ำตาล", aliases: ["ชาเขียวร้อน", "green tea"], category: CAT, portion: "1 แก้ว (250 มล.)", calories: 5, protein: 0.2, carbs: 1, fat: 0, sodium: 5, sugar: 0 },
+  { name: "ชามะนาว", aliases: ["ชามะนาวเย็น", "lemon tea"], category: CAT, portion: "1 แก้ว (400 มล.)", calories: 160, protein: 0.5, carbs: 40, fat: 0, sodium: 30, sugar: 38 },
+  { name: "ชาดำเย็นไม่ใส่น้ำตาล", aliases: ["ชาดำเย็น"], category: CAT, portion: "1 แก้ว (400 มล.)", calories: 8, protein: 0.3, carbs: 1.5, fat: 0, sodium: 10, sugar: 0 },
+  { name: "ชานมไข่มุก", aliases: ["ชาไข่มุก", "bubble tea", "ชานมไข่มุกหวานปกติ"], category: CAT, portion: "1 แก้ว 16oz", calories: 450, protein: 6, carbs: 78, fat: 12, sodium: 150, sugar: 60 },
+  { name: "ชานมไข่มุกหวานน้อย", aliases: ["ชาไข่มุกหวาน 25%"], category: CAT, portion: "1 แก้ว 16oz", calories: 350, protein: 6, carbs: 60, fat: 9, sodium: 150, sugar: 38 },
+  { name: "ชานมไข่มุกบราวน์ชูการ์", aliases: ["บราวน์ชูการ์ไข่มุก", "brown sugar boba"], category: CAT, portion: "1 แก้ว 16oz", calories: 520, protein: 7, carbs: 88, fat: 15, sodium: 160, sugar: 70 },
+  { name: "นมสดไข่มุก", aliases: ["นมไข่มุก", "fresh milk boba"], category: CAT, portion: "1 แก้ว 16oz", calories: 420, protein: 10, carbs: 66, fat: 13, sodium: 160, sugar: 50 },
+  { name: "ชาเขียวมัทฉะลาเต้", aliases: ["มัทฉะลาเต้", "matcha latte"], category: CAT, portion: "1 แก้ว 16oz", calories: 280, protein: 9, carbs: 42, fat: 8, sodium: 140, sugar: 34 },
+  { name: "ชาผลไม้", aliases: ["ชาลิ้นจี่", "ชาพีช", "fruit tea"], category: CAT, portion: "1 แก้ว 16oz", calories: 220, protein: 0.5, carbs: 54, fat: 0, sodium: 40, sugar: 50 },
+  { name: "ชาอู่หลงไม่ใส่น้ำตาล", aliases: ["ชาอู่หลง", "oolong tea"], category: CAT, portion: "1 แก้ว (400 มล.)", calories: 8, protein: 0.3, carbs: 1.5, fat: 0, sodium: 10, sugar: 0 },
+  { name: "ชาเย็นขวดพร้อมดื่ม", aliases: ["ชาเขียวขวด", "ชาขวด"], category: CAT, portion: "1 ขวด (500 มล.)", calories: 130, protein: 0.5, carbs: 32, fat: 0, sodium: 60, sugar: 30 },
+  { name: "ชาเก๊กฮวย", aliases: ["น้ำเก๊กฮวย", "chrysanthemum tea"], category: CAT, portion: "1 แก้ว (400 มล.)", calories: 140, protein: 0.3, carbs: 35, fat: 0, sodium: 30, sugar: 33 },
+  { name: "น้ำขิงร้อน", aliases: ["น้ำขิง"], category: CAT, portion: "1 แก้ว (250 มล.)", calories: 110, protein: 0.3, carbs: 27, fat: 0, sodium: 15, sugar: 25 },
+  { name: "น้ำใบเตย", aliases: ["น้ำใบเตยหอม"], category: CAT, portion: "1 แก้ว (400 มล.)", calories: 130, protein: 0.3, carbs: 32, fat: 0, sodium: 25, sugar: 30 },
+  { name: "น้ำกระเจี๊ยบ", aliases: ["น้ำกระเจี๊ยบแดง"], category: CAT, portion: "1 แก้ว (400 มล.)", calories: 140, protein: 0.3, carbs: 35, fat: 0, sodium: 25, sugar: 33 },
+  { name: "น้ำมะตูม", aliases: ["น้ำมะตูมเย็น"], category: CAT, portion: "1 แก้ว (400 มล.)", calories: 150, protein: 0.5, carbs: 37, fat: 0, sodium: 25, sugar: 34 },
+
+  // ── น้ำอัดลม / เครื่องดื่มขวด ──
+  { name: "โค้ก 1 กระป๋อง", aliases: ["โคล่า", "coke", "เป๊ปซี่", "น้ำอัดลม"], category: CAT, portion: "1 กระป๋อง (325 มล.)", calories: 140, protein: 0, carbs: 35, fat: 0, sodium: 30, sugar: 35 },
+  { name: "โค้กซีโร่", aliases: ["coke zero", "น้ำอัดลมไม่มีน้ำตาล", "เป๊ปซี่แมกซ์"], category: CAT, portion: "1 กระป๋อง (325 มล.)", calories: 5, protein: 0, carbs: 1, fat: 0, sodium: 35, sugar: 0 },
+  { name: "โค้กขวดใหญ่ 1 แก้ว", aliases: ["น้ำอัดลมรินแก้ว"], category: CAT, portion: "1 แก้ว (250 มล.)", calories: 105, protein: 0, carbs: 26, fat: 0, sodium: 20, sugar: 26 },
+  { name: "สไปรท์", aliases: ["น้ำเขียว", "sprite", "เซเว่นอัพ"], category: CAT, portion: "1 กระป๋อง (325 มล.)", calories: 135, protein: 0, carbs: 34, fat: 0, sodium: 30, sugar: 34 },
+  { name: "แฟนต้าน้ำแดง", aliases: ["น้ำแดง", "fanta"], category: CAT, portion: "1 กระป๋อง (325 มล.)", calories: 145, protein: 0, carbs: 36, fat: 0, sodium: 30, sugar: 36 },
+  { name: "โซดา", aliases: ["น้ำโซดา", "soda water"], category: CAT, portion: "1 แก้ว (250 มล.)", calories: 5, protein: 0, carbs: 1, fat: 0, sodium: 25, sugar: 0 },
+  { name: "เครื่องดื่มชูกำลัง", aliases: ["กระทิงแดง", "เอ็ม150", "M150", "คาราบาวแดง"], category: CAT, portion: "1 ขวด (150 มล.)", calories: 110, protein: 0, carbs: 27, fat: 0, sodium: 60, sugar: 26 },
+  { name: "เครื่องดื่มเกลือแร่", aliases: ["สปอนเซอร์", "เกเตอเรด", "sport drink"], category: CAT, portion: "1 ขวด (500 มล.)", calories: 130, protein: 0, carbs: 32, fat: 0, sodium: 250, sugar: 30 },
+  { name: "น้ำมะนาวโซดา", aliases: ["เลมอนโซดา", "มะนาวโซดา"], category: CAT, portion: "1 แก้ว 16oz", calories: 150, protein: 0.3, carbs: 37, fat: 0, sodium: 40, sugar: 34 },
+  { name: "น้ำหวานเฮลซ์บลูบอย", aliases: ["น้ำแดงเฮลซ์บลูบอย", "น้ำหวานสีแดง"], category: CAT, portion: "1 แก้ว (400 มล.)", calories: 180, protein: 0, carbs: 45, fat: 0, sodium: 40, sugar: 44 },
+
+  // ── น้ำผลไม้ / สมูทตี้ ──
+  { name: "น้ำส้มคั้น", aliases: ["น้ำส้ม", "orange juice"], category: CAT, portion: "1 แก้ว (250 มล.)", calories: 115, protein: 2, carbs: 26, fat: 0.3, sodium: 5, sugar: 22 },
+  { name: "น้ำส้มกล่อง", aliases: ["น้ำส้ม 100% กล่อง"], category: CAT, portion: "1 กล่อง (200 มล.)", calories: 90, protein: 1.5, carbs: 21, fat: 0.2, sodium: 10, sugar: 19 },
+  { name: "น้ำแอปเปิล", aliases: ["น้ำแอปเปิ้ล", "apple juice"], category: CAT, portion: "1 แก้ว (250 มล.)", calories: 115, protein: 0.3, carbs: 28, fat: 0.2, sodium: 10, sugar: 25 },
+  { name: "น้ำองุ่น", aliases: ["grape juice"], category: CAT, portion: "1 แก้ว (250 มล.)", calories: 150, protein: 1, carbs: 36, fat: 0.3, sodium: 10, sugar: 34 },
+  { name: "น้ำฝรั่ง", aliases: ["น้ำฝรั่งคั้น", "guava juice"], category: CAT, portion: "1 แก้ว (250 มล.)", calories: 110, protein: 1, carbs: 26, fat: 0.3, sodium: 10, sugar: 22 },
+  { name: "น้ำแตงโมปั่น", aliases: ["แตงโมปั่น"], category: CAT, portion: "1 แก้ว (400 มล.)", calories: 160, protein: 2, carbs: 38, fat: 0.4, sodium: 15, sugar: 34 },
+  { name: "น้ำมะพร้าว", aliases: ["น้ำมะพร้าวสด", "coconut water"], category: CAT, portion: "1 ลูก/แก้ว (300 มล.)", calories: 70, protein: 2, carbs: 15, fat: 0.5, sodium: 60, sugar: 13 },
+  { name: "น้ำอ้อย", aliases: ["น้ำอ้อยสด", "sugarcane juice"], category: CAT, portion: "1 แก้ว (300 มล.)", calories: 200, protein: 0.5, carbs: 49, fat: 0, sodium: 20, sugar: 46 },
+  { name: "น้ำมะพร้าวปั่น", aliases: ["มะพร้าวปั่น"], category: CAT, portion: "1 แก้ว 16oz", calories: 220, protein: 3, carbs: 40, fat: 5, sodium: 80, sugar: 32 },
+  { name: "สมูทตี้มะม่วง", aliases: ["มะม่วงปั่น", "mango smoothie"], category: CAT, portion: "1 แก้ว 16oz", calories: 300, protein: 4, carbs: 62, fat: 4, sodium: 60, sugar: 52 },
+  { name: "สมูทตี้สตรอว์เบอร์รี", aliases: ["สตรอเบอร์รี่ปั่น", "strawberry smoothie"], category: CAT, portion: "1 แก้ว 16oz", calories: 280, protein: 4, carbs: 58, fat: 3, sodium: 60, sugar: 48 },
+  { name: "สมูทตี้กล้วยนม", aliases: ["กล้วยปั่นนม", "banana smoothie"], category: CAT, portion: "1 แก้ว 16oz", calories: 320, protein: 10, carbs: 56, fat: 6, sodium: 100, sugar: 42 },
+  { name: "สมูทตี้ผักผลไม้", aliases: ["กรีนสมูทตี้", "green smoothie"], category: CAT, portion: "1 แก้ว 16oz", calories: 200, protein: 5, carbs: 40, fat: 2, sodium: 80, sugar: 28 },
+  { name: "น้ำมะนาวน้ำผึ้ง", aliases: ["น้ำผึ้งมะนาว"], category: CAT, portion: "1 แก้ว (350 มล.)", calories: 130, protein: 0.3, carbs: 32, fat: 0, sodium: 15, sugar: 30 },
+  { name: "น้ำมะขาม", aliases: ["น้ำมะขามเปียก"], category: CAT, portion: "1 แก้ว (400 มล.)", calories: 170, protein: 0.5, carbs: 42, fat: 0, sodium: 40, sugar: 38 },
+  { name: "น้ำลำไย", aliases: ["น้ำลำไยเย็น"], category: CAT, portion: "1 แก้ว (400 มล.)", calories: 180, protein: 0.5, carbs: 44, fat: 0, sodium: 25, sugar: 42 },
+  { name: "น้ำสับปะรดปั่น", aliases: ["สับปะรดปั่น"], category: CAT, portion: "1 แก้ว 16oz", calories: 250, protein: 2, carbs: 60, fat: 0.5, sodium: 40, sugar: 52 },
+  { name: "น้ำแครอท", aliases: ["น้ำแครอทคั้น", "carrot juice"], category: CAT, portion: "1 แก้ว (250 มล.)", calories: 95, protein: 2, carbs: 22, fat: 0.3, sodium: 70, sugar: 12 },
+  { name: "น้ำมะเขือเทศ", aliases: ["tomato juice"], category: CAT, portion: "1 แก้ว (250 มล.)", calories: 55, protein: 2, carbs: 11, fat: 0.3, sodium: 400, sugar: 9 },
+  { name: "น้ำผลไม้รวมกล่อง", aliases: ["น้ำผลไม้ 25% กล่อง"], category: CAT, portion: "1 กล่อง (250 มล.)", calories: 110, protein: 0.5, carbs: 27, fat: 0, sodium: 30, sugar: 25 },
+
+  // ── อื่น ๆ ──
+  { name: "โกโก้ร้อน", aliases: ["ช็อกโกแลตร้อน", "hot chocolate"], category: CAT, portion: "1 แก้ว (300 มล.)", calories: 230, protein: 8, carbs: 34, fat: 7, sodium: 150, sugar: 28 },
+  { name: "ช็อกโกแลตเย็น", aliases: ["โกโก้เย็น", "iced chocolate"], category: CAT, portion: "1 แก้ว 16oz", calories: 340, protein: 8, carbs: 54, fat: 11, sodium: 160, sugar: 46 },
+  { name: "นมเย็น (นมชมพู)", aliases: ["นมชมพู", "นมเย็น", "pink milk"], category: CAT, portion: "1 แก้ว (400 มล.)", calories: 290, protein: 6, carbs: 50, fat: 8, sodium: 130, sugar: 46 },
+  { name: "ไอศกรีมปั่นกาแฟ", aliases: ["ฟราปปูชิโน่", "frappuccino"], category: CAT, portion: "1 แก้ว 16oz", calories: 380, protein: 6, carbs: 62, fat: 12, sodium: 180, sugar: 54 },
+  { name: "น้ำเปล่าอุณหภูมิห้อง", aliases: ["น้ำเปล่า", "น้ำดื่ม", "water"], category: CAT, portion: "1 แก้ว (250 มล.)", calories: 5, protein: 0, carbs: 1, fat: 0, sodium: 5, sugar: 0 },
+  { name: "น้ำแร่", aliases: ["mineral water"], category: CAT, portion: "1 ขวด (500 มล.)", calories: 5, protein: 0, carbs: 1, fat: 0, sodium: 20, sugar: 0 },
+];

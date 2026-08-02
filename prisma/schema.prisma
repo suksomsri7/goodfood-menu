@@ -942,3 +942,28 @@ model AiUsageLog {
   @@index([memberId, usageType, createdAt])
   @@map("ai_usage_logs")
 }
+
+// ── Coach: คลังอาหารไทย deterministic (WO-B) ──
+// ทำไมต้องมี: user กรอกอาหารเองบ่อยกว่าถ่ายรูป — ถ้าไม่มีคลัง ทุกครั้งต้องยิง AI (จ่าย OpenRouter)
+// คนละโดเมนกับ model Food (เมนูขายของร้าน goodfood) จึงแยกตารางชัดเจน
+model FoodCatalog {
+  id         String   @id @default(cuid())
+  name       String   @unique // ชื่อไทยมาตรฐาน
+  aliases    String[] @default([]) // คำสะกดแปร/ชื่อเล่น/ชื่ออังกฤษที่คนไทยพิมพ์
+  category   String
+  portion    String // หน่วยบริโภคมาตรฐานภาษาคน เช่น "1 จาน (~350 ก.)"
+  calories   Float
+  protein    Float
+  carbs      Float
+  fat        Float
+  sodium     Float?
+  sugar      Float?
+  isEstimate Boolean  @default(true)
+  source     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([name])
+  @@index([category])
+  @@map("food_catalog")
+}

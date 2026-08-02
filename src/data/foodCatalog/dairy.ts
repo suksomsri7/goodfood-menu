@@ -1,0 +1,42 @@
+import type { FoodSeed } from "./types";
+
+/** นม-โยเกิร์ต-โปรตีนเชค */
+const CAT = "นม-โยเกิร์ต-โปรตีนเชค";
+
+export const dairy: FoodSeed[] = [
+  { name: "นมสดจืด", aliases: ["นมจืด", "นมวัว", "fresh milk", "นมสด"], category: CAT, portion: "1 กล่อง (200 มล.)", calories: 130, protein: 7, carbs: 10, fat: 7, sodium: 100, sugar: 10 },
+  { name: "นมพร่องมันเนย", aliases: ["นมไขมันต่ำ", "low fat milk"], category: CAT, portion: "1 กล่อง (200 มล.)", calories: 95, protein: 7, carbs: 10, fat: 3, sodium: 100, sugar: 10 },
+  { name: "นมขาดมันเนย", aliases: ["นมไม่มีไขมัน", "skim milk", "นม 0%"], category: CAT, portion: "1 กล่อง (200 มล.)", calories: 70, protein: 7, carbs: 10, fat: 0.3, sodium: 100, sugar: 10 },
+  { name: "นมรสหวาน", aliases: ["นมกล่องรสหวาน"], category: CAT, portion: "1 กล่อง (200 มล.)", calories: 160, protein: 6, carbs: 20, fat: 6, sodium: 100, sugar: 19 },
+  { name: "นมช็อกโกแลต", aliases: ["นมรสช็อกโกแลต", "chocolate milk"], category: CAT, portion: "1 กล่อง (200 มล.)", calories: 180, protein: 6, carbs: 26, fat: 5, sodium: 130, sugar: 24 },
+  { name: "นมถั่วเหลืองกล่อง", aliases: ["นมถั่วเหลือง", "soy milk", "ไวตามิ้ลค์"], category: CAT, portion: "1 กล่อง (250 มล.)", calories: 130, protein: 7, carbs: 16, fat: 4, sodium: 90, sugar: 12 },
+  { name: "นมถั่วเหลืองสูตรหวานน้อย", aliases: ["นมถั่วเหลืองน้ำตาลน้อย"], category: CAT, portion: "1 กล่อง (250 มล.)", calories: 100, protein: 7, carbs: 10, fat: 3.5, sodium: 90, sugar: 6 },
+  { name: "นมอัลมอนด์ไม่หวาน", aliases: ["almond milk", "นมอัลมอนด์"], category: CAT, portion: "1 แก้ว (250 มล.)", calories: 40, protein: 1.5, carbs: 2, fat: 3, sodium: 150, sugar: 0 },
+  { name: "นมข้าวโอ๊ต", aliases: ["oat milk", "นมโอ๊ต"], category: CAT, portion: "1 แก้ว (250 มล.)", calories: 130, protein: 3, carbs: 22, fat: 3, sodium: 100, sugar: 12 },
+  { name: "นมข้นหวาน", aliases: ["นมข้น", "condensed milk"], category: CAT, portion: "1 ช้อนโต๊ะ (20 ก.)", calories: 65, protein: 1.5, carbs: 11, fat: 1.7, sodium: 25, sugar: 11 },
+  { name: "นมเปรี้ยวพร้อมดื่ม", aliases: ["ยาคูลท์", "นมเปรี้ยว", "ดัชชี่"], category: CAT, portion: "1 ขวดเล็ก (80 มล.)", calories: 65, protein: 1, carbs: 15, fat: 0.1, sodium: 25, sugar: 14 },
+  { name: "นมเปรี้ยวขวดใหญ่", aliases: ["นมเปรี้ยวขวด 400 มล."], category: CAT, portion: "1 ขวด (400 มล.)", calories: 280, protein: 6, carbs: 60, fat: 2, sodium: 150, sugar: 56 },
+  { name: "โยเกิร์ตรสธรรมชาติ", aliases: ["โยเกิร์ตจืด", "plain yogurt"], category: CAT, portion: "1 ถ้วย (150 ก.)", calories: 100, protein: 8, carbs: 12, fat: 2, sodium: 90, sugar: 10 },
+  { name: "โยเกิร์ตรสผลไม้", aliases: ["โยเกิร์ตผลไม้", "fruit yogurt"], category: CAT, portion: "1 ถ้วย (150 ก.)", calories: 160, protein: 6, carbs: 28, fat: 2.5, sodium: 90, sugar: 24 },
+  { name: "กรีกโยเกิร์ตไม่หวาน", aliases: ["greek yogurt", "โยเกิร์ตกรีก"], category: CAT, portion: "1 ถ้วย (150 ก.)", calories: 130, protein: 15, carbs: 8, fat: 4, sodium: 60, sugar: 6 },
+  { name: "โยเกิร์ตพร้อมดื่ม", aliases: ["โยเกิร์ตดื่ม", "drinking yogurt"], category: CAT, portion: "1 ขวด (180 มล.)", calories: 140, protein: 5, carbs: 26, fat: 2, sodium: 80, sugar: 24 },
+  { name: "ชีสแผ่น", aliases: ["ชีสสไลซ์", "cheese slice"], category: CAT, portion: "1 แผ่น (20 ก.)", calories: 60, protein: 4, carbs: 1, fat: 5, sodium: 250, sugar: 0.5 },
+  { name: "ชีสมอสซาเรลลา", aliases: ["มอสซาเรลล่า", "mozzarella"], category: CAT, portion: "30 ก.", calories: 85, protein: 6, carbs: 1, fat: 6, sodium: 180, sugar: 0.3 },
+  { name: "ครีมชีส", aliases: ["cream cheese"], category: CAT, portion: "2 ช้อนโต๊ะ (30 ก.)", calories: 100, protein: 2, carbs: 2, fat: 10, sodium: 140, sugar: 1 },
+  { name: "เนยสด", aliases: ["butter", "เนย"], category: CAT, portion: "1 ช้อนโต๊ะ (14 ก.)", calories: 100, protein: 0.1, carbs: 0, fat: 11, sodium: 90, sugar: 0 },
+  { name: "เวย์โปรตีน 1 สกู๊ป", aliases: ["whey protein", "เวย์โปรตีน", "โปรตีนผง"], category: CAT, portion: "1 สกู๊ป (30 ก.) ชงน้ำ", calories: 120, protein: 24, carbs: 3, fat: 1.5, sodium: 60, sugar: 1 },
+  { name: "เวย์โปรตีนชงนม", aliases: ["โปรตีนเชคนม", "whey with milk"], category: CAT, portion: "1 สกู๊ป + นมจืด 250 มล.", calories: 280, protein: 33, carbs: 15, fat: 10, sodium: 185, sugar: 13 },
+  { name: "โปรตีนเชคพร้อมดื่ม", aliases: ["protein shake", "นมโปรตีนขวด"], category: CAT, portion: "1 ขวด (330 มล.)", calories: 190, protein: 25, carbs: 12, fat: 4, sodium: 200, sugar: 6 },
+  { name: "โปรตีนบาร์", aliases: ["protein bar"], category: CAT, portion: "1 แท่ง (60 ก.)", calories: 220, protein: 20, carbs: 22, fat: 6, sodium: 200, sugar: 8 },
+  { name: "นมถั่วเหลืองโปรตีนสูง", aliases: ["โปรตีนถั่วเหลือง", "plant protein drink"], category: CAT, portion: "1 ขวด (300 มล.)", calories: 170, protein: 15, carbs: 16, fat: 5, sodium: 180, sugar: 8 },
+  { name: "นมเปรี้ยวไขมันต่ำ", aliases: ["นมเปรี้ยวสูตรไขมันต่ำ"], category: CAT, portion: "1 ขวด (180 มล.)", calories: 110, protein: 4, carbs: 22, fat: 0.8, sodium: 70, sugar: 20 },
+  { name: "โยเกิร์ตกรีกผลไม้", aliases: ["กรีกโยเกิร์ตผลไม้"], category: CAT, portion: "1 ถ้วย (150 ก.)", calories: 180, protein: 13, carbs: 24, fat: 3.5, sodium: 60, sugar: 20 },
+  { name: "นมแพะ", aliases: ["goat milk"], category: CAT, portion: "1 แก้ว (250 มล.)", calories: 170, protein: 9, carbs: 11, fat: 10, sodium: 120, sugar: 11 },
+  { name: "วิปครีม", aliases: ["whipped cream"], category: CAT, portion: "2 ช้อนโต๊ะ (25 ก.)", calories: 80, protein: 0.5, carbs: 3, fat: 8, sodium: 15, sugar: 3 },
+  { name: "ไอศกรีมนมช็อกโกแลต", aliases: ["ไอศกรีมช็อกโกแลต", "chocolate ice cream"], category: CAT, portion: "1 ถ้วย (100 ก.)", calories: 220, protein: 4, carbs: 28, fat: 11, sodium: 90, sugar: 24 },
+  { name: "ไอศกรีมวานิลลา", aliases: ["vanilla ice cream"], category: CAT, portion: "1 ถ้วย (100 ก.)", calories: 200, protein: 4, carbs: 24, fat: 10, sodium: 80, sugar: 22 },
+  { name: "โยเกิร์ตแช่แข็ง", aliases: ["frozen yogurt", "โฟรเซนโยเกิร์ต"], category: CAT, portion: "1 ถ้วย (120 ก.)", calories: 160, protein: 5, carbs: 30, fat: 2, sodium: 80, sugar: 26 },
+  { name: "นมข้นจืด", aliases: ["evaporated milk", "นมข้นไม่หวาน"], category: CAT, portion: "2 ช้อนโต๊ะ (30 ก.)", calories: 40, protein: 2, carbs: 3, fat: 2, sodium: 30, sugar: 3 },
+  { name: "คอทเทจชีส", aliases: ["cottage cheese"], category: CAT, portion: "1/2 ถ้วย (110 ก.)", calories: 110, protein: 13, carbs: 4, fat: 5, sodium: 350, sugar: 4 },
+  { name: "นมเปรี้ยวโยเกิร์ตพร้อมดื่มไขมัน 0%", aliases: ["โยเกิร์ตดื่ม 0%"], category: CAT, portion: "1 ขวด (180 มล.)", calories: 100, protein: 5, carbs: 20, fat: 0.2, sodium: 80, sugar: 18 },
+];
