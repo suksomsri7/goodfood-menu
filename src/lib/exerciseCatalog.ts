@@ -19,6 +19,11 @@ export interface CatalogExercise {
   kind: ExerciseKind;
   unit: "minutes" | "reps";
   impact: "low" | "high";
+  /**
+   * MET (Compendium of Physical Activities) — ใช้คำนวณแคลอรี่ที่เผาได้จากน้ำหนักตัวจริง
+   * ท่านับ reps ใช้ค่าของ strength training ช่วง 3.5–6 ตามความหนัก (ยืดเหยียด 2.3–2.5)
+   */
+  met: number;
   muscles: string;
   cue: string; // ทิปฟอร์มสั้น ๆ แสดงในหน้า "ดูท่า"
   /** สื่อสาธิต (ถ้ามี) — เสิร์ฟจาก /uploads/coach-exercise/<key>.{webp,mp4,jpg} */
@@ -39,63 +44,73 @@ function attachMedia(list: CatalogExercise[]): CatalogExercise[] {
 
 const CATALOG_RAW: CatalogExercise[] = [
   // ── ตัวเปล่า: คาร์ดิโอ ──
-  { key: "walk_fast", name: "เดินเร็ว", equipment: "none", kind: "cardio", unit: "minutes", impact: "low", muscles: "ทั้งตัว", cue: "อกตั้ง แกว่งแขนธรรมชาติ ก้าวยาวพอสบาย" },
-  { key: "jog_light", name: "วิ่งเหยาะ", equipment: "none", kind: "cardio", unit: "minutes", impact: "high", muscles: "ขา หัวใจ", cue: "ลงกลางเท้า ไหล่ผ่อน หายใจเป็นจังหวะ" },
-  { key: "stair_step", name: "ขึ้นลงบันได", equipment: "none", kind: "cardio", unit: "minutes", impact: "low", muscles: "ขา ก้น", cue: "วางเต็มฝ่าเท้า ดันส้นเท้าขึ้น ไม่โน้มตัวมาก" },
-  { key: "jumping_jack", name: "กระโดดตบ", equipment: "none", kind: "cardio", unit: "reps", impact: "high", muscles: "ทั้งตัว", cue: "ลงเบา ๆ งอเข่าเล็กน้อยรับแรง" },
-  { key: "mountain_climber", name: "เมาน์เทนไคลม์เบอร์", equipment: "none", kind: "cardio", unit: "reps", impact: "high", muscles: "แกนกลาง ขา", cue: "สะโพกนิ่ง ไม่ยกก้นสูง เข่าเข้าอก" },
-  { key: "burpee", name: "เบอร์พี", equipment: "none", kind: "cardio", unit: "reps", impact: "high", muscles: "ทั้งตัว", cue: "หลังตรงตอนลง ค่อย ๆ เพิ่มความเร็ว" },
-  { key: "shadow_box", name: "ชกลม", equipment: "none", kind: "cardio", unit: "minutes", impact: "low", muscles: "ไหล่ แกนกลาง", cue: "หมุนสะโพกตาม อย่าเหยียดศอกสุด" },
+  { key: "walk_fast", name: "เดินเร็ว", equipment: "none", kind: "cardio", unit: "minutes", impact: "low", met: 4.3, muscles: "ทั้งตัว", cue: "อกตั้ง แกว่งแขนธรรมชาติ ก้าวยาวพอสบาย" },
+  { key: "jog_light", name: "วิ่งเหยาะ", equipment: "none", kind: "cardio", unit: "minutes", impact: "high", met: 7.0, muscles: "ขา หัวใจ", cue: "ลงกลางเท้า ไหล่ผ่อน หายใจเป็นจังหวะ" },
+  { key: "stair_step", name: "ขึ้นลงบันได", equipment: "none", kind: "cardio", unit: "minutes", impact: "low", met: 8.0, muscles: "ขา ก้น", cue: "วางเต็มฝ่าเท้า ดันส้นเท้าขึ้น ไม่โน้มตัวมาก" },
+  { key: "jumping_jack", name: "กระโดดตบ", equipment: "none", kind: "cardio", unit: "reps", impact: "high", met: 8.0, muscles: "ทั้งตัว", cue: "ลงเบา ๆ งอเข่าเล็กน้อยรับแรง" },
+  { key: "mountain_climber", name: "เมาน์เทนไคลม์เบอร์", equipment: "none", kind: "cardio", unit: "reps", impact: "high", met: 8.0, muscles: "แกนกลาง ขา", cue: "สะโพกนิ่ง ไม่ยกก้นสูง เข่าเข้าอก" },
+  { key: "burpee", name: "เบอร์พี", equipment: "none", kind: "cardio", unit: "reps", impact: "high", met: 8.0, muscles: "ทั้งตัว", cue: "หลังตรงตอนลง ค่อย ๆ เพิ่มความเร็ว" },
+  { key: "shadow_box", name: "ชกลม", equipment: "none", kind: "cardio", unit: "minutes", impact: "low", met: 5.5, muscles: "ไหล่ แกนกลาง", cue: "หมุนสะโพกตาม อย่าเหยียดศอกสุด" },
 
   // ── ตัวเปล่า: กำลัง ──
-  { key: "squat_bw", name: "สควอทน้ำหนักตัว", equipment: "none", kind: "strength", unit: "reps", impact: "low", muscles: "ขา ก้น", cue: "เข่าไปทางปลายเท้า อกตั้ง ลงเท่าที่หลังยังตรง" },
-  { key: "wall_sit", name: "นั่งพิงกำแพง", equipment: "none", kind: "strength", unit: "minutes", impact: "low", muscles: "ต้นขา", cue: "เข่างอ 90 องศา หลังแนบกำแพง" },
-  { key: "lunge", name: "ลันจ์", equipment: "none", kind: "strength", unit: "reps", impact: "low", muscles: "ขา ก้น", cue: "ก้าวยาวพอ เข่าหน้าไม่เลยปลายเท้า ลำตัวตั้ง" },
-  { key: "glute_bridge", name: "กลูตบริดจ์", equipment: "none", kind: "strength", unit: "reps", impact: "low", muscles: "ก้น หลังล่าง", cue: "บีบก้นตอนยกสุด ไม่แอ่นหลัง" },
-  { key: "pushup", name: "วิดพื้น", equipment: "none", kind: "strength", unit: "reps", impact: "low", muscles: "อก ไหล่ แขน", cue: "ลำตัวเป็นเส้นตรง ศอกแนบลำตัว 45 องศา" },
-  { key: "pushup_knee", name: "วิดพื้นเข่าติดพื้น", equipment: "none", kind: "strength", unit: "reps", impact: "low", muscles: "อก แขน", cue: "สะโพกไม่ตก ลงช้าขึ้นเร็ว" },
-  { key: "plank", name: "แพลงก์", equipment: "none", kind: "strength", unit: "minutes", impact: "low", muscles: "แกนกลาง", cue: "ศอกใต้ไหล่ เกร็งหน้าท้อง ไม่ยกก้น" },
-  { key: "side_plank", name: "ไซด์แพลงก์", equipment: "none", kind: "strength", unit: "minutes", impact: "low", muscles: "เอว แกนกลาง", cue: "สะโพกยกสูง ลำตัวเป็นเส้นตรง" },
-  { key: "crunch", name: "ครันช์", equipment: "none", kind: "strength", unit: "reps", impact: "low", muscles: "หน้าท้อง", cue: "ยกแค่สะบัก ไม่ดึงคอ" },
-  { key: "bicycle_crunch", name: "จักรยานอากาศ", equipment: "none", kind: "strength", unit: "reps", impact: "low", muscles: "หน้าท้อง เอว", cue: "ช้า ๆ บิดจากลำตัว ไม่ใช่ข้อศอก" },
-  { key: "superman", name: "ซูเปอร์แมน", equipment: "none", kind: "strength", unit: "reps", impact: "low", muscles: "หลัง", cue: "ยกแขนขาพอตึง คอเป็นแนวเดียวกับหลัง" },
-  { key: "bird_dog", name: "เบิร์ดด็อก", equipment: "none", kind: "strength", unit: "reps", impact: "low", muscles: "หลัง แกนกลาง", cue: "เหยียดแขนขาตรงข้าม สะโพกไม่บิด" },
-  { key: "calf_raise", name: "เขย่งปลายเท้า", equipment: "none", kind: "strength", unit: "reps", impact: "low", muscles: "น่อง", cue: "ขึ้นสุด ค้าง 1 วิ ลงช้า" },
-  { key: "step_up", name: "สเต็ปอัพบนขั้นบันได", equipment: "none", kind: "strength", unit: "reps", impact: "low", muscles: "ขา ก้น", cue: "ดันด้วยส้นเท้าข้างบน ไม่ถีบเท้าล่าง" },
+  { key: "squat_bw", name: "สควอทน้ำหนักตัว", equipment: "none", kind: "strength", unit: "reps", impact: "low", met: 5.0, muscles: "ขา ก้น", cue: "เข่าไปทางปลายเท้า อกตั้ง ลงเท่าที่หลังยังตรง" },
+  { key: "wall_sit", name: "นั่งพิงกำแพง", equipment: "none", kind: "strength", unit: "minutes", impact: "low", met: 4.0, muscles: "ต้นขา", cue: "เข่างอ 90 องศา หลังแนบกำแพง" },
+  { key: "lunge", name: "ลันจ์", equipment: "none", kind: "strength", unit: "reps", impact: "low", met: 4.5, muscles: "ขา ก้น", cue: "ก้าวยาวพอ เข่าหน้าไม่เลยปลายเท้า ลำตัวตั้ง" },
+  { key: "glute_bridge", name: "กลูตบริดจ์", equipment: "none", kind: "strength", unit: "reps", impact: "low", met: 3.5, muscles: "ก้น หลังล่าง", cue: "บีบก้นตอนยกสุด ไม่แอ่นหลัง" },
+  { key: "pushup", name: "วิดพื้น", equipment: "none", kind: "strength", unit: "reps", impact: "low", met: 5.0, muscles: "อก ไหล่ แขน", cue: "ลำตัวเป็นเส้นตรง ศอกแนบลำตัว 45 องศา" },
+  { key: "pushup_knee", name: "วิดพื้นเข่าติดพื้น", equipment: "none", kind: "strength", unit: "reps", impact: "low", met: 3.8, muscles: "อก แขน", cue: "สะโพกไม่ตก ลงช้าขึ้นเร็ว" },
+  { key: "plank", name: "แพลงก์", equipment: "none", kind: "strength", unit: "minutes", impact: "low", met: 3.8, muscles: "แกนกลาง", cue: "ศอกใต้ไหล่ เกร็งหน้าท้อง ไม่ยกก้น" },
+  { key: "side_plank", name: "ไซด์แพลงก์", equipment: "none", kind: "strength", unit: "minutes", impact: "low", met: 3.5, muscles: "เอว แกนกลาง", cue: "สะโพกยกสูง ลำตัวเป็นเส้นตรง" },
+  { key: "crunch", name: "ครันช์", equipment: "none", kind: "strength", unit: "reps", impact: "low", met: 3.8, muscles: "หน้าท้อง", cue: "ยกแค่สะบัก ไม่ดึงคอ" },
+  { key: "bicycle_crunch", name: "จักรยานอากาศ", equipment: "none", kind: "strength", unit: "reps", impact: "low", met: 4.0, muscles: "หน้าท้อง เอว", cue: "ช้า ๆ บิดจากลำตัว ไม่ใช่ข้อศอก" },
+  { key: "superman", name: "ซูเปอร์แมน", equipment: "none", kind: "strength", unit: "reps", impact: "low", met: 3.5, muscles: "หลัง", cue: "ยกแขนขาพอตึง คอเป็นแนวเดียวกับหลัง" },
+  { key: "bird_dog", name: "เบิร์ดด็อก", equipment: "none", kind: "strength", unit: "reps", impact: "low", met: 3.5, muscles: "หลัง แกนกลาง", cue: "เหยียดแขนขาตรงข้าม สะโพกไม่บิด" },
+  { key: "calf_raise", name: "เขย่งปลายเท้า", equipment: "none", kind: "strength", unit: "reps", impact: "low", met: 3.5, muscles: "น่อง", cue: "ขึ้นสุด ค้าง 1 วิ ลงช้า" },
+  { key: "step_up", name: "สเต็ปอัพบนขั้นบันได", equipment: "none", kind: "strength", unit: "reps", impact: "low", met: 5.0, muscles: "ขา ก้น", cue: "ดันด้วยส้นเท้าข้างบน ไม่ถีบเท้าล่าง" },
 
   // ── ตัวเปล่า: ยืดเหยียด/ฟื้นฟู ──
-  { key: "stretch_full", name: "ยืดเหยียดทั้งตัว", equipment: "none", kind: "mobility", unit: "minutes", impact: "low", muscles: "ทั้งตัว", cue: "ค้างท่าละ 20-30 วิ หายใจยาว ไม่กระตุก" },
-  { key: "yoga_basic", name: "โยคะพื้นฐาน", equipment: "none", kind: "mobility", unit: "minutes", impact: "low", muscles: "ทั้งตัว", cue: "เคลื่อนตามลมหายใจ ไม่ฝืนจุดที่เจ็บ" },
-  { key: "cat_cow", name: "ท่าแมว-วัว", equipment: "none", kind: "mobility", unit: "reps", impact: "low", muscles: "หลัง", cue: "แอ่น-โก่งหลังช้า ๆ ตามลมหายใจ" },
-  { key: "hip_stretch", name: "ยืดสะโพก", equipment: "none", kind: "mobility", unit: "minutes", impact: "low", muscles: "สะโพก", cue: "ค้างข้างละ 30 วิ ไม่เด้ง" },
+  { key: "stretch_full", name: "ยืดเหยียดทั้งตัว", equipment: "none", kind: "mobility", unit: "minutes", impact: "low", met: 2.3, muscles: "ทั้งตัว", cue: "ค้างท่าละ 20-30 วิ หายใจยาว ไม่กระตุก" },
+  { key: "yoga_basic", name: "โยคะพื้นฐาน", equipment: "none", kind: "mobility", unit: "minutes", impact: "low", met: 2.5, muscles: "ทั้งตัว", cue: "เคลื่อนตามลมหายใจ ไม่ฝืนจุดที่เจ็บ" },
+  { key: "cat_cow", name: "ท่าแมว-วัว", equipment: "none", kind: "mobility", unit: "reps", impact: "low", met: 2.3, muscles: "หลัง", cue: "แอ่น-โก่งหลังช้า ๆ ตามลมหายใจ" },
+  { key: "hip_stretch", name: "ยืดสะโพก", equipment: "none", kind: "mobility", unit: "minutes", impact: "low", met: 2.3, muscles: "สะโพก", cue: "ค้างข้างละ 30 วิ ไม่เด้ง" },
 
   // ── ดัมเบล / ยางยืด (home) ──
-  { key: "db_squat", name: "ดัมเบลสควอท", equipment: "home", kind: "strength", unit: "reps", impact: "low", muscles: "ขา ก้น", cue: "ถือดัมเบลข้างลำตัว อกตั้ง ลงช้า" },
-  { key: "db_row", name: "ดัมเบลโรว์", equipment: "home", kind: "strength", unit: "reps", impact: "low", muscles: "หลัง แขน", cue: "หลังตรง ดึงศอกไปข้างหลัง บีบสะบัก" },
-  { key: "db_press", name: "ดัมเบลไหล่", equipment: "home", kind: "strength", unit: "reps", impact: "low", muscles: "ไหล่", cue: "ไม่แอ่นหลัง ดันขึ้นเหนือศีรษะช้า ๆ" },
-  { key: "db_curl", name: "ไบเซปเคิร์ล", equipment: "home", kind: "strength", unit: "reps", impact: "low", muscles: "แขนหน้า", cue: "ศอกแนบลำตัว ไม่เหวี่ยง" },
-  { key: "db_tricep", name: "ไทรเซปคิกแบ็ก", equipment: "home", kind: "strength", unit: "reps", impact: "low", muscles: "แขนหลัง", cue: "ต้นแขนนิ่ง เหยียดปลายแขนไปหลัง" },
-  { key: "db_rdl", name: "ดัมเบลเดดลิฟท์", equipment: "home", kind: "strength", unit: "reps", impact: "low", muscles: "ก้น หลังต้นขา", cue: "ดันสะโพกไปหลัง หลังตรงตลอด" },
-  { key: "band_row", name: "ยางยืดโรว์", equipment: "home", kind: "strength", unit: "reps", impact: "low", muscles: "หลัง", cue: "ดึงจนศอกผ่านลำตัว บีบสะบักค้าง 1 วิ" },
-  { key: "band_pull_apart", name: "ยางยืดกางอก", equipment: "home", kind: "strength", unit: "reps", impact: "low", muscles: "หลังบน ไหล่", cue: "แขนตึงระดับอก กางออกช้า ๆ" },
-  { key: "farmer_walk", name: "ฟาร์เมอร์วอล์ค", equipment: "home", kind: "strength", unit: "minutes", impact: "low", muscles: "ทั้งตัว", cue: "ถือหนักสองข้าง ไหล่ตั้ง เดินช้า" },
+  { key: "db_squat", name: "ดัมเบลสควอท", equipment: "home", kind: "strength", unit: "reps", impact: "low", met: 5.0, muscles: "ขา ก้น", cue: "ถือดัมเบลข้างลำตัว อกตั้ง ลงช้า" },
+  { key: "db_row", name: "ดัมเบลโรว์", equipment: "home", kind: "strength", unit: "reps", impact: "low", met: 4.5, muscles: "หลัง แขน", cue: "หลังตรง ดึงศอกไปข้างหลัง บีบสะบัก" },
+  { key: "db_press", name: "ดัมเบลไหล่", equipment: "home", kind: "strength", unit: "reps", impact: "low", met: 4.5, muscles: "ไหล่", cue: "ไม่แอ่นหลัง ดันขึ้นเหนือศีรษะช้า ๆ" },
+  { key: "db_curl", name: "ไบเซปเคิร์ล", equipment: "home", kind: "strength", unit: "reps", impact: "low", met: 3.5, muscles: "แขนหน้า", cue: "ศอกแนบลำตัว ไม่เหวี่ยง" },
+  { key: "db_tricep", name: "ไทรเซปคิกแบ็ก", equipment: "home", kind: "strength", unit: "reps", impact: "low", met: 3.5, muscles: "แขนหลัง", cue: "ต้นแขนนิ่ง เหยียดปลายแขนไปหลัง" },
+  { key: "db_rdl", name: "ดัมเบลเดดลิฟท์", equipment: "home", kind: "strength", unit: "reps", impact: "low", met: 5.0, muscles: "ก้น หลังต้นขา", cue: "ดันสะโพกไปหลัง หลังตรงตลอด" },
+  { key: "band_row", name: "ยางยืดโรว์", equipment: "home", kind: "strength", unit: "reps", impact: "low", met: 3.5, muscles: "หลัง", cue: "ดึงจนศอกผ่านลำตัว บีบสะบักค้าง 1 วิ" },
+  { key: "band_pull_apart", name: "ยางยืดกางอก", equipment: "home", kind: "strength", unit: "reps", impact: "low", met: 3.5, muscles: "หลังบน ไหล่", cue: "แขนตึงระดับอก กางออกช้า ๆ" },
+  { key: "farmer_walk", name: "ฟาร์เมอร์วอล์ค", equipment: "home", kind: "strength", unit: "minutes", impact: "low", met: 5.0, muscles: "ทั้งตัว", cue: "ถือหนักสองข้าง ไหล่ตั้ง เดินช้า" },
 
   // ── ฟิตเนส (gym) ──
-  { key: "treadmill", name: "ลู่วิ่ง", equipment: "gym", kind: "cardio", unit: "minutes", impact: "high", muscles: "ขา หัวใจ", cue: "เริ่มเดินอุ่นเครื่อง 5 นาทีก่อนเพิ่มความเร็ว" },
-  { key: "stationary_bike", name: "จักรยานฟิตเนส", equipment: "gym", kind: "cardio", unit: "minutes", impact: "low", muscles: "ขา หัวใจ", cue: "ปรับอานให้เข่างอเล็กน้อยตอนปั่นสุด" },
-  { key: "elliptical", name: "เครื่องเดินวงรี", equipment: "gym", kind: "cardio", unit: "minutes", impact: "low", muscles: "ทั้งตัว", cue: "ยืนตรง ไม่ทิ้งน้ำหนักบนมือจับ" },
-  { key: "rowing_machine", name: "เครื่องกรรเชียงบก", equipment: "gym", kind: "cardio", unit: "minutes", impact: "low", muscles: "หลัง ขา", cue: "ดันขา → เอนลำตัว → ดึงแขน ตามลำดับ" },
-  { key: "lat_pulldown", name: "ลัตพูลดาวน์", equipment: "gym", kind: "strength", unit: "reps", impact: "low", muscles: "หลัง", cue: "ดึงลงหน้าอก อกตั้ง ไม่เหวี่ยงตัว" },
-  { key: "chest_press", name: "เชสเพรส", equipment: "gym", kind: "strength", unit: "reps", impact: "low", muscles: "อก ไหล่", cue: "ศอกไม่กางเกิน 45 องศา ดันจนเกือบสุดแขน" },
-  { key: "leg_press", name: "เลกเพรส", equipment: "gym", kind: "strength", unit: "reps", impact: "low", muscles: "ขา ก้น", cue: "ไม่ล็อกเข่าตอนดันสุด หลังแนบเบาะ" },
-  { key: "leg_curl", name: "เลกเคิร์ล", equipment: "gym", kind: "strength", unit: "reps", impact: "low", muscles: "หลังต้นขา", cue: "งอเข่าช้า ๆ ปล่อยกลับแบบควบคุม" },
-  { key: "cable_row", name: "เคเบิลโรว์", equipment: "gym", kind: "strength", unit: "reps", impact: "low", muscles: "หลัง", cue: "หลังตรง ดึงเข้าท้องน้อย บีบสะบัก" },
-  { key: "barbell_bench", name: "บาร์เบลเบนช์เพรส", equipment: "gym", kind: "strength", unit: "reps", impact: "low", muscles: "อก แขน", cue: "มีคนช่วยดูเสมอเมื่อขึ้นน้ำหนักหนัก" },
-  { key: "barbell_squat", name: "บาร์เบลสควอท", equipment: "gym", kind: "strength", unit: "reps", impact: "low", muscles: "ขา ก้น", cue: "แกนกลางเกร็ง ลงจนต้นขาขนานพื้น" },
-  { key: "pullup_assist", name: "พูลอัพแบบมีตัวช่วย", equipment: "gym", kind: "strength", unit: "reps", impact: "low", muscles: "หลัง แขน", cue: "เริ่มจากแรงช่วยเยอะแล้วค่อยลด" },
+  { key: "treadmill", name: "ลู่วิ่ง", equipment: "gym", kind: "cardio", unit: "minutes", impact: "high", met: 7.0, muscles: "ขา หัวใจ", cue: "เริ่มเดินอุ่นเครื่อง 5 นาทีก่อนเพิ่มความเร็ว" },
+  { key: "stationary_bike", name: "จักรยานฟิตเนส", equipment: "gym", kind: "cardio", unit: "minutes", impact: "low", met: 6.8, muscles: "ขา หัวใจ", cue: "ปรับอานให้เข่างอเล็กน้อยตอนปั่นสุด" },
+  { key: "elliptical", name: "เครื่องเดินวงรี", equipment: "gym", kind: "cardio", unit: "minutes", impact: "low", met: 5.0, muscles: "ทั้งตัว", cue: "ยืนตรง ไม่ทิ้งน้ำหนักบนมือจับ" },
+  { key: "rowing_machine", name: "เครื่องกรรเชียงบก", equipment: "gym", kind: "cardio", unit: "minutes", impact: "low", met: 7.0, muscles: "หลัง ขา", cue: "ดันขา → เอนลำตัว → ดึงแขน ตามลำดับ" },
+  { key: "lat_pulldown", name: "ลัตพูลดาวน์", equipment: "gym", kind: "strength", unit: "reps", impact: "low", met: 5.0, muscles: "หลัง", cue: "ดึงลงหน้าอก อกตั้ง ไม่เหวี่ยงตัว" },
+  { key: "chest_press", name: "เชสเพรส", equipment: "gym", kind: "strength", unit: "reps", impact: "low", met: 5.0, muscles: "อก ไหล่", cue: "ศอกไม่กางเกิน 45 องศา ดันจนเกือบสุดแขน" },
+  { key: "leg_press", name: "เลกเพรส", equipment: "gym", kind: "strength", unit: "reps", impact: "low", met: 5.0, muscles: "ขา ก้น", cue: "ไม่ล็อกเข่าตอนดันสุด หลังแนบเบาะ" },
+  { key: "leg_curl", name: "เลกเคิร์ล", equipment: "gym", kind: "strength", unit: "reps", impact: "low", met: 4.5, muscles: "หลังต้นขา", cue: "งอเข่าช้า ๆ ปล่อยกลับแบบควบคุม" },
+  { key: "cable_row", name: "เคเบิลโรว์", equipment: "gym", kind: "strength", unit: "reps", impact: "low", met: 5.0, muscles: "หลัง", cue: "หลังตรง ดึงเข้าท้องน้อย บีบสะบัก" },
+  { key: "barbell_bench", name: "บาร์เบลเบนช์เพรส", equipment: "gym", kind: "strength", unit: "reps", impact: "low", met: 6.0, muscles: "อก แขน", cue: "มีคนช่วยดูเสมอเมื่อขึ้นน้ำหนักหนัก" },
+  { key: "barbell_squat", name: "บาร์เบลสควอท", equipment: "gym", kind: "strength", unit: "reps", impact: "low", met: 6.0, muscles: "ขา ก้น", cue: "แกนกลางเกร็ง ลงจนต้นขาขนานพื้น" },
+  { key: "pullup_assist", name: "พูลอัพแบบมีตัวช่วย", equipment: "gym", kind: "strength", unit: "reps", impact: "low", met: 5.0, muscles: "หลัง แขน", cue: "เริ่มจากแรงช่วยเยอะแล้วค่อยลด" },
 ];
 
 export const EXERCISE_CATALOG: CatalogExercise[] = attachMedia(CATALOG_RAW);
+
+/**
+ * แคลอรี่ที่เผาได้จากท่าออกกำลังกาย (สูตรมาตรฐาน MET)
+ *   kcal = MET × 3.5 × น้ำหนัก(กก.) / 200 × นาที
+ * คืนจำนวนเต็ม · ค่าที่ไม่สมเหตุสมผล (น้ำหนัก/เวลา ≤ 0) → 0
+ */
+export function kcalForExercise(met: number, weightKg: number, minutes: number): number {
+  if (!(met > 0) || !(weightKg > 0) || !(minutes > 0)) return 0;
+  return Math.round((met * 3.5 * weightKg) / 200 * minutes);
+}
 
 const TIER_ORDER: Record<EquipmentTier, number> = { none: 0, home: 1, gym: 2 };
 

@@ -12,6 +12,9 @@ import { bkkDateKey, bkkTodayKey } from "@/lib/planGenerator";
 
 const BKK_OFFSET_MS = 7 * 3600 * 1000;
 
+/** ที่มาของ MealLog ที่ยอมรับ (ค่าอื่นถือว่าเสียงพูด) — ตรงกับคอมเมนต์ใน schema.prisma */
+const VIA_KINDS = ["photo", "barcode", "voice", "manual"];
+
 /**
  * เวลาที่ user บอกมาเอง ("ตอน 10 โมงครึ่งดื่มน้ำ 1 ลิตร") → Date จริง
  * AI ส่ง time="HH:MM" (+ date="YYYY-MM-DD" ถ้าไม่ใช่วันนี้) ตามเวลาไทย
@@ -73,7 +76,8 @@ export async function POST(req: NextRequest) {
             ingredients: g.ingredients ?? null,
             imageUrl:
               typeof g.imageUrl === "string" && /^\/uploads\/[\w\-./]+$/.test(g.imageUrl) ? g.imageUrl : null,
-            via: g.via || "voice",
+            // WO-B: หน้ากรอกเองส่ง via="manual" มา · ทางเสียง/AI ไม่ส่งอะไร → "voice" เหมือนเดิม
+            via: VIA_KINDS.includes(g.via) ? g.via : "voice",
             ...(at ? { date: at } : {}),
           },
         });
@@ -129,7 +133,12 @@ export async function POST(req: NextRequest) {
         const w = Number(g.weight);
         if (Number.isFinite(w) && w > 0 && w <= 500) {
           await prisma.weightLog.create({
-            data: { memberId: member.id, weight: w, note: "voice", ...(at ? { date: at } : {}) },
+            data: {
+              memberId: member.id,
+              weight: w,
+              note: typeof g.note === "string" && g.note.trim() ? g.note.trim().slice(0, 60) : "voice",
+              ...(at ? { date: at } : {}),
+            },
           });
           done.push("log_weight");
         }
