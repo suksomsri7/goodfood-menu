@@ -5,6 +5,10 @@
  * (ผ่านตาเจ้าตัวมาแล้วรอบหนึ่ง) — ของตัวเองก่อน ถ้าไม่มีค่อยดูของทั้งระบบ
  */
 import { prisma } from "@/lib/prisma";
+import { normaliseFoodName } from "@/lib/foodName";
+
+// ตัวฟังก์ชันย้ายไป foodName.ts แล้ว (สคริปต์ QC เรียกได้โดยไม่ต้องมี prisma) — re-export ไว้ให้ของเดิมใช้ต่อได้
+export { normaliseFoodName };
 
 export interface CachedFood {
   name: string;
@@ -15,15 +19,6 @@ export interface CachedFood {
   sodium: number | null;
   sugar: number | null;
   source: "self" | "shared";
-}
-
-/** ตัดช่องว่าง/วรรณยุกต์ซ้ำ/คำบอกปริมาณท้ายชื่อ ให้ชื่อเทียบกันได้ */
-export function normaliseFoodName(name: string): string {
-  return String(name || "")
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .replace(/\s*\d+(\.\d+)?\s*(ไม้|จาน|ชาม|ห่อ|ถ้วย|แก้ว|ชิ้น|ลูก|ml|มล\.|g|กรัม)\s*$/u, "")
-    .trim();
 }
 
 /** เมนูชื่อนี้เคยบันทึกไว้ไหม (ล่าสุดชนะ) */
@@ -52,6 +47,50 @@ export async function cachedFood(memberId: string, name: string): Promise<Cached
   });
   const shared = pick(others);
   return shared ? { ...shared, source: "shared" } : null;
+}
+
+export interface FrequentFood {
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  sodium: number | null;
+  sugar: number | null;
+  count: number;
+}
+
+/**
+ * เมนูที่กินบ่อย 60 วัน แบบ structured — ใช้ใน /api/coach/foods (แอปกรอกอาหารเอง)
+ * แยกจาก frequentFoods() ที่คืนข้อความยาวสำหรับใส่ prompt AI (ห้ามเปลี่ยน shape ของตัวนั้น)
+ * เกณฑ์ min 1 ครั้ง เพราะฝั่งแอปอยากเห็น "ของที่เคยกิน" ทั้งหมด ไม่ใช่แค่ที่ซ้ำ
+ */
+export async function frequentFoodsList(memberId: string, limit = 30, minCount = 1): Promise<FrequentFood[]> {
+  const rows = await prisma.$queryRaw<
+    Array<{ name: string; kcal: number; p: number; c: number; f: number; na: number | null; su: number | null; n: number }>
+  >`
+    SELECT name,
+           round(avg(calories))::int AS kcal, round(avg(protein))::int AS p,
+           round(avg(carbs))::int AS c, round(avg(fat))::int AS f,
+           round(avg(sodium))::int AS na, round(avg(sugar))::int AS su,
+           count(*)::int AS n
+    FROM meal_logs
+    WHERE "memberId" = ${memberId} AND "date" >= now() - interval '60 days'
+    GROUP BY name
+    HAVING count(*) >= ${minCount}
+    ORDER BY count(*) DESC, max("date") DESC
+    LIMIT ${limit}
+  `;
+  return rows.map((r) => ({
+    name: r.name,
+    calories: r.kcal,
+    protein: r.p,
+    carbs: r.c,
+    fat: r.f,
+    sodium: r.na ?? null,
+    sugar: r.su ?? null,
+    count: r.n,
+  }));
 }
 
 /** เมนูที่กินบ่อย — ป้อนให้โค้ชใช้ค่าเดิมแทนเดาใหม่ทุกครั้ง (แม่นขึ้น + ไม่ต้องคิดซ้ำ) */
