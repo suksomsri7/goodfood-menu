@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAiCoachActive } from "@/lib/coaching";
 import { memberFromReq } from "@/lib/memberAuth";
-import { checkUsageLimitForMember, logAiUsageByMemberId } from "@/lib/usage-limits";
+import { checkUsageLimitForMember, logAiUsageByMemberId, creditsExhaustedResponse } from "@/lib/usage-limits";
 import { generateWeekPlan, bkkTodayKey, addDays } from "@/lib/planGenerator";
 
 export const dynamic = "force-dynamic";
@@ -40,17 +40,14 @@ export async function POST(request: NextRequest) {
     }
 
     // S1: โควตา AI ครอบทุกช่องทาง (เดิมเช็คเฉพาะ LIFF → native generate ได้ไม่จำกัด)
-    const limit = await checkUsageLimitForMember(member, "dailyAiRecommendLimit");
-    if (!limit.allowed) {
-      return NextResponse.json(
-        { error: limit.message, limitReached: true, limit: limit.limit, used: limit.used },
-        { status: 429 }
-      );
-    }
+    // สร้างแผน 7 วัน = งานหนักสุด → มีราคาเครดิตของตัวเอง (creditKey "plan")
+    const limit = await checkUsageLimitForMember(member, "dailyAiRecommendLimit", { creditKey: "plan" });
+    if (!limit.allowed) return creditsExhaustedResponse(limit);
 
     const result = await generateWeekPlan(member.id, startKey);
+    // 🔴 usedFallback = AI ไม่ตอบ/ล่ม แล้วใช้แผนสำรอง → ไม่หักเครดิต
     if (!result.usedFallback) {
-      await logAiUsageByMemberId(member.id, "dailyAiRecommendLimit");
+      await logAiUsageByMemberId(member.id, "dailyAiRecommendLimit", { creditKey: "plan" });
     }
 
     return NextResponse.json({

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkUsageLimit, logAiUsage } from "@/lib/usage-limits";
+import { checkUsageLimit, logAiUsage, creditsExhaustedResponse } from "@/lib/usage-limits";
 
 // Open Food Facts API
 const OPEN_FOOD_FACTS_API = "https://world.openfoodfacts.org/api/v2/product";
@@ -99,17 +99,7 @@ export async function GET(
     // Check usage limit if lineUserId is provided
     if (lineUserId) {
       const limitCheck = await checkUsageLimit(lineUserId, "dailyScanLimit");
-      if (!limitCheck.allowed) {
-        return NextResponse.json(
-          { 
-            error: limitCheck.message,
-            limitReached: true,
-            limit: limitCheck.limit,
-            used: limitCheck.used,
-          },
-          { status: 429 }
-        );
-      }
+      if (!limitCheck.allowed) return creditsExhaustedResponse(limitCheck);
     }
 
     console.log(`🔍 Searching barcode: ${barcode}`);

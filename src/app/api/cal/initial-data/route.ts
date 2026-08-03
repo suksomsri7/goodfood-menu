@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { memberFromReq } from "@/lib/memberAuth";
 import { getDailyBudget } from "@/lib/dailyBudget";
 import { estimateEnergy } from "@/lib/energyModel";
+import { getCreditSnapshot } from "@/lib/usage-limits";
 
 // Combined API endpoint to fetch all initial data for /cal page in ONE request
 // This reduces 4 API calls to 1, significantly improving initial load time
@@ -128,6 +129,8 @@ export async function GET(request: NextRequest) {
     ]);
     // งบวันนี้ = ฐาน + คืน 60% ของที่ออกกำลังกายจริง · พร้อมงบทั้งสัปดาห์
     const budget = await getDailyBudget(member.id, { baseTdee: energyEst?.baseTdee }).catch(() => null);
+    // เครดิต AI วันนี้ (โครงเดียวกับ GET /api/coach/credits) — แอปจะได้ไม่ต้องยิงเพิ่มอีก request
+    const credits = await getCreditSnapshot(member).catch(() => null);
     // คืนเดียวอาจมีทั้งจาก HealthKit และที่ user บอกโค้ชเอง → เอาค่ามากสุด ไม่ใช่บวกกัน (กันนับซ้ำ)
     const sleepMinutes = sleepLogs.reduce((s, x) => Math.max(s, x.minutesAsleep), 0);
     const activeKcal = dayMetrics.reduce((s, x) => s + (x.activeKcal || 0), 0);
@@ -158,6 +161,7 @@ export async function GET(request: NextRequest) {
           }
         : null,
       metrics: { activeKcal, steps: daySteps },
+      credits,
       // badge ศูนย์แจ้งเตือน (แอปเรียก endpoint นี้ทุกครั้งที่เปิด/เปลี่ยนวันอยู่แล้ว)
       notifications: { unread: unreadNotifications },
       exercises: {

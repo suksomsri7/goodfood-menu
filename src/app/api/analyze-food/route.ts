@@ -3,7 +3,7 @@ import OpenAI from "openai";
 import { buildOpenAI, aiModel , aiOutageReason } from "@/lib/aiClient";
 import { modelsFor, isExplicitModel, shouldFallback } from "@/lib/aiModels";
 import { prisma } from "@/lib/prisma";
-import { checkUsageLimit, logAiUsage } from "@/lib/usage-limits";
+import { checkUsageLimit, logAiUsage, creditsExhaustedResponse } from "@/lib/usage-limits";
 import { getSecret } from "@/lib/secrets/store";
 
 const BASE_SYSTEM_PROMPT = `คุณคือ "AI Coach" โค้ชโภชนาการส่วนตัวมืออาชีพ มีอาชีพเป็นนักโภชนาการ นักกำหนดอาหาร และเทรนเนอร์สุขภาพ
@@ -44,22 +44,13 @@ const BASE_SYSTEM_PROMPT = `คุณคือ "AI Coach" โค้ชโภช�
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { image, description, lineUserId } = body;
+    const { image, description, lineUserId, skipQuota } = body;
 
     // Check usage limit if lineUserId is provided
-    if (lineUserId) {
+    // skipQuota = ถูกเรียกต่อจาก /api/smart-capture ที่เช็ค/หักเครดิตให้แล้ว (กันหักซ้ำ)
+    if (lineUserId && !skipQuota) {
       const limitCheck = await checkUsageLimit(lineUserId, "dailyAiAnalysisLimit");
-      if (!limitCheck.allowed) {
-        return NextResponse.json(
-          { 
-            error: limitCheck.message,
-            limitReached: true,
-            limit: limitCheck.limit,
-            used: limitCheck.used,
-          },
-          { status: 429 }
-        );
-      }
+      if (!limitCheck.allowed) return creditsExhaustedResponse(limitCheck);
     }
 
     // Debug: Log API key status
@@ -218,7 +209,7 @@ export async function POST(request: NextRequest) {
     console.log("✅ Analysis successful:", nutritionData.name);
     
     // Log usage after successful analysis
-    if (lineUserId) {
+    if (lineUserId && !skipQuota) {
       await logAiUsage(lineUserId, "dailyAiAnalysisLimit");
     }
     

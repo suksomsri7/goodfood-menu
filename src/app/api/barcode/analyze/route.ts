@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { buildOpenAI, aiModel, aiOutageReason } from "@/lib/aiClient";
-import { checkUsageLimit, logAiUsage } from "@/lib/usage-limits";
+import { checkUsageLimit, logAiUsage, creditsExhaustedResponse } from "@/lib/usage-limits";
 import { getSecret } from "@/lib/secrets/store";
 
 const SYSTEM_PROMPT = `คุณคือผู้เชี่ยวชาญด้านโภชนาการ หน้าที่ของคุณคือวิเคราะห์ข้อมูลโภชนาการจากรูปถ่ายฉลากสินค้า
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     const openai = buildOpenAI(apiKey);
     const body = await request.json();
-    const { image, barcode, description, lineUserId } = body;
+    const { image, barcode, description, lineUserId, skipQuota } = body;
 
     if (!image) {
       return NextResponse.json(
@@ -68,19 +68,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Check usage limit if lineUserId is provided
-    if (lineUserId) {
+    if (lineUserId && !skipQuota) {
       const limitCheck = await checkUsageLimit(lineUserId, "dailyScanLimit");
-      if (!limitCheck.allowed) {
-        return NextResponse.json(
-          { 
-            error: limitCheck.message,
-            limitReached: true,
-            limit: limitCheck.limit,
-            used: limitCheck.used,
-          },
-          { status: 429 }
-        );
-      }
+      if (!limitCheck.allowed) return creditsExhaustedResponse(limitCheck);
     }
 
     console.log(`🤖 Analyzing nutrition label for barcode: ${barcode || 'unknown'}`);
@@ -145,7 +135,7 @@ export async function POST(request: NextRequest) {
     console.log(`✅ Analysis complete: ${nutritionData.name} (confidence: ${nutritionData.confidence}%)`);
 
     // Log usage after successful analysis
-    if (lineUserId) {
+    if (lineUserId && !skipQuota) {
       await logAiUsage(lineUserId, "dailyScanLimit");
     }
 

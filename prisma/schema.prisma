@@ -914,6 +914,10 @@ model SystemSetting {
   // Member Activity Status Settings
   inactiveDaysThreshold    Int      @default(7)    // จำนวนวันที่ไม่เปิดแอปถึงจะเป็น Inactive
   gracePeriodDays          Int      @default(2)    // ส่งเตือนก่อนเปลี่ยนสถานะกี่วัน
+
+  // ราคาเครดิต AI ต่อ action (โหมด combined) — null = ใช้ค่าเริ่มต้นในโค้ด (src/lib/aiCredits.ts)
+  // { chat, photo, plan, barcode, textAnalysis, exerciseAnalysis, recommend, menuSelect }
+  aiCreditCosts            Json?
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -937,6 +941,9 @@ model AiUsageLog {
   id         String   @id @default(cuid())
   memberId   String
   usageType  String   // "photo", "ai_analysis", "ai_text_analysis", "ai_recommend", "exercise_analysis", "menu_select", "scan"
+  // เครดิตที่หักจริงของครั้งนั้น (โหมด combined) — เก็บติดแถวเพื่อให้ย้อนดูได้ว่าตอนนั้นราคาเท่าไหร่
+  creditKey  String?  // chat | photo | plan | barcode | textAnalysis | exerciseAnalysis | recommend | menuSelect
+  credits    Int      @default(1)
   createdAt  DateTime @default(now())
 
   @@index([memberId, usageType, createdAt])

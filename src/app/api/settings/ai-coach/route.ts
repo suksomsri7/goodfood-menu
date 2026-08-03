@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { getCreditCosts, setCreditCosts, CREDIT_LABELS, DEFAULT_CREDIT_COSTS } from "@/lib/aiCredits";
 
 // GET - ดึงการตั้งค่า AI Coach
 export async function GET() {
@@ -27,8 +28,14 @@ export async function GET() {
       },
     });
 
+    // ราคาเครดิต AI ต่อ action (โหมด combined) — sanitize + เติมค่าเริ่มต้นให้แล้ว
+    const aiCreditCosts = await getCreditCosts();
+
     return NextResponse.json({
       ...settings,
+      aiCreditCosts,
+      aiCreditDefaults: DEFAULT_CREDIT_COSTS,
+      aiCreditLabels: CREDIT_LABELS,
       memberTypes,
     });
   } catch (error) {
@@ -55,7 +62,11 @@ export async function PATCH(request: Request) {
       // Premium Settings
       premiumPrice,
       premiumDays,
+      // ราคาเครดิต AI ต่อ action
+      aiCreditCosts,
     } = body;
+
+    if (aiCreditCosts !== undefined) await setCreditCosts(aiCreditCosts);
 
     const settings = await prisma.systemSetting.upsert({
       where: { id: "system" },
@@ -82,7 +93,7 @@ export async function PATCH(request: Request) {
       },
     });
 
-    return NextResponse.json(settings);
+    return NextResponse.json({ ...settings, aiCreditCosts: await getCreditCosts() });
   } catch (error) {
     console.error("Error updating settings:", error);
     return NextResponse.json(

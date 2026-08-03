@@ -3,7 +3,7 @@ import { buildOpenAI, aiModel } from "@/lib/aiClient";
 import { getSecret } from "@/lib/secrets/store";
 import { getAuthedMember } from "@/lib/coachAuth";
 import { coachActive } from "@/lib/coachResolve";
-import { checkUsageLimitForMember, logAiUsageByMemberId } from "@/lib/usage-limits";
+import { checkUsageLimitForMember, logAiUsageByMemberId, creditsExhaustedResponse } from "@/lib/usage-limits";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
@@ -98,12 +98,7 @@ export async function POST(req: NextRequest) {
 
     // S1: โควตาถ่ายวิเคราะห์ (เดิมฝั่ง native ข้ามโควตาทั้งหมด)
     const quota = await checkUsageLimitForMember(authed, "dailyPhotoLimit");
-    if (!quota.allowed) {
-      return NextResponse.json(
-        { error: quota.message, limitReached: true, limit: quota.limit, used: quota.used },
-        { status: 429 }
-      );
-    }
+    if (!quota.allowed) return creditsExhaustedResponse(quota);
 
     // ③ เก็บรูปลง timeline — เดิมวิเคราะห์เสร็จรูปหายไปเลย (MealLog.imageUrl ว่างตลอด)
     const [kind, imageUrl] = await Promise.all([classify(image), saveFoodImage(image)]);
@@ -113,17 +108,13 @@ export async function POST(req: NextRequest) {
     const res = await fetch(`${base}${target}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(
-        kind === "label"
-          ? { image, description, lineUserId }
-          : { image, description, lineUserId }
-      ),
+      // skipQuota: โควตาเช็ค/หักที่ชั้นนี้แล้ว — ไม่งั้น member ที่ผูก LINE โดนหัก 2 เด้ง
+      body: JSON.stringify({ image, description, lineUserId, skipQuota: true }),
     });
     const json = await res.json();
 
-    logAiUsageByMemberId(authed.id, "dailyPhotoLimit").catch(() => {});
-
     // ระบบ AI ใช้ไม่ได้ (เครดิตหมด/คีย์/แน่น) — คนละเรื่องกับ "รูปไม่ชัด" ต้องบอกตามจริง
+    // 🔴 ยังไม่หักเครดิต: AI ล่มไม่ใช่ความผิด user
     if (res.status === 503 && json.reason) {
       notifyAiOutage(json.reason, json.error);
       return NextResponse.json({ error: json.error, reason: json.reason }, { status: 503 });
@@ -137,6 +128,9 @@ export async function POST(req: NextRequest) {
         { status: 422 }
       );
     }
+
+    // 🔴 สำเร็จจริงแล้วค่อยหักเครดิต (เดิมหักก่อนเช็คผล → AI ล่มก็ยังโดนหัก)
+    logAiUsageByMemberId(authed.id, "dailyPhotoLimit").catch(() => {});
 
     return NextResponse.json({
       kind,

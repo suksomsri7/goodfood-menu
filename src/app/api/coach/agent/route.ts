@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { gatherMemberContext, COACH_SYSTEM_PROMPT } from "@/lib/coaching";
 import { resolveMember, coachActive } from "@/lib/coachResolve";
 import { bkkTodayKey } from "@/lib/planGenerator";
-import { checkUsageLimitForMember, logAiUsageByMemberId } from "@/lib/usage-limits";
+import { checkUsageLimitForMember, logAiUsageByMemberId, creditsExhaustedResponse, CREDITS_EXHAUSTED_MESSAGE } from "@/lib/usage-limits";
 import { frequentFoods } from "@/lib/foodCache";
 
 /**
@@ -109,12 +109,12 @@ export async function POST(req: NextRequest) {
     // S1: เดิมฝั่ง native ไม่มีโควตาเลย (quota เดิมผูก lineUserId) → ยิงได้ไม่จำกัด
     const quota = await checkUsageLimitForMember(member, "dailyChatLimit");
     if (!quota.allowed) {
-      return NextResponse.json({
-        reply: "วันนี้คุยกับโค้ชครบโควตาแล้วครับ พรุ่งนี้มาคุยกันใหม่นะครับ 😊",
+      // 429 + credits_exhausted (แอปรุ่นก่อนยังอ่าน reply/limitReached ได้เหมือนเดิม)
+      return creditsExhaustedResponse(quota, {
+        reply: quota.isCombinedMode ? CREDITS_EXHAUSTED_MESSAGE : quota.message,
         pendingActions: [],
         memoryProposals: [],
         needsInput: false,
-        limitReached: true,
       });
     }
 
@@ -178,6 +178,8 @@ export async function POST(req: NextRequest) {
     // โมเดลพลาดเป็นครั้งคราว (JSON ขาด/reply ว่าง) → user เจอ "ขอโทษครับ พูดอีกครั้ง" ทั้งที่พูดชัด → ลองใหม่ 1 ครั้ง
     let parsed: any = readReply(await askModel());
     if (!parsed) parsed = readReply(await askModel());
+    // AI ตอบมาใช้ได้จริงไหม — parse ไม่ผ่าน 2 รอบ = ไม่สำเร็จ ห้ามหักเครดิต
+    const aiSucceeded = parsed !== null;
     if (!parsed) parsed = { reply: "ขอโทษครับ ลองพูดอีกครั้งได้ไหมครับ", actions: [], memory: [] };
 
     // เก็บบทสนทนาลง backend (ไม่แสดงใน UI)
@@ -188,7 +190,8 @@ export async function POST(req: NextRequest) {
       ],
     }).catch(() => {});
 
-    logAiUsageByMemberId(member.id, "dailyChatLimit").catch(() => {});
+    // 🔴 หักเครดิตเฉพาะตอน AI ตอบสำเร็จ (AI ล่ม → throw ไป catch ข้างล่าง ไม่ถึงบรรทัดนี้)
+    if (aiSucceeded) logAiUsageByMemberId(member.id, "dailyChatLimit").catch(() => {});
 
     const pendingActions = Array.isArray(parsed.actions) ? parsed.actions : [];
     // เคยเจอโมเดลคืน reply ว่าง → แอปจะพูดเงียบ ๆ แล้ว user งง · ขอใหม่ดีกว่า

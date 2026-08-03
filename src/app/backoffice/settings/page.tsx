@@ -18,7 +18,8 @@ import {
   Loader2,
   Crown,
   Banknote,
-  Calendar
+  Calendar,
+  Coins
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -73,6 +74,13 @@ export default function SettingsPage() {
   });
   const [premiumLoading, setPremiumLoading] = useState(true);
   const [premiumSaving, setPremiumSaving] = useState(false);
+
+  // เครดิต AI ต่อ action (ใช้กับ member type ที่ตั้งโหมด "รวมทั้งหมด")
+  const [creditCosts, setCreditCosts] = useState<Record<string, number>>({});
+  const [creditLabels, setCreditLabels] = useState<Record<string, string>>({});
+  const [creditDefaults, setCreditDefaults] = useState<Record<string, number>>({});
+  const [creditLoading, setCreditLoading] = useState(true);
+  const [creditSaving, setCreditSaving] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -80,6 +88,7 @@ export default function SettingsPage() {
     fetchAccounts();
     fetchActivitySettings();
     fetchPremiumSettings();
+    fetchCreditCosts();
   }, []);
 
   const fetchAccounts = async () => {
@@ -148,6 +157,45 @@ export default function SettingsPage() {
       console.error("Error fetching premium settings:", error);
     } finally {
       setPremiumLoading(false);
+    }
+  };
+
+  const fetchCreditCosts = async () => {
+    try {
+      const res = await fetch("/api/settings/ai-coach");
+      if (res.ok) {
+        const data = await res.json();
+        setCreditCosts(data.aiCreditCosts ?? {});
+        setCreditLabels(data.aiCreditLabels ?? {});
+        setCreditDefaults(data.aiCreditDefaults ?? {});
+      }
+    } catch (error) {
+      console.error("Error fetching credit costs:", error);
+    } finally {
+      setCreditLoading(false);
+    }
+  };
+
+  const saveCreditCosts = async () => {
+    setCreditSaving(true);
+    try {
+      const res = await fetch("/api/settings/ai-coach", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aiCreditCosts: creditCosts }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCreditCosts(data.aiCreditCosts ?? creditCosts);
+        alert("บันทึกสำเร็จ");
+      } else {
+        alert("เกิดข้อผิดพลาด");
+      }
+    } catch (error) {
+      console.error("Error saving credit costs:", error);
+      alert("เกิดข้อผิดพลาด");
+    } finally {
+      setCreditSaving(false);
     }
   };
 
@@ -492,6 +540,71 @@ export default function SettingsPage() {
                     ) : (
                       <Save className="w-4 h-4" />
                     )}
+                    บันทึกการตั้งค่า
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* AI Credit Costs Section */}
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
+              <Coins className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-gray-800">เครดิต AI ต่อการใช้งาน</h2>
+              <p className="text-sm text-gray-500">
+                ใช้กับประเภทสมาชิกที่ตั้งโหมดโควตาเป็น &quot;รวมทั้งหมด&quot; — หักจากเครดิตรวมต่อวัน (0 = ไม่หัก)
+              </p>
+            </div>
+          </div>
+
+          <div className="p-6">
+            {creditLoading ? (
+              <div className="text-center py-8">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-400" />
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {Object.keys(creditCosts).map((key) => (
+                    <div key={key} className="flex items-center justify-between gap-3 border border-gray-100 rounded-xl px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-700 truncate">{creditLabels[key] || key}</p>
+                        <p className="text-xs text-gray-400">ค่าเริ่มต้น {creditDefaults[key] ?? 1} เครดิต</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <input
+                          type="number"
+                          min="0"
+                          value={creditCosts[key]}
+                          onChange={(e) =>
+                            setCreditCosts((prev) => ({ ...prev, [key]: parseInt(e.target.value) || 0 }))
+                          }
+                          className="w-20 px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-center"
+                        />
+                        <span className="text-gray-500 text-sm">เครดิต</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+                  เครดิตรวมต่อวันของแต่ละประเภทสมาชิกตั้งได้ที่หน้า{" "}
+                  <a href="/backoffice/member-types" className="underline font-medium">ประเภทสมาชิก</a>{" "}
+                  (โหมด &quot;รวมทั้งหมด&quot;) · เครดิตรีเซ็ตเที่ยงคืนเวลาไทยทุกวัน · บันทึกอาหาร/ออกกำลังกายเองไม่หักเครดิต
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    onClick={saveCreditCosts}
+                    disabled={creditSaving}
+                    className="px-6 py-3 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-colors flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {creditSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     บันทึกการตั้งค่า
                   </button>
                 </div>

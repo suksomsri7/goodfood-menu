@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { buildOpenAI, aiModel } from "@/lib/aiClient";
 import { prisma } from "@/lib/prisma";
-import { checkUsageLimit, logAiUsage } from "@/lib/usage-limits";
+import { checkUsageLimit, logAiUsage, creditsExhaustedResponse } from "@/lib/usage-limits";
 import { getSecret } from "@/lib/secrets/store";
 
 export async function POST(request: NextRequest) {
@@ -18,17 +18,7 @@ export async function POST(request: NextRequest) {
 
     // Check usage limit
     const limitCheck = await checkUsageLimit(lineUserId, "dailyAiRecommendLimit");
-    if (!limitCheck.allowed) {
-      return NextResponse.json(
-        { 
-          error: limitCheck.message,
-          limitReached: true,
-          limit: limitCheck.limit,
-          used: limitCheck.used,
-        },
-        { status: 429 }
-      );
-    }
+    if (!limitCheck.allowed) return creditsExhaustedResponse(limitCheck);
 
     // Fetch member data with goals
     const member = await prisma.member.findUnique({
