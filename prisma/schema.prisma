@@ -59,6 +59,7 @@ model Member {
   notifyProgressPhoto    Boolean   @default(true)
   notifyPostExercise     Boolean   @default(true)
   notifyWeightReminder   Boolean   @default(true)
+  notifyArticles         Boolean   @default(true)   // บทความสุขภาพที่ตรงกับพฤติกรรม (B2)
   notificationsPausedUntil DateTime?
   
   addresses        Address[]

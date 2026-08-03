@@ -26,6 +26,7 @@ const NOTIFY_KEYS = [
   "notifyWaterReminder",
   "notifyWeeklyInsights",
   "notifyWeightReminder",
+  "notifyArticles",
 ] as const;
 
 function view(m: any) {
