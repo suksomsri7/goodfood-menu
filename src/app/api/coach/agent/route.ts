@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
     if (!quota.allowed) {
       // 429 + credits_exhausted (แอปรุ่นก่อนยังอ่าน reply/limitReached ได้เหมือนเดิม)
       return creditsExhaustedResponse(quota, {
-        reply: quota.isCombinedMode ? CREDITS_EXHAUSTED_MESSAGE : quota.message,
+        reply: quota.message ?? CREDITS_EXHAUSTED_MESSAGE,
         pendingActions: [],
         memoryProposals: [],
         needsInput: false,

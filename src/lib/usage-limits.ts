@@ -70,6 +70,14 @@ export const CREDITS_EXHAUSTED_MESSAGE =
   "เครดิต AI วันนี้หมดแล้ว จะได้ใหม่ตอนเที่ยงคืน — บันทึกเองยังใช้ได้ไม่จำกัดครับ";
 
 /**
+ * เครดิตยังเหลือ แต่ไม่พอค่างานชิ้นนี้ (เช่น เหลือ 2 แต่สร้างแผน 7 วัน = 5)
+ * ห้ามบอก "หมดแล้ว" ทั้งที่ยังคุยกับโค้ชต่อได้ — user จะงงว่าตกลงหมดหรือไม่หมด
+ */
+function notEnoughMessage(remaining: number, cost: number) {
+  return `งานนี้ใช้ ${cost} เครดิต แต่วันนี้เหลือ ${remaining} — เครดิตจะได้ใหม่ตอนเที่ยงคืนครับ`;
+}
+
+/**
  * ตอบกลับตอนโควตาหมด — ทุก endpoint ที่เรียก AI ใช้ตัวนี้ตัวเดียว
  * 🔴 คนละเรื่องกับ "ระบบ AI ล่ม/เครดิต OpenRouter หมด" (อันนั้น 503 + reason จาก aiOutageReason)
  */
@@ -78,10 +86,11 @@ export function creditsExhaustedResponse(q: UsageCheckResult, extra?: Record<str
   return NextResponse.json(
     {
       error: combined ? "credits_exhausted" : "limit_reached",
-      message: combined ? CREDITS_EXHAUSTED_MESSAGE : q.message,
-      remaining: 0,
+      message: combined ? q.message ?? CREDITS_EXHAUSTED_MESSAGE : q.message,
+      remaining: combined ? q.remaining : 0,
       limit: q.limit,
       used: q.used,
+      cost: q.cost,
       limitReached: true, // ของเดิม (หน้า LIFF/แอปรุ่นก่อนอ่าน field นี้)
       ...extra,
     },
@@ -167,7 +176,7 @@ export async function checkUsageLimitForMember(
         limit: totalLimit,
         used: totalUsed,
         remaining,
-        message: allowed ? undefined : CREDITS_EXHAUSTED_MESSAGE,
+        message: allowed ? undefined : remaining > 0 ? notEnoughMessage(remaining, cost) : CREDITS_EXHAUSTED_MESSAGE,
         isCombinedMode: true,
         cost,
         creditKey,
@@ -310,7 +319,7 @@ export async function checkUsageLimit(
         limit: totalLimit,
         used: totalUsed,
         remaining,
-        message: allowed ? undefined : CREDITS_EXHAUSTED_MESSAGE,
+        message: allowed ? undefined : remaining > 0 ? notEnoughMessage(remaining, cost) : CREDITS_EXHAUSTED_MESSAGE,
         isCombinedMode: true,
         cost,
         creditKey,
