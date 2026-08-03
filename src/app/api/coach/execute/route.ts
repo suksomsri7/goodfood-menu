@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { resolveMember, coachActive } from "@/lib/coachResolve";
 import { upsertMemories } from "@/lib/coachMemory";
 import { bkkDateKey, bkkTodayKey } from "@/lib/planGenerator";
+import { resolveLogTime } from "@/lib/coachLogTime";
 
 /**
  * execute action ที่ user ยืนยันแล้ว (มาจาก /api/coach/agent)
@@ -10,37 +11,10 @@ import { bkkDateKey, bkkTodayKey } from "@/lib/planGenerator";
  *  → { done:[...], memorySaved }
  */
 
-const BKK_OFFSET_MS = 7 * 3600 * 1000;
-
 /** ที่มาของ MealLog ที่ยอมรับ (ค่าอื่นถือว่าเสียงพูด) — ตรงกับคอมเมนต์ใน schema.prisma */
 const VIA_KINDS = ["photo", "barcode", "voice", "manual"];
 
-/**
- * เวลาที่ user บอกมาเอง ("ตอน 10 โมงครึ่งดื่มน้ำ 1 ลิตร") → Date จริง
- * AI ส่ง time="HH:MM" (+ date="YYYY-MM-DD" ถ้าไม่ใช่วันนี้) ตามเวลาไทย
- * ไม่ระบุ/รูปแบบผิด/เกิน 14 วัน/อนาคตเกิน 1 ชม. → คืน undefined = ใช้เวลาปัจจุบัน
- */
-function resolveLogTime(g: any): Date | undefined {
-  const time = typeof g?.time === "string" ? g.time.trim() : "";
-  if (!/^\d{1,2}:\d{2}$/.test(time)) return undefined;
-  const [hh, mm] = time.split(":").map(Number);
-  if (hh > 23 || mm > 59) return undefined;
-
-  const nowBkk = new Date(Date.now() + BKK_OFFSET_MS);
-  const dateStr =
-    typeof g?.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(g.date)
-      ? g.date
-      : nowBkk.toISOString().slice(0, 10);
-
-  // เวลาไทยที่ระบุ → UTC (ลบ 7 ชม.)
-  const utc = new Date(`${dateStr}T${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00.000Z`);
-  if (isNaN(utc.getTime())) return undefined;
-  const when = new Date(utc.getTime() - BKK_OFFSET_MS);
-
-  const ageMs = Date.now() - when.getTime();
-  if (ageMs < -3600_000 || ageMs > 14 * 24 * 3600_000) return undefined; // อนาคต/เก่าเกินไป = ไม่เชื่อ
-  return when;
-}
+// เวลาที่ user บอกมาเอง (time/date เวลาไทย) → Date จริง — ใช้ตัวเดียวกับ /api/coach/update-entry
 
 export async function POST(req: NextRequest) {
   try {
