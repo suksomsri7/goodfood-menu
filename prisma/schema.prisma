@@ -975,3 +975,20 @@ model FoodCatalog {
   @@index([category])
   @@map("food_catalog")
 }
+
+// ── Coach: คลิปสั้นสุขภาพจากช่อง YouTube ของ GoodFood ("คลิปสำหรับคุณวันนี้") ──
+// cron /api/cron/video-sync (วันละครั้ง 05:10 น. ไทย) เติมตารางนี้ — แอปอ่านจาก DB เท่านั้น
+// ไม่มีคอลัมน์ memberId: คลังคลิปเป็นของกลาง การคัดรายคนคำนวณสด (deterministic) ตอนเรียก API
+model CoachVideo {
+  videoId     String   @id // YouTube video id (เช่น 5p6-iO-sFHs)
+  title       String
+  description String?  @db.Text
+  thumbnail   String
+  publishedAt DateTime
+  topics      String[] @default([]) // TopicKey: sodium|sugar|protein|sleep|weight|exercise (map จากคีย์เวิร์ด)
+  isActive    Boolean  @default(true) // false = หายไปจากแหล่ง (กลับเป็น private) — ไม่ลบแถว เก็บประวัติไว้
+  syncedAt    DateTime @updatedAt
+
+  @@index([isActive, publishedAt])
+  @@map("coach_videos")
+}
