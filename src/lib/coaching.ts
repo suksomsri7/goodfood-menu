@@ -3,7 +3,7 @@ import { getDailyBudget } from "@/lib/dailyBudget";
 import OpenAI from "openai";
 import { buildOpenAI, aiModel } from "@/lib/aiClient";
 import { getSecret } from "@/lib/secrets/store";
-import { pushMessage, createFlexMessage } from "@/lib/line";
+import { pushProactiveMessage, createFlexMessage } from "@/lib/line";
 import { getPersonalizationSafe, type Personalization } from "@/lib/personalization";
 
 // AI Coach System Prompt
@@ -934,8 +934,9 @@ export async function sendCoachingMessage(
     const message = await generateCoachingMessage(type, context);
 
     // Create and send Flex message
+    // 🔴 บอทเริ่มก่อน = proactive → ผ่านสวิตช์กลาง (ปิดอยู่ตั้งแต่ 6 ส.ค. 2026)
     const flexMessage = createCoachingFlexMessage(type, message, context);
-    const success = await pushMessage(member.lineUserId, [flexMessage]);
+    const success = await pushProactiveMessage(member.lineUserId, [flexMessage], `coaching:${type}`);
 
     if (success) {
       console.log(`Sent ${type} coaching to member ${memberId}`);

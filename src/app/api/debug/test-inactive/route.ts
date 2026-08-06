@@ -6,7 +6,7 @@ import {
   createCoachingFlexMessage,
   isAiCoachActive
 } from "@/lib/coaching";
-import { pushMessage } from "@/lib/line";
+import { pushProactiveMessage } from "@/lib/line";
 
 // Debug endpoint to test inactive notification system
 export async function GET(request: NextRequest) {
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
             const message = await generateCoachingMessage("inactive", context);
             const flexMessage = createCoachingFlexMessage("inactive", message, context);
             
-            const success = member.lineUserId ? await pushMessage(member.lineUserId, [flexMessage]) : false;
+            const success = member.lineUserId ? await pushProactiveMessage(member.lineUserId, [flexMessage], "debug:inactive") : false;
             testResult = {
               sent: success,
               message: success ? "ส่งข้อความทดสอบสำเร็จ" : "ส่งข้อความไม่สำเร็จ",

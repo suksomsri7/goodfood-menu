@@ -26,19 +26,21 @@ export async function GET(req: NextRequest) {
   });
 
   let sent = 0;
+  // เก็บเหตุผลที่ข้ามไว้ด้วย — เดิม continue เงียบ ๆ ทำให้อ่าน log ไม่ออกว่าทำไมไม่ส่ง
+  const details: Array<{ memberId: string; status: string }> = [];
   for (const m of members) {
-    if (!isAiCoachActive(m)) continue;
-    if (!(await hasDevice(m.id))) continue;
+    if (!isAiCoachActive(m)) { details.push({ memberId: m.id, status: "no-access" }); continue; }
+    if (!(await hasDevice(m.id))) { details.push({ memberId: m.id, status: "no-device" }); continue; }
 
     const recent = await prisma.weightLog.count({
       where: { memberId: m.id, date: { gte: threeDaysAgo } },
     });
-    if (recent > 0) continue; // ชั่งไปแล้ว ไม่กวน
+    if (recent > 0) { details.push({ memberId: m.id, status: "weighed-recently" }); continue; } // ชั่งไปแล้ว ไม่กวน
 
     const already = await prisma.coachDispatchLog.findUnique({
       where: { memberId_date_type: { memberId: m.id, date: todayKey, type: "weigh_reminder" } },
     });
-    if (already) continue;
+    if (already) { details.push({ memberId: m.id, status: "already-sent" }); continue; }
 
     const n = await sendPush(
       m.id,
@@ -54,8 +56,11 @@ export async function GET(req: NextRequest) {
         data: { memberId: m.id, date: todayKey, type: "weigh_reminder" },
       });
       sent++;
+      details.push({ memberId: m.id, status: "sent-push" });
+    } else {
+      details.push({ memberId: m.id, status: "push-failed" });
     }
   }
 
-  return NextResponse.json({ ok: true, sent, checked: members.length });
+  return NextResponse.json({ ok: true, sent, checked: members.length, details });
 }

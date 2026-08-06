@@ -104,6 +104,39 @@ export async function replyMessage(replyToken: string, messages: LineMessage[]):
   }
 }
 
+/**
+ * 🔴 6 ส.ค. 2026 — ปิดการ "ยิงข้อความออก LINE เอง" (แจ้งเตือน/cron/บอทเก่า) ทั้งหมด
+ *
+ * เหตุผล: ยุค LINE ของแอปโค้ชเลิกใช้แล้ว การแจ้งเตือนทุกอย่างไปทาง push ของแอปทางเดียว
+ * สมาชิกเก่าที่ยังผูก lineUserId แต่ไม่ได้ลงแอป เคยโดนโค้ชเช้ายิง Flex เข้า LINE ทุกเช้า
+ * และ LINE OA กำลังจะถูกใช้ใหม่สำหรับ "รับออเดอร์อาหาร" — ห้ามบอทเก่าไปยิงอะไรรบกวน
+ *
+ * ถอดออกง่าย: ตั้งเป็น false = เปิดกลับทั้งระบบ ไม่ต้องไล่แก้หลายไฟล์
+ *
+ * ไม่ครอบ (ตั้งใจให้ทำงานต่อ):
+ *  - replyMessage ใน webhook /api/line/webhook + coachChat (ตอบเมื่อมีคนทักเข้ามาเท่านั้น)
+ *  - หน้าแชท backoffice (แอดมินกดส่งเอง)
+ *  - ออเดอร์อาหาร /api/orders (ยืนยันออเดอร์ที่ user เป็นคนสั่งเอง)
+ *  - LIFF / secret ของ LINE
+ */
+export const LINE_PROACTIVE_DISABLED = true;
+
+/**
+ * ส่ง LINE แบบ proactive (บอทเริ่มก่อน: cron/แจ้งเตือน/สรุป)
+ * ทุกจุดที่ "บอทยิงหาเอง" ต้องผ่านฟังก์ชันนี้ ห้ามเรียก pushMessage ตรง
+ */
+export async function pushProactiveMessage(
+  userId: string,
+  messages: LineMessage[],
+  source: string
+): Promise<boolean> {
+  if (LINE_PROACTIVE_DISABLED) {
+    console.log(`[LINE] proactive ปิดอยู่ — ไม่ส่ง (${source})`);
+    return false;
+  }
+  return pushMessage(userId, messages);
+}
+
 // Send push message (ส่งข้อความหาผู้ใช้โดยตรง)
 export async function pushMessage(userId: string, messages: LineMessage[]): Promise<boolean> {
   try {

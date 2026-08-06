@@ -1,15 +1,11 @@
 import { prisma } from "@/lib/prisma";
-import { pushMessage } from "@/lib/line";
 import { sendPush, hasDevice } from "@/lib/push";
 import {
   gatherMemberContext,
   generateCoachingMessage,
-  createMorningCoachFlex,
   isAiCoachActive,
 } from "@/lib/coaching";
 import { bkkTodayKey } from "@/lib/planGenerator";
-
-const MONTHLY_PUSH_CAP = 280; // กันโควตา LINE 300/เดือนเต็มเงียบ ๆ
 
 function bkkNow(): Date {
   return new Date(Date.now() + 7 * 60 * 60 * 1000);
@@ -73,10 +69,10 @@ export async function runMorningCoach(opts?: {
   const nowHHMM = bkkNowHHMM();
   const now = new Date();
 
+  // เก็บไว้เป็นตัวเลขรายงานเฉย ๆ (เดิมใช้คุมโควตา LINE 300/เดือน — ตอนนี้ push แอปไม่มีโควตา)
   const sentThisMonth = await prisma.coachDispatchLog.count({
     where: { type: "morning", createdAt: { gte: bkkMonthStartUtc() } },
   });
-  let remainingCap = MONTHLY_PUSH_CAP - sentThisMonth;
 
   const members = await prisma.member.findMany({
     where: {
@@ -91,7 +87,7 @@ export async function runMorningCoach(opts?: {
   const details: MorningCoachResult["details"] = [];
   let sent = 0;
   let skipped = 0;
-  let capped = false;
+  const capped = false; // เดิมใช้กับโควตา LINE — คงไว้ใน response เพื่อไม่ให้ผู้เรียกเดิมพัง
 
   for (const m of members) {
     if (!isAiCoachActive(m)) { skipped++; details.push({ memberId: m.id, name: m.name, status: "no-access" }); continue; }
@@ -105,11 +101,12 @@ export async function runMorningCoach(opts?: {
     });
     if (already) { skipped++; details.push({ memberId: m.id, name: m.name, status: "already-sent" }); continue; }
 
-    // ช่องทางส่ง: มี device (ลงแอป) → push (ไม่กินโควตา LINE) · ไม่งั้น fallback LINE (นับ cap)
-    const viaApp = await hasDevice(m.id);
-    if (!viaApp) {
-      if (!m.lineUserId) { skipped++; details.push({ memberId: m.id, name: m.name, status: "no-channel" }); continue; }
-      if (remainingCap <= 0) { capped = true; details.push({ memberId: m.id, name: m.name, status: "cap-reached" }); continue; }
+    // 🔴 6 ส.ค. 2026: เหลือช่องทางเดียว = push ของแอป (LINE_PROACTIVE_DISABLED ใน lib/line.ts)
+    // เดิมคนที่ไม่ได้ลงแอปแต่ผูก LINE ไว้ จะโดน Flex ยิงเข้า LINE ทุกเช้า — ตอนนี้ข้ามไปเลย
+    if (!(await hasDevice(m.id))) {
+      skipped++;
+      details.push({ memberId: m.id, name: m.name, status: "no-device" });
+      continue;
     }
 
     const context = await gatherMemberContext(m.id);
@@ -149,22 +146,13 @@ export async function runMorningCoach(opts?: {
     if (sleptLastNight === 0) {
       msg += "\n\n💤 เมื่อคืนนอนกี่ชั่วโมงครับ? แตะวงกลมแล้วบอกโค้ชได้เลย";
     }
-    let ok = false;
-    if (viaApp) {
-      // ส่ง push เข้าแอป (ไม่กินโควตา LINE)
-      const n = await sendPush(m.id, { title: "โค้ชเช้า 🌅", body: msg, data: { screen: "plan" } }, "morning");
-      ok = n > 0;
-    } else if (m.lineUserId) {
-      const flex = createMorningCoachFlex(msg, context);
-      ok = await pushMessage(m.lineUserId, [flex]);
-    }
-    if (ok) {
+    const n = await sendPush(m.id, { title: "โค้ชเช้า 🌅", body: msg, data: { screen: "plan" } }, "morning");
+    if (n > 0) {
       await prisma.coachDispatchLog.create({
         data: { memberId: m.id, date: todayKey, type: "morning" },
       });
       sent++;
-      if (!viaApp) remainingCap--; // นับ cap เฉพาะ LINE
-      details.push({ memberId: m.id, name: m.name, status: viaApp ? "sent-push" : "sent-line" });
+      details.push({ memberId: m.id, name: m.name, status: "sent-push" });
     } else {
       skipped++;
       details.push({ memberId: m.id, name: m.name, status: "push-failed" });
