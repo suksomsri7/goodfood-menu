@@ -148,6 +148,44 @@ async function fetchViaApi(key: string): Promise<RawVideo[]> {
   return out;
 }
 
+// ── ปกแนวตั้งของ Shorts ──────────────────────────────────────────────────
+
+/** ปกที่เป็นแนวตั้งแล้ว — เจอในแถวเดิม = ไม่ต้องยิง HEAD ซ้ำ */
+const VERTICAL_THUMB_RE = /\/oar(2|default)\.jpg$/;
+
+async function headOk(url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url, {
+      method: "HEAD",
+      cache: "no-store",
+      headers: { "User-Agent": "GoodFoodCoach/1.0 (+https://goodfood.in.th)" },
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * การ์ดคลิปในแอปเป็น 9:16 แต่ปกมาตรฐาน hqdefault เป็น 480×360 แนวนอน → โดน crop/มัว
+ * YouTube มีปกแนวตั้งของ Shorts ที่ oar2.jpg (บางคลิปเป็น oardefault.jpg) แต่ไม่มีทุกคลิป
+ *
+ * 🔴 ยิง HEAD เฉพาะตอน sync (วันละครั้ง) แล้วเก็บผลลง DB — ห้ามยิงตอน request ของผู้ใช้
+ *    คลิปที่ได้ปกแนวตั้งไปแล้วจะไม่ถูกยิงซ้ำในการ sync รอบถัดไป
+ */
+async function resolveThumbnail(
+  videoId: string,
+  fromSource: string,
+  existing?: string | null
+): Promise<string> {
+  if (existing && VERTICAL_THUMB_RE.test(existing)) return existing;
+  for (const name of ["oar2", "oardefault"]) {
+    const url = `https://i.ytimg.com/vi/${videoId}/${name}.jpg`;
+    if (await headOk(url)) return url;
+  }
+  return fromSource;
+}
+
 export type SyncResult = {
   source: "api" | "rss";
   fetched: number;
@@ -155,7 +193,9 @@ export type SyncResult = {
   updated: number;
   deactivated: number;
   reactivated: number;
-  videos: Array<{ videoId: string; title: string; topics: TopicKey[] }>;
+  /** กี่คลิปที่ได้ปกแนวตั้ง 9:16 (ที่เหลือ YouTube ไม่มีให้ → ใช้ปกแนวนอนมาตรฐาน) */
+  vertical: number;
+  videos: Array<{ videoId: string; title: string; topics: TopicKey[]; thumbnail: string }>;
 };
 
 /**
@@ -171,23 +211,29 @@ export async function syncCoachVideos(): Promise<SyncResult> {
 
   // แหล่งคืนศูนย์คลิป = น่าจะแหล่งมีปัญหา ไม่ใช่ช่องว่างเปล่า → ไม่แตะข้อมูลเดิม
   if (list.length === 0) {
-    return { source, fetched: 0, created: 0, updated: 0, deactivated: 0, reactivated: 0, videos: [] };
+    return { source, fetched: 0, created: 0, updated: 0, deactivated: 0, reactivated: 0, vertical: 0, videos: [] };
   }
 
-  const existing = await prisma.coachVideo.findMany({ select: { videoId: true, isActive: true } });
+  const existing = await prisma.coachVideo.findMany({
+    select: { videoId: true, isActive: true, thumbnail: true },
+  });
   const known = new Map(existing.map((e) => [e.videoId, e.isActive]));
+  const knownThumb = new Map(existing.map((e) => [e.videoId, e.thumbnail]));
 
   let created = 0;
   let updated = 0;
   let reactivated = 0;
+  let vertical = 0; // กี่คลิปที่ได้ปกแนวตั้ง 9:16 (ที่เหลือใช้ปกแนวนอนมาตรฐาน)
   const videos: SyncResult["videos"] = [];
 
   for (const v of list) {
     const topics = videoTopics(v);
+    const thumbnail = await resolveThumbnail(v.videoId, v.thumbnail, knownThumb.get(v.videoId));
+    if (VERTICAL_THUMB_RE.test(thumbnail)) vertical++;
     const data = {
       title: v.title,
       description: v.description,
-      thumbnail: v.thumbnail,
+      thumbnail,
       publishedAt: v.publishedAt,
       topics,
       isActive: true,
@@ -202,7 +248,7 @@ export async function syncCoachVideos(): Promise<SyncResult> {
       updated++;
       if (known.get(v.videoId) === false) reactivated++;
     }
-    videos.push({ videoId: v.videoId, title: v.title, topics });
+    videos.push({ videoId: v.videoId, title: v.title, topics, thumbnail });
   }
 
   const seen = new Set(list.map((v) => v.videoId));
@@ -217,5 +263,5 @@ export async function syncCoachVideos(): Promise<SyncResult> {
     data: { isActive: false },
   });
 
-  return { source, fetched: list.length, created, updated, deactivated, reactivated, videos };
+  return { source, fetched: list.length, created, updated, deactivated, reactivated, vertical, videos };
 }
