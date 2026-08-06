@@ -261,7 +261,15 @@ export async function pickDailyArticles(
   const byRank = (a: { id: string }, b: { id: string }) =>
     dailyRank(member.id, dayKey, a.id).localeCompare(dailyRank(member.id, dayKey, b.id));
 
-  const matchedSorted = matches.map((m) => m.article).sort(byRank);
+  // เรียงตามลำดับความสำคัญของปัญหาก่อน (memberSignals คืนมาเรียงไว้แล้ว: โซเดียม → โปรตีน → นอน →
+  // น้ำหนัก → ออกกำลังกาย → น้ำตาล) แล้วค่อยหมุนเวียนรายวันภายในหัวข้อเดียวกัน
+  // ถ้าเรียงด้วย hash ล้วน คนที่โซเดียมเกินหนักอาจได้บทความเรื่องอื่นขึ้นก่อน
+  const signalOrder = new Map(signals.map((sig, i) => [sig.topic, i]));
+  const matchedSorted = matches.map((m) => m.article).sort((a, b) => {
+    const pa = signalOrder.get(matchedIds.get(a.id)!.topic) ?? 99;
+    const pb = signalOrder.get(matchedIds.get(b.id)!.topic) ?? 99;
+    return pa !== pb ? pa - pb : byRank(a, b);
+  });
   const restSorted = health.filter((a) => !matchedIds.has(a.id)).sort(byRank);
 
   const items = [...matchedSorted, ...restSorted].slice(0, Math.max(0, limit)).map((a) => {
