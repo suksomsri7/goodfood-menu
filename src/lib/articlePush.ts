@@ -12,7 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { sendPush } from "@/lib/push";
 import { isAiCoachActive } from "@/lib/coaching";
 import { bkkTodayKey } from "@/lib/planGenerator";
-import { articleTopics, articleUrl, memberSignals, type TopicKey } from "@/lib/articleFeed";
+import { articleUrl, isHealthArticle, matchArticles, memberSignals, type TopicKey } from "@/lib/articleFeed";
 
 const ARTICLE_MAX_AGE_DAYS = 3;
 const WEEKLY_CAP = 3; // บทความสูงสุด/สัปดาห์/คน
@@ -63,9 +63,7 @@ export async function runArticlePush(now = new Date(), opts?: { force?: boolean 
   });
 
   // บทความที่ไม่เข้าหัวข้อไหนเลย = ส่งให้ใครไม่ได้ ตัดทิ้งตั้งแต่ต้น
-  const candidates = fresh
-    .map((a) => ({ ...a, topics: articleTopics(a) }))
-    .filter((a) => a.topics.length > 0);
+  const candidates = fresh.filter((a) => isHealthArticle(a));
 
   if (candidates.length === 0) {
     return { ok: true, sent: 0, checked: 0, articles: fresh.length, details };
@@ -105,7 +103,6 @@ export async function runArticlePush(now = new Date(), opts?: { force?: boolean 
       details.push({ memberId: m.id, status: "no-signal" });
       continue;
     }
-    const byTopic = new Map(signals.map((s) => [s.topic, s.reason]));
 
     // เคยส่งบทความไหนไปแล้วบ้าง (ตลอดกาล)
     const seen = await prisma.coachDispatchLog.findMany({
@@ -114,20 +111,21 @@ export async function runArticlePush(now = new Date(), opts?: { force?: boolean 
     });
     const seenIds = new Set(seen.map((s) => s.type.slice(DISPATCH_PREFIX.length)));
 
-    // บทความใหม่สุดที่ตรงกับปัญหาของเขา และยังไม่เคยส่ง
-    const pick = candidates.find((a) => !seenIds.has(a.id) && a.topics.some((t) => byTopic.has(t)));
-    if (!pick) {
+    // บทความใหม่สุดที่ตรงกับปัญหาของเขา และยังไม่เคยส่ง (matchArticles = ตัวจับคู่ตัวเดียวกับ feed รายวัน)
+    const match = matchArticles(candidates, signals).find((m2) => !seenIds.has(m2.article.id));
+    if (!match) {
       details.push({ memberId: m.id, status: "no-match" });
       continue;
     }
-    const topic = pick.topics.find((t) => byTopic.has(t))!;
+    const pick = match.article;
+    const topic = match.topic;
 
     const url = articleUrl(pick.slug);
     await sendPush(
       m.id,
       {
         title: hook(pick.title),
-        body: byTopic.get(topic)!,
+        body: match.reason,
         data: { screen: "article", url, articleId: pick.id, topic },
       },
       "article"

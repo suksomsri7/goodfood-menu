@@ -8,6 +8,7 @@
  * 🔴 การจับคู่บทความ ↔ ผู้ใช้ เป็น deterministic ทั้งหมด (keyword ↔ BehaviorInsight)
  *    ไม่เรียก AI — ไม่เสียเงิน ไม่แต่งข้อมูล และผลลัพธ์อธิบายได้ว่าทำไมถึงได้บทความนี้
  */
+import { createHash } from "crypto";
 import { prisma } from "@/lib/prisma";
 
 const BASE_URL = (process.env.NEXT_PUBLIC_BASE_URL || "https://goodfood.in.th").replace(/\/$/, "");
@@ -54,12 +55,22 @@ type ArticleRow = {
   category: { name: string } | null;
 };
 
+/**
+ * รูปปกใน DB เก็บเป็น path สั้น (/uploads/articles/xxx.webp)
+ * แอปเอาไป render ตรง ๆ ไม่ได้ (ไม่มี host) → ต้องคืน URL เต็มเสมอ
+ */
+export function absoluteImageUrl(path: string | null | undefined): string | null {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path)) return path;
+  return `${BASE_URL}${path.startsWith("/") ? "" : "/"}${path}`;
+}
+
 export function toFeedItem(a: ArticleRow): ArticleFeedItem {
   return {
     id: a.id,
     title: a.title,
     excerpt: a.excerpt,
-    imageUrl: a.coverImage || a.ogImage || null,
+    imageUrl: absoluteImageUrl(a.coverImage || a.ogImage),
     url: articleUrl(a.slug),
     category: a.category?.name ?? null,
     publishedAt: a.publishedAt ? a.publishedAt.toISOString() : null,
@@ -172,4 +183,90 @@ export async function memberSignals(member: {
   }
 
   return out;
+}
+
+// ── จับคู่บทความ ↔ ปัญหาของ member (ใช้ร่วมกันระหว่าง cron push กับ feed รายวัน) ──
+
+type MatchableArticle = { title: string; tags?: string | null; category?: { name: string } | null };
+
+/** บทความนี้ "เกี่ยวกับสุขภาพ" ไหม — ใช้ตัวเดียวกับที่ cron ใช้กรองก่อนส่ง push */
+export function isHealthArticle(a: MatchableArticle): boolean {
+  return articleTopics(a).length > 0;
+}
+
+export type ArticleMatch<T> = { article: T; topic: TopicKey; reason: string };
+
+/**
+ * บทความไหนตรงกับปัญหาพฤติกรรมของ member บ้าง (คงลำดับที่ส่งเข้ามา)
+ * แชร์ระหว่าง /api/cron/article-push (เลือก 1 บทไปเตือน) กับ
+ * /api/coach/articles?daily=1 (จัดอันดับ "บทความสำหรับคุณวันนี้")
+ */
+export function matchArticles<T extends MatchableArticle>(
+  articles: T[],
+  signals: MemberSignal[]
+): Array<ArticleMatch<T>> {
+  if (signals.length === 0) return [];
+  const byTopic = new Map(signals.map((s) => [s.topic, s.reason]));
+  const out: Array<ArticleMatch<T>> = [];
+  for (const a of articles) {
+    const topic = articleTopics(a).find((t) => byTopic.has(t));
+    if (topic) out.push({ article: a, topic, reason: byTopic.get(topic)! });
+  }
+  return out;
+}
+
+// ── "บทความสำหรับคุณวันนี้" — หมุนเวียนรายวันแบบ deterministic ──
+
+/** วันที่ตามเวลาไทย YYYY-MM-DD (คลังบทความไม่โต แต่ชุดที่เห็นต้องเปลี่ยนทุกเที่ยงคืนไทย) */
+export function bkkDayString(now = new Date()): string {
+  return new Date(now.getTime() + 7 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
+/**
+ * ลำดับสุ่มที่ "ทำซ้ำได้" — seed จาก memberId + วันที่ BKK + id บทความ
+ * 🔴 ห้ามใช้ Math.random: เรียกซ้ำในวันเดียวกันต้องได้ชุดเดิมเป๊ะ (แอปรีเฟรช/หลายเครื่องต้องตรงกัน)
+ */
+export function dailyRank(memberId: string, dayKey: string, articleId: string): string {
+  return createHash("sha256").update(`${memberId}:${dayKey}:${articleId}`).digest("hex").slice(0, 16);
+}
+
+export type DailyArticleItem = ArticleFeedItem & { matchedTopic?: TopicKey; reason?: string };
+
+/**
+ * บทความประจำวันของ member: ที่ตรงกับพฤติกรรมมาก่อน แล้วเติมด้วยบทความสุขภาพทั่วไป
+ * ทั้งหมด deterministic — ไม่เรียก AI ไม่สุ่มจริง
+ */
+export async function pickDailyArticles(
+  member: { id: string; goalType: string | null; dailySugar: number | null },
+  limit: number,
+  now = new Date(),
+  dayKeyOverride?: string
+): Promise<{ items: DailyArticleItem[]; dayKey: string }> {
+  const dayKey = dayKeyOverride || bkkDayString(now);
+
+  const pool = await prisma.article.findMany({
+    where: { status: "PUBLISHED", publishedAt: { not: null, lte: now } },
+    orderBy: { publishedAt: "desc" },
+    take: 200,
+    select: ARTICLE_FEED_SELECT,
+  });
+
+  // กรองบทความที่ไม่เกี่ยวสุขภาพออก (ตัวเดียวกับที่ cron ใช้ — เช่น ข่าวประชาสัมพันธ์ร้าน)
+  const health = pool.filter((a) => isHealthArticle(a));
+
+  const signals = await memberSignals(member).catch(() => []);
+  const matches = matchArticles(health, signals);
+  const matchedIds = new Map(matches.map((m) => [m.article.id, m]));
+
+  const byRank = (a: { id: string }, b: { id: string }) =>
+    dailyRank(member.id, dayKey, a.id).localeCompare(dailyRank(member.id, dayKey, b.id));
+
+  const matchedSorted = matches.map((m) => m.article).sort(byRank);
+  const restSorted = health.filter((a) => !matchedIds.has(a.id)).sort(byRank);
+
+  const items = [...matchedSorted, ...restSorted].slice(0, Math.max(0, limit)).map((a) => {
+    const m = matchedIds.get(a.id);
+    return { ...toFeedItem(a), ...(m ? { matchedTopic: m.topic, reason: m.reason } : {}) };
+  });
+  return { items, dayKey };
 }
