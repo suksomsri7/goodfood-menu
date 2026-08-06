@@ -81,11 +81,27 @@ export function parseChannelRss(xml: string): RawVideo[] {
   return out;
 }
 
+/**
+ * YouTube ตอบ 404/500 เป็นครั้งคราวเมื่อยิงถี่จาก IP เดียว (ไม่ใช่ "ไม่มีช่องนี้")
+ * cron วันละครั้งแทบไม่เจอ แต่ถ้าเจอแล้วล้มเลย = คลิปใหม่ช้าไป 1 วัน → ลองซ้ำ 3 ครั้ง
+ */
 async function fetchViaRss(): Promise<RawVideo[]> {
   const url = `https://www.youtube.com/feeds/videos.xml?channel_id=${YT_CHANNEL_ID}`;
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`youtube rss ${res.status}`);
-  return parseChannelRss(await res.text());
+  let lastStatus = 0;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, attempt * 8000));
+    const res = await fetch(url, {
+      cache: "no-store",
+      headers: {
+        // ไม่ส่ง UA เลย YouTube จะเมิน request แบบ bot บ่อยกว่า
+        "User-Agent": "GoodFoodCoach/1.0 (+https://goodfood.in.th)",
+        Accept: "application/atom+xml, application/xml;q=0.9, */*;q=0.8",
+      },
+    });
+    if (res.ok) return parseChannelRss(await res.text());
+    lastStatus = res.status;
+  }
+  throw new Error(`youtube rss ${lastStatus}`);
 }
 
 type ApiItem = {
