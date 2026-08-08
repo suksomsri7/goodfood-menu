@@ -81,6 +81,10 @@ export default function SettingsPage() {
   const [creditDefaults, setCreditDefaults] = useState<Record<string, number>>({});
   const [creditLoading, setCreditLoading] = useState(true);
   const [creditSaving, setCreditSaving] = useState(false);
+
+  // LINE OA ที่รับออเดอร์อาหาร — ว่าง = ปุ่ม "สั่งอาหาร" ในแอปโค้ชไม่ขึ้น
+  const [lineOaId, setLineOaId] = useState("");
+  const [oaSaving, setOaSaving] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -168,6 +172,7 @@ export default function SettingsPage() {
         setCreditCosts(data.aiCreditCosts ?? {});
         setCreditLabels(data.aiCreditLabels ?? {});
         setCreditDefaults(data.aiCreditDefaults ?? {});
+        setLineOaId(data.lineOaId ?? "");
       }
     } catch (error) {
       console.error("Error fetching credit costs:", error);
@@ -196,6 +201,23 @@ export default function SettingsPage() {
       alert("เกิดข้อผิดพลาด");
     } finally {
       setCreditSaving(false);
+    }
+  };
+
+  const saveLineOa = async () => {
+    setOaSaving(true);
+    try {
+      const res = await fetch("/api/settings/ai-coach", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lineOaId }),
+      });
+      alert(res.ok ? "บันทึกสำเร็จ" : "เกิดข้อผิดพลาด");
+    } catch (error) {
+      console.error("Error saving LINE OA:", error);
+      alert("เกิดข้อผิดพลาด");
+    } finally {
+      setOaSaving(false);
     }
   };
 
@@ -610,6 +632,43 @@ export default function SettingsPage() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* LINE OA รับออเดอร์ */}
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+              <CreditCard className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-gray-800">LINE OA รับออเดอร์อาหาร</h2>
+              <p className="text-sm text-gray-500">
+                ใส่ Basic ID ของ LINE OA (เช่น @goodfood) — ว่างไว้ = ปุ่ม &quot;สั่งอาหาร&quot; ในแอปโค้ชจะไม่ขึ้น
+              </p>
+            </div>
+          </div>
+          <div className="p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <input
+                type="text"
+                value={lineOaId}
+                onChange={(e) => setLineOaId(e.target.value)}
+                placeholder="@goodfood"
+                className="w-64 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
+              />
+              <button
+                onClick={saveLineOa}
+                disabled={oaSaving}
+                className="px-6 py-3 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                {oaSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                บันทึก
+              </button>
+            </div>
+            <p className="text-xs text-gray-400">
+              สมาชิกกดปุ่มแล้วจะเปิดแชท OA พร้อมข้อความสั่งซื้อ (รายการมื้อหลักของวัน + ราคา + รหัสอ้างอิง) พิมพ์ไว้ให้แล้ว
+            </p>
           </div>
         </div>
 

@@ -64,6 +64,8 @@ export async function PATCH(request: Request) {
       premiumDays,
       // ราคาเครดิต AI ต่อ action
       aiCreditCosts,
+      // LINE OA ที่รับออเดอร์อาหาร (ปุ่มสั่งในแอปโค้ช)
+      lineOaId,
     } = body;
 
     if (aiCreditCosts !== undefined) await setCreditCosts(aiCreditCosts);
@@ -79,6 +81,7 @@ export async function PATCH(request: Request) {
         ...(gracePeriodDays !== undefined && { gracePeriodDays }),
         ...(premiumPrice !== undefined && { premiumPrice }),
         ...(premiumDays !== undefined && { premiumDays }),
+        ...(lineOaId !== undefined && { lineOaId: String(lineOaId).trim() || null }),
       },
       create: {
         id: "system",
@@ -90,6 +93,7 @@ export async function PATCH(request: Request) {
         gracePeriodDays: gracePeriodDays ?? 2,
         premiumPrice: premiumPrice ?? 299,
         premiumDays: premiumDays ?? 30,
+        lineOaId: lineOaId ? String(lineOaId).trim() : null,
       },
     });
 

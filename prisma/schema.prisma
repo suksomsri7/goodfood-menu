@@ -916,6 +916,9 @@ model SystemSetting {
   inactiveDaysThreshold    Int      @default(7)    // จำนวนวันที่ไม่เปิดแอปถึงจะเป็น Inactive
   gracePeriodDays          Int      @default(2)    // ส่งเตือนก่อนเปลี่ยนสถานะกี่วัน
 
+  // LINE OA ที่ใช้รับออเดอร์อาหาร (เช่น "@goodfood") — ว่าง = ปุ่มสั่งในแอปยังไม่เปิด
+  lineOaId                 String?
+
   // ราคาเครดิต AI ต่อ action (โหมด combined) — null = ใช้ค่าเริ่มต้นในโค้ด (src/lib/aiCredits.ts)
   // { chat, photo, plan, barcode, textAnalysis, exerciseAnalysis, recommend, menuSelect }
   aiCreditCosts            Json?

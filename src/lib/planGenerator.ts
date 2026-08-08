@@ -6,6 +6,10 @@ import {
   catalogFor, catalogPromptList, matchExercise, defaultExercise,
   type CatalogExercise, type EquipmentTier,
 } from "@/lib/exerciseCatalog";
+import {
+  loadGoodfoodMenu, goodfoodMenuReady, pickMainMeals, recentGoodfoodFoodIds,
+  MAIN_SLOTS, type PickableFood,
+} from "@/lib/goodfoodMealPicker";
 
 // ── โครงข้อมูลแผนรายวัน ──
 export interface ExercisePlanItem {
@@ -33,10 +37,19 @@ export interface MealPlanItem {
   fat: number;
   sodium?: number;
   sugar?: number;
+  // ── เฟส C (additive): มื้อหลักที่มาจากเมนูจริงของ goodfood → แอปกดสั่งได้ ──
+  // ไม่มี field พวกนี้ = เมนูทั่วไปเหมือนเดิม (แผนเก่าใน DB ยังอ่านได้ปกติ)
+  source?: "goodfood";
+  foodId?: string;
+  price?: number;
+  imageUrl?: string | null;
+  servings?: number;
 }
 export interface MealPlan {
   meals: MealPlanItem[];
   totalKcal: number;
+  /** ราคารวมของมื้อหลักที่สั่งได้ (มีเฉพาะวันที่มื้อหลักมาจาก goodfood) */
+  orderTotal?: number;
 }
 export interface DayPlan {
   exercisePlan: ExercisePlan;
@@ -340,7 +353,14 @@ export function enforceAvoid(days: DayPlan[], kws: string[]): { days: DayPlan[];
       if (!hit) return m;
       fixed++;
       const alt = (SAFE_MENUS[m.slot] || SAFE_MENUS["ว่าง"]).find((s) => !hitKeyword(s, kws));
-      return { ...m, menu: alt || `เมนูผักและธัญพืชตามข้อจำกัดของคุณ (เลี่ยง${hit})`, ingredients: undefined };
+      // เมนูถูกเปลี่ยนแล้ว = ไม่ใช่สินค้าตัวนั้นอีกต่อไป → ถอด foodId/ราคา/รูปทิ้ง
+      // (ปล่อยไว้ = โชว์ราคาของสินค้าที่ไม่ได้กิน + กดสั่งแล้วได้ของที่แพ้)
+      return {
+        ...m,
+        menu: alt || `เมนูผักและธัญพืชตามข้อจำกัดของคุณ (เลี่ยง${hit})`,
+        ingredients: undefined,
+        source: undefined, foodId: undefined, price: undefined, imageUrl: undefined, servings: undefined,
+      };
     });
 
     const items = d.exercisePlan.items.map((it) => {
@@ -559,11 +579,65 @@ ${low.map((d) => `[วันที่ ${d.index + 1}] (รวม ${d.totalKcal} 
   return fixed;
 }
 
+/**
+ * สวมมื้อหลัก (เช้า/กลางวัน/เย็น) ของทุกวันด้วยเมนูจริงจากตาราง Food
+ * มื้อว่าง/มื้ออื่นคงของเดิมไว้ทั้งหมด (ระบบเดิมจัดอิสระ)
+ * วันไหนคัดไม่ได้ (เมนูที่กินได้เหลือไม่ถึง 3 อย่าง) → คงมื้อเดิมของวันนั้นไว้
+ */
+async function applyGoodfoodMainMeals(
+  days: DayPlan[],
+  memberId: string,
+  startKey: Date,
+  pm: PlanMember,
+  foods: PickableFood[],
+  avoidKeywords: string[]
+): Promise<{ days: DayPlan[]; applied: number; offTarget: number }> {
+  const target = {
+    targetKcal: pm.targetKcal, protein: pm.protein, carbs: pm.carbs,
+    fat: pm.fat, sodium: pm.sodium, sugar: pm.sugar,
+  };
+  // เมนูที่เพิ่งได้ไปก่อนหน้าสัปดาห์นี้ + ที่แจกไปแล้วภายในสัปดาห์นี้ (กันซ้ำข้ามวัน)
+  const recent = await recentGoodfoodFoodIds(memberId, startKey);
+  let applied = 0;
+  let offTarget = 0;
+
+  const out = days.map((d) => d); // เขียนทับทีละ index ด้านล่าง
+  for (let i = 0; i < out.length; i++) {
+    const date = addDays(startKey, i);
+    const dayKey = date.toISOString().slice(0, 10);
+    const picked = pickMainMeals({
+      memberId, dayKey, foods, target, avoidKeywords, recentFoodIds: recent,
+    });
+    if (!picked) continue;
+
+    // มื้อที่ไม่ใช่มื้อหลักคงไว้ตามเดิม (ว่าง/เสริม = ระบบเดิม)
+    const others = out[i].mealPlan.meals.filter((m) => !MAIN_SLOTS.includes(m.slot as never));
+    const meals = [...picked.meals, ...others];
+    out[i] = {
+      ...out[i],
+      mealPlan: {
+        meals,
+        totalKcal: meals.reduce((s, m) => s + m.kcal, 0),
+        orderTotal: picked.totalPrice,
+      },
+    };
+    applied++;
+    if (!picked.ok) offTarget++;
+    // หมุนเวียน: เมนูของวันนี้ห้ามโผล่ซ้ำในวันถัด ๆ ไปของสัปดาห์เดียวกัน
+    picked.foodIds.forEach((id) => recent.add(id));
+    // คลายเพดานเมื่อคลังเล็ก — เก็บแค่ ROTATION_DAYS วันล่าสุดพอ
+    if (recent.size > foods.length - MAIN_SLOTS.length) recent.clear();
+  }
+  return { days: out, applied, offTarget };
+}
+
 export interface GenerateResult {
   created: number;
   weekBatchId: string;
   usedFallback: boolean;
   days: DayPlan[];
+  /** จำนวนวันที่มื้อหลักมาจากเมนูจริงของ goodfood (0 = แผนแบบเดิมล้วน) */
+  goodfoodDays?: number;
 }
 
 /**
@@ -651,8 +725,27 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
   }
   days = variety.days;
 
-  // WO-P.3 — ด่านสุดท้าย: แผนต้องไม่ขัดข้อห้าม (ครอบทั้งแผน AI และแผนสำรอง)
   const avoidKeywords = deriveAvoidKeywords(personal.avoid);
+
+  // ── เฟส C: มื้อหลักใช้เมนูจริงของ goodfood (ถ้ามีพอ) ──
+  // 🔴 เมนูไม่พอ = ข้ามทั้งก้อน แผนออกมาเหมือนเดิมทุกประการ (ห้ามแต่งเมนูที่ไม่ได้ขายจริง)
+  let goodfoodDays = 0;
+  const menu = await loadGoodfoodMenu();
+  if (goodfoodMenuReady(menu)) {
+    const swapped = await applyGoodfoodMainMeals(days, memberId, startKey, pm, menu, avoidKeywords);
+    days = swapped.days;
+    goodfoodDays = swapped.applied;
+    console.log(
+      `[planGenerator] มื้อหลักจากเมนู goodfood ${swapped.applied}/7 วัน ` +
+        `(เมนูใช้ได้ ${menu.length} รายการ · นอกเกณฑ์ ±15% ${swapped.offTarget} วัน) member=${memberId}`
+    );
+  } else if (menu.length > 0) {
+    console.log(
+      `[planGenerator] เมนู goodfood มี ${menu.length} รายการ (ต้องการอย่างน้อย 9) — ใช้แผนแบบเดิม member=${memberId}`
+    );
+  }
+
+  // WO-P.3 — ด่านสุดท้าย: แผนต้องไม่ขัดข้อห้าม (ครอบทั้งแผน AI และแผนสำรอง)
   const enforced = enforceAvoid(days, avoidKeywords);
   if (enforced.fixed > 0) {
     console.log(`[planGenerator] enforceAvoid แก้ ${enforced.fixed} จุด (${avoidKeywords.join(",")}) member=${memberId}`);
@@ -670,5 +763,5 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
   }));
   const result = await prisma.dailyPlan.createMany({ data: rows, skipDuplicates: true });
 
-  return { created: result.count, weekBatchId, usedFallback, days };
+  return { created: result.count, weekBatchId, usedFallback, days, goodfoodDays };
 }
