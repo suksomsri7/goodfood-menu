@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthedMember } from "@/lib/coachAuth";
 import { estimateEnergy, nextStepHint } from "@/lib/energyModel";
+import { personalBurnGoal } from "@/lib/burnGoal";
 
 /**
  * "เป้าพลังงานของคุณมาจากไหน" — โค้ชต้องอธิบายตัวเลขของตัวเองได้
@@ -27,9 +28,13 @@ export async function GET(req: NextRequest) {
     carbs: member.dailyCarbs ?? null,
     fat: member.dailyFat ?? null,
   };
+  const burnGoal = await personalBurnGoal(member, { tdee: e.tdee }).catch(() => null);
+
   return NextResponse.json({
     current,
     estimate: { ...e, sourceLabel: SOURCE_LABEL[e.source] },
+    // เป้าแหวน "เผาผลาญ" — คนละเรื่องกับ target (แคลอรี่ที่ควรกิน)
+    burnGoal,
     hint: nextStepHint(e),
     // ต่างจากของเดิมเกิน 100 kcal หรือโปรตีนต่างเกิน 20 g → แอปขึ้นปุ่มให้ปรับ
     differs:

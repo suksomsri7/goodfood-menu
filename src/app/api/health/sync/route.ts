@@ -4,6 +4,7 @@ import { resolveMember } from "@/lib/coachResolve";
 import { bkkDateKey } from "@/lib/planGenerator";
 import { healthkitWorkoutName } from "@/lib/healthkitWorkout";
 import { sanitizeLogInstant } from "@/lib/coachLogTime";
+import { validMoveGoal } from "@/lib/burnGoal";
 
 /**
  * รับข้อมูลจาก Apple Health / Google Fit / Watch (ข้อ 4) — idempotent (sync ซ้ำไม่เพิ่มซ้ำ)
@@ -116,10 +117,14 @@ export async function POST(req: NextRequest) {
           steps: m.steps ?? null, restingHR: m.restingHR ?? null, activeKcal: m.activeKcal ?? null,
           // วง Stand/Exercise ของ Apple — เก็บไว้ให้โค้ชใช้เป็นบริบท (ไม่ได้โชว์เป็นวงในหน้าหลัก)
           standHours: m.standHours ?? null, exerciseMin: m.exerciseMin ?? null,
+          // เป้าวง Move ที่ user ตั้งไว้บนนาฬิกา — ใช้เป็นเป้าแหวน "เผาผลาญ" ในแอป
+          // ส่งมาเฉพาะตอนมีค่า: sync รอบที่ไม่ได้แนบ moveGoal มาต้องไม่ล้างเป้าเดิมทิ้ง
+          ...(validMoveGoal(m.moveGoal) !== null ? { moveGoal: validMoveGoal(m.moveGoal) } : {}),
         },
         create: {
           memberId: member.id, date, steps: m.steps ?? null, restingHR: m.restingHR ?? null,
-          activeKcal: m.activeKcal ?? null, standHours: m.standHours ?? null, exerciseMin: m.exerciseMin ?? null, source,
+          activeKcal: m.activeKcal ?? null, standHours: m.standHours ?? null, exerciseMin: m.exerciseMin ?? null,
+          moveGoal: validMoveGoal(m.moveGoal), source,
         },
       });
       counts.metrics++;

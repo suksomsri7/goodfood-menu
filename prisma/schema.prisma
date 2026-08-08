@@ -60,6 +60,7 @@ model Member {
   notifyPostExercise     Boolean   @default(true)
   notifyWeightReminder   Boolean   @default(true)
   notifyArticles         Boolean   @default(true)   // บทความสุขภาพที่ตรงกับพฤติกรรม (B2)
+  dailyBurnGoal          Int?      // เป้าเผาผลาญ/วัน (kcal) ที่ user ตั้งเอง — ว่าง = ใช้ Move goal ของนาฬิกา/คำนวณให้
   notificationsPausedUntil DateTime?
   
   addresses        Address[]
@@ -156,6 +157,7 @@ model DailyMetric {
   activeKcal Int?
   standHours Int? // ชั่วโมงที่ลุกยืน (วง Stand ของ Apple — มาจาก Watch เท่านั้น)
   exerciseMin Int? // นาทีออกกำลังกาย (วง Exercise)
+  moveGoal   Int? // เป้าวง Move ของวันนั้นที่ user ตั้งไว้บนนาฬิกา (kcal) — Apple ให้เปลี่ยนได้รายวัน
   source     String   @default("healthkit")
   createdAt  DateTime @default(now())
   member     Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)

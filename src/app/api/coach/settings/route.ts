@@ -10,6 +10,7 @@ import {
   type ActivityLevel,
 } from "@/lib/health-calculator";
 import { estimateEnergy, targetFromTdee, macroTargets } from "@/lib/energyModel";
+import { validBurnGoal, BURN_GOAL_MIN, BURN_GOAL_MAX } from "@/lib/burnGoal";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +61,8 @@ function view(m: any) {
     dailyCalories: m.dailyCalories,
     dailyProtein: m.dailyProtein,
     dailyWater: m.dailyWater,
+    // null = ยังไม่ได้ตั้งเอง (ระบบใช้ Move goal ของนาฬิกา/ค่าคำนวณให้)
+    dailyBurnGoal: m.dailyBurnGoal ?? null,
     notify: Object.fromEntries(NOTIFY_KEYS.map((k) => [k, m[k]])),
   };
 }
@@ -87,6 +90,23 @@ export async function PATCH(req: NextRequest) {
       );
     }
     data.birthDate = bd;
+  }
+
+  // เป้าเผาผลาญที่ user ตั้งเอง — null = ล้าง override กลับไปใช้นาฬิกา/ค่าคำนวณ
+  // ไม่เข้า touchesEnergy: เป็นเป้า "เผา" ไม่ใช่เป้า "กิน" ไม่ต้องคำนวณ BMR/มาโครใหม่
+  if (b.dailyBurnGoal !== undefined) {
+    if (b.dailyBurnGoal === null) {
+      data.dailyBurnGoal = null;
+    } else {
+      const v = validBurnGoal(b.dailyBurnGoal);
+      if (!v) {
+        return NextResponse.json(
+          { error: `dailyBurnGoal ต้องเป็นตัวเลข ${BURN_GOAL_MIN}-${BURN_GOAL_MAX} kcal (หรือ null เพื่อกลับไปใช้ค่าอัตโนมัติ)` },
+          { status: 400 }
+        );
+      }
+      data.dailyBurnGoal = v;
+    }
   }
 
   if (["lose", "gain", "maintain"].includes(b.goalType)) data.goalType = b.goalType;
