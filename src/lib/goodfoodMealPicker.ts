@@ -136,6 +136,18 @@ function dailyRank(memberId: string, dayKey: string, foodId: string): string {
   return createHash("sha256").update(`meal:${memberId}:${dayKey}:${foodId}`).digest("hex").slice(0, 16);
 }
 
+/** rank เดียวกันในรูปเลข 0..1 — ใช้เขย่าตัวเลือกที่ "ดีพอ ๆ กัน" ให้ต่างกันในแต่ละวัน */
+function rankUnit(memberId: string, dayKey: string, foodId: string): number {
+  return parseInt(dailyRank(memberId, dayKey, foodId).slice(0, 8), 16) / 0xffffffff;
+}
+
+/**
+ * น้ำหนักของการเขย่ารายวัน — เล็กพอที่ "เข้าเป้ามาโคร" ยังชนะเสมอ
+ * แต่ใหญ่พอให้คอมบิเนชันที่ฟิตพอกันสลับกันไปในแต่ละวัน
+ * (ถ้าไม่มีตัวนี้ คลังเมนูเล็ก ๆ จะได้ชุดเดิมซ้ำทุกวัน เพราะ greedy ลู่เข้าคำตอบเดียว)
+ */
+const DAILY_JITTER = 0.03;
+
 type Option = { food: PickableFood; servings: number };
 
 function scaled(o: Option) {
@@ -153,18 +165,19 @@ function scaled(o: Option) {
 /** ยิ่งน้อยยิ่งดี — ผิดเป้ามาโครเท่าไหร่ + โดนปรับถ้าโซเดียม/น้ำตาลเกินเพดาน */
 function errorOf(
   total: { kcal: number; protein: number; carbs: number; fat: number; sodium: number; sugar: number },
-  t: MacroTarget
+  t: MacroTarget,
+  share: number
 ) {
   const rel = (got: number, want: number) => (want > 0 ? Math.abs(got - want) / want : 0);
   // แคลอรี่กับโปรตีนสำคัญสุด (คุมน้ำหนัก + รักษากล้ามเนื้อ)
   let e =
-    rel(total.kcal, t.targetKcal * MAIN_RATIO) * 3 +
-    rel(total.protein, t.protein * MAIN_RATIO) * 2 +
-    rel(total.carbs, t.carbs * MAIN_RATIO) +
-    rel(total.fat, t.fat * MAIN_RATIO);
+    rel(total.kcal, t.targetKcal * share) * 3 +
+    rel(total.protein, t.protein * share) * 2 +
+    rel(total.carbs, t.carbs * share) +
+    rel(total.fat, t.fat * share);
   // โซเดียม/น้ำตาลเป็น "เพดาน" ไม่ใช่เป้า — เกินเท่านั้นที่โดนปรับ
-  const sodiumCap = t.sodium * MAIN_RATIO;
-  const sugarCap = t.sugar * MAIN_RATIO;
+  const sodiumCap = t.sodium * share;
+  const sugarCap = t.sugar * share;
   if (total.sodium > sodiumCap) e += ((total.sodium - sodiumCap) / Math.max(1, sodiumCap)) * 2;
   if (total.sugar > sugarCap) e += ((total.sugar - sugarCap) / Math.max(1, sugarCap)) * 1.5;
   return e;
@@ -194,9 +207,16 @@ export function pickMainMeals(opts: {
   target: MacroTarget;
   avoidKeywords: string[];
   recentFoodIds?: Set<string>;
+  /**
+   * สัดส่วนของเป้าทั้งวันที่มื้อหลักต้องรับผิดชอบ (ไม่ส่ง = 0.9 ตามสัดส่วนมาตรฐาน)
+   * ผู้เรียกคำนวณจาก "เป้าทั้งวัน − มื้อว่างที่มีอยู่จริง" ได้ → วันที่ AI ให้มื้อว่าง 2 มื้อ
+   * มื้อหลักจะเล็กลงเองแทนที่จะทำให้ยอดรวมทั้งวันทะลุเป้า
+   */
+  mainShare?: number;
 }): PickResult | null {
   const { memberId, dayKey, foods, target, avoidKeywords } = opts;
   const recent = opts.recentFoodIds ?? new Set<string>();
+  const share = opts.mainShare != null && opts.mainShare > 0 ? opts.mainShare : MAIN_RATIO;
 
   // ① ตัดเมนูที่ขัดข้อห้ามออกก่อนเสมอ (ความปลอดภัยมาก่อนความหลากหลาย)
   const safe = foods.filter((f) => foodAvoidHit(f, avoidKeywords) === null);
@@ -214,6 +234,8 @@ export function pickMainMeals(opts: {
   const options: Option[] = candidates.flatMap((food) =>
     SERVING_OPTIONS.map((servings) => ({ food, servings }))
   );
+  const jitter = (opts: Option[]) =>
+    opts.reduce((a, o) => a + rankUnit(memberId, dayKey, o.food.id), 0) * DAILY_JITTER;
 
   // ④ เลือกทีละมื้อให้เข้าเป้าสะสม (greedy) — ห้ามเมนูซ้ำกันภายในวันเดียว
   const chosen: Option[] = [];
@@ -221,19 +243,12 @@ export function pickMainMeals(opts: {
   let cumRatio = 0;
   for (const slot of MAIN_SLOTS) {
     cumRatio += SLOT_RATIO[slot];
-    const stageTarget: MacroTarget = {
-      targetKcal: (target.targetKcal * cumRatio) / MAIN_RATIO,
-      protein: (target.protein * cumRatio) / MAIN_RATIO,
-      carbs: (target.carbs * cumRatio) / MAIN_RATIO,
-      fat: (target.fat * cumRatio) / MAIN_RATIO,
-      sodium: (target.sodium * cumRatio) / MAIN_RATIO,
-      sugar: (target.sugar * cumRatio) / MAIN_RATIO,
-    };
+    const stageShare = (share * cumRatio) / MAIN_RATIO; // สะสมตามสัดส่วนมื้อ
     let best: Option | null = null;
     let bestErr = Infinity;
     for (const o of options) {
       if (usedIds.has(o.food.id)) continue;
-      const err = errorOf(sum([...chosen, o]), stageTarget);
+      const err = errorOf(sum([...chosen, o]), target, stageShare) + jitter([...chosen, o]);
       if (err < bestErr) { bestErr = err; best = o; }
     }
     if (!best) return null;
@@ -246,13 +261,13 @@ export function pickMainMeals(opts: {
     let improved = false;
     for (let i = 0; i < chosen.length; i++) {
       const cur = chosen[i];
-      let bestErr = errorOf(sum(chosen), target);
+      let bestErr = errorOf(sum(chosen), target, share) + jitter(chosen);
       let bestOpt: Option | null = null;
       for (const o of options) {
         if (o.food.id !== cur.food.id && usedIds.has(o.food.id)) continue;
         const trial = [...chosen];
         trial[i] = o;
-        const err = errorOf(sum(trial), target);
+        const err = errorOf(sum(trial), target, share) + jitter(trial);
         if (err < bestErr - 1e-9) { bestErr = err; bestOpt = o; }
       }
       if (bestOpt) {
@@ -268,10 +283,10 @@ export function pickMainMeals(opts: {
   const totals = sum(chosen);
   const dev = (got: number, want: number) => (want > 0 ? (got - want) / want : 0);
   const fit = {
-    kcal: dev(totals.kcal, target.targetKcal * MAIN_RATIO),
-    protein: dev(totals.protein, target.protein * MAIN_RATIO),
-    carbs: dev(totals.carbs, target.carbs * MAIN_RATIO),
-    fat: dev(totals.fat, target.fat * MAIN_RATIO),
+    kcal: dev(totals.kcal, target.targetKcal * share),
+    protein: dev(totals.protein, target.protein * share),
+    carbs: dev(totals.carbs, target.carbs * share),
+    fat: dev(totals.fat, target.fat * share),
   };
   const ok = Object.values(fit).every((v) => Math.abs(v) <= FIT_TOLERANCE);
 

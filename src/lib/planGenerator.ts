@@ -8,7 +8,7 @@ import {
 } from "@/lib/exerciseCatalog";
 import {
   loadGoodfoodMenu, goodfoodMenuReady, pickMainMeals, recentGoodfoodFoodIds,
-  MAIN_SLOTS, type PickableFood,
+  MAIN_SLOTS, ROTATION_DAYS, type PickableFood,
 } from "@/lib/goodfoodMealPicker";
 
 // ── โครงข้อมูลแผนรายวัน ──
@@ -596,8 +596,11 @@ async function applyGoodfoodMainMeals(
     targetKcal: pm.targetKcal, protein: pm.protein, carbs: pm.carbs,
     fat: pm.fat, sodium: pm.sodium, sugar: pm.sugar,
   };
-  // เมนูที่เพิ่งได้ไปก่อนหน้าสัปดาห์นี้ + ที่แจกไปแล้วภายในสัปดาห์นี้ (กันซ้ำข้ามวัน)
-  const recent = await recentGoodfoodFoodIds(memberId, startKey);
+  // เมนูที่เพิ่งได้ไปก่อนหน้าสัปดาห์นี้ (จากแผนเก่าใน DB)
+  const beforeWeek = [...(await recentGoodfoodFoodIds(memberId, startKey))];
+  // หน้าต่างเลื่อน ROTATION_DAYS วัน — ไม่ใช่เซ็ตที่โตไปเรื่อย ๆ แล้วต้องล้างทิ้ง
+  // (ล้างทิ้งทีเดียวทำให้วันที่ 5 ได้ชุดเดียวกับวันที่ 1 เป๊ะ = หมุนเวียนไม่จริง)
+  const usedByDay: string[][] = [];
   let applied = 0;
   let offTarget = 0;
 
@@ -605,13 +608,22 @@ async function applyGoodfoodMainMeals(
   for (let i = 0; i < out.length; i++) {
     const date = addDays(startKey, i);
     const dayKey = date.toISOString().slice(0, 10);
+    const window = usedByDay.slice(Math.max(0, i - ROTATION_DAYS), i).flat();
+    // วันแรก ๆ ของสัปดาห์ยังต้องเลี่ยงเมนูของสัปดาห์ก่อนด้วย
+    const carry = i < ROTATION_DAYS ? beforeWeek : [];
+    // มื้อว่าง/เสริมที่ระบบเดิมจัดไว้ กินงบไปเท่าไหร่แล้ว → มื้อหลักรับผิดชอบเฉพาะส่วนที่เหลือ
+    // (AI บางวันให้มื้อว่าง 2 มื้อ ถ้าใช้ 90% ตายตัว ยอดรวมทั้งวันจะทะลุเป้า)
+    const others = out[i].mealPlan.meals.filter((m) => !MAIN_SLOTS.includes(m.slot as never));
+    const otherKcal = others.reduce((s2, m) => s2 + (m.kcal || 0), 0);
+    const mainShare = Math.min(1, Math.max(0.5, (pm.targetKcal - otherKcal) / pm.targetKcal));
+
     const picked = pickMainMeals({
-      memberId, dayKey, foods, target, avoidKeywords, recentFoodIds: recent,
+      memberId, dayKey, foods, target, avoidKeywords, mainShare,
+      recentFoodIds: new Set([...window, ...carry]),
     });
-    if (!picked) continue;
+    if (!picked) { usedByDay.push([]); continue; }
 
     // มื้อที่ไม่ใช่มื้อหลักคงไว้ตามเดิม (ว่าง/เสริม = ระบบเดิม)
-    const others = out[i].mealPlan.meals.filter((m) => !MAIN_SLOTS.includes(m.slot as never));
     const meals = [...picked.meals, ...others];
     out[i] = {
       ...out[i],
@@ -623,10 +635,7 @@ async function applyGoodfoodMainMeals(
     };
     applied++;
     if (!picked.ok) offTarget++;
-    // หมุนเวียน: เมนูของวันนี้ห้ามโผล่ซ้ำในวันถัด ๆ ไปของสัปดาห์เดียวกัน
-    picked.foodIds.forEach((id) => recent.add(id));
-    // คลายเพดานเมื่อคลังเล็ก — เก็บแค่ ROTATION_DAYS วันล่าสุดพอ
-    if (recent.size > foods.length - MAIN_SLOTS.length) recent.clear();
+    usedByDay.push(picked.foodIds);
   }
   return { days: out, applied, offTarget };
 }

@@ -3,6 +3,8 @@ import { getAuthedMember } from "@/lib/coachAuth";
 import { prisma } from "@/lib/prisma";
 import { bkkDateKey, bkkTodayKey, type MealPlanItem } from "@/lib/planGenerator";
 import { MAIN_SLOTS } from "@/lib/goodfoodMealPicker";
+// ตัวเดียวกับที่ feed บทความใช้ — รูปใน DB เก็บเป็น path สั้น แอป render ตรง ๆ ไม่ได้
+import { absoluteImageUrl } from "@/lib/articleFeed";
 
 export const dynamic = "force-dynamic";
 
@@ -86,7 +88,7 @@ export async function GET(req: NextRequest) {
       foodId: m.foodId,
       price: m.price ?? 0,
       servings: m.servings ?? 1,
-      imageUrl: m.imageUrl ?? null,
+      imageUrl: absoluteImageUrl(m.imageUrl ?? null),
     })),
   });
   res.headers.set("Cache-Control", "no-store, must-revalidate");
