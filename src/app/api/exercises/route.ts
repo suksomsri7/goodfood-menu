@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { sanitizeLogInstant } from "@/lib/coachLogTime";
 import { prisma } from "@/lib/prisma";
 import { sendCoachingMessage } from "@/lib/coaching";
 
@@ -154,7 +155,8 @@ export async function POST(request: NextRequest) {
         calories: calculatedCalories,
         intensity,
         note,
-        date: date ? new Date(date) : new Date(),
+        // เดิมรับ date อะไรก็ได้ ไม่ตรวจเลย — อนาคตทำให้บันทึกตกหน้าต่างวันไทยของวันถัดไป
+        date: sanitizeLogInstant(date),
       },
     });
 

@@ -30,3 +30,36 @@ export function resolveLogTime(g: any): Date | undefined {
   if (ageMs < -3600_000 || ageMs > 14 * 24 * 3600_000) return undefined; // อนาคต/เก่าเกินไป = ไม่เชื่อ
   return when;
 }
+
+/** ยอมให้เวลาอยู่ในอนาคตได้ไม่เกินเท่านี้ (นาฬิกาเครื่อง user คลาดเคลื่อนได้นิดหน่อย) */
+export const FUTURE_TOLERANCE_MS = 3600_000;
+
+/**
+ * เวลาที่ผู้เรียกส่งมาเป็น "instant" (ISO string / Date) เช่น logAt ตอนติ๊กแผน,
+ * startedAt ของ workout จากนาฬิกา, date ของ /api/exercises (LIFF)
+ *
+ * ต่างจาก resolveLogTime ตรงที่ตัวนี้ไม่ได้แปลง timezone (ค่าที่รับมามี offset ในตัวอยู่แล้ว)
+ * แต่ใช้ "กติกาความน่าเชื่อถือ" ชุดเดียวกัน: อนาคตเกิน 1 ชม. = ไม่เชื่อ → ใช้เวลาปัจจุบันแทน
+ *
+ * ทำไมต้องมี: เดิมหลาย path รับ new Date(อะไรก็ได้) ตรง ๆ ไม่ตรวจเลย
+ * เวลาที่ล้ำอนาคตทำให้บันทึกตกไปอยู่หน้าต่างวันไทยของวันถัดไป → วงแหวน/งบเพี้ยนข้ามวัน
+ */
+export function sanitizeLogInstant(raw: unknown, now = new Date()): Date {
+  if (raw === null || raw === undefined || raw === "") return now;
+  const d = raw instanceof Date ? raw : new Date(String(raw));
+  if (isNaN(d.getTime())) return now;
+  if (d.getTime() - now.getTime() > FUTURE_TOLERANCE_MS) return now; // อนาคต = ไม่เชื่อ
+  return d;
+}
+
+/**
+ * บังคับให้เวลาอยู่ใน "วันของแผน" (BKK) — ใช้ตอนติ๊กแผน
+ *
+ * แอปส่ง logAt = เวลาปัจจุบันของเครื่องเสมอ แม้ user กำลังเปิดดูแผนของวันย้อนหลัง
+ * ผลคือติ๊กแผนเมื่อวาน → บันทึกไปโผล่วันนี้ (วงแหวนวันนี้บวม วันเมื่อวานยังว่าง)
+ * นอกช่วงวันนั้น → ใช้เที่ยงวันไทยของวันนั้น (คอนเวนชันเดียวกับที่แอปใช้กับวันย้อนหลัง)
+ */
+export function clampToDayWindow(when: Date, dayStart: Date, dayEnd: Date): Date {
+  if (when >= dayStart && when < dayEnd) return when;
+  return new Date(dayStart.getTime() + 12 * 3600_000);
+}

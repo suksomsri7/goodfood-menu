@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { sanitizeLogInstant, clampToDayWindow } from "@/lib/coachLogTime";
 import { prisma } from "@/lib/prisma";
 import { isAiCoachActive } from "@/lib/coaching";
 import { memberFromReq } from "@/lib/memberAuth";
@@ -13,7 +14,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const { lineUserId, exerciseDone, mealsDone, exerciseItemsDone, logAt } = await request.json();
-    const logDate = logAt ? new Date(logAt) : new Date();
+    const logAtRaw = sanitizeLogInstant(logAt);
 
     const member = await memberFromReq(request, lineUserId);
     if (!member) return NextResponse.json({ error: "Member not found" }, { status: 404 });
@@ -29,6 +30,9 @@ export async function PATCH(
     // แผนใช้เมนู/ท่าซ้ำกันหลายวัน → ติ๊กออกวันนี้เคยเสี่ยงไปลบบันทึกของวันอื่นเงียบ ๆ
     const dayStart = new Date(plan.date.getTime() - 7 * 3600 * 1000);
     const dayEnd = new Date(plan.date.getTime() + 17 * 3600 * 1000);
+    // แอปส่ง logAt = เวลาปัจจุบันของเครื่องเสมอ แม้เปิดดูแผนของวันย้อนหลัง
+    // → ติ๊กแผนเมื่อวานแล้วบันทึกไปโผล่วันนี้ · บังคับให้อยู่ในวันของแผน
+    const logDate = clampToDayWindow(logAtRaw, dayStart, dayEnd);
     // ownership
     if (plan.memberId !== member.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });

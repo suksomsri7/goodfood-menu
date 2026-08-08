@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { resolveMember } from "@/lib/coachResolve";
 import { bkkDateKey } from "@/lib/planGenerator";
 import { healthkitWorkoutName } from "@/lib/healthkitWorkout";
+import { sanitizeLogInstant } from "@/lib/coachLogTime";
 
 /**
  * รับข้อมูลจาก Apple Health / Google Fit / Watch (ข้อ 4) — idempotent (sync ซ้ำไม่เพิ่มซ้ำ)
@@ -42,7 +43,8 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      const startedAt = w.startedAt ? new Date(w.startedAt) : new Date();
+      // นาฬิกาที่ตั้งเวลาเพี้ยน/ข้อมูลเสียเคยดัน log ไปอยู่อนาคต → บันทึกตกวันถัดไป
+      const startedAt = sanitizeLogInstant(w.startedAt);
       const durationMin = Math.round(Number(w.duration) || 0);
       const endedAt = new Date(startedAt.getTime() + durationMin * 60_000);
 
