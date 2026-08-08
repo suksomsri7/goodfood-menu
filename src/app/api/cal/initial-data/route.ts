@@ -104,6 +104,8 @@ export async function GET(request: NextRequest) {
           intensity: true,
           note: true,
           date: true,
+          // แอปใช้ติดป้าย "จาก Apple Watch" (healthkit | watch | manual | ai_photo)
+          source: true,
         },
       }),
     ]);
