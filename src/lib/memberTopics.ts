@@ -170,13 +170,22 @@ function topicOrderForDay(signals: MemberSignal[], memberId: string, dayKey: str
     .map((x) => x.topic);
 }
 
-/** วันก่อนหน้าของ dayKey ("YYYY-MM-DD") */
-function prevDayKey(dayKey: string): string {
-  return new Date(new Date(`${dayKey}T00:00:00.000Z`).getTime() - 86400_000).toISOString().slice(0, 10);
+/** เลขวัน (วันตั้งแต่ epoch) — ใช้เป็น "เข็มหมุน" ให้ชุดของแต่ละวันเลื่อนไปข้างหน้าเสมอ */
+function dayNumber(dayKey: string): number {
+  return Math.floor(Date.parse(`${dayKey}T00:00:00.000Z`) / 86400_000);
 }
 
-/** คลังใหญ่พอที่จะตัดของเมื่อวานทิ้งได้โดยไม่ทำให้วันนี้ขาด */
-const NO_REPEAT_POOL_FACTOR = 1.5;
+/**
+ * ลำดับคงที่ต่อ member (ไม่ขึ้นกับวัน) — คู่กับ dayNumber ทำให้ "หมุนเป็นวง" ได้
+ *
+ * ⚠️ เคยลองวิธี "คำนวณ picks ของเมื่อวานแล้วตัดทิ้ง" แล้วไม่การันตี เพราะของเมื่อวานที่
+ *    คำนวณแบบจำกัดลึก 1 วัน ไม่เท่ากับที่เสิร์ฟไปจริง (ของจริงมันตัดของเมื่อวานซืนอีกที)
+ *    วิธีวงหมุนนี้ไม่ต้องรู้ประวัติเลย: วันติดกัน index ขยับ = ของคนละชิ้นโดยโครงสร้าง
+ *    และวนครบทุกชิ้นในคลังภายใน ceil(n / ช่อง) วัน
+ */
+function stableRank(memberId: string, itemId: string): string {
+  return createHash("sha256").update(`stable:${memberId}:${itemId}`).digest("hex").slice(0, 16);
+}
 
 export type OrderForDayOpts<T> = {
   items: T[];
@@ -187,8 +196,6 @@ export type OrderForDayOpts<T> = {
   dayKey: string;
   /** จำนวนช่องที่จะโชว์จริง — ต้องส่งมาถึงจะจัดสรรช่องแบบ matched/explore ได้ */
   limit?: number;
-  /** ภายใน: 1 = กำลังคำนวณของเมื่อวานอยู่ ห้ามย้อนต่ออีกชั้น (กัน recursion ไม่รู้จบ) */
-  _depth?: number;
 };
 
 /**
@@ -198,56 +205,63 @@ export type OrderForDayOpts<T> = {
  *    2 ช่องนั้นถูกจองตายตัว ผู้ใช้เห็นของเดิมทุกวัน (บั๊กที่ user รายงาน)
  *
  * กติกาใหม่:
- *  - ช่อง matched = ceil(limit/2) ช่อง · หมุนหัวข้อรายวันข้ามทุก signal ที่ user มี
- *  - ช่องที่เหลือ = explore หมุนจากของทั้งหมดที่ยังไม่ถูกใช้ (รวม matched ที่ไม่ได้ลงช่อง)
- *  - ถ้าคลังใหญ่พอ (> limit × 1.5) ตัดของที่เลือกไปเมื่อวานออกจากผู้เข้าชิงวันนี้
- *  - เติมไม่ครบ = ดึงของที่ตัดออกกลับมา (ห้ามคืนช่องว่างให้ user)
+ *  - ช่อง matched = ceil(limit/2) ช่อง · หัวข้อหมุนรายวันข้ามทุก signal ที่ user มี
+ *    (ถ่วงน้ำหนักให้หัวข้อแรงกว่าโผล่บ่อยกว่า แต่ไม่ผูกขาด)
+ *  - ช่องที่เหลือ = explore หมุนจากของที่ยังไม่ถูกใช้ (matched ที่ตกค้าง + ทั่วไป)
+ *  - ทั้งสองกลุ่มหมุนด้วย "วงหมุน" (ลำดับคงที่ + ออฟเซ็ตตามเลขวัน) → วันติดกันไม่ซ้ำ
+ *    และเห็นครบทุกชิ้นในคลังภายใน ceil(n / ช่อง) วัน
+ *  - คลังเล็กกว่าจำนวนช่อง = เติมเท่าที่มี ห้ามคืนช่องว่าง
  */
 export function orderForDay<T>(opts: OrderForDayOpts<T>): {
   ordered: T[];
   matchById: Map<string, { topic: TopicKey; reason: string }>;
 } {
   const { items, idOf, matches, signals, memberId, dayKey } = opts;
-  const depth = opts._depth ?? 0;
   const limit = opts.limit && opts.limit > 0 ? opts.limit : items.length;
 
   const matchById = new Map(matches.map((m) => [idOf(m.item), { topic: m.topic, reason: m.reason }]));
-  const byRank = (a: T, b: T) =>
-    dailyRank(memberId, dayKey, idOf(a)).localeCompare(dailyRank(memberId, dayKey, idOf(b)));
-
-  // ── ห้ามซ้ำวันติดกัน: คำนวณของเมื่อวานด้วยฟังก์ชันเดียวกัน (stateless ไม่ต้องเก็บตาราง) ──
-  let excluded = new Set<string>();
-  if (depth === 0 && items.length > limit * NO_REPEAT_POOL_FACTOR) {
-    const yesterday = orderForDay({ ...opts, dayKey: prevDayKey(dayKey), _depth: 1 });
-    excluded = new Set(yesterday.ordered.slice(0, limit).map(idOf));
-  }
-  const fresh = items.filter((x) => !excluded.has(idOf(x)));
-  const pool = fresh.length >= limit ? fresh : items; // ตัดแล้วไม่พอ = ไม่ตัด
+  const day = dayNumber(dayKey);
+  const stable = (arr: T[]) =>
+    [...arr].sort((a, b) => stableRank(memberId, idOf(a)).localeCompare(stableRank(memberId, idOf(b))));
 
   const picked: T[] = [];
   const usedIds = new Set<string>();
   const take = (x: T) => { picked.push(x); usedIds.add(idOf(x)); };
 
-  // ── ช่อง matched: วนหัวข้อตามลำดับของวันนี้ หัวข้อละ 1 ชิ้น (ครบแล้ววนซ้ำหัวข้อเดิมได้) ──
-  const matchedSlots = Math.min(Math.ceil(limit / 2), pool.filter((x) => matchById.has(idOf(x))).length);
+  // ── ช่อง matched: วนหัวข้อตามลำดับของวันนี้ · ภายในหัวข้อหมุนตามเลขวัน ──
+  const matchedItems = items.filter((x) => matchById.has(idOf(x)));
+  const matchedSlots = Math.min(Math.ceil(limit / 2), matchedItems.length);
   const topicsToday = topicOrderForDay(signals, memberId, dayKey);
   let guard = 0;
-  while (picked.length < matchedSlots && guard++ < topicsToday.length * 3) {
-    const topic = topicsToday[(guard - 1) % topicsToday.length];
-    const cand = pool
-      .filter((x) => !usedIds.has(idOf(x)) && matchById.get(idOf(x))?.topic === topic)
-      .sort(byRank)[0];
-    if (cand) take(cand);
+  while (picked.length < matchedSlots && guard < topicsToday.length * 3) {
+    const topic = topicsToday[guard % topicsToday.length];
+    guard++;
+    const ring = stable(matchedItems.filter((x) => matchById.get(idOf(x))!.topic === topic));
+    if (!ring.length) continue;
+    // เลื่อนไปเรื่อย ๆ ตามวัน · ถ้าชิ้นนั้นถูกใช้ไปแล้วให้ขยับหาชิ้นถัดไปในวง
+    for (let k = 0; k < ring.length; k++) {
+      const cand = ring[(day + k) % ring.length];
+      if (!usedIds.has(idOf(cand))) { take(cand); break; }
+    }
   }
 
-  // ── ช่องที่เหลือ: explore จากของทั้งหมดที่ยังไม่ถูกใช้ (matched ที่ตกค้าง + ทั่วไป) ──
-  for (const x of pool.filter((y) => !usedIds.has(idOf(y))).sort(byRank)) {
-    if (picked.length >= limit) break;
-    take(x);
+  // ── ช่องที่เหลือ: explore หมุนจากของที่ยังไม่ถูกใช้ ──
+  const exploreSlots = Math.max(0, limit - picked.length);
+  if (exploreSlots > 0) {
+    const unused = items.filter((x) => !usedIds.has(idOf(x)));
+    // ช่อง explore ควรได้ "คนละธีมกับช่อง matched" ถ้าของไม่ตรงหัวข้อมีพอ
+    // (ไม่งั้นคลังเล็ก ๆ จะได้ protein 2 ชิ้นทั้งการ์ด แล้วสลับกันไปมาจนดูเหมือนซ้ำ)
+    const unmatched = unused.filter((x) => !matchById.has(idOf(x)));
+    const ring = stable(unmatched.length >= exploreSlots ? unmatched : unused);
+    // ออฟเซ็ตเดินหน้าวันละ exploreSlots ช่อง → วนครบทั้งคลังโดยไม่ข้ามชิ้นไหน
+    const start = ring.length ? ((day * exploreSlots) % ring.length + ring.length) % ring.length : 0;
+    for (let k = 0; k < ring.length && picked.length < limit; k++) {
+      take(ring[(start + k) % ring.length]);
+    }
   }
 
-  // ── ยังไม่ครบ (คลังเล็ก/ถูกตัดไปเยอะ) → ดึงของที่เหลือทั้งหมดมาเติม ห้ามคืนช่องว่าง ──
-  const leftovers = items.filter((x) => !usedIds.has(idOf(x))).sort(byRank);
+  // ของที่เหลือต่อท้าย (ผู้เรียก slice(limit) อยู่แล้ว — เผื่อผู้เรียกที่อยากได้ลำดับเต็ม)
+  const leftovers = stable(items.filter((x) => !usedIds.has(idOf(x))));
   return { ordered: [...picked, ...leftovers], matchById };
 }
 
