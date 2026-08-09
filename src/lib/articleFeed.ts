@@ -174,6 +174,7 @@ export async function pickDailyArticles(
     signals,
     memberId: member.id,
     dayKey,
+    limit,
   });
 
   const items = ordered.slice(0, Math.max(0, limit)).map((a) => {

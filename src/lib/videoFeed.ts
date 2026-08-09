@@ -86,6 +86,7 @@ export async function pickDailyVideos(
     signals,
     memberId: member.id,
     dayKey,
+    limit,
   });
 
   const items = ordered.slice(0, Math.max(0, limit)).map((v) => {
