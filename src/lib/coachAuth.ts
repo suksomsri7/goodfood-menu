@@ -11,6 +11,16 @@ import { getSecret } from "@/lib/secrets/store";
 
 const ACCESS_TTL = "1h";
 const REFRESH_TTL = "60d";
+/**
+ * กุญแจของแอปบน Apple Watch — อายุยาว 30 วัน
+ *
+ * ทำไมต้องมี: นาฬิกาไม่มีทางต่ออายุ token เอง (refresh token อยู่ใน Keychain ของ iPhone)
+ * ถ้าส่ง access 1 ชม. ให้ ผ่านไปชั่วโมงเดียวนาฬิกาก็ใช้ไม่ได้แล้ว (บั๊ก build 31)
+ *
+ * ขอบเขตสิทธิ์: ใช้แทน access ได้ (อ่าน/บันทึกข้อมูลของตัวเอง) แต่ **ห้ามใช้แทน refresh**
+ * → ต่ออายุตัวเองไม่ได้ · หมดอายุแล้วต้องเปิดแอปบนมือถือให้ออกใบใหม่
+ */
+const WATCH_TTL = "30d";
 const ISSUER = "coach.app";
 
 // ── session secret ──
@@ -24,7 +34,22 @@ async function sessionKey(): Promise<Uint8Array> {
   return new TextEncoder().encode(s);
 }
 
-export type SessionClaims = { sub: string; typ: "access" | "refresh" };
+export type SessionClaims = { sub: string; typ: "access" | "refresh" | "watch" };
+/** typ ที่ถือว่า "ใช้เรียก API ของ member ได้" — refresh ไม่อยู่ในนี้โดยตั้งใจ */
+const APP_TYPES = ["access", "watch"];
+
+/** ออกกุญแจให้แอปนาฬิกา (เรียกได้เฉพาะเจ้าของ session ปกติ — ดู /api/auth/native/watch-token) */
+export async function signWatchToken(memberId: string): Promise<{ watchToken: string; expiresAt: string }> {
+  const key = await sessionKey();
+  const watchToken = await new SignJWT({ typ: "watch" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject(memberId)
+    .setIssuer(ISSUER)
+    .setIssuedAt()
+    .setExpirationTime(WATCH_TTL)
+    .sign(key);
+  return { watchToken, expiresAt: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() };
+}
 
 export async function signSession(memberId: string): Promise<{ accessToken: string; refreshToken: string }> {
   const key = await sessionKey();
@@ -77,15 +102,39 @@ export async function verifySession(token: string, typ: "access" | "refresh" = "
   }
 }
 
-/** ดึง member จาก Authorization: Bearer <accessToken> — null ถ้าไม่ผ่าน / บัญชีถูกปิด */
-export async function getAuthedMember(req: NextRequest) {
+/** ยืนยัน token ตาม typ ที่อนุญาต → memberId (refresh ไม่เคยอยู่ในรายการที่อนุญาต) */
+async function verifyTypedToken(token: string, types: string[]): Promise<string | null> {
+  try {
+    const key = await sessionKey();
+    const { payload } = await jwtVerify(token, key, { issuer: ISSUER, algorithms: ["HS256"] });
+    if (typeof payload.typ !== "string" || !types.includes(payload.typ) || !payload.sub) return null;
+    return payload.sub as string;
+  } catch {
+    return null;
+  }
+}
+
+/** ดึง member จาก Bearer โดยจำกัดชนิดของ token ที่ยอมรับ */
+async function memberFromBearer(req: NextRequest, types: string[]) {
   const h = req.headers.get("authorization") || req.headers.get("Authorization");
   if (!h?.startsWith("Bearer ")) return null;
-  const memberId = await verifySession(h.slice(7), "access");
+  const memberId = await verifyTypedToken(h.slice(7), types);
   if (!memberId) return null;
   const member = await prisma.member.findUnique({ where: { id: memberId }, include: { memberType: true } });
   if (!member || member.isActive === false) return null;
   return member;
+}
+
+/** ดึง member จาก Authorization: Bearer <access|watch token> — null ถ้าไม่ผ่าน / บัญชีถูกปิด
+ *  (ปิดบัญชีใน backoffice = ตัดทั้ง access และ watch token ทันที = kill switch ที่มีอยู่จริง) */
+export async function getAuthedMember(req: NextRequest) {
+  return memberFromBearer(req, APP_TYPES);
+}
+
+/** เฉพาะ access token แท้ ๆ เท่านั้น — ใช้กับ endpoint ที่ "ออกกุญแจใบใหม่"
+ *  กัน watch token (30 วัน) เอาไปต่ออายุตัวเองวนไปเรื่อย ๆ */
+export async function getAuthedMemberAccessOnly(req: NextRequest) {
+  return memberFromBearer(req, ["access"]);
 }
 
 // ── provider verification ──

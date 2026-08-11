@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sanitizeLogInstant, clampToDayWindow } from "@/lib/coachLogTime";
 import { prisma } from "@/lib/prisma";
 import { isAiCoachActive } from "@/lib/coaching";
-import { memberFromReq } from "@/lib/memberAuth";
+import { memberFromReq, unauthorizedIfBearer } from "@/lib/memberAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +17,9 @@ export async function PATCH(
     const logAtRaw = sanitizeLogInstant(logAt);
 
     const member = await memberFromReq(request, lineUserId);
-    if (!member) return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    if (!member) {
+      return unauthorizedIfBearer(request) ?? NextResponse.json({ error: "Member not found" }, { status: 404 });
+    }
     if (!isAiCoachActive(member)) {
       return NextResponse.json({ error: "ฟีเจอร์นี้สำหรับสมาชิกคอร์ส", locked: true }, { status: 403 });
     }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAiCoachActive } from "@/lib/coaching";
-import { memberFromReq } from "@/lib/memberAuth";
+import { memberFromReq, unauthorizedIfBearer } from "@/lib/memberAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +13,10 @@ export async function GET(request: NextRequest) {
     const month = searchParams.get("month"); // YYYY-MM
 
     const member = await memberFromReq(request, lineUserId);
-    if (!member) return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    if (!member) {
+      // มี Bearer แต่ใช้ไม่ได้ = token หมดอายุ → 401 ให้ client ต่ออายุ (เดิมตอบ 404 ทำให้นาฬิกาสับสน)
+      return unauthorizedIfBearer(request) ?? NextResponse.json({ error: "Member not found" }, { status: 404 });
+    }
     if (!isAiCoachActive(member)) {
       return NextResponse.json(
         { error: "ฟีเจอร์นี้สำหรับสมาชิกคอร์ส", locked: true },
