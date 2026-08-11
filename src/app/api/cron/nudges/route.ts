@@ -19,7 +19,16 @@ function checkSecret(req: NextRequest): boolean {
 export async function GET(req: NextRequest) {
   if (!checkSecret(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    const result = await runNudges();
+    // ?at=HH = จำลองชั่วโมงไทย (ทดสอบเท่านั้น — ทั้ง route ต้องมี X-Cron-Secret อยู่แล้ว)
+    const atRaw = new URL(req.url).searchParams.get("at");
+    const at = atRaw != null ? Number(atRaw) : NaN;
+    let now = new Date();
+    if (Number.isInteger(at) && at >= 0 && at <= 23) {
+      const bkk = new Date(now.getTime() + 7 * 3600 * 1000);
+      bkk.setUTCHours(at, 0, 0, 0);
+      now = new Date(bkk.getTime() - 7 * 3600 * 1000);
+    }
+    const result = await runNudges(now);
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     console.error("nudges cron error:", e);

@@ -7,7 +7,19 @@ import { prisma } from "@/lib/prisma";
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 
-export type PushPayload = { title: string; body: string; data?: Record<string, unknown> };
+export type PushPayload = {
+  title: string;
+  body: string;
+  data?: Record<string, unknown>;
+  /**
+   * หมวดของ notification (iOS) — ทำให้ปุ่มลัดในแจ้งเตือน/นาฬิกาโผล่ โดยไม่ต้องเปิดแอป
+   * เช่น "NUDGE_WATER" = ปุ่ม "ดื่มแล้ว +250"
+   * ฝั่งแอปลงทะเบียนหมวดไว้ด้วย setNotificationCategoryAsync (src/lib/nudgeActions.ts)
+   * 🔴 ชื่อ field ของ Expo Push HTTP API คือ `categoryId` (คนละตัวกับ `categoryIdentifier`
+   *    ที่ใช้ตอนตั้ง local notification ฝั่งแอป) — ใส่ผิดชื่อ = ปุ่มไม่ขึ้นแบบเงียบ ๆ
+   */
+  categoryId?: string;
+};
 
 /**
  * ทุก push ต้องโผล่ในศูนย์แจ้งเตือนของแอปด้วย (เหมือน Notification Center ของ iPhone)
@@ -43,7 +55,15 @@ export async function sendPush(memberId: string, payload: PushPayload, type = "s
     body: payload.body,
     data: payload.data || {},
     sound: "default",
+    // ใส่เฉพาะเมื่อมีหมวดจริง — ส่ง undefined ไปด้วยไม่มีประโยชน์และทำ payload รก
+    ...(payload.categoryId ? { categoryId: payload.categoryId } : {}),
   }));
+
+  // แจ้งเตือนแบบมีปุ่มลัดพังแบบเงียบ ๆ ได้ง่าย (ปุ่มไม่ขึ้นแต่ push ส่งสำเร็จ)
+  // → log payload ไว้เฉพาะกรณีที่มีหมวด (นาน ๆ ครั้ง ไม่ใช่ทุก push) เพื่อตรวจย้อนหลังได้
+  if (payload.categoryId) {
+    console.log("[push] ส่งแจ้งเตือนมีปุ่มลัด", JSON.stringify({ memberId, type, messages }));
+  }
 
   try {
     const res = await fetch(EXPO_PUSH_URL, {

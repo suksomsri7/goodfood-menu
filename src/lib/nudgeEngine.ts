@@ -13,7 +13,14 @@ import { buildRiskWindow, dayKeyRange } from "@/lib/statCards";
 const DAILY_CAP = 3; // จำนวน nudge สูงสุด/วัน/คน
 const THRESH = 0.8;
 
-type Nudge = { type: string; pref: keyof PrefFlags; title: string; body: string };
+type Nudge = {
+  type: string;
+  pref: keyof PrefFlags;
+  title: string;
+  body: string;
+  /** หมวด notification (iOS) — ใส่เฉพาะ nudge ที่มีปุ่มลัดในแจ้งเตือน */
+  categoryId?: string;
+};
 type PrefFlags = {
   notifyWaterReminder: boolean;
   notifyMorningCoach: boolean;
@@ -106,7 +113,12 @@ export async function runNudges(now = new Date()) {
     if (hour >= 15 && protein < tProtein * 0.6)
       candidates.push({ type: "nudge_protein", pref: "notifyEveningSummary", title: "เติมโปรตีน 🥩", body: `วันนี้ได้โปรตีน ${Math.round(protein)}/${tProtein} g ยังห่างเป้า มื้อเย็นเพิ่มไข่/อกไก่/เต้าหู้หน่อยนะครับ` });
     if (hour >= 14 && water < tWater * 0.5)
-      candidates.push({ type: "nudge_water", pref: "notifyWaterReminder", title: "ดื่มน้ำ 💧", body: `วันนี้ดื่มน้ำ ${water}/${tWater} ml ยังน้อยอยู่ จิบน้ำเพิ่มหน่อยนะครับ` });
+      candidates.push({
+        type: "nudge_water", pref: "notifyWaterReminder", title: "ดื่มน้ำ 💧",
+        body: `วันนี้ดื่มน้ำ ${water}/${tWater} ml ยังน้อยอยู่ จิบน้ำเพิ่มหน่อยนะครับ`,
+        // ปุ่ม "ดื่มแล้ว +250" กดจากแจ้งเตือน/นาฬิกาได้เลย ไม่ต้องเปิดแอป
+        categoryId: "NUDGE_WATER",
+      });
     if (hour >= 13 && mealCount === 0)
       candidates.push({ type: "nudge_nolog", pref: "notifyMorningCoach", title: "ยังไม่ได้บันทึกมื้อเลย 🍽️", body: "วันนี้ยังไม่มีบันทึกอาหารเลยครับ กดถ่ายรูปหรือพูดกับโค้ชได้เลย" });
     // นั่งติดเก้าอี้: บ่ายแล้วแต่ยืนไม่ถึงครึ่งของชั่วโมงที่ผ่านมา (เทียบเวลาตื่นคร่าว ๆ 07:00)
@@ -127,7 +139,16 @@ export async function runNudges(now = new Date()) {
     }
     if (!picked) { details.push({ memberId: m.id, status: "nothing" }); continue; }
 
-    const n = await sendPush(m.id, { title: picked.title, body: picked.body, data: { screen: "today", nudge: picked.type } }, "nudge");
+    const n = await sendPush(
+      m.id,
+      {
+        title: picked.title,
+        body: picked.body,
+        data: { screen: "today", nudge: picked.type },
+        ...(picked.categoryId ? { categoryId: picked.categoryId } : {}),
+      },
+      "nudge"
+    );
     if (n > 0) {
       await prisma.coachDispatchLog.create({ data: { memberId: m.id, date: todayKey, type: picked.type } });
       sent++;
