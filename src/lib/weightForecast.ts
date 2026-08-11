@@ -26,6 +26,24 @@ const MAX_MONTHS = 12;
 
 export type WeightPoint = { date: Date; weight: number };
 
+/**
+ * ความชันแบบ least squares ต่อ 1 หน่วยแกน t — ใช้ร่วมกับการ์ดสถิติอื่น (เช่นเทรนด์ชีพจรพัก)
+ * คืน null เมื่อจุดน้อยกว่า 2 หรือทุกจุดอยู่ที่ t เดียวกัน (ไม่มีความชันให้คำนวณ)
+ */
+export function slopePerUnit(points: Array<{ t: number; v: number }>): number | null {
+  const n = points.length;
+  if (n < 2) return null;
+  const meanT = points.reduce((s, p) => s + p.t, 0) / n;
+  const meanV = points.reduce((s, p) => s + p.v, 0) / n;
+  let num = 0;
+  let den = 0;
+  for (const p of points) {
+    num += (p.t - meanT) * (p.v - meanV);
+    den += (p.t - meanT) ** 2;
+  }
+  return den === 0 ? null : num / den;
+}
+
 export type Forecast =
   | { ready: false; reason: "need_more_data"; needDays: number; points: number; spanDays: number }
   | { ready: false; reason: "no_goal" }

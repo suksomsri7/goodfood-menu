@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { sendPush } from "@/lib/push";
 import { isAiCoachActive } from "@/lib/coaching";
 import { bkkTodayKey } from "@/lib/planGenerator";
+import { buildRiskWindow, dayKeyRange } from "@/lib/statCards";
 
 const DAILY_CAP = 3; // จำนวน nudge สูงสุด/วัน/คน
 const THRESH = 0.8;
@@ -79,6 +80,25 @@ export async function runNudges(now = new Date()) {
 
     // เลือก nudge ที่เหมาะที่สุด 1 อัน (เรียงความสำคัญ) ที่ยังไม่ส่งวันนี้
     const candidates: Nudge[] = [];
+
+    // ── เตือนก่อน "ช่วงเวลาเสี่ยง" 30 นาที (การ์ด #5) ──
+    // ยิงเฉพาะชั่วโมงก่อนหน้าช่วงนั้น และเฉพาะคนที่โดนบ่อยจริง (≥1/3 ของวันในช่วงข้อมูล)
+    // คิดเฉพาะช่วงบ่าย-ค่ำ เพื่อไม่ให้ต้อง query ประวัติ 30 วันทุกรอบ cron
+    if (hour >= 14 && hour <= 22) {
+      const meals30 = await prisma.mealLog.findMany({
+        where: { memberId: m.id, date: { gte: new Date(now.getTime() - 30 * 24 * 3600 * 1000) } },
+        select: { date: true, name: true, calories: true, protein: true, via: true },
+      });
+      const rw = buildRiskWindow(meals30, dayKeyRange(30, now));
+      if (rw.ready && rw.startHour - 1 === hour && rw.daysHit >= rw.totalDays / 3) {
+        candidates.push({
+          type: "nudge_riskwindow",
+          pref: "notifyEveningSummary",
+          title: "อีกเดี๋ยวถึงช่วงที่มักหลุด 🕒",
+          body: `ช่วง ${rw.startHour}:00-${rw.endHour}:00 คุณมักกินเพิ่มเฉลี่ย ~${rw.avgKcal} kcal เตรียมของว่างดี ๆ ไว้ก่อนนะครับ`,
+        });
+      }
+    }
     if (sodium >= tSodium * THRESH && sodium < tSodium * 1.5)
       candidates.push({ type: "nudge_sodium", pref: "notifyEveningSummary", title: "ระวังโซเดียม 🧂", body: `วันนี้ได้โซเดียม ~${Math.round(sodium)} mg (เกือบถึงเป้า ${tSodium}) มื้อถัดไปเลี่ยงของเค็ม/น้ำจิ้มนะครับ` });
     if (sugar >= tSugar * THRESH && sugar < tSugar * 1.5)
