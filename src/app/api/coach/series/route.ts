@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthedMember } from "@/lib/coachAuth";
+import { buildForecast, WINDOW_DAYS } from "@/lib/weightForecast";
 
 /**
  * ข้อมูลกราฟสถิติ (Coach native)
  * GET ?days=7|30|90 (Bearer) →
- * { days:[{date, kcal, burned, water, sleepMin, steps, standHours, exerciseMin}], weights:[{date,weight}], member:{...targets} }
+ * { days:[{date, kcal, burned, water, sleepMin, steps, standHours, exerciseMin}], weights:[{date,weight}],
+ *   member:{...targets}, forecast:{...} }
+ *
+ * forecast = พยากรณ์ว่าอีกนานแค่ไหนถึงเป้าน้ำหนัก (ดู src/lib/weightForecast.ts)
+ * คิดจาก WeightLog ย้อนหลังไม่เกิน 28 วัน — ไม่พอ/ไม่เข้าหาเป้า = ไม่คืนวันที่ (ห้ามแต่ง)
  */
 export async function GET(req: NextRequest) {
   const member = await getAuthedMember(req);
@@ -57,9 +62,16 @@ export async function GET(req: NextRequest) {
     byDay[k].exerciseMin = Math.max(byDay[k].exerciseMin, m.exerciseMin ?? 0);
   });
 
+  // พยากรณ์ใช้ weights ที่ query มาแล้ว (120 วัน) — ฟังก์ชันตัดหน้าต่าง 28 วันเอง ไม่ query เพิ่ม
+  const forecast = buildForecast(
+    weights.filter((w) => w.date.getTime() >= Date.now() - WINDOW_DAYS * 24 * 3600 * 1000),
+    { goalType: member.goalType, goalWeight: member.goalWeight }
+  );
+
   return NextResponse.json({
     days: Object.entries(byDay).map(([date, v]) => ({ date, ...v })),
     weights: weights.map((w) => ({ date: w.date, weight: w.weight })),
+    forecast,
     member: {
       dailyCalories: member.dailyCalories, dailyWater: member.dailyWater,
       weight: member.weight, goalWeight: member.goalWeight, goalType: member.goalType,
