@@ -17,6 +17,8 @@ export const MIN_POINTS = 4;
 export const MIN_SPAN_DAYS = 14;
 /** ใช้ข้อมูลย้อนหลังไม่เกินกี่วัน (เก่ากว่านี้ไม่สะท้อนพฤติกรรมตอนนี้) */
 export const WINDOW_DAYS = 28;
+/** ชั่งครั้งล่าสุดเก่ากว่านี้ = เทรนด์ค้าง ใช้ทำนายวันนี้ไม่ได้ */
+export const STALE_DAYS = 7;
 /** ถือว่า "นิ่ง" เมื่อเข้าหาเป้าช้ากว่านี้ (กก./สัปดาห์) */
 const STALL_THRESHOLD = 0.05;
 /** ลดเร็วเกินปลอดภัย: เกินกี่ % ของน้ำหนักตัวต่อสัปดาห์ */
@@ -44,26 +46,58 @@ export function slopePerUnit(points: Array<{ t: number; v: number }>): number | 
   return den === 0 ? null : num / den;
 }
 
+export type GoalDirection = "lose" | "gain";
+
 export type Forecast =
-  | { ready: false; reason: "need_more_data"; needDays: number; points: number; spanDays: number }
   | { ready: false; reason: "no_goal" }
   | {
+      ready: false;
+      reason: "need_more_data";
+      needDays: number;
+      points: number;
+      spanDays: number;
+    }
+  | {
+      // ชั่งครั้งล่าสุดนานเกินไป — เทรนด์เก่าใช้ทำนายวันนี้ไม่ได้
+      ready: false;
+      reason: "stale";
+      needDays: number;
+      points: number;
+      spanDays: number;
+      lastLoggedDate: string;
+      daysSinceLast: number;
+    }
+  | {
+      // ถึงเป้าแล้ว — คนละเรื่องกับ "ทำไม่คืบ" ข้อความที่ควรขึ้นตรงข้ามกันเลย
       ready: true;
-      stalled: true;
+      reason: "reached";
+      reached: true;
+      direction: GoalDirection;
       ratePerWeek: number;
       points: number;
       spanDays: number;
       currentWeight: number;
       goalWeight: number;
-      tooFast: boolean;
+    }
+  | {
+      ready: true;
+      stalled: true;
+      direction: GoalDirection;
+      ratePerWeek: number;
+      points: number;
+      spanDays: number;
+      currentWeight: number;
+      goalWeight: number;
     }
   | {
       ready: true;
       stalled: false;
+      direction: GoalDirection;
       ratePerWeek: number;
       targetDate: string | null; // null เมื่อ over1y (ไกลเกินกว่าจะระบุวันได้อย่างซื่อสัตย์)
       monthsAway: number;
       over1y: boolean;
+      /** เปลี่ยนเร็วเกินคำแนะนำ "ในทิศที่ตั้งใจ" — มีเฉพาะตอนกำลังคืบหน้าจริง */
       tooFast: boolean;
       points: number;
       spanDays: number;
@@ -113,6 +147,7 @@ export function buildForecast(
   const wantsGain = goal.includes("gain") || goal.includes("เพิ่ม") || goal.includes("กล้าม");
   // ไม่มีเป้าหมายตัวเลข หรือตั้งใจรักษาน้ำหนัก → ไม่มี "วันถึงเป้า" ให้พยากรณ์
   if (!goalWeight || (!wantsLose && !wantsGain)) return { ready: false, reason: "no_goal" };
+  const direction: GoalDirection = wantsLose ? "lose" : "gain";
 
   const cutoff = now.getTime() - WINDOW_DAYS * DAY_MS;
   const pts = dailyAverages(logs.filter((l) => l.date.getTime() >= cutoff));
@@ -139,6 +174,21 @@ export function buildForecast(
     num += (p.t - meanT) * (p.weight - meanW);
     den += (p.t - meanT) ** 2;
   }
+  // ชั่งล่าสุดนานแล้ว = ตัวเลขค้าง ถ้าเอามาทำนายจะได้วันที่ผิดโดยที่ user ไม่รู้ตัว
+  const lastKey = pts[pts.length - 1].key;
+  const daysSinceLast = Math.floor((now.getTime() - Date.parse(`${lastKey}T00:00:00.000Z`)) / DAY_MS);
+  if (daysSinceLast > STALE_DAYS) {
+    return {
+      ready: false,
+      reason: "stale",
+      needDays: 1, // ชั่งใหม่ 1 ครั้งก็กลับมาพยากรณ์ได้
+      points: pts.length,
+      spanDays,
+      lastLoggedDate: lastKey,
+      daysSinceLast,
+    };
+  }
+
   const slopePerDay = den === 0 ? 0 : num / den;
   const ratePerWeek = Math.round(slopePerDay * 7 * 100) / 100;
 
@@ -146,31 +196,32 @@ export function buildForecast(
   const tLast = pts[pts.length - 1].t;
   const currentWeight = Math.round((meanW + slopePerDay * (tLast - meanT)) * 10) / 10;
 
-  const tooFast = Math.abs(ratePerWeek) > currentWeight * TOO_FAST_RATIO;
   const remaining = goalWeight - currentWeight; // ลบ = ต้องลด · บวก = ต้องเพิ่ม
   const progressPerWeek = remaining < 0 ? -ratePerWeek : ratePerWeek; // เข้าหาเป้า = บวก
+  const base = { direction, ratePerWeek, points: n, spanDays, currentWeight, goalWeight } as const;
 
-  // ถึงเป้าแล้ว/เลยเป้าแล้ว → ไม่ต้องพยากรณ์
-  if (Math.abs(remaining) < 0.1 || progressPerWeek <= STALL_THRESHOLD) {
-    return {
-      ready: true,
-      stalled: true,
-      ratePerWeek,
-      points: n,
-      spanDays,
-      currentWeight,
-      goalWeight,
-      tooFast,
-    };
+  // ถึงเป้าแล้ว — ต้องแยกจาก "ทำไม่คืบ" เพราะข้อความที่ควรขึ้นตรงข้ามกันคนละขั้ว
+  if (Math.abs(remaining) < 0.1) {
+    return { ready: true, reason: "reached", reached: true, ...base };
+  }
+
+  // ไม่คืบ/ถอยห่าง — ไม่ส่ง tooFast มาด้วย: "เร็วเกินไป" ขัดกับ "ไม่ขยับ" ในการ์ดใบเดียวกัน
+  if (progressPerWeek <= STALL_THRESHOLD) {
+    return { ready: true, stalled: true, ...base };
   }
 
   const weeksAway = Math.abs(remaining) / progressPerWeek;
   const monthsAway = Math.round((weeksAway / WEEKS_PER_MONTH) * 10) / 10;
   const over1y = monthsAway > MAX_MONTHS;
 
+  // เร็วเกินคำแนะนำ "ในทิศที่ตั้งใจ" — มาถึงตรงนี้แปลว่ากำลังคืบหน้าจริงแล้ว
+  // (ทิศตรงข้ามไม่เข้าเงื่อนไขนี้ เพราะถูกดักที่ stalled ไปก่อน)
+  const tooFast = Math.abs(ratePerWeek) > currentWeight * TOO_FAST_RATIO;
+
   return {
     ready: true,
     stalled: false,
+    direction,
     ratePerWeek,
     // ไกลเกิน 1 ปี = ไม่ระบุวัน (ข้อมูล 2-4 สัปดาห์ทำนายข้ามปีไม่ได้อย่างซื่อสัตย์)
     targetDate: over1y

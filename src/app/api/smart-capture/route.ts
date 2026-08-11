@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildOpenAI, aiModel } from "@/lib/aiClient";
 import { getSecret } from "@/lib/secrets/store";
-import { getAuthedMember } from "@/lib/coachAuth";
+// access token เท่านั้น — นาฬิกาไม่เรียกเส้นนี้ (เรียกแค่ initial-data/plan/plan[id]/execute/agent)
+import { getAuthedMemberAccessOnly as getAuthedMember } from "@/lib/coachAuth";
 import { coachActive } from "@/lib/coachResolve";
 import { checkUsageLimitForMember, logAiUsageByMemberId, creditsExhaustedResponse } from "@/lib/usage-limits";
 import { writeFile, mkdir } from "fs/promises";

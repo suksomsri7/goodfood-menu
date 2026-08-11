@@ -41,7 +41,11 @@ export async function GET(req: NextRequest) {
   // _day = ช่องทดสอบการหมุนเวียนรายวัน — ต้องมี X-Cron-Secret เท่านั้น (ผู้ใช้ทั่วไปสั่งไม่ได้)
   const cronSecret = process.env.ARTICLE_CRON_SECRET;
   const isAdmin = !!cronSecret && req.headers.get("x-cron-secret") === cronSecret;
-  const dayOverride = isAdmin ? sp.get("_day") || undefined : undefined;
+  // รูปแบบผิด = เมินเงียบ (ใช้วันนี้ตามปกติ) — เดิมปล่อยผ่านแล้วไปพังตอนคำนวณเลขวัน → 500
+  const dayRaw = isAdmin ? sp.get("_day") : null;
+  const dayOverride = dayRaw && /^\d{4}-\d{2}-\d{2}$/.test(dayRaw) && !isNaN(Date.parse(`${dayRaw}T00:00:00.000Z`))
+    ? dayRaw
+    : undefined;
 
   const { items, dayKey } = await pickDailyVideos(member, take, new Date(), dayOverride);
   const res = NextResponse.json({ items, daily: true, dayKey });

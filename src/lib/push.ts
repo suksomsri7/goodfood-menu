@@ -62,7 +62,11 @@ export async function sendPush(memberId: string, payload: PushPayload, type = "s
   // แจ้งเตือนแบบมีปุ่มลัดพังแบบเงียบ ๆ ได้ง่าย (ปุ่มไม่ขึ้นแต่ push ส่งสำเร็จ)
   // → log payload ไว้เฉพาะกรณีที่มีหมวด (นาน ๆ ครั้ง ไม่ใช่ทุก push) เพื่อตรวจย้อนหลังได้
   if (payload.categoryId) {
-    console.log("[push] ส่งแจ้งเตือนมีปุ่มลัด", JSON.stringify({ memberId, type, messages }));
+    // ไม่ log token (เป็นข้อมูลที่ยิง push หา user ได้) — เอาแค่พอรู้ว่าหมวดติดไปจริง
+    console.log(
+      "[push] ส่งแจ้งเตือนมีปุ่มลัด",
+      JSON.stringify({ memberId, type, categoryId: payload.categoryId, count: messages.length })
+    );
   }
 
   try {

@@ -102,7 +102,7 @@ export async function runNudges(now = new Date()) {
           type: "nudge_riskwindow",
           pref: "notifyEveningSummary",
           title: "อีกเดี๋ยวถึงช่วงที่มักหลุด 🕒",
-          body: `ช่วง ${rw.startHour}:00-${rw.endHour}:00 คุณมักกินเพิ่มเฉลี่ย ~${rw.avgKcal} kcal เตรียมของว่างดี ๆ ไว้ก่อนนะครับ`,
+          body: `ช่วง ${rw.startHour}:00-${rw.endHour}:00 วันที่หลุด คุณกินเพิ่มเฉลี่ย ~${rw.avgKcal} kcal เตรียมของว่างดี ๆ ไว้ก่อนนะครับ`,
         });
       }
     }

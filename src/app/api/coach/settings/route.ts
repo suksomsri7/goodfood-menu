@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthedMember } from "@/lib/coachAuth";
+// access token เท่านั้น — นาฬิกาไม่เรียกเส้นนี้ (เรียกแค่ initial-data/plan/plan[id]/execute/agent)
+import { getAuthedMemberAccessOnly as getAuthedMember } from "@/lib/coachAuth";
 import { prisma } from "@/lib/prisma";
 import {
   calculateBMR,
@@ -10,7 +11,7 @@ import {
   type ActivityLevel,
 } from "@/lib/health-calculator";
 import { estimateEnergy, targetFromTdee, macroTargets } from "@/lib/energyModel";
-import { validBurnGoal, BURN_GOAL_MIN, BURN_GOAL_MAX } from "@/lib/burnGoal";
+import { validBurnGoal, personalBurnGoal, BURN_GOAL_MIN, BURN_GOAL_MAX } from "@/lib/burnGoal";
 
 export const dynamic = "force-dynamic";
 
@@ -61,16 +62,21 @@ function view(m: any) {
     dailyCalories: m.dailyCalories,
     dailyProtein: m.dailyProtein,
     dailyWater: m.dailyWater,
-    // null = ยังไม่ได้ตั้งเอง (ระบบใช้ Move goal ของนาฬิกา/ค่าคำนวณให้)
+    // ค่าดิบที่ user ตั้งเอง — null = ยังไม่ได้ตั้ง (ระบบใช้ Move goal ของนาฬิกา/ค่าคำนวณให้)
     dailyBurnGoal: m.dailyBurnGoal ?? null,
     notify: Object.fromEntries(NOTIFY_KEYS.map((k) => [k, m[k]])),
   };
 }
 
+/** เป้าเผาผลาญที่ "มีผลจริง" ตอนนี้ — โครงเดียวกับ /api/cal/initial-data (แอปอ่าน s.burnGoal) */
+async function burnGoalView(m: any) {
+  return personalBurnGoal(m).catch(() => null);
+}
+
 export async function GET(req: NextRequest) {
   const member = await getAuthedMember(req);
   if (!member) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  return NextResponse.json(view(member));
+  return NextResponse.json({ ...view(member), burnGoal: await burnGoalView(member) });
 }
 
 export async function PATCH(req: NextRequest) {
@@ -94,14 +100,16 @@ export async function PATCH(req: NextRequest) {
 
   // เป้าเผาผลาญที่ user ตั้งเอง — null = ล้าง override กลับไปใช้นาฬิกา/ค่าคำนวณ
   // ไม่เข้า touchesEnergy: เป็นเป้า "เผา" ไม่ใช่เป้า "กิน" ไม่ต้องคำนวณ BMR/มาโครใหม่
-  if (b.dailyBurnGoal !== undefined) {
-    if (b.dailyBurnGoal === null) {
+  // แอปส่งมาได้ทั้ง 2 ชื่อ (หน้าตั้งค่าใช้ key "burnGoal" ให้ตรงกับที่ GET คืน)
+  const burnGoalInput = b.dailyBurnGoal !== undefined ? b.dailyBurnGoal : b.burnGoal;
+  if (burnGoalInput !== undefined) {
+    if (burnGoalInput === null) {
       data.dailyBurnGoal = null;
     } else {
-      const v = validBurnGoal(b.dailyBurnGoal);
+      const v = validBurnGoal(burnGoalInput);
       if (!v) {
         return NextResponse.json(
-          { error: `dailyBurnGoal ต้องเป็นตัวเลข ${BURN_GOAL_MIN}-${BURN_GOAL_MAX} kcal (หรือ null เพื่อกลับไปใช้ค่าอัตโนมัติ)` },
+          { error: `burnGoal ต้องเป็นตัวเลข ${BURN_GOAL_MIN}-${BURN_GOAL_MAX} kcal (หรือ null เพื่อกลับไปใช้ค่าอัตโนมัติ)` },
           { status: 400 }
         );
       }
@@ -150,5 +158,10 @@ export async function PATCH(req: NextRequest) {
   if (Object.keys(data).length === 0) return NextResponse.json({ error: "nothing to update" }, { status: 400 });
 
   const updated = await prisma.member.update({ where: { id: member.id }, data });
-  return NextResponse.json({ ok: true, ...view(updated), recalculated: touchesEnergy });
+  return NextResponse.json({
+    ok: true,
+    ...view(updated),
+    burnGoal: await burnGoalView(updated),
+    recalculated: touchesEnergy,
+  });
 }

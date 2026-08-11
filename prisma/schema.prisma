@@ -60,6 +60,9 @@ model Member {
   notifyPostExercise     Boolean   @default(true)
   notifyWeightReminder   Boolean   @default(true)
   notifyArticles         Boolean   @default(true)   // บทความสุขภาพที่ตรงกับพฤติกรรม (B2)
+  // เพิ่มทีละ 1 ตอน logout — watch token ที่ออกก่อนหน้าจะมี epoch เก่าแล้วใช้ไม่ได้ทันที
+  // (watch token อายุ 30 วันและไม่มีแถวใน DB จึงเพิกถอนรายใบไม่ได้แบบ refresh token)
+  sessionEpoch           Int       @default(0)
   dailyBurnGoal          Int?      // เป้าเผาผลาญ/วัน (kcal) ที่ user ตั้งเอง — ว่าง = ใช้ Move goal ของนาฬิกา/คำนวณให้
   notificationsPausedUntil DateTime?
   

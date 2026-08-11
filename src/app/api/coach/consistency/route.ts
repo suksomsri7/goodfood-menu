@@ -38,7 +38,8 @@ export async function GET(req: NextRequest) {
   if (!member) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const raw = Number(new URL(req.url).searchParams.get("days"));
-  const days = Number.isFinite(raw) && raw > 0 ? Math.min(366, Math.round(raw)) : 91;
+  // clamp ขั้นต่ำ 1 — days=0.4 เคยปัดเป็น 0 แล้วได้ range ว่าง
+  const days = Number.isFinite(raw) && raw > 0 ? Math.max(1, Math.min(366, Math.round(raw))) : 91;
 
   // ต้นช่วง = เที่ยงคืนไทยของวันแรกในกราฟ (แปลงกลับเป็น UTC จริงเพื่อใช้ query)
   const todayKeyMs = Date.parse(`${bkkKey(new Date())}T00:00:00.000Z`);
@@ -57,11 +58,14 @@ export async function GET(req: NextRequest) {
     prisma.dailyPlan.findMany({ where, select: { date: true, mealsDone: true } }),
   ]);
 
-  // เป้าเผาผลาญ: ใช้ helper กลางตัวเดียวกับวงแหวนในแอป (ส่ง tdee ที่มีอยู่ไปกันไม่ให้ query ซ้ำ)
-  const burnGoal = await personalBurnGoal(member, { tdee: member.tdee }).catch(() => null);
+  // เป้าเผาผลาญ: helper กลางตัวเดียวกับวงแหวนในแอป
+  // 🔴 ไม่ส่ง tdee เข้าไป → helper เรียก estimateEnergy เอง = ได้ TDEE ชุดเดียวกับ /api/cal/initial-data
+  //    (เดิมส่ง member.tdee ซึ่งเป็นค่าที่บันทึกไว้ ทำให้เป้าของ heatmap ไม่ตรงกับวงแหวนในหน้าหลัก)
+  const burnGoal = await personalBurnGoal(member).catch(() => null);
   const burnTarget = burnGoal?.value ?? 0;
-  const waterTarget = member.dailyWater ?? 0;
-  const proteinTarget = member.dailyProtein ?? 0;
+  // ค่าเริ่มต้นชุดเดียวกับที่แอปใช้ตอนยังไม่ได้ตั้งเป้า — 0 จะทำให้ "ปิดวง" ง่ายเกินจริง
+  const waterTarget = member.dailyWater ?? 2000;
+  const proteinTarget = member.dailyProtein ?? 100;
 
   type Bucket = {
     entries: number; // จำนวน "รายการ" ที่บันทึกวันนั้น

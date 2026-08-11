@@ -13,7 +13,8 @@ export async function POST(request: NextRequest) {
     const { lineUserId, start } = await request.json();
 
     // gate สิทธิ์ (JWT native หรือ lineUserId LIFF)
-    const member = await memberFromReq(request, lineUserId);
+    // access token เท่านั้น — นาฬิกาไม่ได้สร้างแผน (เรียกแค่ initial-data/plan/plan[id]/execute/agent)
+    const member = await memberFromReq(request, lineUserId, { accessOnly: true });
     if (!member) {
       // มี Bearer แต่ใช้ไม่ได้ = token หมดอายุ → 401 ให้ client ต่ออายุ
       return unauthorizedIfBearer(request) ?? NextResponse.json({ error: "Member not found" }, { status: 404 });

@@ -23,7 +23,8 @@ export async function GET(req: NextRequest) {
   if (!member) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const raw = Number(new URL(req.url).searchParams.get("days"));
-  const days = Number.isFinite(raw) && raw > 0 ? Math.min(90, Math.round(raw)) : 30;
+  // clamp ขั้นต่ำ 1 — days=0.4 เคยปัดเป็น 0 แล้ว dayKeys ว่าง → startUtc เป็น Invalid Date → 500
+  const days = Number.isFinite(raw) && raw > 0 ? Math.max(1, Math.min(90, Math.round(raw))) : 30;
 
   const dayKeys = dayKeyRange(days);
   // ต้นช่วง = เที่ยงคืนไทยของวันแรก แปลงกลับเป็น UTC จริงเพื่อใช้ query

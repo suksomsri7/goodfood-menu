@@ -141,7 +141,8 @@ export function buildRiskWindow(meals: MealRow[], dayKeys: string[]): RiskWindow
     ready: true,
     startHour: best.startHour,
     endHour: best.startHour + RISK_WINDOW_HOURS,
-    avgKcal: Math.round(best.total / totalDays),
+    // เฉลี่ย "เฉพาะวันที่โดนจริง" — หารด้วยทุกวันจะได้ตัวเลขต่ำจนไม่สะท้อนสิ่งที่ user เจอ
+    avgKcal: Math.round(best.total / Math.max(1, best.daysHit)),
     daysHit: best.daysHit,
     totalDays,
   };
@@ -259,17 +260,19 @@ export type RestingHR =
     };
 
 export function buildRestingHR(metrics: MetricRow[]): RestingHR {
-  const byDay = new Map<string, number>();
+  const byDay = new Map<string, { sum: number; n: number }>();
   for (const m of metrics) {
     if (m.restingHR == null || m.restingHR <= 0) continue;
     const k = bkkKey(m.date);
-    // วันเดียวอาจมีหลาย source → เอาค่าล่าสุด/ต่ำสุดก็ได้ ใช้ค่าเฉลี่ยง่ายสุดและไม่เอนเอียง
-    byDay.set(k, byDay.has(k) ? Math.round((byDay.get(k)! + m.restingHR) / 2) : m.restingHR);
+    // วันเดียวมีได้หลาย source → ค่าเฉลี่ยจริง (sum/count)
+    // ห้ามใช้ running average (prev+new)/2 — ค่ามาทีหลังจะถ่วงน้ำหนักมากกว่าค่าแรก
+    const cur = byDay.get(k) ?? { sum: 0, n: 0 };
+    byDay.set(k, { sum: cur.sum + m.restingHR, n: cur.n + 1 });
   }
   if (byDay.size === 0) return { ready: false, reason: "no_data" };
 
   const points = [...byDay.entries()]
-    .map(([date, bpm]) => ({ date, bpm }))
+    .map(([date, v]) => ({ date, bpm: Math.round(v.sum / v.n) }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const ts = points.map((p) => ({ t: Date.parse(`${p.date}T00:00:00.000Z`) / DAY_MS, v: p.bpm }));

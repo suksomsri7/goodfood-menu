@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
  * S3: ออกจากระบบ = เพิกถอน refresh token จริง (เดิม client แค่ลบ token ทิ้ง ฝั่ง server ยังใช้ได้)
  * POST { refreshToken, all? } → { ok }
  * - all=true: ตัดทุก session ของ member (ใช้ตอน "ออกจากระบบทุกเครื่อง")
+ * - ทุกกรณี bump sessionEpoch → watch token (30 วัน ไม่มีแถวใน DB) ที่ออกไว้ตายทันที
+ *   ไม่งั้น logout แล้วนาฬิกายังคุยกับ backend ได้อีกเดือนนึง
  */
 export async function POST(req: NextRequest) {
   try {
@@ -29,6 +31,13 @@ export async function POST(req: NextRequest) {
         data: { revokedAt },
       });
     }
+
+    // เพิกถอนกุญแจนาฬิกา — ทำทั้งกรณี all และไม่ all (ออกจากระบบเครื่องนี้ = นาฬิกาที่คู่กันต้องหลุดด้วย)
+    await prisma.member.update({
+      where: { id: parsed.memberId },
+      data: { sessionEpoch: { increment: 1 } },
+    }).catch(() => {});
+
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("[auth/logout]", e);

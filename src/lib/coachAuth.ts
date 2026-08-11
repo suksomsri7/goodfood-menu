@@ -41,7 +41,9 @@ const APP_TYPES = ["access", "watch"];
 /** ออกกุญแจให้แอปนาฬิกา (เรียกได้เฉพาะเจ้าของ session ปกติ — ดู /api/auth/native/watch-token) */
 export async function signWatchToken(memberId: string): Promise<{ watchToken: string; expiresAt: string }> {
   const key = await sessionKey();
-  const watchToken = await new SignJWT({ typ: "watch" })
+  // ผูก epoch ปัจจุบันไว้ในกุญแจ — พอ logout แล้ว epoch ขยับ กุญแจใบเก่าจะใช้ไม่ได้ทันที
+  const m = await prisma.member.findUnique({ where: { id: memberId }, select: { sessionEpoch: true } });
+  const watchToken = await new SignJWT({ typ: "watch", epoch: m?.sessionEpoch ?? 0 })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(memberId)
     .setIssuer(ISSUER)
@@ -102,13 +104,20 @@ export async function verifySession(token: string, typ: "access" | "refresh" = "
   }
 }
 
-/** ยืนยัน token ตาม typ ที่อนุญาต → memberId (refresh ไม่เคยอยู่ในรายการที่อนุญาต) */
-async function verifyTypedToken(token: string, types: string[]): Promise<string | null> {
+/** ยืนยัน token ตาม typ ที่อนุญาต → { memberId, typ, epoch } (refresh ไม่เคยอยู่ในรายการที่อนุญาต) */
+async function verifyTypedToken(
+  token: string,
+  types: string[]
+): Promise<{ memberId: string; typ: string; epoch: number | null } | null> {
   try {
     const key = await sessionKey();
     const { payload } = await jwtVerify(token, key, { issuer: ISSUER, algorithms: ["HS256"] });
     if (typeof payload.typ !== "string" || !types.includes(payload.typ) || !payload.sub) return null;
-    return payload.sub as string;
+    return {
+      memberId: payload.sub as string,
+      typ: payload.typ,
+      epoch: typeof payload.epoch === "number" ? payload.epoch : null,
+    };
   } catch {
     return null;
   }
@@ -118,10 +127,17 @@ async function verifyTypedToken(token: string, types: string[]): Promise<string 
 async function memberFromBearer(req: NextRequest, types: string[]) {
   const h = req.headers.get("authorization") || req.headers.get("Authorization");
   if (!h?.startsWith("Bearer ")) return null;
-  const memberId = await verifyTypedToken(h.slice(7), types);
-  if (!memberId) return null;
-  const member = await prisma.member.findUnique({ where: { id: memberId }, include: { memberType: true } });
+  const parsed = await verifyTypedToken(h.slice(7), types);
+  if (!parsed) return null;
+  const member = await prisma.member.findUnique({
+    where: { id: parsed.memberId },
+    include: { memberType: true },
+  });
   if (!member || member.isActive === false) return null;
+  // watch token ไม่มีแถวใน DB (ต่างจาก refresh) → เพิกถอนด้วย epoch แทน
+  // ไม่มี epoch ในกุญแจ = ใบที่ออกก่อนมีระบบนี้ → ถือว่าใช้ไม่ได้ ให้จับคู่กับแอปใหม่
+  // (ไม่ใช้ query เพิ่ม — member ถูกโหลดอยู่แล้วบรรทัดบน)
+  if (parsed.typ === "watch" && parsed.epoch !== member.sessionEpoch) return null;
   return member;
 }
 

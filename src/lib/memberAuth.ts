@@ -7,7 +7,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthedMember } from "@/lib/coachAuth";
+import { getAuthedMember, getAuthedMemberAccessOnly } from "@/lib/coachAuth";
 
 /**
  * มี Authorization: Bearer มาด้วยไหม (ไม่สนว่า token ใช้ได้จริงหรือเปล่า)
@@ -31,8 +31,16 @@ export function unauthorizedIfBearer(req: NextRequest): NextResponse | null {
   return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 }
 
-export async function memberFromReq(req: NextRequest, lineUserId?: string | null) {
-  const authed = await getAuthedMember(req);
+/**
+ * @param opts.accessOnly ไม่รับ watch token (ใช้กับเส้นที่นาฬิกาไม่ได้เรียก เช่น สร้างแผน)
+ *                        ทาง lineUserId (LIFF) ไม่กระทบ
+ */
+export async function memberFromReq(
+  req: NextRequest,
+  lineUserId?: string | null,
+  opts?: { accessOnly?: boolean }
+) {
+  const authed = opts?.accessOnly ? await getAuthedMemberAccessOnly(req) : await getAuthedMember(req);
   if (authed) return authed;
   if (lineUserId) {
     return prisma.member.findUnique({ where: { lineUserId }, include: { memberType: true } });
