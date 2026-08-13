@@ -114,7 +114,8 @@ export async function POST(req: NextRequest) {
     const MAX_SLEEP_MIN = 16 * 60; // กันข้อมูลเสีย/ซ้อนกันจนได้ตัวเลขเป็นไปไม่ได้
     const nights = new Map<
       string,
-      { date: Date; minutes: number; quality: number | null; stages: any; sourceId: string | null }
+      { date: Date; minutes: number; quality: number | null; stages: any; sourceId: string | null;
+        startAt: Date | null; endAt: Date | null }
     >();
     for (const s of body.sleeps || []) {
       const date = bkkDateKey(new Date(s.date));
@@ -128,6 +129,8 @@ export async function POST(req: NextRequest) {
           quality: s.quality ?? null,
           stages: s.stages ?? null,
           sourceId: s.sourceId ?? null,
+          startAt: s.startAt ? new Date(s.startAt) : null,
+          endAt: s.endAt ? new Date(s.endAt) : null,
         });
         continue;
       }
@@ -136,23 +139,57 @@ export async function POST(req: NextRequest) {
       // เคสหลายรายการ = รุ่นเก่าที่ส่งเป็นช่วงย่อย ซึ่งไม่มี stages มาด้วย
       if (prev.quality === null && s.quality != null) prev.quality = s.quality;
       if (!prev.stages && s.stages) prev.stages = s.stages;
+      // ช่วงเวลาของทั้งคืน = เริ่มเร็วสุด → จบช้าสุด (รุ่นเก่าที่ส่งช่วงย่อยก็ได้เวลาถูก)
+      const st = s.startAt ? new Date(s.startAt) : null;
+      const en = s.endAt ? new Date(s.endAt) : null;
+      if (st && (!prev.startAt || st < prev.startAt)) prev.startAt = st;
+      if (en && (!prev.endAt || en > prev.endAt)) prev.endAt = en;
     }
 
     for (const n of nights.values()) {
       const minutesAsleep = Math.min(MAX_SLEEP_MIN, Math.round(n.minutes));
       await prisma.sleepLog.upsert({
         where: { memberId_date_source: { memberId: member.id, date: n.date, source } },
-        update: { minutesAsleep, quality: n.quality, stages: n.stages ?? undefined, sourceId: n.sourceId },
+        update: {
+          minutesAsleep, quality: n.quality, stages: n.stages ?? undefined, sourceId: n.sourceId,
+          ...(n.startAt ? { startAt: n.startAt } : {}), ...(n.endAt ? { endAt: n.endAt } : {}),
+        },
         create: {
           memberId: member.id, date: n.date, minutesAsleep,
           quality: n.quality, stages: n.stages ?? undefined, source, sourceId: n.sourceId,
+          startAt: n.startAt, endAt: n.endAt,
         },
       });
       counts.sleeps++;
     }
 
+    /*
+     * ตัวชี้วัดเชิงลึกจาก Watch (HRV/VO2Max/หายใจ/ออกซิเจน/อุณหภูมิข้อมือ/ระยะทาง/แดด ฯลฯ)
+     *
+     * 🔴 กติกาสำคัญ: field ที่ "ไม่ได้ส่งมาในรอบนี้" ต้องไม่ไปล้างค่าเดิมใน DB
+     *    Apple เขียนค่าพวกนี้ไม่พร้อมกัน (VO2Max มาสัปดาห์ละครั้ง · HRV มาตอนหลับ)
+     *    ถ้า sync ตอนบ่ายแล้วเซ็ต null ทับ = ข้อมูลที่เพิ่งได้ตอนเช้าหายทั้งวัน
+     *    → ใช้ pick() ใส่เฉพาะ key ที่มีค่าจริงเท่านั้น (ต่างจาก steps/activeKcal ที่ส่งมาทุกรอบ)
+     */
+    const DEEP_KEYS = [
+      "hrvMs", "vo2max", "hrRecovery", "respiratoryRate", "spo2", "wristTempDelta",
+      "breathDisturb", "distanceM", "flights", "daylightMin", "walkingSpeed",
+      "basalKcal", "bodyFatPct", "leanMassKg", "mindfulMin", "audioDb",
+    ] as const;
+    const INT_KEYS = new Set(["hrRecovery", "distanceM", "flights", "daylightMin", "basalKcal", "mindfulMin"]);
+    const pickDeep = (m: any) => {
+      const out: Record<string, number> = {};
+      for (const k of DEEP_KEYS) {
+        const v = Number(m[k]);
+        if (m[k] == null || !Number.isFinite(v) || v < 0) continue;
+        out[k] = INT_KEYS.has(k) ? Math.round(v) : v;
+      }
+      return out;
+    };
+
     for (const m of body.metrics || []) {
       const date = bkkDateKey(new Date(m.date));
+      const deep = pickDeep(m);
       await prisma.dailyMetric.upsert({
         where: { memberId_date_source: { memberId: member.id, date, source } },
         update: {
@@ -162,11 +199,12 @@ export async function POST(req: NextRequest) {
           // เป้าวง Move ที่ user ตั้งไว้บนนาฬิกา — ใช้เป็นเป้าแหวน "เผาผลาญ" ในแอป
           // ส่งมาเฉพาะตอนมีค่า: sync รอบที่ไม่ได้แนบ moveGoal มาต้องไม่ล้างเป้าเดิมทิ้ง
           ...(validMoveGoal(m.moveGoal) !== null ? { moveGoal: validMoveGoal(m.moveGoal) } : {}),
+          ...deep,
         },
         create: {
           memberId: member.id, date, steps: m.steps ?? null, restingHR: m.restingHR ?? null,
           activeKcal: m.activeKcal ?? null, standHours: m.standHours ?? null, exerciseMin: m.exerciseMin ?? null,
-          moveGoal: validMoveGoal(m.moveGoal), source,
+          moveGoal: validMoveGoal(m.moveGoal), source, ...deep,
         },
       });
       counts.metrics++;

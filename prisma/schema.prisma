@@ -140,7 +140,11 @@ model SleepLog {
   date          DateTime // BKK date key ของคืนที่ตื่น
   minutesAsleep Int
   quality       Float?
-  stages        Json?    // {deep,rem,light,awake} นาที
+  stages        Json?    // {deep,rem,core,awake} นาที
+  // เวลาเข้านอน/ตื่นจริง — ใช้ดู "ความสม่ำเสมอของเวลานอน" ซึ่งสัมพันธ์กับการลดน้ำหนักมาก
+  // (เก็บเป็น instant จริง ไม่ใช่แค่จำนวนนาที · null = แหล่งข้อมูลไม่ได้บอกเวลา เช่นที่ user พูดเอง)
+  startAt       DateTime?
+  endAt         DateTime?
   source        String   @default("healthkit")
   sourceId      String?
   createdAt     DateTime @default(now())
@@ -161,6 +165,26 @@ model DailyMetric {
   standHours Int? // ชั่วโมงที่ลุกยืน (วง Stand ของ Apple — มาจาก Watch เท่านั้น)
   exerciseMin Int? // นาทีออกกำลังกาย (วง Exercise)
   moveGoal   Int? // เป้าวง Move ของวันนั้นที่ user ตั้งไว้บนนาฬิกา (kcal) — Apple ให้เปลี่ยนได้รายวัน
+
+  // ── ตัวชี้วัดเชิงลึกจาก Apple Watch (เพิ่ม 13 ส.ค. 2026 · ทุกตัว nullable = ไม่มีก็ไม่เป็นไร) ──
+  // เก็บเป็นคอลัมน์จริงไม่ใช่ JSON เพราะต้องทำกราฟ/ค่าเฉลี่ย/เทรนด์ด้วย SQL
+  hrvMs          Float? // HRV SDNN (ms) — ตัวชี้ความเครียด/การฟื้นตัวที่ดีที่สุดที่ Watch ให้
+  vo2max         Float? // ml/kg/min — ระดับฟิตของหัวใจ (Watch ประเมินให้เอง)
+  hrRecovery     Int?   // ชีพจรที่ลดลงใน 1 นาทีหลังจบการออกกำลังกาย (ยิ่งมากยิ่งฟิต)
+  respiratoryRate Float? // ครั้ง/นาที (วัดขณะหลับ)
+  spo2           Float? // ออกซิเจนในเลือด 0-1
+  wristTempDelta Float? // อุณหภูมิข้อมือขณะหลับ เทียบ baseline ของตัวเอง (°C · Apple ให้เป็นส่วนต่าง)
+  breathDisturb  Float? // สัดส่วนการหายใจผิดปกติขณะหลับ 0-1
+  distanceM      Int?   // ระยะทางเดิน+วิ่ง (เมตร)
+  flights        Int?   // จำนวนชั้นบันไดที่ขึ้น
+  daylightMin    Int?   // เวลาอยู่กลางแดด (นาที)
+  walkingSpeed   Float? // ความเร็วเดินเฉลี่ย (กม./ชม.)
+  basalKcal      Int?   // พลังงานพื้นฐานที่ Watch วัดได้ — เอาไปเทียบกับ TDEE ที่เราคำนวณ
+  bodyFatPct     Float? // % ไขมัน (ต้องมีเครื่องชั่งอัจฉริยะ)
+  leanMassKg     Float? // มวลไร้ไขมัน (กก.)
+  mindfulMin     Int?   // นาทีทำสมาธิ
+  audioDb        Float? // ระดับเสียงรอบตัวเฉลี่ย (dBA)
+
   source     String   @default("healthkit")
   createdAt  DateTime @default(now())
   member     Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
