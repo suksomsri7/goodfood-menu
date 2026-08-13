@@ -93,6 +93,90 @@ export async function frequentFoodsList(memberId: string, limit = 30, minCount =
   }));
 }
 
+/**
+ * ช่วงมื้อของวัน (เวลาไทย) — ใช้บอกว่า "ตอนนี้คือมื้ออะไร" เพื่อเสนอของที่กินประจำช่วงนั้น
+ * เก็บเป็นนาทีนับจากเที่ยงคืนเพื่อรองรับขอบ :30
+ * มื้อดึกคร่อมเที่ยงคืน (1290 → 299) — ตัวที่ start > end คือช่วงที่ข้ามวัน
+ */
+export interface MealWindow {
+  key: string;
+  label: string;
+  /** นาทีจากเที่ยงคืน (เวลาไทย) */
+  start: number;
+  end: number;
+}
+
+export const MEAL_WINDOWS: MealWindow[] = [
+  { key: "breakfast", label: "เช้า", start: 5 * 60, end: 10 * 60 + 29 },
+  { key: "lunch", label: "กลางวัน", start: 10 * 60 + 30, end: 14 * 60 + 29 },
+  { key: "snack", label: "ว่างบ่าย", start: 14 * 60 + 30, end: 17 * 60 + 29 },
+  { key: "dinner", label: "เย็น", start: 17 * 60 + 30, end: 21 * 60 + 29 },
+  { key: "late", label: "มื้อดึก", start: 21 * 60 + 30, end: 4 * 60 + 59 },
+];
+
+const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+
+/** ช่วงมื้อที่ครอบนาทีนี้ (นาทีจากเที่ยงคืน เวลาไทย) */
+export function mealWindowAt(minuteOfDay: number): MealWindow {
+  const m = ((minuteOfDay % 1440) + 1440) % 1440;
+  for (const w of MEAL_WINDOWS) {
+    const inside = w.start <= w.end ? m >= w.start && m <= w.end : m >= w.start || m <= w.end;
+    if (inside) return w;
+  }
+  return MEAL_WINDOWS[MEAL_WINDOWS.length - 1];
+}
+
+/** ข้อความช่วงเวลาแบบอ่านรู้เรื่อง เช่น "10:30–14:29" */
+export function mealWindowRange(w: MealWindow): string {
+  return `${hhmm(w.start)}–${hhmm(w.end)}`;
+}
+
+/**
+ * เมนูที่ user กินบ่อย "เฉพาะช่วงเวลานี้ของวัน" (60 วันย้อนหลัง)
+ *
+ * ต่างจาก frequentFoodsList() ที่รวมทั้งวัน — ตอนเที่ยงจะได้เมนูมื้อเที่ยงจริง ๆ ไม่ใช่กาแฟตอนเช้า
+ * เวลาใน DB เป็น UTC แบบ timestamp ไม่มี timezone → บวก 7 ชม. เอาเวลาไทย (วิธีเดียวกับที่อื่นในระบบ)
+ */
+export async function frequentFoodsInWindow(
+  memberId: string,
+  w: MealWindow,
+  limit = 6
+): Promise<FrequentFood[]> {
+  const wraps = w.start > w.end;
+  const rows = await prisma.$queryRaw<
+    Array<{ name: string; kcal: number; p: number; c: number; f: number; na: number | null; su: number | null; n: number }>
+  >`
+    WITH logs AS (
+      SELECT name, calories, protein, carbs, fat, sodium, sugar, "date",
+             (EXTRACT(HOUR FROM ("date" + interval '7 hours')) * 60
+              + EXTRACT(MINUTE FROM ("date" + interval '7 hours')))::int AS mod
+      FROM meal_logs
+      WHERE "memberId" = ${memberId} AND "date" >= now() - interval '60 days'
+    )
+    SELECT name,
+           round(avg(calories))::int AS kcal, round(avg(protein))::int AS p,
+           round(avg(carbs))::int AS c, round(avg(fat))::int AS f,
+           round(avg(sodium))::int AS na, round(avg(sugar))::int AS su,
+           count(*)::int AS n
+    FROM logs
+    WHERE CASE WHEN ${wraps} THEN (mod >= ${w.start} OR mod <= ${w.end})
+               ELSE (mod >= ${w.start} AND mod <= ${w.end}) END
+    GROUP BY name
+    ORDER BY count(*) DESC, max("date") DESC
+    LIMIT ${limit}
+  `;
+  return rows.map((r) => ({
+    name: r.name,
+    calories: r.kcal,
+    protein: r.p,
+    carbs: r.c,
+    fat: r.f,
+    sodium: r.na ?? null,
+    sugar: r.su ?? null,
+    count: r.n,
+  }));
+}
+
 /** เมนูที่กินบ่อย — ป้อนให้โค้ชใช้ค่าเดิมแทนเดาใหม่ทุกครั้ง (แม่นขึ้น + ไม่ต้องคิดซ้ำ) */
 export async function frequentFoods(memberId: string, limit = 12): Promise<string> {
   const rows = await prisma.$queryRaw<Array<{ name: string; kcal: number; p: number; c: number; f: number; n: number }>>`

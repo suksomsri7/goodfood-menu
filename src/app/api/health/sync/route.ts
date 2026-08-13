@@ -99,12 +99,54 @@ export async function POST(req: NextRequest) {
       counts.weights++;
     }
 
+    /*
+     * 🔴 การนอนต้อง "รวมทั้งคืน" ก่อนบันทึก
+     *
+     * Apple Watch ไม่ได้เขียนการนอนเป็นก้อนเดียว แต่เป็นช่วงย่อยสลับกันทั้งคืน
+     * (Core/Deep/REM ช่วงละ 5-60 นาที) แอปรุ่นเดิมส่งมาช่วงละ 1 รายการ แล้วตรงนี้ upsert
+     * ด้วยคีย์ (member, วันที่, source) เดียวกัน → ช่วงหลังทับช่วงก่อนไปเรื่อย ๆ
+     * เหลือแค่ "ช่วงสุดท้ายของคืน" (ของจริงที่เจอ: 7 / 11 / 60 นาที ทั้งที่นอน ~7 ชม.)
+     *
+     * แก้ที่ฝั่ง server ด้วยเพื่อให้แอปรุ่นที่ติดตั้งอยู่แล้วได้ค่าถูกทันทีโดยไม่ต้องรอ build:
+     * รวมทุกรายการของคืนเดียวกันในคำขอนี้เข้าด้วยกันก่อน แล้วค่อยเขียนครั้งเดียว
+     * (idempotent: ยิงซ้ำได้ เพราะรวมจาก payload ของรอบนั้น ไม่ได้บวกทับค่าเดิมใน DB)
+     */
+    const MAX_SLEEP_MIN = 16 * 60; // กันข้อมูลเสีย/ซ้อนกันจนได้ตัวเลขเป็นไปไม่ได้
+    const nights = new Map<
+      string,
+      { date: Date; minutes: number; quality: number | null; stages: any; sourceId: string | null }
+    >();
     for (const s of body.sleeps || []) {
       const date = bkkDateKey(new Date(s.date));
+      const key = date.toISOString();
+      const prev = nights.get(key);
+      const minutes = Number(s.minutesAsleep) || 0;
+      if (!prev) {
+        nights.set(key, {
+          date,
+          minutes,
+          quality: s.quality ?? null,
+          stages: s.stages ?? null,
+          sourceId: s.sourceId ?? null,
+        });
+        continue;
+      }
+      prev.minutes += minutes;
+      // คุณภาพ/stages: ถ้าแอปส่งมาแบบรวมทั้งคืนแล้ว (รุ่นใหม่) จะมีรายการเดียวอยู่แล้ว
+      // เคสหลายรายการ = รุ่นเก่าที่ส่งเป็นช่วงย่อย ซึ่งไม่มี stages มาด้วย
+      if (prev.quality === null && s.quality != null) prev.quality = s.quality;
+      if (!prev.stages && s.stages) prev.stages = s.stages;
+    }
+
+    for (const n of nights.values()) {
+      const minutesAsleep = Math.min(MAX_SLEEP_MIN, Math.round(n.minutes));
       await prisma.sleepLog.upsert({
-        where: { memberId_date_source: { memberId: member.id, date, source } },
-        update: { minutesAsleep: Number(s.minutesAsleep) || 0, quality: s.quality ?? null, stages: s.stages ?? undefined, sourceId: s.sourceId ?? null },
-        create: { memberId: member.id, date, minutesAsleep: Number(s.minutesAsleep) || 0, quality: s.quality ?? null, stages: s.stages ?? undefined, source, sourceId: s.sourceId ?? null },
+        where: { memberId_date_source: { memberId: member.id, date: n.date, source } },
+        update: { minutesAsleep, quality: n.quality, stages: n.stages ?? undefined, sourceId: n.sourceId },
+        create: {
+          memberId: member.id, date: n.date, minutesAsleep,
+          quality: n.quality, stages: n.stages ?? undefined, source, sourceId: n.sourceId,
+        },
       });
       counts.sleeps++;
     }

@@ -102,6 +102,8 @@ export interface MemberContext {
     exerciseMin: number;
     hasWatchData: boolean;
   };
+  /** การฟื้นตัวจาก Apple Watch: การนอนเมื่อคืน/ค่าเฉลี่ย · ชีพจรขณะพักเทียบ baseline · เวิร์กเอาต์ 7 วัน */
+  recovery: Recovery | null;
   lastActiveAt: Date | null;
   // แผนวันนี้จาก DailyPlan (เฟส 2 — inject ก่อนเรียก generateCoachingMessage("morning"))
   todayPlan?: {
@@ -297,6 +299,103 @@ export function getAiCoachStatus(
   return { isActive, isUnlimited: false, daysRemaining };
 }
 
+/**
+ * สรุป "การฟื้นตัว" จากข้อมูล Apple Watch ให้โค้ชใช้แนะนำได้ลึกกว่าเรื่องกิน
+ *
+ * ทำไมต้องมี: เดิมโค้ชเห็นแค่ก้าว/แคลอรี่ของ "วันนี้" → แนะนำได้แค่ระดับ "ขยับหน่อยนะ"
+ * การนอนย้อนหลัง + ชีพจรขณะพักคือสองตัวที่บอก "ร่างกายพร้อมซ้อมหนักไหม" ได้จริง
+ *
+ * กติกา: ไม่มีข้อมูลพอ = คืน null ห้ามเดา (โค้ชจะได้ไม่พูดถึงสิ่งที่ไม่รู้)
+ */
+type SleepRow = { date: Date; minutesAsleep: number; quality: number | null; stages: any; source: string };
+type RhrRow = { date: Date; restingHR: number | null };
+type WorkoutRow = { name: string; duration: number | null; calories: number; date: Date };
+
+export function buildRecovery(sleepLogs: SleepRow[], rhrLogs: RhrRow[], workouts: WorkoutRow[]) {
+  const dayKey = (d: Date) => new Date(d.getTime() + 7 * 3600 * 1000).toISOString().slice(0, 10);
+
+  // การนอนคืนเดียวกันอาจมีหลาย source (healthkit + ที่บอกโค้ชเอง) → เอาค่ามากสุด ห้ามบวกกัน
+  const byNight = new Map<string, SleepRow>();
+  for (const s of sleepLogs) {
+    const k = dayKey(s.date);
+    const prev = byNight.get(k);
+    if (!prev || s.minutesAsleep > prev.minutesAsleep) byNight.set(k, s);
+  }
+  const nights = [...byNight.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1)).map(([, v]) => v);
+
+  const todayKey = dayKey(new Date());
+  const lastNightRow = nights.find((n) => dayKey(n.date) === todayKey) ?? null;
+  const recent7 = nights.slice(0, 7);
+  const avg7 = recent7.length ? Math.round(recent7.reduce((a, n) => a + n.minutesAsleep, 0) / recent7.length) : null;
+
+  const stagesOf = (row: SleepRow | null) => {
+    const st = row?.stages as { deep?: number; rem?: number } | null | undefined;
+    if (!st || (!st.deep && !st.rem)) return null;
+    return { deep: Math.round(st.deep ?? 0), rem: Math.round(st.rem ?? 0) };
+  };
+
+  // ชีพจรขณะพัก: ค่าล่าสุด เทียบกับค่าปกติของตัวเอง (ใช้ค่ากลางของ 21 วัน ตัดค่าล่าสุดออก)
+  const rhrValues = rhrLogs.map((r) => r.restingHR).filter((v): v is number => typeof v === "number");
+  const latestRhr = rhrValues[0] ?? null;
+  const baselinePool = rhrValues.slice(1);
+  const baselineRhr = baselinePool.length >= 5
+    ? Math.round([...baselinePool].sort((a, b) => a - b)[Math.floor(baselinePool.length / 2)])
+    : null;
+
+  const week = workouts.filter((w) => w.date >= new Date(Date.now() - 7 * 24 * 3600 * 1000));
+
+  return {
+    /** นาทีที่หลับเมื่อคืน (null = ยังไม่มีข้อมูลของคืนนั้น ห้ามเดาว่า 0) */
+    lastNightMinutes: lastNightRow?.minutesAsleep ?? null,
+    lastNightSource: lastNightRow?.source ?? null,
+    lastNightStages: stagesOf(lastNightRow),
+    /** ประสิทธิภาพการนอน 0-1 จาก Watch (หลับจริง ÷ เวลาบนเตียง) */
+    lastNightQuality: lastNightRow?.quality ?? null,
+    avg7Minutes: avg7,
+    nightsLogged: recent7.length,
+    restingHR: latestRhr,
+    restingHRBaseline: baselineRhr,
+    watchWorkouts7d: week.length,
+    watchWorkoutMinutes7d: Math.round(week.reduce((a, w) => a + (w.duration ?? 0), 0)),
+    lastWatchWorkout: week[0] ? { name: week[0].name, minutes: Math.round(week[0].duration ?? 0) } : null,
+  };
+}
+
+export type Recovery = ReturnType<typeof buildRecovery>;
+
+/** แปลงบล็อกการฟื้นตัวเป็นข้อความไทยสำหรับ prompt — ไม่มีข้อมูลก็ไม่ต้องมีบรรทัด */
+export function recoveryLines(r: Recovery | null | undefined): string[] {
+  if (!r) return [];
+  const lines: string[] = [];
+  const hm = (m: number) => `${Math.floor(m / 60)} ชม. ${m % 60} นาที`;
+
+  if (r.lastNightMinutes !== null) {
+    const bits = [hm(r.lastNightMinutes)];
+    if (r.lastNightStages) bits.push(`หลับลึก ${r.lastNightStages.deep} นาที · REM ${r.lastNightStages.rem} นาที`);
+    if (r.lastNightQuality !== null) bits.push(`ประสิทธิภาพ ${Math.round(r.lastNightQuality * 100)}%`);
+    lines.push(`- เมื่อคืนนอน: ${bits.join(" · ")}`);
+  }
+  if (r.avg7Minutes !== null && r.nightsLogged >= 3) {
+    lines.push(`- ค่าเฉลี่ยการนอน ${r.nightsLogged} คืนล่าสุด: ${hm(r.avg7Minutes)}`);
+  }
+  if (r.restingHR !== null) {
+    const cmp =
+      r.restingHRBaseline !== null && Math.abs(r.restingHR - r.restingHRBaseline) >= 3
+        ? r.restingHR > r.restingHRBaseline
+          ? ` (สูงกว่าปกติของตัวเอง ${r.restingHR - r.restingHRBaseline} ครั้ง — มักแปลว่าพักไม่พอ/กำลังจะไม่สบาย/เครียด)`
+          : ` (ต่ำกว่าปกติ ${r.restingHRBaseline - r.restingHR} ครั้ง — ฟื้นตัวดี)`
+        : r.restingHRBaseline !== null
+          ? " (อยู่ในระดับปกติของตัวเอง)"
+          : "";
+    lines.push(`- ชีพจรขณะพัก: ${r.restingHR} ครั้ง/นาที${cmp}`);
+  }
+  if (r.watchWorkouts7d > 0) {
+    const last = r.lastWatchWorkout ? ` · ล่าสุด ${r.lastWatchWorkout.name} ${r.lastWatchWorkout.minutes} นาที` : "";
+    lines.push(`- นาฬิกาบันทึกการออกกำลังกาย 7 วันนี้: ${r.watchWorkouts7d} ครั้ง รวม ${r.watchWorkoutMinutes7d} นาที${last}`);
+  }
+  return lines;
+}
+
 // Gather all context data for a member
 export async function gatherMemberContext(memberId: string): Promise<MemberContext | null> {
   const member = await prisma.member.findUnique({
@@ -313,7 +412,7 @@ export async function gatherMemberContext(memberId: string): Promise<MemberConte
   startOfYesterday.setDate(startOfYesterday.getDate() - 1);
 
   // P2: เดิม await เรียงแถว ~8 จุด (+streak เดิมอีก 30 query) ทุกครั้งที่คุยกับโค้ช → ยิงขนานชุดเดียว
-  const [todayMeals, yesterdayMeals, waterLogs, recentOrders, weightLogs, exerciseToday, streakDays, personalization, budget, todayMetrics] =
+  const [todayMeals, yesterdayMeals, waterLogs, recentOrders, weightLogs, exerciseToday, streakDays, personalization, budget, todayMetrics, sleepLogs, rhrLogs, watchWorkouts] =
     await Promise.all([
       prisma.mealLog.findMany({ where: { memberId, date: { gte: startOfDay } } }),
       prisma.mealLog.findMany({ where: { memberId, date: { gte: startOfYesterday, lt: startOfDay } } }),
@@ -337,6 +436,28 @@ export async function gatherMemberContext(memberId: string): Promise<MemberConte
       prisma.dailyMetric.findMany({
         where: { memberId, date: { gte: startOfDay } },
         select: { steps: true, activeKcal: true, standHours: true, exerciseMin: true },
+      }),
+      // ── การฟื้นตัว: การนอน 14 คืน + ชีพจรขณะพัก 21 วัน (ให้โค้ชเห็น "เหนื่อยสะสม" ไม่ใช่แค่กินกี่แคล) ──
+      prisma.sleepLog.findMany({
+        where: { memberId, date: { gte: new Date(Date.now() - 14 * 24 * 3600 * 1000) } },
+        orderBy: { date: "desc" },
+        select: { date: true, minutesAsleep: true, quality: true, stages: true, source: true },
+      }),
+      prisma.dailyMetric.findMany({
+        where: { memberId, restingHR: { not: null }, date: { gte: new Date(Date.now() - 21 * 24 * 3600 * 1000) } },
+        orderBy: { date: "desc" },
+        select: { date: true, restingHR: true },
+      }),
+      // เวิร์กเอาต์ที่นาฬิกาบันทึกให้เองใน 7 วัน — โค้ชจะได้ไม่สั่งซ้อนของที่ทำไปแล้ว
+      prisma.exerciseLog.findMany({
+        where: {
+          memberId,
+          source: { in: ["healthkit", "watch"] },
+          date: { gte: new Date(Date.now() - 7 * 24 * 3600 * 1000) },
+        },
+        orderBy: { date: "desc" },
+        select: { name: true, duration: true, calories: true, date: true },
+        take: 20,
       }),
     ]);
 
@@ -380,6 +501,8 @@ export async function gatherMemberContext(memberId: string): Promise<MemberConte
     exerciseMin: maxOf("exerciseMin"), // เป้าแบบ Apple = 30 นาที/วัน
     hasWatchData: todayMetrics.some((m) => (m.standHours ?? 0) > 0),
   };
+
+  const recovery = buildRecovery(sleepLogs, rhrLogs, watchWorkouts);
 
   // AI Coach status
   const courseDuration = member.memberType?.courseDuration || 0;
@@ -434,6 +557,7 @@ export async function gatherMemberContext(memberId: string): Promise<MemberConte
       : null,
     streakDays,
     activity,
+    recovery,
     lastActiveAt: member.updatedAt,
     personalization,
   };
@@ -495,6 +619,8 @@ export function buildPrompt(type: CoachingType, context: MemberContext): string 
   const activityBlock = activityBits.length
     ? `- การขยับตัววันนี้: ${activityBits.join(" · ")}`
     : "";
+  // การนอน/ชีพจรขณะพัก/เวิร์กเอาต์จากนาฬิกา — ให้โค้ชแนะนำเรื่อง "พักพอไหม" ได้ ไม่ใช่แค่เรื่องกิน
+  const recoveryBlock = recoveryLines(context.recovery).join("\n");
 
   const baseInfo = `
 ข้อมูลลูกค้า:
@@ -505,6 +631,7 @@ export function buildPrompt(type: CoachingType, context: MemberContext): string 
 - AI Coach: ${aiCoachStatusText}
 - Streak บันทึกอาหาร: ${context.streakDays} วันติด
 ${activityBlock}
+${recoveryBlock}
 เป้าหมายวันนี้:
 - แคลอรี่: ${context.targets.calories} kcal${budgetNote}
 - โปรตีน: ${context.targets.protein}g
