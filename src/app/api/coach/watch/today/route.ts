@@ -58,11 +58,29 @@ export async function GET(req: NextRequest) {
         ? Promise.resolve(null)
         : prisma.dailyPlan.findFirst({
             where: { memberId: member.id, date: { gte: dayStart, lt: dayEnd } },
-            select: { id: true, mealsDone: true, mealPlan: true },
+            select: { id: true, mealsDone: true, mealPlan: true, exercisePlan: true, exerciseItemsDone: true },
           }),
       // ของที่กินประจำช่วงนี้ไม่ใช่ฟีเจอร์คอร์ส (เป็นบันทึกของเจ้าตัวเอง) → ให้แม้ไม่มีสิทธิ์แผน
       frequentFoodsInWindow(member.id, window, 6).catch(() => []),
     ]);
+
+    /*
+     * แผนออกกำลังกายวันนี้ (หน้า 3 ของนาฬิกา)
+     * ⚠️ exerciseItemsDone ใช้ "ชื่อท่า" เป็นคีย์ (ไม่ใช่ index) — ต้องตรงกับ PATCH /api/plan/[id]
+     *    ที่ derive exerciseDone = ครบทุกท่า จากชื่อเดียวกันนี้
+     */
+    const exDone = (plan?.exerciseItemsDone as Record<string, unknown> | null) || {};
+    const exPlan = (plan?.exercisePlan as any) || null;
+    const exercises = (((exPlan?.items as any[]) || [])
+      .map((it) => {
+        const name = String(it?.name ?? "").trim();
+        if (!name) return null;
+        // รูปแบบเดียวกับ exAmount() ในแอปมือถือ — "3 เซ็ต × 12 ครั้ง" / "20 นาที"
+        const per = it?.reps ? `${it.reps} ครั้ง` : it?.minutes ? `${it.minutes} นาที` : "";
+        const detail = it?.sets ? (per ? `${it.sets} เซ็ต × ${per}` : `${it.sets} เซ็ต`) : per;
+        return { name, detail, done: exDone[name] === true };
+      })
+      .filter(Boolean) as Array<{ name: string; detail: string; done: boolean }>);
 
     const done = (plan?.mealsDone as Record<string, unknown> | null) || {};
     const rawMeals = ((plan?.mealPlan as any)?.meals as any[]) || [];
@@ -86,6 +104,9 @@ export async function GET(req: NextRequest) {
       locked,
       meals,
       doneCount: meals.filter((m) => m.done).length,
+      exercises,
+      exerciseTitle: typeof exPlan?.title === "string" ? exPlan.title : null,
+      exerciseDoneCount: exercises.filter((e) => e.done).length,
       usual: usual.map((u) => ({
         name: u.name,
         calories: u.calories,
