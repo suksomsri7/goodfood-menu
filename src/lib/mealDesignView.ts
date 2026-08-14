@@ -3,6 +3,9 @@
  * จัดกลุ่มเป็น "รายวัน" + รวมโภชนาการต่อวัน (แอปไม่ต้องคำนวณเอง = ตัวเลขตรงกันแน่นอน)
  */
 import { MAIN_SLOTS } from "@/lib/goodfoodMealPicker";
+// 🔴 รูปใน DB เก็บเป็น path สั้น (/uploads/...) แอปเรนเดอร์ตรง ๆ ไม่ได้
+//    เคยพลาดมาแล้วกับรูปปกบทความ (6 ส.ค.) — ต้องแปลงเป็น URL เต็มทุกทางออก
+import { absoluteImageUrl } from "@/lib/articleFeed";
 
 /** ลำดับแสดงผลของมื้อ — ต้องเรียงตามเวลาจริงของวัน ไม่ใช่ลำดับที่บันทึกลง DB */
 const SLOT_ORDER = ["เช้า", "ว่าง", "กลางวัน", "เย็น"];
@@ -56,7 +59,7 @@ export function serializeDesign(d: DesignRow) {
         dayNumber,
         meals: sorted.map((i) => ({
           id: i.id, slot: i.slot, foodId: i.foodId, name: i.foodName,
-          imageUrl: i.imageUrl, price: i.price, servings: i.servings,
+          imageUrl: absoluteImageUrl(i.imageUrl), price: i.price, servings: i.servings,
           kcal: Math.round(i.calories), protein: Math.round(i.protein),
           carbs: Math.round(i.carbs), fat: Math.round(i.fat),
           sodium: i.sodium == null ? null : Math.round(i.sodium),
