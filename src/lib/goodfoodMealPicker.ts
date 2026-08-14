@@ -33,6 +33,8 @@ const CANDIDATE_LIMIT = 40;
 export type PickableFood = {
   id: string;
   name: string;
+  /** slug ของหมวด (breakfast / snack / ...) — ใช้ตัดสินว่าเมนูนี้เหมาะกับมื้อไหน */
+  categorySlug?: string | null;
   description: string | null;
   ingredients: string[];
   imageUrl: string | null;
@@ -104,9 +106,10 @@ export async function loadGoodfoodMenu(): Promise<PickableFood[]> {
         id: true, name: true, description: true, ingredients: true, imageUrl: true,
         price: true, discountPrice: true,
         calories: true, protein: true, carbs: true, fat: true, sodium: true, sugar: true,
+        category: { select: { slug: true } },
       },
       orderBy: { order: "asc" },
-    });
+    }).then((rows) => rows.map(({ category, ...f }) => ({ ...f, categorySlug: category?.slug ?? null })));
   } catch (e) {
     console.error("[goodfoodMealPicker] โหลดเมนูไม่สำเร็จ — ใช้แผนแบบเดิม", e);
     return [];
@@ -213,6 +216,13 @@ export function pickMainMeals(opts: {
    * มื้อหลักจะเล็กลงเองแทนที่จะทำให้ยอดรวมทั้งวันทะลุเป้า
    */
   mainShare?: number;
+  /**
+   * เมนูนี้เอาไปลงมื้อนี้ได้ไหม (ไม่ส่ง = ได้ทุกมื้อ — พฤติกรรมเดิม)
+   *
+   * 🔴 จำเป็นตอนจัดผูกปิ่นโต: ถ้าเลือกด้วยตัวเลขมาโครอย่างเดียว
+   *    โยเกิร์ตจะไปโผล่มื้อเย็น ข้าวหน้าปลาจะไปโผล่มื้อเช้า — ตัวเลขถูกแต่คนไม่กินแบบนั้น
+   */
+  slotAllows?: (slot: MainSlot, food: PickableFood) => boolean;
 }): PickResult | null {
   const { memberId, dayKey, foods, target, avoidKeywords } = opts;
   const recent = opts.recentFoodIds ?? new Set<string>();
@@ -244,10 +254,12 @@ export function pickMainMeals(opts: {
   for (const slot of MAIN_SLOTS) {
     cumRatio += SLOT_RATIO[slot];
     const stageShare = (share * cumRatio) / MAIN_RATIO; // สะสมตามสัดส่วนมื้อ
+    const allows = opts.slotAllows;
     let best: Option | null = null;
     let bestErr = Infinity;
     for (const o of options) {
       if (usedIds.has(o.food.id)) continue;
+      if (allows && !allows(slot, o.food)) continue;
       const err = errorOf(sum([...chosen, o]), target, stageShare) + jitter([...chosen, o]);
       if (err < bestErr) { bestErr = err; best = o; }
     }
@@ -265,6 +277,7 @@ export function pickMainMeals(opts: {
       let bestOpt: Option | null = null;
       for (const o of options) {
         if (o.food.id !== cur.food.id && usedIds.has(o.food.id)) continue;
+        if (opts.slotAllows && !opts.slotAllows(MAIN_SLOTS[i], o.food)) continue;
         const trial = [...chosen];
         trial[i] = o;
         const err = errorOf(sum(trial), target, share) + jitter(trial);

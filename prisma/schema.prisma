@@ -87,6 +87,9 @@ model Member {
   coachChatLogs    CoachChatLog[]
   coachNotifications CoachNotification[]
   refreshTokens    RefreshToken[]
+  foodProfile      FoodProfile?
+  mealPlanDesigns  MealPlanDesign[]
+  mealSwaps        MealSwap[]
 
   @@map("members")
 }
@@ -1023,4 +1026,114 @@ model CoachVideo {
 
   @@index([isActive, publishedAt])
   @@map("coach_videos")
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// ผูกปิ่นโต / นักโภชนาการส่วนตัว (14 ส.ค. 2026)
+// แอปฟรี — รายได้มาจากการขายอาหารจริงผ่าน LINE OA
+// ══════════════════════════════════════════════════════════════════════
+
+/// ผลแบบสำรวจรสนิยมอาหาร — 1 แถวต่อสมาชิก
+/// แยกจาก CoachMemory เพราะอันนั้นเป็นข้อความอิสระที่ AI เขียนเอง ค้น/กรองด้วย SQL ไม่ได้
+/// ส่วนตัวนี้ต้องเอาไป "กรองเมนูจริง" ทุกครั้งที่จัดแผน จึงต้องเป็นคอลัมน์ที่ query ได้
+model FoodProfile {
+  id               String   @id @default(cuid())
+  memberId         String   @unique
+  /// 🔴 เรื่องความปลอดภัย — ต้องกรองออกก่อนเสมอ ไม่มีข้อยกเว้น
+  allergies        String[] @default([])
+  /// เนื้อสัตว์ที่ไม่กิน: หมู | วัว | ไก่ | ทะเล | ไม่กินเนื้อสัตว์
+  avoidMeats       String[] @default([])
+  /// 0 = ไม่กินเผ็ด · 1 = เผ็ดน้อย · 2 = เผ็ดกลาง · 3 = เผ็ดมาก
+  spiceLevel       Int      @default(1)
+  eatsVegetables   Boolean  @default(true)
+  dislikedVeggies  String[] @default([])
+  /// จัดจ้าน | กลมกล่อม | จืด
+  tastePref        String?
+  /// ไทย | อีสาน | ญี่ปุ่น | คลีน | ฝรั่ง | จีน ...
+  cuisines         String[] @default([])
+  /// มื้อที่อยากให้จัดให้: เช้า | กลางวัน | ว่าง | เย็น
+  mealSlots        String[] @default(["เช้า", "กลางวัน", "เย็น"])
+  /// เบาหวาน | ความดัน | ไต | ไขมันในเลือด — คุมโซเดียม/น้ำตาลเข้มขึ้น
+  healthConditions String[] @default([])
+  budgetPerDay     Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  member           Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@map("food_profiles")
+}
+
+/// แผนอาหารที่ออกแบบไว้ 1 ชุด (7 / 14 / 30 วัน) — ยังไม่ใช่ออเดอร์
+/// ต้องเก็บเป็นตารางจริงเพราะ user ต้องกลับมาดู/เปลี่ยนเมนูได้ก่อนตัดสินใจสั่ง
+model MealPlanDesign {
+  id          String               @id @default(cuid())
+  memberId    String
+  days        Int
+  /// draft = ยังแก้ได้ · ordered = สั่งแล้ว ล็อกไม่ให้แก้ · cancelled = ทิ้ง
+  status      String               @default("draft")
+  /// เป้าโภชนาการ ณ ตอนที่จัด (เก็บไว้เทียบย้อนหลัง — เป้าเปลี่ยนได้ทุกสัปดาห์)
+  targetKcal  Int
+  totalPrice  Float                @default(0)
+  /// จำนวนวันที่จัดแล้วมาโครไม่เข้าเกณฑ์ ±15% — โชว์ให้ user รู้ตรง ๆ ไม่ปกปิด
+  offTargetDays Int                @default(0)
+  orderId     String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  member      Member               @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  items       MealPlanDesignItem[]
+  swaps       MealSwap[]
+
+  @@index([memberId, status])
+  @@map("meal_plan_designs")
+}
+
+/// 1 มื้อในแผน — เก็บค่าโภชนาการ/ราคา ณ ตอนจัด (snapshot)
+/// ราคา/สูตรอาหารเปลี่ยนได้ทีหลัง แต่ใบเสนอที่ user เห็นต้องไม่เปลี่ยนตามหลังบ้าน
+model MealPlanDesignItem {
+  id         String         @id @default(cuid())
+  designId   String
+  dayNumber  Int
+  /// เช้า | กลางวัน | ว่าง | เย็น
+  slot       String
+  foodId     String
+  foodName   String
+  imageUrl   String?
+  price      Float
+  servings   Int            @default(1)
+  calories   Float
+  protein    Float
+  carbs      Float
+  fat        Float
+  sodium     Float?
+  sugar      Float?
+  /// เปลี่ยนเมนูนี้มาแล้วกี่ครั้ง — เยอะผิดปกติ = แผนวันนั้นไม่ตรงใจ
+  swapCount  Int            @default(0)
+  design     MealPlanDesign @relation(fields: [designId], references: [id], onDelete: Cascade)
+
+  @@unique([designId, dayNumber, slot])
+  @@index([designId, dayNumber])
+  @@map("meal_plan_design_items")
+}
+
+/// ประวัติการกดเปลี่ยนเมนู — สัญญาณเรียนรู้รสนิยมที่ตรงที่สุด
+/// 🔴 ต้องเก็บ "เหตุผล" ด้วย: เบื่อ ≠ ไม่ชอบ
+///    ถ้านับรวมกันหมด ระบบจะตัดเมนูที่ลูกค้าชอบทิ้งเพราะเพิ่งกินไป
+model MealSwap {
+  id         String          @id @default(cuid())
+  memberId   String
+  designId   String?
+  dayNumber  Int?
+  slot       String?
+  fromFoodId String
+  fromName   String
+  toFoodId   String?
+  toName     String?
+  /// dislike = ไม่ชอบเมนูนี้ · bored = เพิ่งกินไป · variety = อยากลองอย่างอื่น
+  reason     String          @default("dislike")
+  createdAt  DateTime        @default(now())
+  member     Member          @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  design     MealPlanDesign? @relation(fields: [designId], references: [id], onDelete: SetNull)
+
+  @@index([memberId, fromFoodId])
+  @@map("meal_swaps")
 }
