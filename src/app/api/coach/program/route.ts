@@ -86,7 +86,17 @@ export async function GET(req: NextRequest) {
   });
   const menuAt = new Map(menu.map((m) => [`${dayKey(m.date)}|${m.slot}`, m]));
 
-  const week = days.map((d) => {
+  /*
+   * 🔴 ต้องรวม "วันที่ขอหยุด" เข้าไปในตารางด้วย ไม่ใช่แสดงแค่วันที่ได้รับจริง
+   *    ไม่งั้น user กดหยุดแล้ววันนั้นหายไปจากหน้าจอเลย → กด "กลับมารับ" ไม่ได้อีกต่อไป
+   *    (เจอตอนเรนเดอร์หน้าจอดู — ปุ่มยกเลิกการหยุดกลายเป็นโค้ดที่ไม่มีวันถูกเรียก)
+   */
+  const skippedDays = enrollment.skips
+    .map((s) => ({ dayNumber: 0, date: s.date }))
+    .filter((s) => s.date >= enrollment.startDate);
+  const allDays = [...days, ...skippedDays].sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  const week = allDays.map((d) => {
     const key = dayKey(d.date);
     const meals = PROGRAM_SLOTS.filter((s) => enrollment.slots.includes(s)).map((slot) => {
       const cell = menuAt.get(`${key}|${slot}`);
@@ -116,7 +126,9 @@ export async function GET(req: NextRequest) {
       date: key,
       label: thaiDate(d.date),
       isToday: key === dayKey(today),
-      /** ขอหยุดวันนี้ได้ไหม — แอปเอาไปเปิด/ปิดปุ่มพร้อมบอกเหตุผลถ้าไม่ได้ */
+      /** true = วันนี้ขอหยุดไว้ (dayNumber = 0 เพราะไม่นับเป็นวันของคอร์ส) */
+      skipped: skipKeys.has(key),
+      /** ขอหยุด/ยกเลิกการหยุดวันนี้ได้ไหม — แอปเอาไปเปิด/ปิดปุ่มพร้อมบอกเหตุผลถ้าไม่ได้ */
       skippable: canSkip(d.date),
       meals,
     };
