@@ -8,88 +8,91 @@ datasource db {
 }
 
 model Member {
-  id               String            @id @default(cuid())
-  lineUserId       String?           @unique
-  displayName      String?
-  pictureUrl       String?
-  name             String?
-  email            String?
-  phone            String?
-  gender           String?
-  birthDate        DateTime?
-  height           Float?
-  weight           Float?
-  goalWeight       Float?
-  goalType         String?
-  activityLevel    String?
-  equipment        String?           // none | home (ดัมเบล/ยางยืด) | gym — ใช้เลือกท่าออกกำลังกาย
-  dietType         String?
-  targetMonths     Int?
-  bmr              Float?
-  tdee             Float?
-  dailyCalories    Int?
-  dailyProtein     Float?
-  dailyCarbs       Float?
-  dailyFat         Float?
-  dailySodium      Float?
-  dailySugar       Float?
-  dailyWater       Float?
-  memberTypeId     String?
-  isOnboarded      Boolean           @default(false)
-  isActive         Boolean           @default(true)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  
+  id            String    @id @default(cuid())
+  lineUserId    String?   @unique
+  displayName   String?
+  pictureUrl    String?
+  name          String?
+  email         String?
+  phone         String?
+  gender        String?
+  birthDate     DateTime?
+  height        Float?
+  weight        Float?
+  goalWeight    Float?
+  goalType      String?
+  activityLevel String?
+  equipment     String? // none | home (ดัมเบล/ยางยืด) | gym — ใช้เลือกท่าออกกำลังกาย
+  dietType      String?
+  targetMonths  Int?
+  bmr           Float?
+  tdee          Float?
+  dailyCalories Int?
+  dailyProtein  Float?
+  dailyCarbs    Float?
+  dailyFat      Float?
+  dailySodium   Float?
+  dailySugar    Float?
+  dailyWater    Float?
+  /// ว่าง = คำนวณให้อัตโนมัติ 14 ก. ต่อ 1,000 kcal (เกณฑ์ DRI) — ใส่ค่าเองได้ถ้าหมอสั่ง
+  dailyFiber    Float?
+  memberTypeId  String?
+  isOnboarded   Boolean   @default(false)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
   // Activity Status (inactive until onboarding completes, then active)
-  activityStatus      String      @default("inactive")  // "active" | "inactive"
-  lastActiveAt        DateTime    @default(now())
-  inactiveSince       DateTime?
-  welcomeBackShown    Boolean     @default(false)
-  
+  activityStatus   String    @default("inactive") // "active" | "inactive"
+  lastActiveAt     DateTime  @default(now())
+  inactiveSince    DateTime?
+  welcomeBackShown Boolean   @default(false)
+
   // AI Coach expire date (set by Admin)
-  aiCoachExpireDate  DateTime?
-  
+  aiCoachExpireDate DateTime?
+
   // Notification Preferences
-  notifyMorningCoach     Boolean   @default(true)
-  notifyEveningSummary   Boolean   @default(true)
-  notifyWeeklyInsights   Boolean   @default(true)
-  notifyLunchSuggestion  Boolean   @default(true)
-  notifyDinnerSuggestion Boolean   @default(true)
-  notifyWaterReminder    Boolean   @default(true)
-  notifyProgressPhoto    Boolean   @default(true)
-  notifyPostExercise     Boolean   @default(true)
-  notifyWeightReminder   Boolean   @default(true)
-  notifyArticles         Boolean   @default(true)   // บทความสุขภาพที่ตรงกับพฤติกรรม (B2)
+  notifyMorningCoach       Boolean   @default(true)
+  notifyEveningSummary     Boolean   @default(true)
+  notifyWeeklyInsights     Boolean   @default(true)
+  notifyLunchSuggestion    Boolean   @default(true)
+  notifyDinnerSuggestion   Boolean   @default(true)
+  notifyWaterReminder      Boolean   @default(true)
+  notifyProgressPhoto      Boolean   @default(true)
+  notifyPostExercise       Boolean   @default(true)
+  notifyWeightReminder     Boolean   @default(true)
+  notifyArticles           Boolean   @default(true) // บทความสุขภาพที่ตรงกับพฤติกรรม (B2)
   // เพิ่มทีละ 1 ตอน logout — watch token ที่ออกก่อนหน้าจะมี epoch เก่าแล้วใช้ไม่ได้ทันที
   // (watch token อายุ 30 วันและไม่มีแถวใน DB จึงเพิกถอนรายใบไม่ได้แบบ refresh token)
-  sessionEpoch           Int       @default(0)
-  dailyBurnGoal          Int?      // เป้าเผาผลาญ/วัน (kcal) ที่ user ตั้งเอง — ว่าง = ใช้ Move goal ของนาฬิกา/คำนวณให้
+  sessionEpoch             Int       @default(0)
+  dailyBurnGoal            Int? // เป้าเผาผลาญ/วัน (kcal) ที่ user ตั้งเอง — ว่าง = ใช้ Move goal ของนาฬิกา/คำนวณให้
   notificationsPausedUntil DateTime?
-  
-  addresses        Address[]
-  aiRecommendation AiRecommendation?
-  cartItems        CartItem[]
-  dailyPlans       DailyPlan[]
-  exerciseLogs     ExerciseLog[]
-  mealLogs         MealLog[]
-  memberType       MemberType?       @relation(fields: [memberTypeId], references: [id])
-  orders           Order[]
-  progressPhotos   ProgressPhoto[]
-  waterLogs        WaterLog[]
-  weightLogs       WeightLog[]
-  authIdentities   AuthIdentity[]
-  deviceTokens     DeviceToken[]
-  sleepLogs        SleepLog[]
-  dailyMetrics     DailyMetric[]
-  workoutSessions  WorkoutSession[]
-  coachMemories    CoachMemory[]
-  behaviorInsights BehaviorInsight[]
-  coachChatLogs    CoachChatLog[]
+
+  addresses          Address[]
+  aiRecommendation   AiRecommendation?
+  cartItems          CartItem[]
+  dailyPlans         DailyPlan[]
+  exerciseLogs       ExerciseLog[]
+  mealLogs           MealLog[]
+  memberType         MemberType?         @relation(fields: [memberTypeId], references: [id])
+  orders             Order[]
+  progressPhotos     ProgressPhoto[]
+  waterLogs          WaterLog[]
+  weightLogs         WeightLog[]
+  authIdentities     AuthIdentity[]
+  deviceTokens       DeviceToken[]
+  sleepLogs          SleepLog[]
+  dailyMetrics       DailyMetric[]
+  workoutSessions    WorkoutSession[]
+  coachMemories      CoachMemory[]
+  behaviorInsights   BehaviorInsight[]
+  coachChatLogs      CoachChatLog[]
   coachNotifications CoachNotification[]
-  refreshTokens    RefreshToken[]
-  foodProfile      FoodProfile?
-  mealPlanDesigns  MealPlanDesign[]
-  mealSwaps        MealSwap[]
+  refreshTokens      RefreshToken[]
+  foodProfile        FoodProfile?
+  mealPlanDesigns    MealPlanDesign[]
+  mealSwaps          MealSwap[]
+  enrollments        ProgramEnrollment[]
 
   @@map("members")
 }
@@ -98,8 +101,8 @@ model Member {
 model AuthIdentity {
   id         String   @id @default(cuid())
   memberId   String
-  provider   String   // "apple" | "google" | "line"
-  providerId String   // sub / userId
+  provider   String // "apple" | "google" | "line"
+  providerId String // sub / userId
   email      String?
   createdAt  DateTime @default(now())
   member     Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
@@ -126,7 +129,7 @@ model RefreshToken {
 model DeviceToken {
   id        String   @id @default(cuid())
   memberId  String
-  platform  String   // "ios" | "android"
+  platform  String // "ios" | "android"
   token     String   @unique // Expo push token / APNs / FCM
   lastSeen  DateTime @default(now())
   createdAt DateTime @default(now())
@@ -138,20 +141,20 @@ model DeviceToken {
 
 // ── Coach : Health sync ──
 model SleepLog {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   memberId      String
   date          DateTime // BKK date key ของคืนที่ตื่น
   minutesAsleep Int
   quality       Float?
-  stages        Json?    // {deep,rem,core,awake} นาที
+  stages        Json? // {deep,rem,core,awake} นาที
   // เวลาเข้านอน/ตื่นจริง — ใช้ดู "ความสม่ำเสมอของเวลานอน" ซึ่งสัมพันธ์กับการลดน้ำหนักมาก
   // (เก็บเป็น instant จริง ไม่ใช่แค่จำนวนนาที · null = แหล่งข้อมูลไม่ได้บอกเวลา เช่นที่ user พูดเอง)
   startAt       DateTime?
   endAt         DateTime?
-  source        String   @default("healthkit")
+  source        String    @default("healthkit")
   sourceId      String?
-  createdAt     DateTime @default(now())
-  member        Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  createdAt     DateTime  @default(now())
+  member        Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   @@unique([memberId, date, source])
   @@index([memberId, date])
@@ -159,38 +162,38 @@ model SleepLog {
 }
 
 model DailyMetric {
-  id         String   @id @default(cuid())
-  memberId   String
-  date       DateTime
-  steps      Int?
-  restingHR  Int?
-  activeKcal Int?
-  standHours Int? // ชั่วโมงที่ลุกยืน (วง Stand ของ Apple — มาจาก Watch เท่านั้น)
+  id          String   @id @default(cuid())
+  memberId    String
+  date        DateTime
+  steps       Int?
+  restingHR   Int?
+  activeKcal  Int?
+  standHours  Int? // ชั่วโมงที่ลุกยืน (วง Stand ของ Apple — มาจาก Watch เท่านั้น)
   exerciseMin Int? // นาทีออกกำลังกาย (วง Exercise)
-  moveGoal   Int? // เป้าวง Move ของวันนั้นที่ user ตั้งไว้บนนาฬิกา (kcal) — Apple ให้เปลี่ยนได้รายวัน
+  moveGoal    Int? // เป้าวง Move ของวันนั้นที่ user ตั้งไว้บนนาฬิกา (kcal) — Apple ให้เปลี่ยนได้รายวัน
 
   // ── ตัวชี้วัดเชิงลึกจาก Apple Watch (เพิ่ม 13 ส.ค. 2026 · ทุกตัว nullable = ไม่มีก็ไม่เป็นไร) ──
   // เก็บเป็นคอลัมน์จริงไม่ใช่ JSON เพราะต้องทำกราฟ/ค่าเฉลี่ย/เทรนด์ด้วย SQL
-  hrvMs          Float? // HRV SDNN (ms) — ตัวชี้ความเครียด/การฟื้นตัวที่ดีที่สุดที่ Watch ให้
-  vo2max         Float? // ml/kg/min — ระดับฟิตของหัวใจ (Watch ประเมินให้เอง)
-  hrRecovery     Int?   // ชีพจรที่ลดลงใน 1 นาทีหลังจบการออกกำลังกาย (ยิ่งมากยิ่งฟิต)
+  hrvMs           Float? // HRV SDNN (ms) — ตัวชี้ความเครียด/การฟื้นตัวที่ดีที่สุดที่ Watch ให้
+  vo2max          Float? // ml/kg/min — ระดับฟิตของหัวใจ (Watch ประเมินให้เอง)
+  hrRecovery      Int? // ชีพจรที่ลดลงใน 1 นาทีหลังจบการออกกำลังกาย (ยิ่งมากยิ่งฟิต)
   respiratoryRate Float? // ครั้ง/นาที (วัดขณะหลับ)
-  spo2           Float? // ออกซิเจนในเลือด 0-1
-  wristTempDelta Float? // อุณหภูมิข้อมือขณะหลับ เทียบ baseline ของตัวเอง (°C · Apple ให้เป็นส่วนต่าง)
-  breathDisturb  Float? // สัดส่วนการหายใจผิดปกติขณะหลับ 0-1
-  distanceM      Int?   // ระยะทางเดิน+วิ่ง (เมตร)
-  flights        Int?   // จำนวนชั้นบันไดที่ขึ้น
-  daylightMin    Int?   // เวลาอยู่กลางแดด (นาที)
-  walkingSpeed   Float? // ความเร็วเดินเฉลี่ย (กม./ชม.)
-  basalKcal      Int?   // พลังงานพื้นฐานที่ Watch วัดได้ — เอาไปเทียบกับ TDEE ที่เราคำนวณ
-  bodyFatPct     Float? // % ไขมัน (ต้องมีเครื่องชั่งอัจฉริยะ)
-  leanMassKg     Float? // มวลไร้ไขมัน (กก.)
-  mindfulMin     Int?   // นาทีทำสมาธิ
-  audioDb        Float? // ระดับเสียงรอบตัวเฉลี่ย (dBA)
+  spo2            Float? // ออกซิเจนในเลือด 0-1
+  wristTempDelta  Float? // อุณหภูมิข้อมือขณะหลับ เทียบ baseline ของตัวเอง (°C · Apple ให้เป็นส่วนต่าง)
+  breathDisturb   Float? // สัดส่วนการหายใจผิดปกติขณะหลับ 0-1
+  distanceM       Int? // ระยะทางเดิน+วิ่ง (เมตร)
+  flights         Int? // จำนวนชั้นบันไดที่ขึ้น
+  daylightMin     Int? // เวลาอยู่กลางแดด (นาที)
+  walkingSpeed    Float? // ความเร็วเดินเฉลี่ย (กม./ชม.)
+  basalKcal       Int? // พลังงานพื้นฐานที่ Watch วัดได้ — เอาไปเทียบกับ TDEE ที่เราคำนวณ
+  bodyFatPct      Float? // % ไขมัน (ต้องมีเครื่องชั่งอัจฉริยะ)
+  leanMassKg      Float? // มวลไร้ไขมัน (กก.)
+  mindfulMin      Int? // นาทีทำสมาธิ
+  audioDb         Float? // ระดับเสียงรอบตัวเฉลี่ย (dBA)
 
-  source     String   @default("healthkit")
-  createdAt  DateTime @default(now())
-  member     Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  source    String   @default("healthkit")
+  createdAt DateTime @default(now())
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   @@unique([memberId, date, source])
   @@index([memberId, date])
@@ -203,12 +206,12 @@ model WorkoutSession {
   memberId      String
   startedAt     DateTime
   endedAt       DateTime?
-  type          String    // run|walk|bike|strength|...
+  type          String // run|walk|bike|strength|...
   avgHR         Int?
   maxHR         Int?
   kcal          Int?
   distanceM     Int?
-  nudges        Json?     // [{tAt, text, kind}]
+  nudges        Json? // [{tAt, text, kind}]
   exerciseLogId String?
   createdAt     DateTime  @default(now())
   member        Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
@@ -221,10 +224,10 @@ model WorkoutSession {
 model CoachMemory {
   id         String   @id @default(cuid())
   memberId   String
-  kind       String   // preference | pattern | constraint | goal_note | dislike | injury | schedule | context
+  kind       String // preference | pattern | constraint | goal_note | dislike | injury | schedule | context
   fact       String
   confidence Float    @default(0.6)
-  source     String   // "chat" | "log_pattern" | "onboarding" | "user_stated"
+  source     String // "chat" | "log_pattern" | "onboarding" | "user_stated"
   active     Boolean  @default(true)
   lastSeenAt DateTime @default(now())
   createdAt  DateTime @default(now())
@@ -239,7 +242,7 @@ model CoachMemory {
 model CoachChatLog {
   id        String   @id @default(cuid())
   memberId  String
-  role      String   // "user" | "assistant"
+  role      String // "user" | "assistant"
   content   String
   createdAt DateTime @default(now())
   member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
@@ -267,9 +270,9 @@ model CoachNotification {
 model BehaviorInsight {
   id         String   @id @default(cuid())
   memberId   String
-  periodType String   // "weekly" | "monthly"
-  periodKey  String   // "2026-W30"
-  metric     String   // sodium_trend | protein_gap | sleep_avg | adherence | weight_trend
+  periodType String // "weekly" | "monthly"
+  periodKey  String // "2026-W30"
+  metric     String // sodium_trend | protein_gap | sleep_avg | adherence | weight_trend
   value      Json
   createdAt  DateTime @default(now())
   member     Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
@@ -281,19 +284,19 @@ model BehaviorInsight {
 
 // ── AI Coach: แผนรายวัน (ออกกำลังกาย + อาหาร) — เฟส 1 ──
 model DailyPlan {
-  id           String   @id @default(cuid())
-  memberId     String
-  date         DateTime // วันที่ของแผน (BKK date เก็บ 00:00 UTC ของวันนั้น -7)
-  exercisePlan Json     // {title, durationMin, items:[{name,sets?,reps?,minutes?,note}], caloriesTarget}
-  mealPlan     Json     // {meals:[{slot,menu,ingredients?,kcal,protein,carbs,fat,sodium?,sugar?}], totalKcal}
-  aiNote       String?  // เหตุผล/การปรับแผนของ AI
-  status       String   @default("planned") // planned | done | partial | skipped
-  exerciseDone Boolean  @default(false)
-  mealsDone    Json?    // {"เช้า":true,...}
+  id                String   @id @default(cuid())
+  memberId          String
+  date              DateTime // วันที่ของแผน (BKK date เก็บ 00:00 UTC ของวันนั้น -7)
+  exercisePlan      Json // {title, durationMin, items:[{name,sets?,reps?,minutes?,note}], caloriesTarget}
+  mealPlan          Json // {meals:[{slot,menu,ingredients?,kcal,protein,carbs,fat,sodium?,sugar?}], totalKcal}
+  aiNote            String? // เหตุผล/การปรับแผนของ AI
+  status            String   @default("planned") // planned | done | partial | skipped
+  exerciseDone      Boolean  @default(false)
+  mealsDone         Json? // {"เช้า":true,...}
   exerciseItemsDone Json? // {"ชื่อท่า":true,...} ติ๊กรายท่า (Coach native)
-  generatedAt  DateTime @default(now())
-  weekBatchId  String?  // ผูกชุดที่ gen พร้อมกัน ใช้ตอน regenerate
-  member       Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  generatedAt       DateTime @default(now())
+  weekBatchId       String? // ผูกชุดที่ gen พร้อมกัน ใช้ตอน regenerate
+  member            Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   @@unique([memberId, date])
   @@index([memberId, date])
@@ -305,7 +308,7 @@ model CoachDispatchLog {
   id        String   @id @default(cuid())
   memberId  String
   date      DateTime // BKK date (00:00 UTC-7)
-  type      String   // morning | ...
+  type      String // morning | ...
   createdAt DateTime @default(now())
 
   @@unique([memberId, date, type])
@@ -318,10 +321,10 @@ model PlanAdjustment {
   id           String   @id @default(cuid())
   memberId     String
   date         DateTime @default(now())
-  reason       String   // เหตุผลที่ปรับ (plateau / on-track / ...)
+  reason       String // เหตุผลที่ปรับ (plateau / on-track / ...)
   prevCalories Int?
   newCalories  Int?
-  detail       Json?    // {weightTrend, adherence, note}
+  detail       Json? // {weightTrend, adherence, note}
   createdAt    DateTime @default(now())
 
   @@index([memberId, date])
@@ -401,7 +404,7 @@ model ExerciseLog {
   intensity String?
   note      String?
   source    String   @default("manual") // manual | healthkit | watch | ai_photo
-  sourceId  String?  // dedup กับ HealthKit/Watch
+  sourceId  String? // dedup กับ HealthKit/Watch
   date      DateTime @default(now())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -428,7 +431,7 @@ model CartItem {
 }
 
 model Address {
-  id          String   @id @default(cuid())
+  id          String              @id @default(cuid())
   memberId    String
   label       String?
   name        String
@@ -439,12 +442,13 @@ model Address {
   province    String
   postalCode  String
   note        String?
-  isDefault   Boolean  @default(false)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  isDefault   Boolean             @default(false)
+  isActive    Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  member      Member              @relation(fields: [memberId], references: [id], onDelete: Cascade)
   orders      Order[]
+  enrollments ProgramEnrollment[]
 
   @@index([memberId])
   @@map("addresses")
@@ -542,13 +546,13 @@ model Category {
 }
 
 model Food {
-  id             String          @id @default(cuid())
-  sku            String?         // รหัสสินค้า
+  id             String             @id @default(cuid())
+  sku            String? // รหัสสินค้า
   name           String
   description    String?
-  ingredients    String[]        @default([])
+  ingredients    String[]           @default([])
   imageUrl       String?
-  images         String[]        @default([])
+  images         String[]           @default([])
   price          Float
   discountPrice  Float?
   badge          String?
@@ -562,18 +566,19 @@ model Food {
   servingSize    Float?
   servingUnit    String?
   warning        String?
-  isActive       Boolean         @default(true)
-  order          Int             @default(0)
+  isActive       Boolean            @default(true)
+  order          Int                @default(0)
   categoryId     String
   restaurantId   String?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
   cartItems      CartItem[]
-  category       Category        @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  restaurant     Restaurant?     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  category       Category           @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  restaurant     Restaurant?        @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   orderItems     OrderItem[]
   promotionGifts PromotionGift[]
   promotionItems PromotionItem[]
+  calendarItems  MenuCalendarItem[]
 
   @@map("foods")
 }
@@ -587,8 +592,8 @@ model Package {
   mealsPerDay   Int         @default(3)
   requiredItems Int         @default(1)
   price         Float       @default(0)
-  discountType  String?     // "percent" | "fixed" | null (optional)
-  discountValue Float?      // optional discount value
+  discountType  String? // "percent" | "fixed" | null (optional)
+  discountValue Float? // optional discount value
   freeItems     Int         @default(0) // จำนวนเมนูแถม
   isActive      Boolean     @default(true)
   order         Int         @default(0)
@@ -671,37 +676,37 @@ enum ArticleStatus {
 }
 
 model Article {
-  id              String           @id @default(cuid())
-  title           String
-  slug            String           @unique
-  excerpt         String?
-  content         String?
-  coverImage      String?
-  ogImage         String?
-  categoryId      String?
-  tags            String?
-  authorId        String?
-  isFeatured      Boolean          @default(false)
-  status          ArticleStatus    @default(DRAFT)
-  publishedAt     DateTime?
-  scheduledFor    DateTime?
-  views           Int              @default(0)
-  readTime        Int              @default(5)
-  order           Int              @default(0)
-  metaDescription String?
-  focusKeyword    String?
-  canonicalUrl    String?
-  recipeData      Json?
-  imagePrompt     String?
-  socialCard          Json?
-  socialImage         String?
-  socialDispatchedAt  DateTime?
-  socialPostId        String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  category        ArticleCategory? @relation(fields: [categoryId], references: [id])
-  authorStaff     Staff?           @relation("ArticleAuthor", fields: [authorId], references: [id])
-  socialDispatches SocialDispatch[]
+  id                 String           @id @default(cuid())
+  title              String
+  slug               String           @unique
+  excerpt            String?
+  content            String?
+  coverImage         String?
+  ogImage            String?
+  categoryId         String?
+  tags               String?
+  authorId           String?
+  isFeatured         Boolean          @default(false)
+  status             ArticleStatus    @default(DRAFT)
+  publishedAt        DateTime?
+  scheduledFor       DateTime?
+  views              Int              @default(0)
+  readTime           Int              @default(5)
+  order              Int              @default(0)
+  metaDescription    String?
+  focusKeyword       String?
+  canonicalUrl       String?
+  recipeData         Json?
+  imagePrompt        String?
+  socialCard         Json?
+  socialImage        String?
+  socialDispatchedAt DateTime?
+  socialPostId       String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  category           ArticleCategory? @relation(fields: [categoryId], references: [id])
+  authorStaff        Staff?           @relation("ArticleAuthor", fields: [authorId], references: [id])
+  socialDispatches   SocialDispatch[]
 
   @@index([status, publishedAt])
   @@index([status, scheduledFor])
@@ -711,18 +716,18 @@ model Article {
 }
 
 model SocialDispatch {
-  id            String   @id @default(cuid())
-  articleId     String
-  article       Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  sharkPostId   String?
-  channelIds    String[]
-  status        String   // PENDING | DISPATCHED | FAILED
-  scheduledAt   DateTime
-  dispatchedAt  DateTime?
-  error         String?
-  attemptCount  Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String    @id @default(cuid())
+  articleId    String
+  article      Article   @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  sharkPostId  String?
+  channelIds   String[]
+  status       String // PENDING | DISPATCHED | FAILED
+  scheduledAt  DateTime
+  dispatchedAt DateTime?
+  error        String?
+  attemptCount Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@index([articleId])
   @@index([status])
@@ -747,17 +752,17 @@ model Video {
 }
 
 model Staff {
-  id        String   @id @default(cuid())
-  email     String   @unique
+  id        String    @id @default(cuid())
+  email     String    @unique
   password  String
   name      String
   phone     String?
   avatarUrl String?
   roleId    String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  role      Role     @relation(fields: [roleId], references: [id])
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  role      Role      @relation(fields: [roleId], references: [id])
   articles  Article[] @relation("ArticleAuthor")
 
   @@map("staff")
@@ -776,64 +781,64 @@ model Role {
 }
 
 model MemberType {
-  id                    String   @id @default(cuid())
-  name                  String   @unique
-  description           String?
-  color                 String   @default("#4CAF50")
-  
-  // AI Limit Mode: "by_type" = แยกตามประเภท, "combined" = รวมทั้งหมด
-  aiLimitMode           String   @default("by_type")
-  totalDailyAiLimit     Int      @default(15)  // ใช้เมื่อ aiLimitMode = "combined"
-  
-  // AI Usage Limits (0 = unlimited) - ใช้เมื่อ aiLimitMode = "by_type"
-  dailyPhotoLimit           Int      @default(3)   // ถ่ายรูปอาหาร
-  dailyAiAnalysisLimit      Int      @default(3)   // วิเคราะห์อาหารจากรูป
-  dailyAiTextAnalysisLimit  Int      @default(3)   // วิเคราะห์อาหารจากข้อความ
-  dailyAiRecommendLimit     Int      @default(3)   // AI คำแนะนำ
-  dailyExerciseAnalysisLimit Int     @default(3)   // วิเคราะห์การออกกำลังกาย
-  dailyMenuSelectLimit      Int      @default(3)   // AI เลือกเมนู
-  dailyScanLimit            Int      @default(5)   // สแกน Barcode
-  dailyChatLimit            Int      @default(20)  // AI ตอบแชท LINE (เฟส 3)
+  id          String  @id @default(cuid())
+  name        String  @unique
+  description String?
+  color       String  @default("#4CAF50")
 
-  isDefault             Boolean  @default(false)
-  isActive              Boolean  @default(true)
-  order                 Int      @default(0)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  
+  // AI Limit Mode: "by_type" = แยกตามประเภท, "combined" = รวมทั้งหมด
+  aiLimitMode       String @default("by_type")
+  totalDailyAiLimit Int    @default(15) // ใช้เมื่อ aiLimitMode = "combined"
+
+  // AI Usage Limits (0 = unlimited) - ใช้เมื่อ aiLimitMode = "by_type"
+  dailyPhotoLimit            Int @default(3) // ถ่ายรูปอาหาร
+  dailyAiAnalysisLimit       Int @default(3) // วิเคราะห์อาหารจากรูป
+  dailyAiTextAnalysisLimit   Int @default(3) // วิเคราะห์อาหารจากข้อความ
+  dailyAiRecommendLimit      Int @default(3) // AI คำแนะนำ
+  dailyExerciseAnalysisLimit Int @default(3) // วิเคราะห์การออกกำลังกาย
+  dailyMenuSelectLimit       Int @default(3) // AI เลือกเมนู
+  dailyScanLimit             Int @default(5) // สแกน Barcode
+  dailyChatLimit             Int @default(20) // AI ตอบแชท LINE (เฟส 3)
+
+  isDefault Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Course Duration (0 = unlimited)
-  courseDuration        Int      @default(7)
-  
+  courseDuration Int @default(7)
+
   // Coaching Times
-  morningCoachTime      String   @default("07:00")
-  lunchReminderTime     String   @default("11:30")
-  dinnerReminderTime    String   @default("17:30")
-  eveningSummaryTime    String   @default("20:00")
-  
+  morningCoachTime   String @default("07:00")
+  lunchReminderTime  String @default("11:30")
+  dinnerReminderTime String @default("17:30")
+  eveningSummaryTime String @default("20:00")
+
   // Water Reminder
-  waterReminderTimes    String   @default("09:00,11:00,14:00,16:00")
-  
+  waterReminderTimes String @default("09:00,11:00,14:00,16:00")
+
   // Weekly
-  weeklyInsightsTime    String   @default("09:00")
-  
+  weeklyInsightsTime String @default("09:00")
+
   // Inactive threshold (days)
-  inactiveReminderDays  Int      @default(2)
-  
-  members               Member[]
+  inactiveReminderDays Int @default(2)
+
+  members Member[]
 
   @@map("member_types")
 }
 
 model ProgressPhoto {
-  id          String   @id @default(cuid())
-  memberId    String
-  imageUrl    String
-  weight      Float?
-  weekNumber  Int
-  note        String?
-  takenAt     DateTime @default(now())
-  createdAt   DateTime @default(now())
-  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  memberId   String
+  imageUrl   String
+  weight     Float?
+  weekNumber Int
+  note       String?
+  takenAt    DateTime @default(now())
+  createdAt  DateTime @default(now())
+  member     Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   @@index([memberId, weekNumber])
   @@map("progress_photos")
@@ -932,29 +937,29 @@ model BarcodeScanHistory {
 }
 
 model SystemSetting {
-  id        String   @id @default("system")
-  
+  id String @id @default("system")
+
   // AI Coach Global Settings
-  aiCoachEnabled           Boolean  @default(true)
-  trialDays                Int      @default(7)
-  trialMemberTypeId        String?
-  generalMemberTypeId      String?
-  
+  aiCoachEnabled      Boolean @default(true)
+  trialDays           Int     @default(7)
+  trialMemberTypeId   String?
+  generalMemberTypeId String?
+
   // Premium Upgrade Settings
-  premiumPrice             Int      @default(299)  // ราคาอัพเกรด Premium (บาท)
-  premiumDays              Int      @default(30)   // จำนวนวัน Premium
-  
+  premiumPrice Int @default(299) // ราคาอัพเกรด Premium (บาท)
+  premiumDays  Int @default(30) // จำนวนวัน Premium
+
   // Member Activity Status Settings
-  inactiveDaysThreshold    Int      @default(7)    // จำนวนวันที่ไม่เปิดแอปถึงจะเป็น Inactive
-  gracePeriodDays          Int      @default(2)    // ส่งเตือนก่อนเปลี่ยนสถานะกี่วัน
+  inactiveDaysThreshold Int @default(7) // จำนวนวันที่ไม่เปิดแอปถึงจะเป็น Inactive
+  gracePeriodDays       Int @default(2) // ส่งเตือนก่อนเปลี่ยนสถานะกี่วัน
 
   // LINE OA ที่ใช้รับออเดอร์อาหาร (เช่น "@goodfood") — ว่าง = ปุ่มสั่งในแอปยังไม่เปิด
-  lineOaId                 String?
+  lineOaId String?
 
   // ราคาเครดิต AI ต่อ action (โหมด combined) — null = ใช้ค่าเริ่มต้นในโค้ด (src/lib/aiCredits.ts)
   // { chat, photo, plan, barcode, textAnalysis, exerciseAnalysis, recommend, menuSelect }
-  aiCreditCosts            Json?
-  
+  aiCreditCosts Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -964,7 +969,7 @@ model SystemSetting {
 model SecretSetting {
   id          String   @id @default(cuid())
   key         String   @unique
-  valueEnc    String   // AES-256-GCM: ivHex:cipherHex:tagHex
+  valueEnc    String // AES-256-GCM: ivHex:cipherHex:tagHex
   description String?
   updatedBy   String?
   updatedAt   DateTime @updatedAt
@@ -974,13 +979,13 @@ model SecretSetting {
 }
 
 model AiUsageLog {
-  id         String   @id @default(cuid())
-  memberId   String
-  usageType  String   // "photo", "ai_analysis", "ai_text_analysis", "ai_recommend", "exercise_analysis", "menu_select", "scan"
+  id        String   @id @default(cuid())
+  memberId  String
+  usageType String // "photo", "ai_analysis", "ai_text_analysis", "ai_recommend", "exercise_analysis", "menu_select", "scan"
   // เครดิตที่หักจริงของครั้งนั้น (โหมด combined) — เก็บติดแถวเพื่อให้ย้อนดูได้ว่าตอนนั้นราคาเท่าไหร่
-  creditKey  String?  // chat | photo | plan | barcode | textAnalysis | exerciseAnalysis | recommend | menuSelect
-  credits    Int      @default(1)
-  createdAt  DateTime @default(now())
+  creditKey String? // chat | photo | plan | barcode | textAnalysis | exerciseAnalysis | recommend | menuSelect
+  credits   Int      @default(1)
+  createdAt DateTime @default(now())
 
   @@index([memberId, usageType, createdAt])
   @@map("ai_usage_logs")
@@ -1066,22 +1071,22 @@ model FoodProfile {
 /// แผนอาหารที่ออกแบบไว้ 1 ชุด (7 / 14 / 30 วัน) — ยังไม่ใช่ออเดอร์
 /// ต้องเก็บเป็นตารางจริงเพราะ user ต้องกลับมาดู/เปลี่ยนเมนูได้ก่อนตัดสินใจสั่ง
 model MealPlanDesign {
-  id          String               @id @default(cuid())
-  memberId    String
-  days        Int
+  id            String               @id @default(cuid())
+  memberId      String
+  days          Int
   /// draft = ยังแก้ได้ · ordered = สั่งแล้ว ล็อกไม่ให้แก้ · cancelled = ทิ้ง
-  status      String               @default("draft")
+  status        String               @default("draft")
   /// เป้าโภชนาการ ณ ตอนที่จัด (เก็บไว้เทียบย้อนหลัง — เป้าเปลี่ยนได้ทุกสัปดาห์)
-  targetKcal  Int
-  totalPrice  Float                @default(0)
+  targetKcal    Int
+  totalPrice    Float                @default(0)
   /// จำนวนวันที่จัดแล้วมาโครไม่เข้าเกณฑ์ ±15% — โชว์ให้ user รู้ตรง ๆ ไม่ปกปิด
-  offTargetDays Int                @default(0)
-  orderId     String?
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
-  member      Member               @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  items       MealPlanDesignItem[]
-  swaps       MealSwap[]
+  offTargetDays Int                  @default(0)
+  orderId       String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  member        Member               @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  items         MealPlanDesignItem[]
+  swaps         MealSwap[]
 
   @@index([memberId, status])
   @@map("meal_plan_designs")
@@ -1090,25 +1095,25 @@ model MealPlanDesign {
 /// 1 มื้อในแผน — เก็บค่าโภชนาการ/ราคา ณ ตอนจัด (snapshot)
 /// ราคา/สูตรอาหารเปลี่ยนได้ทีหลัง แต่ใบเสนอที่ user เห็นต้องไม่เปลี่ยนตามหลังบ้าน
 model MealPlanDesignItem {
-  id         String         @id @default(cuid())
-  designId   String
-  dayNumber  Int
+  id        String         @id @default(cuid())
+  designId  String
+  dayNumber Int
   /// เช้า | กลางวัน | ว่าง | เย็น
-  slot       String
-  foodId     String
-  foodName   String
-  imageUrl   String?
-  price      Float
-  servings   Int            @default(1)
-  calories   Float
-  protein    Float
-  carbs      Float
-  fat        Float
-  sodium     Float?
-  sugar      Float?
+  slot      String
+  foodId    String
+  foodName  String
+  imageUrl  String?
+  price     Float
+  servings  Int            @default(1)
+  calories  Float
+  protein   Float
+  carbs     Float
+  fat       Float
+  sodium    Float?
+  sugar     Float?
   /// เปลี่ยนเมนูนี้มาแล้วกี่ครั้ง — เยอะผิดปกติ = แผนวันนั้นไม่ตรงใจ
-  swapCount  Int            @default(0)
-  design     MealPlanDesign @relation(fields: [designId], references: [id], onDelete: Cascade)
+  swapCount Int            @default(0)
+  design    MealPlanDesign @relation(fields: [designId], references: [id], onDelete: Cascade)
 
   @@unique([designId, dayNumber, slot])
   @@index([designId, dayNumber])
@@ -1136,4 +1141,84 @@ model MealSwap {
 
   @@index([memberId, fromFoodId])
   @@map("meal_swaps")
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// โปรแกรมปิ่นโต — ปฏิทินเมนู + สมาชิกโปรแกรม (17 ส.ค. 2026)
+//
+// 🔑 หลักคิดที่ทำให้ทั้งระบบนี้ถูก: เมนูผูกกับ "วันที่" ไม่ใช่ผูกกับ "ลูกค้า"
+//    ครัวทำวันละชุดเดียวทุกคนกินเหมือนกัน → ต้นทุนคงที่ไม่ว่าจะมีลูกค้ากี่คน
+//    ลูกค้าสมัครวันไหนก็ได้ ได้ครบ 7 วันเสมอ (คอร์ส = หน้าต่างที่เลื่อนบนปฏิทิน)
+//
+//    ทางเลือกที่ "ไม่" เอา: ให้แต่ละคนมีวันที่ 1-7 ของตัวเอง
+//    เพราะครัวจะต้องทำ 7 เมนูพร้อมกันทุกวัน = พังเรื่องต้นทุน ซึ่งเป็นเหตุผลที่เปลี่ยนระบบมาแบบนี้
+// ══════════════════════════════════════════════════════════════════════
+
+/// เมนู 1 จาน ใน 1 วัน 1 มื้อ 1 สาย — admin กรอกล่วงหน้าให้ปฏิทินเต็มเสมอ
+/// อ้าง Food ตรง ๆ ไม่ snapshot เพราะปฏิทินคือ "แผนที่ยังแก้ได้"
+/// (snapshot เกิดตอนสร้าง OrderItem ซึ่งเป็นเอกสารที่ต้องไม่เปลี่ยนตามหลังบ้าน)
+model MenuCalendarItem {
+  id        String   @id @default(cuid())
+  /// วันที่ให้บริการตามเวลาไทย — เก็บเป็น date ล้วนไม่มีเวลา จะได้ไม่โดน timezone เลื่อนวัน
+  date      DateTime @db.Date
+  /// standard | no_seafood | no_meat | vegetarian
+  track     String
+  /// เช้า | กลางวัน | ว่าง | เย็น
+  slot      String
+  foodId    String
+  /// หมายเหตุถึงครัว เช่น "งดพริกสำหรับสายนี้"
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  food      Food     @relation(fields: [foodId], references: [id])
+
+  @@unique([date, track, slot])
+  @@index([date])
+  @@map("menu_calendar_items")
+}
+
+/// 1 คอร์สที่ลูกค้าซื้อ — ใช้ตอบคำถาม "วันนี้ต้องทำกี่กล่อง ของใครบ้าง"
+model ProgramEnrollment {
+  id           String        @id @default(cuid())
+  memberId     String
+  /// standard | no_seafood | no_meat | vegetarian
+  track        String        @default("standard")
+  /// วันแรกที่ได้รับอาหาร
+  startDate    DateTime      @db.Date
+  /// วันสุดท้าย — 🔴 เลื่อนออก 1 วันทุกครั้งที่ข้ามวัน
+  ///    จ่ายค่าคอร์ส 7 วันต้องได้อาหาร 7 วันจริง ไม่ใช่ 7 วันปฏิทิน
+  endDate      DateTime      @db.Date
+  /// จำนวนวันที่ต้องได้รับจริง (ไม่นับวันที่ข้าม)
+  totalDays    Int           @default(7)
+  /// มื้อที่ซื้อ — บางคนรับแค่กลางวัน+เย็น
+  slots        String[]      @default(["เช้า", "กลางวัน", "เย็น"])
+  /// active | completed | cancelled
+  status       String        @default("active")
+  price        Float         @default(0)
+  orderId      String?
+  addressId    String?
+  deliveryNote String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  member       Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  address      Address?      @relation(fields: [addressId], references: [id])
+  skips        ProgramSkip[]
+
+  @@index([memberId, status])
+  @@index([status, startDate])
+  @@map("program_enrollments")
+}
+
+/// วันที่ลูกค้าขอหยุด — ไม่ลบออกจากคอร์ส แต่ไม่ส่งของและเลื่อนวันจบให้แทน
+model ProgramSkip {
+  id           String            @id @default(cuid())
+  enrollmentId String
+  date         DateTime          @db.Date
+  reason       String?
+  createdAt    DateTime          @default(now())
+  enrollment   ProgramEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@unique([enrollmentId, date])
+  @@index([date])
+  @@map("program_skips")
 }

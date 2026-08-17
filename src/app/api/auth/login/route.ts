@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import { issueStaffCookie } from "@/lib/staffAuth";
 
 export async function POST(request: NextRequest) {
   try {
@@ -50,10 +51,17 @@ export async function POST(request: NextRequest) {
     // Don't return password
     const { password: _password, ...safeStaff } = staff;
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       success: true,
       staff: safeStaff,
     });
+    // เพิ่มคุกกี้ httpOnly ให้ฝั่ง server ตรวจสิทธิ์ได้ (localStorage เดิมยังทำงานเหมือนเดิม)
+    await issueStaffCookie(res, {
+      sub: staff.id,
+      email: staff.email,
+      role: staff.role?.name ?? null,
+    });
+    return res;
   } catch (error) {
     console.error("Login error:", error);
     return NextResponse.json(

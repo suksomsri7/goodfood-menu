@@ -27,6 +27,8 @@ import {
   Table2,
   Key,
   Share2,
+  CalendarDays,
+  ClipboardList,
 } from "lucide-react";
 import { useSidebar } from "./SidebarContext";
 import { useStaff } from "./StaffContext";
@@ -79,6 +81,23 @@ const navGroups: NavGroup[] = [
         icon: <MessageSquare className="w-5 h-5" />,
         badgeKey: "chat",
         moduleId: "chat",
+      },
+    ],
+  },
+  {
+    title: "โปรแกรมปิ่นโต",
+    items: [
+      {
+        href: "/backoffice/menu-calendar",
+        label: "ปฏิทินเมนู",
+        icon: <CalendarDays className="w-5 h-5" />,
+        moduleId: "program",
+      },
+      {
+        href: "/backoffice/program",
+        label: "คนในโปรแกรม",
+        icon: <ClipboardList className="w-5 h-5" />,
+        moduleId: "program",
       },
     ],
   },

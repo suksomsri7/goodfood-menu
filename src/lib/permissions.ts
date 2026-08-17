@@ -64,6 +64,14 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     ],
   },
   {
+    id: "program",
+    label: "โปรแกรมปิ่นโต",
+    permissions: [
+      { code: "program.view", label: "ดูปฏิทิน/รายชื่อ" },
+      { code: "program.update", label: "จัดเมนู/แก้คอร์ส" },
+    ],
+  },
+  {
     id: "packages",
     label: "คอร์สอาหาร",
     permissions: [
@@ -204,6 +212,8 @@ export const MENU_PERMISSION_MAP: Record<string, string> = {
   "/backoffice/restaurants": "restaurants",
   "/backoffice/foods": "foods",
   "/backoffice/foods/new": "foods",
+  "/backoffice/menu-calendar": "program",
+  "/backoffice/program": "program",
   "/backoffice/packages": "packages",
   "/backoffice/promotions": "promotions",
   "/backoffice/barcode": "barcode",
