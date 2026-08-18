@@ -553,6 +553,9 @@ model Food {
   ingredients    String[]           @default([])
   imageUrl       String?
   images         String[]           @default([])
+  /// ลิงก์ YouTube Shorts ของเมนูนี้ — แอปขึ้นปุ่ม ▶ บนรูปให้กดดู
+  /// เก็บ URL ดิบที่แอดมินวางมา แล้วให้ฝั่ง server แกะ videoId เอง (วางแบบไหนก็ได้)
+  videoUrl       String?
   price          Float
   discountPrice  Float?
   badge          String?

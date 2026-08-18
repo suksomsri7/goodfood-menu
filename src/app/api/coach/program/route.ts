@@ -17,6 +17,7 @@ import {
   trackLabel,
 } from "@/lib/program";
 import { absoluteImageUrl } from "@/lib/articleFeed";
+import { playableVideo } from "@/lib/youtubeUrl";
 
 export const dynamic = "force-dynamic";
 
@@ -75,7 +76,7 @@ export async function GET(req: NextRequest) {
     include: {
       food: {
         select: {
-          id: true, name: true, imageUrl: true, description: true,
+          id: true, name: true, imageUrl: true, videoUrl: true, description: true,
           calories: true, protein: true, carbs: true, fat: true, fiber: true, sodium: true, sugar: true,
         },
       },
@@ -96,6 +97,8 @@ export async function GET(req: NextRequest) {
               id: cell.food.id,
               name: cell.food.name,
               image: absoluteImageUrl(cell.food.imageUrl),
+              /** null = ไม่มีคลิป หรือลิงก์ที่แอดมินวางแกะไม่ออก → แอปไม่ขึ้นปุ่ม ▶ */
+              video: playableVideo(cell.food.videoUrl),
               description: cell.food.description,
               calories: cell.food.calories,
               protein: cell.food.protein,

@@ -6,7 +6,7 @@ import { getSecret } from "@/lib/secrets/store";
 /**
  * Tester login (ใช้ระหว่าง Apple login รอ Apple ฝั่งโน้น)
  * POST { code } → ต้องตรง secret DEV_LOGIN_CODE (ไม่ตั้ง = ปิด 403)
- * ออก session ให้ member "Coach Tester" (ผูก memberType ไม่จำกัดเวลาอัตโนมัติ)
+ * ออก session ให้ member "Coach" (ผูก memberType ไม่จำกัดเวลาอัตโนมัติ)
  */
 // S2: กัน brute-force เดารหัส — 5 ครั้งผิด/IP/ชั่วโมง (in-memory: มี container เดียว รีสตาร์ท=รีเซ็ต ยอมรับได้)
 const attempts = new Map<string, { n: number; resetAt: number }>();
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       const vip = await prisma.memberType.findFirst({ where: { courseDuration: 0, isActive: true } });
       member = await prisma.member.create({
         data: {
-          name: "Coach Tester",
+          name: "Coach",
           email: "tester@coach.dev",
           isOnboarded: false,
           activityStatus: "inactive",

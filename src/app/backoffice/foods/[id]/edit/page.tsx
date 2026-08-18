@@ -29,6 +29,7 @@ interface Food {
   ingredients?: string[];
   imageUrl?: string;
   images?: string[];
+  videoUrl?: string;
   price: number;
   discountPrice?: number;
   badge?: string;
@@ -81,6 +82,7 @@ export default function EditFoodPage({ params }: { params: Promise<{ id: string 
     servingSize: "",
     servingUnit: "กรัม",
     warning: "",
+    videoUrl: "",
   });
   
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -136,6 +138,7 @@ export default function EditFoodPage({ params }: { params: Promise<{ id: string 
           servingSize: food.servingSize?.toString() || "",
           servingUnit: food.servingUnit || "กรัม",
           warning: food.warning || "",
+          videoUrl: food.videoUrl || "",
         });
         
         setImagePreview(food.imageUrl || null);
@@ -246,6 +249,7 @@ export default function EditFoodPage({ params }: { params: Promise<{ id: string 
           sodium: formData.sodium || null,
           servingSize: formData.servingSize || null,
           servingUnit: formData.servingUnit,
+          videoUrl: formData.videoUrl || null,
           warning: formData.warning || null,
           categoryId: formData.categoryId,
           restaurantId: formData.restaurantId || null,
@@ -342,6 +346,23 @@ export default function EditFoodPage({ params }: { params: Promise<{ id: string 
                     className="hidden"
                   />
                 </div>
+              </div>
+
+              {/* คลิป YouTube Shorts */}
+              <div className="bg-white rounded-xl border border-gray-100 p-6">
+                <h3 className="font-medium text-gray-900 mb-1">คลิป YouTube</h3>
+                <p className="text-xs text-gray-500 mb-3">
+                  วางลิงก์ Shorts ของเมนูนี้ — แอปจะขึ้นปุ่ม ▶ บนรูปให้ลูกค้ากดดู (เว้นว่าง = ไม่มีปุ่ม)
+                  <br />วางแบบไหนก็ได้: youtube.com/shorts/… · youtu.be/… · watch?v=… (มี ?si=… ต่อท้ายก็ได้)
+                </p>
+                <input
+                  type="text"
+                  name="videoUrl"
+                  value={formData.videoUrl}
+                  onChange={handleInputChange}
+                  placeholder="https://www.youtube.com/shorts/..."
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm"
+                />
               </div>
 
               {/* รูปภาพเพิ่มเติม */}
