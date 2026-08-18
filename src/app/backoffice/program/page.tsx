@@ -4,7 +4,7 @@
  * คนในโปรแกรม — ข้อมูลชุดเดียว 3 มุมมอง
  *   ครัว   : มื้อ → จาน → ตักยังไง กี่กล่อง   (คนแพ็คตักทีละหม้อ ไม่ได้ไล่อ่านทีละคน)
  *   รายคน  : ใครต้องการสารอาหารเท่าไรในแต่ละมื้อ (มุมนักโภชนาการ)
- *   คอร์ส  : ใครสมัครถึงวันไหน เหลือกี่วัน ขอหยุดไปกี่วัน
+ *   คอร์ส  : ใครสมัครถึงวันไหน เหลือกี่วัน
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -28,7 +28,6 @@ interface Summary {
   date: string;
   label: string;
   serving: number;
-  skipped: number;
   boxes: number;
   missingMenu: string[];
   offTarget: string[];
@@ -70,7 +69,6 @@ interface ServedMember {
   trackLabel: string;
   dayNumber: number;
   totalDays: number;
-  skipped: boolean;
   address: string | null;
   meals: ServedMeal[];
 }
@@ -83,7 +81,6 @@ interface Course {
   endLabel: string;
   totalDays: number;
   remaining: number;
-  skips: { label: string; reason: string | null }[];
   slots: string[];
   price: number;
   status: string;
@@ -189,11 +186,10 @@ export default function ProgramPage() {
 
         {view !== "courses" && summary && (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <Stat label="วันที่" value={summary.label} />
               <Stat label="ลูกค้าที่ต้องส่ง" value={`${summary.serving} คน`} accent />
               <Stat label="กล่องรวม" value={`${summary.boxes} กล่อง`} accent />
-              <Stat label="ขอหยุด" value={`${summary.skipped} คน`} />
             </div>
 
             {summary.missingMenu.length > 0 && (
@@ -285,18 +281,14 @@ export default function ProgramPage() {
             members.map((m) => (
               <div
                 key={m.enrollmentId}
-                className={`bg-white rounded-xl border p-4 ${m.skipped ? "border-gray-200 opacity-60" : "border-gray-100"}`}
+                className="bg-white rounded-xl border border-gray-100 p-4"
               >
                 <div className="flex items-center gap-2 flex-wrap mb-3">
                   <span className="font-semibold text-gray-900">{m.name}</span>
                   <span className="px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600">{m.trackLabel}</span>
-                  {m.skipped ? (
-                    <span className="px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-700">ขอหยุดวันนี้</span>
-                  ) : (
-                    <span className="text-xs text-gray-500">
-                      วันที่ {m.dayNumber}/{m.totalDays}
-                    </span>
-                  )}
+                  <span className="text-xs text-gray-500">
+                    วันที่ {m.dayNumber}/{m.totalDays}
+                  </span>
                   {m.phone && <span className="text-xs text-gray-400">{m.phone}</span>}
                 </div>
 
@@ -371,7 +363,6 @@ export default function ProgramPage() {
                     <th className="px-4 py-3">สาย</th>
                     <th className="px-4 py-3">ช่วงคอร์ส</th>
                     <th className="px-4 py-3">เหลือ</th>
-                    <th className="px-4 py-3">ขอหยุด</th>
                     <th className="px-4 py-3">สถานะ</th>
                   </tr>
                 </thead>
@@ -393,9 +384,6 @@ export default function ProgramPage() {
                         <span className={c.remaining <= 2 ? "text-amber-600 font-semibold" : "text-gray-600"}>
                           {c.remaining} วัน
                         </span>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-gray-500">
-                        {c.skips.length === 0 ? "-" : c.skips.map((s) => s.label).join(", ")}
                       </td>
                       <td className="px-4 py-3">
                         <span

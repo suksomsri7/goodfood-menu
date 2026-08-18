@@ -1179,46 +1179,29 @@ model MenuCalendarItem {
 
 /// 1 คอร์สที่ลูกค้าซื้อ — ใช้ตอบคำถาม "วันนี้ต้องทำกี่กล่อง ของใครบ้าง"
 model ProgramEnrollment {
-  id           String        @id @default(cuid())
+  id           String   @id @default(cuid())
   memberId     String
   /// standard | no_seafood | no_meat | vegetarian
-  track        String        @default("standard")
+  track        String   @default("standard")
   /// วันแรกที่ได้รับอาหาร
-  startDate    DateTime      @db.Date
-  /// วันสุดท้าย — 🔴 เลื่อนออก 1 วันทุกครั้งที่ข้ามวัน
-  ///    จ่ายค่าคอร์ส 7 วันต้องได้อาหาร 7 วันจริง ไม่ใช่ 7 วันปฏิทิน
-  endDate      DateTime      @db.Date
-  /// จำนวนวันที่ต้องได้รับจริง (ไม่นับวันที่ข้าม)
-  totalDays    Int           @default(7)
+  startDate    DateTime @db.Date
+  /// วันสุดท้ายที่ได้รับอาหาร = startDate + totalDays - 1
+  endDate      DateTime @db.Date
+  totalDays    Int      @default(7)
   /// มื้อที่ซื้อ — บางคนรับแค่กลางวัน+เย็น
-  slots        String[]      @default(["เช้า", "กลางวัน", "เย็น"])
+  slots        String[] @default(["เช้า", "กลางวัน", "เย็น"])
   /// active | completed | cancelled
-  status       String        @default("active")
-  price        Float         @default(0)
+  status       String   @default("active")
+  price        Float    @default(0)
   orderId      String?
   addressId    String?
   deliveryNote String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  member       Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  address      Address?      @relation(fields: [addressId], references: [id])
-  skips        ProgramSkip[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  member       Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  address      Address? @relation(fields: [addressId], references: [id])
 
   @@index([memberId, status])
   @@index([status, startDate])
   @@map("program_enrollments")
-}
-
-/// วันที่ลูกค้าขอหยุด — ไม่ลบออกจากคอร์ส แต่ไม่ส่งของและเลื่อนวันจบให้แทน
-model ProgramSkip {
-  id           String            @id @default(cuid())
-  enrollmentId String
-  date         DateTime          @db.Date
-  reason       String?
-  createdAt    DateTime          @default(now())
-  enrollment   ProgramEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
-
-  @@unique([enrollmentId, date])
-  @@index([date])
-  @@map("program_skips")
 }

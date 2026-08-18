@@ -1,24 +1,9 @@
 /**
- * สมัคร / ขอหยุด — ตรรกะร่วมของทั้งฝั่งลูกค้า (แอป) และฝั่งแอดมิน (หลังบ้าน)
- * เขียนที่เดียวเพราะกติกาสองอย่างนี้ห้ามต่างกัน:
- *   1. ห้ามขายคอร์สถ้าปฏิทินยังไม่เต็ม
- *   2. ข้ามวัน = เลื่อนวันจบ ไม่ใช่ตัดวันทิ้ง
+ * สมัครเข้าโปรแกรม — ตรรกะร่วมของทั้งฝั่งลูกค้า (แอป) และฝั่งแอดมิน (หลังบ้าน)
+ * เขียนที่เดียวเพราะกติกาข้อนี้ห้ามต่างกันสองฝั่ง: ห้ามขายคอร์สถ้าปฏิทินยังไม่เต็ม
  */
 import { prisma } from "@/lib/prisma";
-import {
-  PROGRAM_SLOTS,
-  TrackKey,
-  addDays,
-  bkkDay,
-  canSkip,
-  dayKey,
-  enrollmentDays,
-  isTrack,
-  missingSlots,
-  recomputeEndDate,
-  thaiDate,
-  trackLabel,
-} from "@/lib/program";
+import { PROGRAM_SLOTS, TrackKey, addDays, bkkDay, isTrack, missingSlots, thaiDate, trackLabel } from "@/lib/program";
 
 const DEFAULT_SLOTS = ["เช้า", "กลางวัน", "เย็น"];
 
@@ -84,67 +69,4 @@ export async function createEnrollment(
   });
 
   return { enrollment };
-}
-
-/**
- * ขอหยุด 1 วัน — บันทึกวันที่หยุดแล้วเลื่อน endDate ออกให้ได้ครบ totalDays จริง
- * 🔴 จ่ายค่าคอร์ส 7 วันต้องได้อาหาร 7 วัน ไม่ใช่ 7 วันปฏิทิน
- */
-export async function skipDay(
-  enrollmentId: string,
-  date: Date,
-  reason?: string,
-): Promise<{ ok: true; endDate: Date } | { error: string }> {
-  const e = await prisma.programEnrollment.findUnique({ where: { id: enrollmentId }, include: { skips: true } });
-  if (!e) return { error: "ไม่พบคอร์ส" };
-  if (e.status !== "active") return { error: "คอร์สนี้ไม่ได้ใช้งานอยู่" };
-
-  const gate = canSkip(date);
-  if (!gate.ok) return { error: gate.reason ?? "ขอหยุดวันนี้ไม่ได้" };
-
-  const skipKeys = new Set(e.skips.map((s) => dayKey(s.date)));
-  const key = dayKey(date);
-  if (skipKeys.has(key)) return { error: "ขอหยุดวันนี้ไว้แล้ว" };
-
-  // ต้องเป็นวันที่อยู่ในคอร์สจริง ไม่ใช่วันไหนก็ได้
-  if (!enrollmentDays(e, skipKeys).some((d) => dayKey(d.date) === key)) {
-    return { error: "วันนี้ไม่ได้อยู่ในคอร์ส" };
-  }
-
-  skipKeys.add(key);
-  const endDate = recomputeEndDate(e, skipKeys);
-
-  await prisma.$transaction([
-    prisma.programSkip.create({ data: { enrollmentId, date, reason: reason ?? null } }),
-    prisma.programEnrollment.update({ where: { id: enrollmentId }, data: { endDate } }),
-  ]);
-
-  return { ok: true, endDate };
-}
-
-/** ยกเลิกการขอหยุด — ดึงวันจบกลับเข้ามาตามเดิม */
-export async function unskipDay(
-  enrollmentId: string,
-  date: Date,
-): Promise<{ ok: true; endDate: Date } | { error: string }> {
-  const e = await prisma.programEnrollment.findUnique({ where: { id: enrollmentId }, include: { skips: true } });
-  if (!e) return { error: "ไม่พบคอร์ส" };
-
-  const key = dayKey(date);
-  if (!e.skips.some((s) => dayKey(s.date) === key)) return { error: "ไม่ได้ขอหยุดวันนี้ไว้" };
-
-  // กันย้อนอดีต: ถ้าวันนั้นเลยมาแล้ว ครัวไม่ได้ทำไปแล้ว จะดึงกลับไม่ได้
-  const gate = canSkip(date);
-  if (!gate.ok) return { error: `ยกเลิกไม่ได้ — ${gate.reason}` };
-
-  const skipKeys = new Set(e.skips.map((s) => dayKey(s.date)));
-  skipKeys.delete(key);
-  const endDate = recomputeEndDate(e, skipKeys);
-
-  await prisma.$transaction([
-    prisma.programSkip.deleteMany({ where: { enrollmentId, date } }),
-    prisma.programEnrollment.update({ where: { id: enrollmentId }, data: { endDate } }),
-  ]);
-
-  return { ok: true, endDate };
 }

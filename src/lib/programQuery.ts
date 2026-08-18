@@ -48,20 +48,13 @@ export interface ServedMember {
   /** วันที่เท่าไรของคอร์ส (นับเฉพาะวันที่ได้รับจริง) */
   dayNumber: number;
   totalDays: number;
-  /** วันนี้ขอหยุด — ยังอยู่ในรายชื่อเพื่อให้ครัวเห็นว่า "ไม่ต้องทำ" ไม่ใช่หายไปเงียบ ๆ */
-  skipped: boolean;
   address: string | null;
   deliveryNote: string | null;
   daily: ReturnType<typeof dailyTarget>;
   meals: ServedMeal[];
 }
 
-/**
- * ใครได้รับอาหารในวันที่กำหนด + ต้องการสารอาหารเท่าไรต่อมื้อ + ตักยังไง
- *
- * 🔴 เลือก enrollment ด้วย startDate <= date <= endDate แล้วค่อยเช็ค dayNumber อีกที
- *    เพราะ endDate เลื่อนออกทุกครั้งที่ข้ามวัน — ใช้ startDate + totalDays คำนวณตรง ๆ ไม่ได้
- */
+/** ใครได้รับอาหารในวันที่กำหนด + ต้องการสารอาหารเท่าไรต่อมื้อ + ตักยังไง */
 export async function membersServedOn(date: Date): Promise<ServedMember[]> {
   const enrollments = await prisma.programEnrollment.findMany({
     where: { status: "active", startDate: { lte: date }, endDate: { gte: date } },
@@ -74,7 +67,6 @@ export async function membersServedOn(date: Date): Promise<ServedMember[]> {
         },
       },
       address: { select: { address: true, subDistrict: true, district: true, province: true, postalCode: true } },
-      skips: { select: { date: true } },
     },
   });
   if (enrollments.length === 0) return [];
@@ -97,13 +89,8 @@ export async function membersServedOn(date: Date): Promise<ServedMember[]> {
   const out: ServedMember[] = [];
 
   for (const e of enrollments) {
-    const skipKeys = new Set(e.skips.map((s) => dayKey(s.date)));
-    const days = enrollmentDays(e, skipKeys);
-    const hit = days.find((d) => dayKey(d.date) === key);
-
-    // ไม่อยู่ในวันส่งจริง (เลยคอร์สไปแล้วเพราะเคยข้าม) และไม่ได้ขอหยุดวันนี้ → ไม่เกี่ยว
-    const skipped = skipKeys.has(key);
-    if (!hit && !skipped) continue;
+    const hit = enrollmentDays(e).find((d) => dayKey(d.date) === key);
+    if (!hit) continue;
 
     const targets = mealTargets(e.member, e.slots);
     const meals: ServedMeal[] = targets.map((t) => {
@@ -139,9 +126,8 @@ export async function membersServedOn(date: Date): Promise<ServedMember[]> {
       phone: e.member.phone,
       track: e.track,
       trackLabel: trackLabel(e.track),
-      dayNumber: hit?.dayNumber ?? 0,
+      dayNumber: hit.dayNumber,
       totalDays: e.totalDays,
-      skipped,
       address: a ? [a.address, a.subDistrict, a.district, a.province, a.postalCode].filter(Boolean).join(" ") : null,
       deliveryNote: e.deliveryNote,
       daily: dailyTarget(e.member),
@@ -185,7 +171,6 @@ export function toPackingList(members: ServedMember[]): PackingSlot[] {
   const bySlot = new Map<string, Map<string, PackingDish>>();
 
   for (const m of members) {
-    if (m.skipped) continue; // ขอหยุด = ไม่ต้องทำ
     for (const meal of m.meals) {
       if (!bySlot.has(meal.slot)) bySlot.set(meal.slot, new Map());
       const dishes = bySlot.get(meal.slot)!;

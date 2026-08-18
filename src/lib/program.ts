@@ -15,11 +15,6 @@ export function bkkDay(d: Date = new Date()): Date {
   return new Date(Date.UTC(bkk.getUTCFullYear(), bkk.getUTCMonth(), bkk.getUTCDate()));
 }
 
-/** ชั่วโมงตามเวลาไทย 0-23 */
-export function bkkHour(d: Date = new Date()): number {
-  return new Date(d.getTime() + BKK_OFFSET_MS).getUTCHours();
-}
-
 export const dayKey = (d: Date): string => d.toISOString().slice(0, 10);
 
 export function addDays(d: Date, n: number): Date {
@@ -255,49 +250,17 @@ export function portionFor(target: MealTarget, base: { calories: number; protein
 
 export interface EnrollmentLike {
   startDate: Date;
-  endDate: Date;
   totalDays: number;
   slots: string[];
   status: string;
 }
 
-/**
- * กางคอร์สออกเป็นรายวัน — ข้ามวันที่ขอหยุด แล้วนับต่อจนครบ totalDays
- * คืนเฉพาะวันที่ "ได้รับอาหารจริง" เพราะนั่นคือสิ่งที่ลูกค้าจ่ายเงินซื้อ
- */
-export function enrollmentDays(e: EnrollmentLike, skipKeys: Set<string>): { dayNumber: number; date: Date }[] {
-  const out: { dayNumber: number; date: Date }[] = [];
-  let cursor = new Date(e.startDate);
-  // เผื่อเพดานกันวนไม่รู้จบถ้าข้อมูลเพี้ยน (ข้ามได้มากสุดเท่าจำนวนวันคอร์ส)
-  const limit = e.totalDays * 2 + 30;
-  for (let i = 0; i < limit && out.length < e.totalDays; i++) {
-    if (!skipKeys.has(dayKey(cursor))) out.push({ dayNumber: out.length + 1, date: cursor });
-    cursor = addDays(cursor, 1);
-  }
-  return out;
-}
-
-/** วันจบที่ถูกต้องหลังหักวันข้าม — ใช้เขียนกลับลง endDate ทุกครั้งที่ข้าม/ยกเลิกการข้าม */
-export function recomputeEndDate(e: EnrollmentLike, skipKeys: Set<string>): Date {
-  const days = enrollmentDays(e, skipKeys);
-  return days.length ? days[days.length - 1].date : new Date(e.startDate);
-}
-
-/**
- * 🔴 ข้ามวันได้ถึงเมื่อไหร่ — ครัวซื้อของและเตรียมของตั้งแต่เย็นวันก่อน
- *    หลัง 20:00 ของวันก่อนหน้า ของถูกซื้อไปแล้ว ยกเลิกไม่ได้
- */
-export const SKIP_CUTOFF_HOUR = 20;
-
-export function canSkip(date: Date, now = new Date()): { ok: boolean; reason?: string } {
-  const today = bkkDay(now);
-  const diff = daysBetween(date, today);
-  if (diff < 0) return { ok: false, reason: "วันที่ผ่านไปแล้ว" };
-  if (diff === 0) return { ok: false, reason: "วันนี้ครัวทำอาหารไปแล้ว" };
-  if (diff === 1 && bkkHour(now) >= SKIP_CUTOFF_HOUR) {
-    return { ok: false, reason: `ขอหยุดวันพรุ่งนี้ได้ถึง ${SKIP_CUTOFF_HOUR}:00 เท่านั้น — ครัวเตรียมของแล้ว` };
-  }
-  return { ok: true };
+/** กางคอร์สออกเป็นรายวัน — วันที่ 1 ถึง totalDays ต่อเนื่องกัน */
+export function enrollmentDays(e: EnrollmentLike): { dayNumber: number; date: Date }[] {
+  return Array.from({ length: e.totalDays }, (_, i) => ({
+    dayNumber: i + 1,
+    date: addDays(e.startDate, i),
+  }));
 }
 
 // ─────────────────────────── รันเวย์ปฏิทิน ───────────────────────────

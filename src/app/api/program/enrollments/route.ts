@@ -17,15 +17,13 @@ export async function GET(req: NextRequest) {
     take: 200,
     include: {
       member: { select: { id: true, name: true, displayName: true, phone: true } },
-      skips: { select: { date: true, reason: true } },
     },
   });
 
   const today = bkkDay();
   return NextResponse.json({
     enrollments: list.map((e) => {
-      const skipKeys = new Set(e.skips.map((s) => dayKey(s.date)));
-      const days = enrollmentDays(e, skipKeys);
+      const days = enrollmentDays(e);
       return {
         id: e.id,
         member: {
@@ -42,7 +40,6 @@ export async function GET(req: NextRequest) {
         totalDays: e.totalDays,
         /** เหลืออีกกี่วันที่ยังต้องส่ง — ใช้เตือนต่ออายุ */
         remaining: days.filter((d) => d.date >= today).length,
-        skips: e.skips.map((s) => ({ date: dayKey(s.date), label: thaiDate(s.date), reason: s.reason })),
         slots: e.slots,
         price: e.price,
         status: e.status,

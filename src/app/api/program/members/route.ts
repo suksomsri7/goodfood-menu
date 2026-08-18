@@ -33,12 +33,10 @@ export async function GET(req: NextRequest) {
   const summary = {
     date: dayKey(date),
     label: thaiDate(date),
-    serving: served.filter((m) => !m.skipped).length,
-    skipped: served.filter((m) => m.skipped).length,
-    boxes: served.filter((m) => !m.skipped).reduce((n, m) => n + m.meals.length, 0),
+    serving: served.length,
+    boxes: served.reduce((n, m) => n + m.meals.length, 0),
     /** ⚠️ ช่องที่มีลูกค้ารออยู่แต่ปฏิทินยังว่าง — ต้องเป็นศูนย์ก่อนถึงเวลาทำอาหาร */
     missingMenu: served
-      .filter((m) => !m.skipped)
       .flatMap((m) => m.meals.filter((x) => !x.food).map((x) => `${m.trackLabel} · ${x.slot}`))
       .filter((v, i, a) => a.indexOf(v) === i),
     /**
@@ -46,7 +44,6 @@ export async function GET(req: NextRequest) {
      * แยกจาก missingMenu เพราะอันนั้น "ไม่มีเมนู" ส่วนอันนี้ "มีเมนูแต่ไม่เข้ากับคน"
      */
     offTarget: served
-      .filter((m) => !m.skipped)
       .flatMap((m) => m.meals.filter((x) => x.portion?.off).map((x) => `${m.trackLabel} · ${x.slot}`))
       .filter((v, i, a) => a.indexOf(v) === i),
   };
