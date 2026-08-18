@@ -17,6 +17,7 @@ import {
   trackLabel,
 } from "@/lib/program";
 import { absoluteImageUrl } from "@/lib/articleFeed";
+import { PersonalPlan, PrepLine, personalize, prepTotals, rowsToLines } from "@/lib/recipe";
 
 export interface ServedMeal {
   slot: string;
@@ -33,8 +34,14 @@ export interface ServedMeal {
     sodium: number | null;
     sugar: number | null;
   } | null;
-  /** วิธีตัก — null เมื่อยังไม่มีเมนูในปฏิทินช่องนั้น */
+  /**
+   * วิธีตัก — null เมื่อยังไม่มีเมนูในปฏิทินช่องนั้น
+   * 🔴 ยังเก็บไว้เป็นทางถอย: เมนูที่ครัวยังไม่ได้ลงสูตร จะมีแค่ S/M/L/XL แบบเดิม
+   *    ตัดทิ้งเลยไม่ได้ ไม่งั้นวันที่เปลี่ยนระบบครัวจะไม่มีอะไรอ่านเลย
+   */
   portion: Portion | null;
+  /** ปริมาณรายวัตถุดิบของคนนี้ — null = เมนูนี้ยังไม่มีสูตร (ให้ใช้ portion แทน) */
+  plan: PersonalPlan | null;
   note: string | null;
 }
 
@@ -79,6 +86,7 @@ export async function membersServedOn(date: Date): Promise<ServedMember[]> {
         select: {
           id: true, name: true, imageUrl: true,
           calories: true, protein: true, carbs: true, fat: true, fiber: true, sodium: true, sugar: true,
+          recipe: { include: { ingredient: true }, orderBy: { order: "asc" } },
         },
       },
     },
@@ -96,9 +104,14 @@ export async function membersServedOn(date: Date): Promise<ServedMember[]> {
     const meals: ServedMeal[] = targets.map((t) => {
       const cell = menuAt.get(`${e.track}|${t.slot}`);
       const food = cell?.food ?? null;
+      const lines = food?.recipe?.length ? rowsToLines(food.recipe) : [];
       return {
         slot: t.slot,
         target: t,
+        plan:
+          lines.length > 0
+            ? personalize(lines, { kcal: t.kcal, protein: t.protein, carbs: t.carbs, fat: t.fat, fiber: t.fiber })
+            : null,
         food: food
           ? {
               id: food.id,
@@ -164,6 +177,107 @@ export interface PackingSlot {
   slot: string;
   total: number;
   dishes: PackingDish[];
+}
+
+// ─────────────────────────── เมนูครัว (รายวัตถุดิบ) ───────────────────────────
+
+export interface KitchenBox {
+  memberName: string;
+  /** 🔴 ต้องติดไปกับทุกกล่อง — คนแพ็คมองใบเดียวจบ ไม่ต้องเปิดอีกหน้า */
+  allergies: string[];
+  /** ปริมาณของคนนี้ เรียงตามลำดับในสูตร */
+  lines: PersonalPlan["lines"];
+  delivered: PersonalPlan["delivered"];
+  target: { kcal: number; protein: number };
+  warnings: string[];
+}
+
+export interface KitchenDish {
+  track: string;
+  trackLabel: string;
+  foodId: string | null;
+  foodName: string;
+  /** true = เมนูนี้ยังไม่มีสูตร → ครัวจะเห็นแบบ S/M/L/XL เดิมแทน */
+  noRecipe: boolean;
+  boxes: KitchenBox[];
+  /** วัตถุดิบทั้งหมดที่จานนี้ใช้ เรียงตามสูตร — ใช้เป็นหัวตาราง */
+  ingredients: { id: string; name: string; unit: string }[];
+  /** ต้องเตรียมรวมกี่กรัม ต่อวัตถุดิบ */
+  prep: PrepLine[];
+}
+
+export interface KitchenSlot {
+  slot: string;
+  boxes: number;
+  dishes: KitchenDish[];
+}
+
+/**
+ * "มื้อ → จาน → ตารางวัตถุดิบ × ลูกค้า" + แถวรวมของที่ต้องเตรียม
+ *
+ * ทำไมต้องมีแถวรวม: ครัวซื้อของเป็นกิโล ไม่ได้ซื้อเป็นกล่อง
+ * ถ้าไม่รวมให้ คนครัวต้องนั่งบวกเลขเองตอนตี 5 ซึ่งเป็นจุดที่ผิดพลาดง่ายที่สุด
+ */
+export function toKitchenSheet(members: ServedMember[], allergiesOf: Map<string, string[]>): KitchenSlot[] {
+  const bySlot = new Map<string, Map<string, KitchenDish>>();
+
+  for (const m of members) {
+    for (const meal of m.meals) {
+      if (!bySlot.has(meal.slot)) bySlot.set(meal.slot, new Map());
+      const dishes = bySlot.get(meal.slot)!;
+      const key = `${m.track}|${meal.food?.id ?? "none"}`;
+
+      if (!dishes.has(key)) {
+        dishes.set(key, {
+          track: m.track,
+          trackLabel: m.trackLabel,
+          foodId: meal.food?.id ?? null,
+          foodName: meal.food?.name ?? "⚠️ ยังไม่ได้ใส่เมนูในปฏิทิน",
+          noRecipe: !!meal.food && !meal.plan,
+          boxes: [],
+          ingredients: [],
+          prep: [],
+        });
+      }
+      const dish = dishes.get(key)!;
+
+      if (meal.plan) {
+        dish.boxes.push({
+          memberName: m.name,
+          allergies: allergiesOf.get(m.memberId) ?? [],
+          lines: meal.plan.lines,
+          delivered: meal.plan.delivered,
+          target: { kcal: meal.target.kcal, protein: meal.target.protein },
+          warnings: meal.plan.warnings,
+        });
+        // หัวตาราง = ลำดับวัตถุดิบตามสูตร (กล่องแรกที่เจอเป็นตัวกำหนด — ทุกกล่องของจานเดียวกันใช้สูตรเดียวกัน)
+        if (dish.ingredients.length === 0) {
+          dish.ingredients = meal.plan.lines.map((l) => ({ id: l.ingredientId, name: l.name, unit: l.unit }));
+        }
+      } else {
+        dish.boxes.push({
+          memberName: m.name,
+          allergies: allergiesOf.get(m.memberId) ?? [],
+          lines: [],
+          delivered: { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sodium: 0, sugar: 0 },
+          target: { kcal: meal.target.kcal, protein: meal.target.protein },
+          warnings: meal.food ? ["ยังไม่ได้ลงสูตรของเมนูนี้ — ดูวิธีตักแบบเดิมในแท็บใบแพ็ค"] : [],
+        });
+      }
+    }
+  }
+
+  return PROGRAM_SLOTS.filter((s) => bySlot.has(s)).map((slot) => {
+    const dishes = [...bySlot.get(slot)!.values()].sort((a, b) => b.boxes.length - a.boxes.length);
+    for (const d of dishes) {
+      d.prep = prepTotals(
+        d.boxes
+          .filter((b) => b.lines.length > 0)
+          .map((b) => ({ lines: b.lines, delivered: b.delivered, target: { kcal: 0, protein: 0 }, gap: { kcal: 0, protein: 0 }, warnings: [] })),
+      );
+    }
+    return { slot, boxes: dishes.reduce((n, d) => n + d.boxes.length, 0), dishes };
+  });
 }
 
 /** จัดข้อมูลคนเดิมใหม่ให้เป็น "มื้อ → สาย → จาน → วิธีตัก" ซึ่งคือลำดับที่ครัวทำงานจริง */

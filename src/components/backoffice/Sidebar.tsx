@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import {
+  Carrot,
   LayoutDashboard,
   UtensilsCrossed,
   ShoppingCart,
@@ -22,7 +23,6 @@ import {
   ScanBarcode,
   CreditCard,
   Crown,
-  Store,
   Users,
   Table2,
   Key,
@@ -99,17 +99,17 @@ const navGroups: NavGroup[] = [
         icon: <ClipboardList className="w-5 h-5" />,
         moduleId: "program",
       },
+      {
+        href: "/backoffice/ingredients",
+        label: "คลังวัตถุดิบ",
+        icon: <Carrot className="w-5 h-5" />,
+        moduleId: "foods",
+      },
     ],
   },
   {
     title: "จัดการ",
     items: [
-      {
-        href: "/backoffice/restaurants",
-        label: "ร้านอาหาร",
-        icon: <Store className="w-5 h-5" />,
-        moduleId: "restaurants",
-      },
       {
         href: "/backoffice/foods",
         label: "เมนูอาหาร",

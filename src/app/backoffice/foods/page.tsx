@@ -136,15 +136,6 @@ function SortableFoodRow({
         )}
       </td>
       <td className="py-3 px-4">
-        {food.restaurant ? (
-          <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-50 text-purple-700">
-            {food.restaurant.name}
-          </span>
-        ) : (
-          <span className="text-xs text-gray-400">-</span>
-        )}
-      </td>
-      <td className="py-3 px-4">
         <span
           className="px-2 py-1 rounded-full text-xs font-medium"
           style={{
@@ -429,16 +420,6 @@ export default function FoodsPage() {
             />
           </div>
           <select
-            value={selectedRestaurant || ""}
-            onChange={(e) => setSelectedRestaurant(e.target.value || null)}
-            className="px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm min-w-[140px]"
-          >
-            <option value="">ทุกร้าน</option>
-            {restaurants.map((restaurant) => (
-              <option key={restaurant.id} value={restaurant.id}>{restaurant.name}</option>
-            ))}
-          </select>
-          <select
             value={selectedCategory || ""}
             onChange={(e) => setSelectedCategory(e.target.value || null)}
             className="px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm min-w-[140px]"
@@ -496,7 +477,6 @@ export default function FoodsPage() {
                     <th className="w-10 py-3 px-2"></th>
                     <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">เมนู</th>
                     <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">รหัส</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">ร้าน</th>
                     <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">หมวด</th>
                     <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">แคล</th>
                     <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">P</th>

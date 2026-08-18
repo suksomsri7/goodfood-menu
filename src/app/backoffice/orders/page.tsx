@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Header } from "@/components/backoffice/Header";
-import { User, Phone, Mail, MessageCircle, Package, Truck, Trash2, Store, MapPin, Calendar, Clock, Edit3, Save, X, FileText, Plus, Minus, Search, Bell, Volume2, VolumeX } from "lucide-react";
+import { User, Phone, Mail, MessageCircle, Package, Truck, Trash2, MapPin, Calendar, Clock, Edit3, Save, X, FileText, Plus, Minus, Search, Bell, Volume2, VolumeX } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Member {
@@ -312,11 +312,15 @@ export default function OrdersPage() {
     setItemsToDelete(itemsToDelete.filter(id => id !== itemId));
   };
 
-  // Fetch foods from restaurant
-  const fetchRestaurantFoods = async (restaurantId: string) => {
+  /**
+   * ดึงเมนูที่เปิดขายทั้งหมด
+   * 🔴 เดิมกรองด้วย restaurantId — พอเลิกใช้ระบบร้าน ทุกออเดอร์มี restaurantId = null
+   *    ปุ่ม "เพิ่มเมนู" จึงเด้ง alert ทุกครั้งและใช้ไม่ได้เลย
+   */
+  const fetchAllFoods = async () => {
     setLoadingFoods(true);
     try {
-      const res = await fetch(`/api/foods?restaurantId=${restaurantId}&isActive=true`);
+      const res = await fetch(`/api/foods?isActive=true`);
       if (res.ok) {
         const data = await res.json();
         setRestaurantFoods(data);
@@ -330,11 +334,7 @@ export default function OrdersPage() {
 
   // Open add item modal
   const openAddItemModal = () => {
-    if (!selectedOrder?.restaurantId) {
-      alert("ออเดอร์นี้ไม่มีร้านค้า");
-      return;
-    }
-    fetchRestaurantFoods(selectedOrder.restaurantId);
+    fetchAllFoods();
     setFoodSearchQuery("");
     setShowAddItemModal(true);
   };
@@ -537,7 +537,6 @@ export default function OrdersPage() {
                   <tr>
                     <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">ลูกค้า</th>
                     <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">เลขออเดอร์</th>
-                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">ร้านค้า</th>
                     <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">คอร์ส</th>
                     <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">จำนวนเมนู</th>
                     <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">ราคารวม</th>
@@ -574,13 +573,6 @@ export default function OrdersPage() {
                       </td>
                       <td className="px-6 py-4">
                         <span className="font-mono font-semibold text-green-600">{order.orderNumber}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        {order.restaurant ? (
-                          <span className="text-gray-800">{order.restaurant.name}</span>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
                       </td>
                       <td className="px-6 py-4">
                         <span className="text-gray-800">{planLabels[order.coursePlan] || order.coursePlan}</span>
@@ -694,31 +686,6 @@ export default function OrdersPage() {
                     </p>
                   </div>
 
-                  {/* Restaurant */}
-                  <div className="p-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border border-orange-100">
-                    <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                      <Store className="w-4 h-4 text-orange-600" />
-                      ร้านค้า
-                    </h3>
-                    {selectedOrder.restaurant ? (
-                      <div className="flex items-center gap-3">
-                        {selectedOrder.restaurant.logoUrl ? (
-                          <img
-                            src={selectedOrder.restaurant.logoUrl}
-                            alt={selectedOrder.restaurant.name}
-                            className="w-12 h-12 rounded-lg object-cover border border-orange-200"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-lg bg-orange-100 flex items-center justify-center">
-                            <Store className="w-6 h-6 text-orange-400" />
-                          </div>
-                        )}
-                        <p className="font-semibold text-gray-800">{selectedOrder.restaurant.name}</p>
-                      </div>
-                    ) : (
-                      <p className="text-gray-500">ไม่ระบุร้านค้า</p>
-                    )}
-                  </div>
                 </div>
 
                 {/* Customer Info */}
@@ -1254,9 +1221,6 @@ export default function OrdersPage() {
                       <Plus className="w-5 h-5 text-green-600" />
                       เพิ่มเมนู
                     </h3>
-                    {selectedOrder.restaurant && (
-                      <p className="text-sm text-gray-500">ร้าน {selectedOrder.restaurant.name}</p>
-                    )}
                   </div>
                   <button
                     onClick={() => setShowAddItemModal(false)}
@@ -1286,7 +1250,7 @@ export default function OrdersPage() {
                   </div>
                 ) : restaurantFoods.length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
-                    <p>ไม่พบเมนูจากร้านนี้</p>
+                    <p>ไม่พบเมนู</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-3">

@@ -582,8 +582,68 @@ model Food {
   promotionGifts PromotionGift[]
   promotionItems PromotionItem[]
   calendarItems  MenuCalendarItem[]
+  recipe         RecipeItem[]
 
   @@map("foods")
+}
+
+/// วัตถุดิบ 1 อย่างที่ครัวชั่งได้จริง — โภชนาการเก็บ "ต่อ 100 ก./มล." หน่วยเดียวทั้งระบบ
+/// 🔴 ต้องเป็นต่อ 100 เสมอ ไม่ใช่ต่อหน่วยบริโภค ไม่งั้นคิด "อกไก่ 100→190 ก." ไม่ได้
+///    (ต่างจาก food_catalog ที่เก็บต่อจาน — คลังนั้นเอาไว้ช่วยกรอก ไม่ได้ใช้คิดสูตร)
+model Ingredient {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  /// g = ชั่งเป็นกรัม · ml = ตวง · pc = นับชิ้น/ฟอง (ใส่ gramsPerPiece ด้วย)
+  unit        String       @default("g")
+  /// น้ำหนักต่อชิ้นเมื่อ unit = pc (ไข่ 1 ฟอง ≈ 50 ก.) — ใช้แปลงกลับเป็นกรัมตอนคิด
+  gramsPerPiece Float?
+  calories    Float
+  protein     Float
+  carbs       Float
+  fat         Float
+  fiber       Float?
+  sodium      Float?
+  sugar       Float?
+  /// บทบาทตั้งต้นเวลาเอาไปใส่สูตร — protein | carb | veg | fat | other
+  defaultRole String       @default("other")
+  /// ครัวชั่งละเอียดได้แค่ไหน — เนื้อ/ข้าว 10 ก. · ซอส/เครื่องปรุง 5 ก.
+  stepGrams   Int          @default(10)
+  /// true = ตัวเลขยังไม่ได้ยืนยันโดยครัว (เช่นเพิ่งดึงมาช่วยกรอกจากคลังอาหาร)
+  isEstimate  Boolean      @default(true)
+  /// ที่มาของตัวเลข เขียนเป็นข้อความ เช่น "ฉลากข้างถุง" / "คลังอาหาร: อกไก่ย่าง 100 กรัม"
+  source      String?
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  recipeItems RecipeItem[]
+
+  @@index([isActive, name])
+  @@map("ingredients")
+}
+
+/// สูตรมาตรฐาน 1 บรรทัด = วัตถุดิบ 1 อย่างในกล่องมาตรฐาน 1 กล่อง
+/// เมื่อเมนูมีสูตรครบ โภชนาการของกล่อง = ผลรวมของสูตร (ไม่ใช่ตัวเลขที่กรอกมือ)
+model RecipeItem {
+  id           String     @id @default(cuid())
+  foodId       String
+  ingredientId String
+  /// protein | carb | veg | fat | other — ตัวคิดจานใช้บทบาทนี้เลือกว่าจะขยายตัวไหนเพื่อไล่มาโครตัวไหน
+  role         String     @default("other")
+  /// ปริมาณมาตรฐานต่อกล่อง (กรัม/มล. — ถ้าวัตถุดิบเป็น pc ให้ใส่จำนวนชิ้น)
+  baseAmount   Float
+  /// false = ตายตัวทุกคน (ซอส/เครื่องปรุงที่เพิ่มแล้วเค็มเกิน)
+  scalable     Boolean    @default(true)
+  /// เพดานที่ครัวยอมให้ปรับ — ว่าง = ใช้ค่ากลาง 0.5–2.5 เท่าของมาตรฐาน
+  minAmount    Float?
+  maxAmount    Float?
+  note         String?
+  order        Int        @default(0)
+  food         Food       @relation(fields: [foodId], references: [id], onDelete: Cascade)
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
+
+  @@unique([foodId, ingredientId])
+  @@index([foodId])
+  @@map("recipe_items")
 }
 
 model Package {

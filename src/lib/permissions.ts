@@ -212,6 +212,8 @@ export const MENU_PERMISSION_MAP: Record<string, string> = {
   "/backoffice/restaurants": "restaurants",
   "/backoffice/foods": "foods",
   "/backoffice/foods/new": "foods",
+  /** คลังวัตถุดิบ + สูตรมาตรฐาน = ส่วนหนึ่งของงานเมนู ใช้สิทธิ์ชุดเดียวกับ foods */
+  "/backoffice/ingredients": "foods",
   "/backoffice/menu-calendar": "program",
   "/backoffice/program": "program",
   "/backoffice/packages": "packages",

@@ -386,32 +386,6 @@ export default function NewFoodPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      ร้านอาหาร
-                    </label>
-                    {isLoadingData ? (
-                      <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-400">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        กำลังโหลด...
-                      </div>
-                    ) : (
-                      <select
-                        name="restaurantId"
-                        value={formData.restaurantId}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF50] focus:border-transparent"
-                      >
-                        <option value="">ทุกร้าน</option>
-                        {restaurants.map((restaurant) => (
-                          <option key={restaurant.id} value={restaurant.id}>
-                            {restaurant.name}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       หมวดหมู่ <span className="text-red-500">*</span>
                     </label>
                     {isLoadingData ? (

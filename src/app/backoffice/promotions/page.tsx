@@ -1,7 +1,7 @@
 "use client";
 
 import { Header } from "@/components/backoffice/Header";
-import { Plus, Search, Edit2, Trash2, Eye, EyeOff, BadgePercent, X, Gift, Percent, ShoppingBag, Calendar, Store, Hash } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, Eye, EyeOff, BadgePercent, X, Gift, Percent, ShoppingBag, Calendar, Hash } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 
@@ -364,16 +364,6 @@ export default function PromotionsPage() {
               className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm"
             />
           </div>
-          <select
-            value={filterRestaurant}
-            onChange={(e) => setFilterRestaurant(e.target.value)}
-            className="px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm min-w-[180px]"
-          >
-            <option value="">ร้านทั้งหมด</option>
-            {restaurants.map((r) => (
-              <option key={r.id} value={r.id}>{r.name}</option>
-            ))}
-          </select>
           <button
             onClick={openCreateModal}
             className="flex items-center gap-2 px-4 py-2.5 bg-[#4CAF50] text-white rounded-lg text-sm font-medium"
@@ -408,7 +398,6 @@ export default function PromotionsPage() {
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">โปรโมชั่น</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">ร้าน</th>
                   <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">ประเภท</th>
                   <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">เงื่อนไข</th>
                   <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">ระยะเวลา</th>
@@ -438,16 +427,6 @@ export default function PromotionsPage() {
                             )}
                           </div>
                         </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        {promo.restaurant ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-                            <Store className="w-3 h-3" />
-                            {promo.restaurant.name}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-gray-400">ทุกร้าน</span>
-                        )}
                       </td>
                       <td className="py-3 px-4 text-center">
                         <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${typeInfo.color}`}>
@@ -540,30 +519,6 @@ export default function PromotionsPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 space-y-4">
-              {/* Restaurant Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  <Store className="w-4 h-4 inline mr-1" />
-                  ร้านอาหาร
-                </label>
-                <select
-                  value={formData.restaurantId}
-                  onChange={(e) => {
-                    setFormData({ ...formData, restaurantId: e.target.value });
-                    // Clear selected items when restaurant changes
-                    setSelectedItems([]);
-                    setSelectedGifts([]);
-                  }}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm"
-                >
-                  <option value="">ทุกร้าน (โปรโมชั่นรวม)</option>
-                  {restaurants.map((r) => (
-                    <option key={r.id} value={r.id}>{r.name}</option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-1">เลือกร้านเพื่อสร้างโปรโมชั่นเฉพาะร้าน หรือปล่อยว่างสำหรับโปรโมชั่นทุกร้าน</p>
-              </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   ชื่อโปรโมชั่น <span className="text-red-500">*</span>

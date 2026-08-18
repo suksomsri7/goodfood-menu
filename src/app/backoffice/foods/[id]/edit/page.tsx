@@ -348,6 +348,21 @@ export default function EditFoodPage({ params }: { params: Promise<{ id: string 
                 </div>
               </div>
 
+              {/* สูตรมาตรฐาน — อยู่คนละหน้าเพราะเป็นตารางยาว และครัวเป็นคนกรอก ไม่ใช่คนลงเมนู */}
+              <div className="bg-white rounded-xl border border-gray-100 p-6">
+                <h3 className="font-medium text-gray-900 mb-1">สูตรมาตรฐาน (ส่วนประกอบอาหาร)</h3>
+                <p className="text-xs text-gray-500 mb-3">
+                  กล่องมาตรฐานมีวัตถุดิบอะไร อย่างละกี่กรัม — ลงสูตรแล้วระบบจะปรับปริมาณให้ลูกค้าแต่ละคนเอง
+                  และคำนวณโภชนาการของเมนูนี้จากสูตรแทนการกรอกมือ
+                </p>
+                <a
+                  href={`/backoffice/foods/${id}/recipe`}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[#4CAF50] text-[#4CAF50] text-sm font-medium hover:bg-[#f1f8f1]"
+                >
+                  เปิดหน้าลงสูตร
+                </a>
+              </div>
+
               {/* คลิป YouTube Shorts */}
               <div className="bg-white rounded-xl border border-gray-100 p-6">
                 <h3 className="font-medium text-gray-900 mb-1">คลิป YouTube</h3>

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/staffAuth";
 import { bkkDay, dayKey, enrollmentDays, thaiDate, trackLabel } from "@/lib/program";
-import { membersServedOn, toPackingList } from "@/lib/programQuery";
+import { membersServedOn, toKitchenSheet, toPackingList } from "@/lib/programQuery";
 
 export const dynamic = "force-dynamic";
 
@@ -26,9 +26,23 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const date = parseDay(searchParams.get("date")) ?? bkkDay();
-  const view = searchParams.get("view") === "packing" ? "packing" : "roster";
+  const raw = searchParams.get("view");
+  const view = raw === "packing" || raw === "kitchen" ? raw : "roster";
 
   const served = await membersServedOn(date);
+
+  /*
+   * 🔴 แพ้อาหารต้องเดินทางไปกับใบครัวและรายชื่อเสมอ
+   *    ของเดิมไม่ส่งไปเลยสักที่ — ครัวจึงไม่มีทางรู้ว่ากล่องไหนห้ามใส่อะไร
+   */
+  const profiles = served.length
+    ? await prisma.foodProfile.findMany({
+        where: { memberId: { in: served.map((m) => m.memberId) } },
+        select: { memberId: true, allergies: true, avoidMeats: true, dislikedVeggies: true, healthConditions: true, spiceLevel: true },
+      })
+    : [];
+  const profileOf = new Map(profiles.map((p) => [p.memberId, p]));
+  const allergiesOf = new Map(profiles.map((p) => [p.memberId, p.allergies]));
 
   const summary = {
     date: dayKey(date),
@@ -46,13 +60,26 @@ export async function GET(req: NextRequest) {
     offTarget: served
       .flatMap((m) => m.meals.filter((x) => x.portion?.off).map((x) => `${m.trackLabel} · ${x.slot}`))
       .filter((v, i, a) => a.indexOf(v) === i),
+    /** เมนูของวันนี้ที่ครัวยังไม่ได้ลงสูตร — ตราบใดที่ยังมี ก็ยังปรับรายวัตถุดิบให้คนกลุ่มนั้นไม่ได้ */
+    noRecipe: served
+      .flatMap((m) => m.meals.filter((x) => x.food && !x.plan).map((x) => x.food!.name))
+      .filter((v, i, a) => a.indexOf(v) === i),
+    /** คนที่มีข้อมูลแพ้อาหาร — ครัวต้องเห็นยอดนี้ก่อนเริ่มทำ */
+    withAllergies: served.filter((m) => (allergiesOf.get(m.memberId) ?? []).length > 0).length,
   };
 
   if (view === "packing") {
     return NextResponse.json({ summary, slots: toPackingList(served) });
   }
 
-  return NextResponse.json({ summary, members: served });
+  if (view === "kitchen") {
+    return NextResponse.json({ summary, slots: toKitchenSheet(served, allergiesOf) });
+  }
+
+  return NextResponse.json({
+    summary,
+    members: served.map((m) => ({ ...m, profile: profileOf.get(m.memberId) ?? null })),
+  });
 }
 
 /**

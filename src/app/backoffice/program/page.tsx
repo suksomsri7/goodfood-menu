@@ -9,9 +9,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Header } from "@/components/backoffice/Header";
-import { AlertTriangle, ChevronLeft, ChevronRight, Loader2, Package, Printer, Users, Utensils } from "lucide-react";
+import { AlertTriangle, ChefHat, ChevronLeft, ChevronRight, Loader2, Package, Printer, Users, Utensils } from "lucide-react";
+import { CustomerSheet } from "./CustomerSheet";
+import { KitchenView, KitchenSlot } from "./KitchenView";
 
-type View = "packing" | "roster" | "courses";
+type View = "kitchen" | "packing" | "roster" | "courses";
 
 interface Target {
   slot: string;
@@ -31,6 +33,8 @@ interface Summary {
   boxes: number;
   missingMenu: string[];
   offTarget: string[];
+  noRecipe: string[];
+  withAllergies: number;
 }
 
 interface PackingLine {
@@ -64,6 +68,7 @@ interface ServedMeal {
 
 interface ServedMember {
   enrollmentId: string;
+  memberId: string;
   name: string;
   phone: string | null;
   trackLabel: string;
@@ -71,6 +76,7 @@ interface ServedMember {
   totalDays: number;
   address: string | null;
   meals: ServedMeal[];
+  profile: { allergies: string[]; healthConditions: string[]; avoidMeats: string[]; dislikedVeggies: string[] } | null;
 }
 
 interface Course {
@@ -96,6 +102,9 @@ export default function ProgramPage() {
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [slots, setSlots] = useState<PackingSlot[]>([]);
+  const [kitchen, setKitchen] = useState<KitchenSlot[]>([]);
+  /** ลูกค้าที่กำลังเปิดโปรไฟล์อยู่ — null = ปิด */
+  const [openCustomer, setOpenCustomer] = useState<{ id: string; name: string } | null>(null);
   const [members, setMembers] = useState<ServedMember[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   /** คุกกี้พนักงานหมดอายุ (12 ชม.) ขณะที่ localStorage ยังจำ login อยู่ — ต้องบอกให้ชัด ไม่ใช่โชว์หน้าว่าง */
@@ -116,6 +125,7 @@ export default function ProgramPage() {
       const json = await res.json();
       setSummary(json.summary);
       if (view === "packing") setSlots(json.slots);
+      else if (view === "kitchen") setKitchen(json.slots);
       else setMembers(json.members);
     } finally {
       setLoading(false);
@@ -134,7 +144,8 @@ export default function ProgramPage() {
         <div className="flex items-center gap-2 flex-wrap">
           {(
             [
-              { key: "packing", label: "ใบแพ็ค (ครัว)", icon: <Package className="w-4 h-4" /> },
+              { key: "kitchen", label: "เมนูครัว", icon: <ChefHat className="w-4 h-4" /> },
+              { key: "packing", label: "ใบแพ็ค (ย่อ)", icon: <Package className="w-4 h-4" /> },
               { key: "roster", label: "รายคน (โภชนาการ)", icon: <Users className="w-4 h-4" /> },
               { key: "courses", label: "คอร์สทั้งหมด", icon: <Utensils className="w-4 h-4" /> },
             ] as const
@@ -202,6 +213,18 @@ export default function ProgramPage() {
               </div>
             )}
 
+            {summary.noRecipe?.length > 0 && (
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
+                <div className="text-sm">
+                  <p className="font-semibold text-blue-900">
+                    เมนูวันนี้ที่ยังไม่ได้ลงสูตร — ปรับปริมาณรายวัตถุดิบให้ลูกค้าไม่ได้ ยังต้องตักแบบ S/M/L/XL
+                  </p>
+                  <p className="text-blue-800 mt-1">{summary.noRecipe.join(" · ")}</p>
+                </div>
+              </div>
+            )}
+
             {summary.offTarget?.length > 0 && (
               <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
@@ -231,6 +254,9 @@ export default function ProgramPage() {
             <Loader2 className="w-4 h-4 animate-spin" /> กำลังโหลด...
           </div>
         )}
+
+        {/* ── เมนูครัว (รายวัตถุดิบ) ── */}
+        {!loading && view === "kitchen" && <KitchenView slots={kitchen} />}
 
         {/* ── ใบแพ็ค ── */}
         {!loading &&
@@ -284,13 +310,30 @@ export default function ProgramPage() {
                 className="bg-white rounded-xl border border-gray-100 p-4"
               >
                 <div className="flex items-center gap-2 flex-wrap mb-3">
-                  <span className="font-semibold text-gray-900">{m.name}</span>
+                  <button
+                    onClick={() => setOpenCustomer({ id: m.memberId, name: m.name })}
+                    className="font-semibold text-gray-900 hover:text-[#4CAF50] underline decoration-dotted underline-offset-4"
+                  >
+                    {m.name}
+                  </button>
                   <span className="px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600">{m.trackLabel}</span>
                   <span className="text-xs text-gray-500">
                     วันที่ {m.dayNumber}/{m.totalDays}
                   </span>
                   {m.phone && <span className="text-xs text-gray-400">{m.phone}</span>}
                 </div>
+
+                {/* 🔴 แพ้อาหารต้องอยู่บนการ์ด ไม่ใช่ซ่อนในโปรไฟล์ — คนอ่านหน้านี้คือคนที่กำลังจะทำอาหาร */}
+                {(m.profile?.allergies?.length ?? 0) > 0 && (
+                  <p className="mb-2 px-2 py-1 rounded bg-red-50 text-red-700 text-xs font-semibold inline-block">
+                    ⚠️ แพ้ {m.profile!.allergies.join(", ")}
+                  </p>
+                )}
+                {(m.profile?.healthConditions?.length ?? 0) > 0 && (
+                  <p className="mb-2 ml-2 px-2 py-1 rounded bg-amber-50 text-amber-700 text-xs inline-block">
+                    {m.profile!.healthConditions.join(", ")}
+                  </p>
+                )}
 
                 {m.address && <p className="text-xs text-gray-500 mb-3">📍 {m.address}</p>}
 
@@ -401,6 +444,10 @@ export default function ProgramPage() {
             </div>
           ))}
       </div>
+
+      {openCustomer && (
+        <CustomerSheet memberId={openCustomer.id} name={openCustomer.name} onClose={() => setOpenCustomer(null)} />
+      )}
     </div>
   );
 }
