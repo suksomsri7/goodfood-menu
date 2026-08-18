@@ -183,15 +183,27 @@ function bounds(line: RecipeLine): { min: number; max: number } {
   };
 }
 
-/** ปรับกลุ่มหนึ่งให้ผลรวมของ macro ที่กลุ่มนั้นครองอยู่ ไปแตะค่าที่ยังขาด */
+/**
+ * ปรับกลุ่มหนึ่งให้ผลรวมของ macro ที่กลุ่มนั้นครองอยู่ ไปแตะค่าที่ยังขาด
+ *
+ * 🔴 ต้อง clamp ขอบเขต "ตรงนี้เลย" ไม่ใช่ไปรอ clamp ตอนท้าย
+ *    เจอจากของจริง: ถั่วแดงขยายทะลุเพดานไป 4.5 เท่า กลุ่มคาร์บที่คิดทีหลังเลยเห็นพลังงานเกินจริง
+ *    แล้วสรุปว่า "ไม่ต้องใส่ข้าวเลย" → บรรทัดถัดไปถอยออก ปล่อยข้าวค้างที่ค่าเดิม จานเลยเกินเป้า 125 kcal
+ *    ทั้งที่ถ้าลดข้าวลงจะเข้าเป้าพอดี
+ *
+ * 🔴 ขอมาติดลบ (กลุ่มอื่นล้นเป้าไปแล้ว) = ดันกลุ่มนี้ลงต่ำสุด ไม่ใช่ "ไม่ทำอะไร"
+ */
 function solveGroup(group: Group, macro: keyof Nutrition, want: number) {
   if (group.lines.length === 0) return;
   const atBase = group.lines.reduce((n, g) => n + nutritionOf(g.line, g.line.baseAmount)[macro], 0);
   // กลุ่มนี้ไม่มีมาโครตัวนั้นเลย (เช่นผักไม่มีข้อมูลไฟเบอร์) → ปรับไปก็ไม่ช่วยอะไร ปล่อยไว้
   if (atBase <= 0) return;
   const factor = want / atBase;
-  if (!Number.isFinite(factor) || factor <= 0) return;
-  for (const g of group.lines) g.amount = g.line.baseAmount * factor;
+  for (const g of group.lines) {
+    const wanted = Number.isFinite(factor) ? g.line.baseAmount * factor : g.amount;
+    const { min, max } = bounds(g.line);
+    g.amount = Math.min(max, Math.max(min, wanted));
+  }
 }
 
 function sumAt(entries: { line: RecipeLine; amount: number }[]): Nutrition {
@@ -215,7 +227,10 @@ export function personalize(lines: RecipeLine[], target: MacroTarget): PersonalP
   //    ขั้นนี้ทำให้จานยังดูเป็นจานเดิม — ไม่ใช่อกไก่ท่วมจานแต่ข้าวเท่าเดิม
   if (baseTotal.kcal > 0 && target.kcal > 0) {
     const overall = clamp(target.kcal / baseTotal.kcal, DEFAULT_MIN_FACTOR, DEFAULT_MAX_FACTOR);
-    for (const e of scalable) e.amount = e.line.baseAmount * overall;
+    for (const e of scalable) {
+      const { min, max } = bounds(e.line);
+      e.amount = Math.min(max, Math.max(min, e.line.baseAmount * overall));
+    }
   }
 
   const groupOf = (role: Role): Group => ({ role, lines: scalable.filter((e) => e.line.role === role) });

@@ -121,7 +121,31 @@ check("เรียงจากของที่ใช้เยอะสุด�
 check("formatAmount แปลงกิโลถูก", formatAmount(1200, "g") === "1.2 กก.", formatAmount(1200, "g"));
 check("formatAmount ต่ำกว่ากิโลเป็นกรัม", formatAmount(850, "g") === "850 ก.", formatAmount(850, "g"));
 
-// ── 10. เป้าเท่ากับสูตรพอดี → ไม่ควรขยับอะไรเลย ──
+/* ── 10. 🔴 เคสจากของจริง: กลุ่มโปรตีนชนเพดาน คาร์บต้องถอยลงมาชดเชย ──
+ *
+ * เจอตอนลงสูตรมังสวิรัติจริง (ถั่วแดง+ข้าวกล้อง+บรอกโคลี+น้ำมัน เป้า 694 kcal / P49):
+ * ถั่วแดงให้โปรตีนน้อย ระบบขยายทะลุเพดานไป 4.5 เท่า กลุ่มคาร์บที่คิดทีหลังเลยเห็นพลังงาน "เกินแล้ว"
+ * จากค่าที่ยังไม่ถูก clamp → ขอเป็นลบ → โค้ดเดิมถอยออกเฉย ๆ ปล่อยข้าวค้างไว้
+ * ผลคือจานเกินเป้า 125 kcal ทั้งที่ลดข้าวแล้วเข้าเป้าได้
+ */
+const beans: IngredientNutrition = { id: "bn", name: "ถั่วแดงต้ม", unit: "g", calories: 122, protein: 8.9, carbs: 21.1, fat: 0.4, fiber: null, sodium: 222, sugar: 0.3, stepGrams: 10 };
+const VEGGIE_BOX: RecipeLine[] = [
+  line(beans, "protein", 90),
+  line(ING.rice, "carb", 240),
+  line(ING.broc, "veg", 150),
+  line(ING.oil, "fat", 14, { maxAmount: 20 }),
+];
+const hardTarget = { kcal: 694, protein: 49, fat: 21, fiber: 10 };
+const veg = personalize(VEGGIE_BOX, hardTarget);
+const vRice = veg.lines.find((l) => l.name === "ข้าวกล้อง")!;
+console.log("   →", veg.lines.map((l) => `${l.name} ${l.baseAmount}→${l.amount}`).join(" · "), `= ${veg.delivered.kcal} kcal`);
+check("โปรตีนชนเพดานแล้ว คาร์บต้องลดลงจากมาตรฐาน", vRice.amount < 240, `ข้าว ${vRice.amount} ก.`);
+check("พลังงานไม่เกินเป้าเกิน 15%", veg.delivered.kcal <= hardTarget.kcal * 1.15, `ได้ ${veg.delivered.kcal} จากเป้า ${hardTarget.kcal}`);
+check("ยังเตือนว่าโปรตีนขาด (ความจริงที่ต้องบอก)", veg.warnings.some((w) => w.includes("โปรตีน")));
+check("ไม่เตือนว่าใหญ่เกินเป้าแล้ว", !veg.warnings.some((w) => w.includes("ใหญ่เกิน")), veg.warnings.join(" / "));
+check("น้ำมันไม่ทะลุเพดานที่ครัวกำหนด (20 ก.)", veg.lines.find((l) => l.name === "น้ำมันมะกอก")!.amount <= 20);
+
+// ── 11. เป้าเท่ากับสูตรพอดี → ไม่ควรขยับอะไรเลย ──
 const same = personalize(BOX, { kcal: base.kcal, protein: base.protein, fat: base.fat, fiber: base.fiber });
 check(
   "เป้าตรงกับสูตรพอดี = ทุกอย่างคงเดิม",
