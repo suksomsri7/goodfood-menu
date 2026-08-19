@@ -12,7 +12,9 @@ import { resolveLogTime } from "@/lib/coachLogTime";
  */
 
 /** ที่มาของ MealLog ที่ยอมรับ (ค่าอื่นถือว่าเสียงพูด) — ตรงกับคอมเมนต์ใน schema.prisma */
-const VIA_KINDS = ["photo", "barcode", "voice", "manual"];
+/* "program" = กดปุ่ม "ทาน" จากกล่องปิ่นโตในหน้าโภชนาการ — ต้องแยกจาก manual
+   เพราะหน้านั้นใช้หาว่า "มื้อนี้ทานไปหรือยัง" แล้วสลับปุ่มเป็น "ทานแล้ว" */
+const VIA_KINDS = ["photo", "barcode", "voice", "manual", "program"];
 
 // เวลาที่ user บอกมาเอง (time/date เวลาไทย) → Date จริง — ใช้ตัวเดียวกับ /api/coach/update-entry
 

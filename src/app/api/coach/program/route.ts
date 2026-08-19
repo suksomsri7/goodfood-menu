@@ -41,8 +41,10 @@ const FOOD_SELECT = {
 
 type FoodRow = Prisma.FoodGetPayload<{ select: typeof FOOD_SELECT }>;
 
-function foodPayload(food: FoodRow, target: MealTarget) {
+function foodPayload(food: FoodRow, target: MealTarget, eatenId?: string | null) {
   return {
+    /** id ของแถวในไทม์ไลน์ที่บันทึกว่าทานกล่องนี้แล้ววันนี้ — null = ยังไม่ได้กด "ทาน" */
+    eatenLogId: eatenId ?? null,
     id: food.id,
     name: food.name,
     image: absoluteImageUrl(food.imageUrl),
@@ -64,7 +66,7 @@ function foodPayload(food: FoodRow, target: MealTarget) {
 }
 
 /** เมนูของวันหนึ่งในสายหนึ่ง ครบทุกมื้อที่มีเป้า — ใช้โชว์ให้คนที่ยังไม่เข้าโปรแกรมเห็นของจริง */
-async function dayMenu(date: Date, track: string, targets: MealTarget[]) {
+async function dayMenu(date: Date, track: string, targets: MealTarget[], eaten?: Map<string, string>) {
   const rows = await prisma.menuCalendarItem.findMany({
     where: { date, track },
     include: { food: { select: FOOD_SELECT } },
@@ -76,9 +78,22 @@ async function dayMenu(date: Date, track: string, targets: MealTarget[]) {
     isToday: true,
     meals: targets.map((t) => {
       const food = at.get(t.slot);
-      return { slot: t.slot, target: t, food: food ? foodPayload(food, t) : null };
+      return { slot: t.slot, target: t, food: food ? foodPayload(food, t, eaten?.get(food.name)) : null };
     }),
   };
+}
+
+/**
+ * มื้อที่กดปุ่ม "ทาน" ไปแล้ววันนี้ → map ชื่อเมนู → id ของแถวในไทม์ไลน์
+ * จับคู่ด้วยชื่อ เพราะ MealLog ไม่ได้ผูก foodId (ไทม์ไลน์รับอาหารจากหลายทาง ไม่ใช่แค่กล่องของเรา)
+ */
+async function eatenToday(memberId: string, today: Date): Promise<Map<string, string>> {
+  const rows = await prisma.mealLog.findMany({
+    where: { memberId, via: "program", date: { gte: today, lt: addDays(today, 1) } },
+    select: { id: true, name: true },
+    orderBy: { date: "asc" },
+  });
+  return new Map(rows.map((r) => [r.name, r.id]));
 }
 
 export async function GET(req: NextRequest) {
@@ -145,13 +160,16 @@ export async function GET(req: NextRequest) {
     include: { food: { select: FOOD_SELECT } },
   });
   const menuAt = new Map(menu.map((m) => [`${dayKey(m.date)}|${m.slot}`, m]));
+  /* ปุ่ม "ทาน" ใช้ได้เฉพาะวันนี้ — วันอื่นในตารางเป็นแค่รายการล่วงหน้า/ย้อนหลัง */
+  const eaten = await eatenToday(member.id, today);
 
   const week = days.map((d) => {
     const key = dayKey(d.date);
     const meals = PROGRAM_SLOTS.filter((s) => enrollment.slots.includes(s)).map((slot) => {
       const cell = menuAt.get(`${key}|${slot}`);
       const t = targetBySlot.get(slot)!;
-      return { slot, target: t, food: cell ? foodPayload(cell.food, t) : null };
+      const isToday = key === dayKey(today);
+      return { slot, target: t, food: cell ? foodPayload(cell.food, t, isToday ? eaten.get(cell.food.name) : null) : null };
     });
     return {
       dayNumber: d.dayNumber,
@@ -168,7 +186,7 @@ export async function GET(req: NextRequest) {
   const missing = PROGRAM_SLOTS.filter((s) => !enrollment.slots.includes(s));
   const fullDayTargets = mealTargets(member);
   const addOns = missing.length
-    ? (await dayMenu(today, enrollment.track, fullDayTargets.filter((t) => missing.includes(t.slot)))).meals
+    ? (await dayMenu(today, enrollment.track, fullDayTargets.filter((t) => missing.includes(t.slot)), eaten)).meals
     : [];
 
   return NextResponse.json({
