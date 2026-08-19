@@ -5,6 +5,8 @@
  *    ครัวทำวันละชุดเดียว · ลูกค้าสมัครวันไหนก็ได้ · คอร์สคือหน้าต่างที่เลื่อนบนปฏิทิน
  */
 
+import { RecipeRow, personalize, rowsToLines } from "@/lib/recipe";
+
 const BKK_OFFSET_MS = 7 * 60 * 60 * 1000;
 
 // ─────────────────────────── วันที่ (โซนเวลาไทย) ───────────────────────────
@@ -244,6 +246,91 @@ export function portionFor(target: MealTarget, base: { calories: number; protein
       : null;
 
   return { scale: size.scale, label: size.label, note: notes.join(" · ") || "ตักตามสูตรมาตรฐาน", off };
+}
+
+export interface ServedMeal {
+  /** สูตร = ปรับรายวัตถุดิบตามเป้าของคนนี้ · ไซต์ = ย่อ/ขยายทั้งกล่องด้วยบันได S/M/L/XL (เมนูที่ยังไม่ได้ลงสูตร) */
+  source: "recipe" | "size";
+  /** มีเฉพาะ source=size — ไซต์ที่ครัวจะตักให้คนนี้ */
+  sizeLabel: string | null;
+  kcal: number; protein: number; carbs: number; fat: number; fiber: number; sodium: number; sugar: number;
+  /** ได้จริง − เป้า (บวก = เกิน) */
+  gapKcal: number;
+  gapProtein: number;
+  onTarget: boolean;
+  /** ข้อความสำหรับ "ลูกค้า" อ่าน — null = เข้าเป้าแล้ว ไม่ต้องอธิบายอะไร */
+  note: string | null;
+}
+
+/**
+ * กล่องนี้ลูกค้าได้จริงเท่าไร
+ *
+ * 🔴 ห้ามโชว์ "โภชนาการของกล่องมาตรฐาน" ให้ลูกค้าตรง ๆ — ไม่มีใครได้กล่องมาตรฐาน
+ *    ทุกคนได้กล่องที่ปรับแล้ว (มีสูตร = ปรับรายวัตถุดิบ · ไม่มีสูตร = ครัวตักตามไซต์ถึง 1.5 เท่า)
+ *    ตัวเลขที่ไม่ตรงกับของในกล่องคือที่มาของคำถาม "ทำไมเป้า 694 แต่กล่องเขียน 550"
+ * 🔴 warnings ของ personalize() เขียนไว้ให้ "ครัว" อ่าน (ไปแก้สูตร/เปลี่ยนปฏิทิน) ห้ามส่งดิบ ๆ ให้ลูกค้า
+ *    ตรงนี้จึงแปลงเป็นข้อความที่บอกลูกค้าว่าได้เท่าไรและทำยังไงต่อ ไม่ใช่ข้อความที่ทำให้รู้สึกว่าตัวเองทำผิด
+ */
+export function servedFor(
+  recipe: RecipeRow[] | null | undefined,
+  target: MealTarget,
+  base?: { calories: number; protein: number; carbs: number; fat: number; fiber?: number | null; sodium?: number | null; sugar?: number | null } | null,
+): ServedMeal | null {
+  if (!recipe?.length) return base ? servedBySize(target, base) : null;
+
+  const plan = personalize(rowsToLines(recipe), {
+    kcal: target.kcal,
+    protein: target.protein,
+    carbs: target.carbs,
+    fat: target.fat,
+    fiber: target.fiber,
+  });
+  const d = plan.delivered;
+  const proteinFloor = -Math.max(5, target.protein * 0.1);
+  const onTarget = Math.abs(plan.gap.kcal) <= Math.max(40, target.kcal * 0.1) && plan.gap.protein >= proteinFloor;
+
+  let note: string | null = null;
+  if (plan.gap.kcal < -Math.max(40, target.kcal * 0.1)) {
+    note = `ครัวตักได้สุดขอบเขตของสูตรแล้ว ส่วนที่ขาดเติมจากมื้อว่างได้`;
+  } else if (plan.gap.kcal > Math.max(40, target.kcal * 0.1)) {
+    note = `เหลือไว้มื้อถัดไปได้ ไม่ต้องกินให้หมด`;
+  } else if (plan.gap.protein < proteinFloor) {
+    note = `โปรตีนของเมนูนี้ได้ ${Math.round(d.protein)} ก. จากเป้า ${target.protein} ก. — เสริมไข่หรือนมได้อีก 1 อย่าง`;
+  }
+
+  return {
+    source: "recipe", sizeLabel: null,
+    kcal: d.kcal, protein: d.protein, carbs: d.carbs, fat: d.fat,
+    fiber: d.fiber, sodium: d.sodium, sugar: d.sugar,
+    gapKcal: plan.gap.kcal, gapProtein: plan.gap.protein, onTarget, note,
+  };
+}
+
+/** เมนูที่ยังไม่ได้ลงสูตร — ครัวย่อ/ขยายทั้งกล่องตามบันไดไซต์ ตัวเลขที่ลูกค้าได้จึงคูณด้วย scale เดียวกัน */
+function servedBySize(target: MealTarget, base: NonNullable<Parameters<typeof servedFor>[2]>): ServedMeal | null {
+  if (!base.calories || base.calories <= 0) return null;
+  const p = portionFor(target, base);
+  const at = (v: number | null | undefined) => Math.round((v ?? 0) * p.scale * 10) / 10;
+
+  const kcal = Math.round(base.calories * p.scale);
+  const protein = at(base.protein);
+  const gapKcal = kcal - target.kcal;
+  const gapProtein = Math.round((protein - target.protein) * 10) / 10;
+  const proteinFloor = -Math.max(5, target.protein * 0.1);
+  const kcalTol = Math.max(40, target.kcal * 0.1);
+  const onTarget = Math.abs(gapKcal) <= kcalTol && gapProtein >= proteinFloor;
+
+  let note: string | null = null;
+  if (gapKcal < -kcalTol) note = "ครัวตักให้ใหญ่สุดของเมนูนี้แล้ว ส่วนที่ขาดเติมจากมื้อว่างได้";
+  else if (gapKcal > kcalTol) note = "เหลือไว้มื้อถัดไปได้ ไม่ต้องกินให้หมด";
+  else if (gapProtein < proteinFloor) note = `โปรตีนของเมนูนี้ได้ ${Math.round(protein)} ก. จากเป้า ${target.protein} ก. — เสริมไข่หรือนมได้อีก 1 อย่าง`;
+
+  return {
+    source: "size", sizeLabel: p.label,
+    kcal, protein, carbs: at(base.carbs), fat: at(base.fat),
+    fiber: at(base.fiber), sodium: Math.round((base.sodium ?? 0) * p.scale), sugar: at(base.sugar),
+    gapKcal, gapProtein, onTarget, note,
+  };
 }
 
 // ─────────────────────────── คอร์สของลูกค้า ───────────────────────────

@@ -13,6 +13,7 @@ import {
   enrollmentDays,
   mealTargets,
   runwayEnd,
+  servedFor,
   thaiDate,
   trackLabel,
 } from "@/lib/program";
@@ -78,6 +79,7 @@ export async function GET(req: NextRequest) {
         select: {
           id: true, name: true, imageUrl: true, videoUrl: true, description: true,
           calories: true, protein: true, carbs: true, fat: true, fiber: true, sodium: true, sugar: true,
+          recipe: { include: { ingredient: true }, orderBy: { order: "asc" } },
         },
       },
     },
@@ -107,6 +109,8 @@ export async function GET(req: NextRequest) {
               fiber: cell.food.fiber,
               sodium: cell.food.sodium,
               sugar: cell.food.sugar,
+              /** null = เมนูนี้ยังไม่ได้ลงสูตร → ครัวยังตักด้วยไซต์เดิม แอปต้องบอกตามตรง */
+              served: servedFor(cell.food.recipe, t, cell.food),
             }
           : null,
       };
