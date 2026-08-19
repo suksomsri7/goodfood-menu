@@ -82,6 +82,29 @@ export function trackConflicts(track: string, food: { name: string; ingredients?
 
 // ─────────────────────────── มื้ออาหาร ───────────────────────────
 
+/**
+ * สายอาหารที่เหมาะกับคนคนนี้ จากคำตอบในแบบสำรวจ (ไม่ต้องให้เลือกสายเอง — เขาไม่รู้ว่าสายไหนคืออะไร)
+ *
+ * 🔴 ตอบไม่ครบ/ยังไม่ได้ทำแบบสำรวจ = standard เสมอ ห้ามเดาว่าเขากินทุกอย่างไม่ได้
+ *    แต่ "ยังไม่ได้ตอบ" กับ "ตอบว่าไม่แพ้อะไร" ต้องแยกกันที่ฝั่ง UI (คนละความหมาย)
+ */
+export function trackFor(profile: { avoidMeats?: string[] | null } | null | undefined): {
+  track: TrackKey;
+  reason: string | null;
+} {
+  const avoid = profile?.avoidMeats ?? [];
+  if (avoid.length === 0) return { track: "standard", reason: null };
+
+  const veg = avoid.includes("ไม่กินเนื้อสัตว์");
+  const sea = avoid.includes("ทะเล");
+  const land = ["หมู", "วัว", "ไก่"].some((m) => avoid.includes(m));
+
+  if (veg || (sea && land)) return { track: "vegetarian", reason: veg ? "คุณเลือกไม่กินเนื้อสัตว์" : "คุณเลี่ยงทั้งทะเลและเนื้อสัตว์" };
+  if (sea) return { track: "no_seafood", reason: "คุณเลือกไม่กินอาหารทะเล" };
+  if (land) return { track: "no_meat", reason: `คุณเลือกไม่กิน${avoid.filter((m) => ["หมู", "วัว", "ไก่"].includes(m)).join("/")}` };
+  return { track: "standard", reason: null };
+}
+
 export const PROGRAM_SLOTS = ["เช้า", "กลางวัน", "ว่าง", "เย็น"] as const;
 export type ProgramSlot = (typeof PROGRAM_SLOTS)[number];
 

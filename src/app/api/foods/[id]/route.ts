@@ -159,6 +159,9 @@ export async function PUT(
         description: description || null,
         ingredients: ingredients || existing.ingredients || [],
         imageUrl: finalImageUrl,
+        /* แอดมินอัปรูปเอง = ไม่ใช่รูป AI แล้ว → ปลดป้าย "ภาพตัวอย่าง" ให้อัตโนมัติ
+           (รูปเดิมที่ไม่ได้แตะ ให้คงสถานะเดิมไว้) */
+        imageIsAi: finalImageUrl === existing.imageUrl ? existing.imageIsAi : false,
         videoUrl: videoUrl?.trim() || null,
         images: finalImages,
         price: parseFloat(price),

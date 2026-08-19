@@ -552,6 +552,9 @@ model Food {
   description    String?
   ingredients    String[]           @default([])
   imageUrl       String?
+  /// true = รูปนี้ AI สร้างให้ ไม่ใช่ภาพถ่ายกล่องจริง → ทุกที่ที่โชว์ต้องติดป้าย "ภาพตัวอย่าง"
+  /// อัปรูปจริงทับเมื่อไร ระบบเคลียร์ธงนี้ให้เอง
+  imageIsAi      Boolean            @default(false)
   images         String[]           @default([])
   /// ลิงก์ YouTube Shorts ของเมนูนี้ — แอปขึ้นปุ่ม ▶ บนรูปให้กดดู
   /// เก็บ URL ดิบที่แอดมินวางมา แล้วให้ฝั่ง server แกะ videoId เอง (วางแบบไหนก็ได้)
