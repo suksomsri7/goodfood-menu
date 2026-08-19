@@ -34,7 +34,7 @@ export const dynamic = "force-dynamic";
 
 /** ฟิลด์ชุดเดียวที่แอปต้องใช้ต่อ 1 เมนู — ใช้ร่วมกันทั้งคนในโปรแกรมและคนที่ยังไม่เข้า */
 const FOOD_SELECT = {
-  id: true, name: true, imageUrl: true, imageIsAi: true, videoUrl: true, description: true,
+  id: true, name: true, imageUrl: true, images: true, imageIsAi: true, videoUrl: true, description: true,
   calories: true, protein: true, carbs: true, fat: true, fiber: true, sodium: true, sugar: true,
   recipe: { include: { ingredient: true }, orderBy: { order: "asc" as const } },
 } as const;
@@ -48,6 +48,14 @@ function foodPayload(food: FoodRow, target: MealTarget, eatenId?: string | null)
     id: food.id,
     name: food.name,
     image: absoluteImageUrl(food.imageUrl),
+    /**
+     * รูปทั้งหมดของเมนูนี้เรียงตามลำดับที่แอปจะสไลด์ — รูปหลักมาก่อนเสมอ
+     * (แอดมินใส่รูปเพิ่มเติมได้ 6 รูป + คลิป 1 ตัว ทุกอย่างใส่พร้อมกันได้)
+     */
+    images: [food.imageUrl, ...(food.images ?? [])]
+      .filter((u): u is string => !!u)
+      .map((u) => absoluteImageUrl(u))
+      .filter((u, i, all): u is string => !!u && all.indexOf(u) === i),
     /** true = รูปที่ AI สร้าง ไม่ใช่ภาพถ่ายกล่องจริง → แอปต้องขึ้นป้าย "ภาพตัวอย่าง" */
     imageIsAi: food.imageIsAi,
     /** null = ไม่มีคลิป หรือลิงก์ที่แอดมินวางแกะไม่ออก → แอปไม่ขึ้นปุ่ม ▶ */

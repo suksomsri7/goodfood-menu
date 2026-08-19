@@ -367,7 +367,8 @@ export default function EditFoodPage({ params }: { params: Promise<{ id: string 
               <div className="bg-white rounded-xl border border-gray-100 p-6">
                 <h3 className="font-medium text-gray-900 mb-1">คลิป YouTube</h3>
                 <p className="text-xs text-gray-500 mb-3">
-                  วางลิงก์ Shorts ของเมนูนี้ — แอปจะขึ้นปุ่ม ▶ บนรูปให้ลูกค้ากดดู (เว้นว่าง = ไม่มีปุ่ม)
+                  วางลิงก์ Shorts ของเมนูนี้ — คลิปจะกลายเป็นสไลด์ท้ายสุดของเมนู มีปุ่ม ▶ ให้ลูกค้ากดดู (เว้นว่าง = ไม่มีสไลด์คลิป)
+                  <br />ใส่ได้พร้อมกับรูป ไม่ต้องเลือกอย่างใดอย่างหนึ่ง — ลูกค้าปัดดูได้ทั้งรูปหลัก รูปเพิ่มเติม และคลิป
                   <br />วางแบบไหนก็ได้: youtube.com/shorts/… · youtu.be/… · watch?v=… (มี ?si=… ต่อท้ายก็ได้)
                 </p>
                 <input
