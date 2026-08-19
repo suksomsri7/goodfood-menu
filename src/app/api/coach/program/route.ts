@@ -74,7 +74,7 @@ function foodPayload(food: FoodRow, target: MealTarget, eatenId?: string | null)
 }
 
 /** เมนูของวันหนึ่งในสายหนึ่ง ครบทุกมื้อที่มีเป้า — ใช้โชว์ให้คนที่ยังไม่เข้าโปรแกรมเห็นของจริง */
-async function dayMenu(date: Date, track: string, targets: MealTarget[], eaten?: Map<string, string>) {
+async function dayMenu(date: Date, track: string, targets: MealTarget[], eaten?: Map<string, string[]>) {
   const rows = await prisma.menuCalendarItem.findMany({
     where: { date, track },
     include: { food: { select: FOOD_SELECT } },
@@ -86,22 +86,34 @@ async function dayMenu(date: Date, track: string, targets: MealTarget[], eaten?:
     isToday: true,
     meals: targets.map((t) => {
       const food = at.get(t.slot);
-      return { slot: t.slot, target: t, food: food ? foodPayload(food, t, eaten?.get(food.name)) : null };
+      return { slot: t.slot, target: t, food: food ? foodPayload(food, t, takeEaten(eaten, food.name)) : null };
     }),
   };
 }
 
 /**
- * มื้อที่กดปุ่ม "ทาน" ไปแล้ววันนี้ → map ชื่อเมนู → id ของแถวในไทม์ไลน์
+ * มื้อที่กดปุ่ม "ทาน" ไปแล้ววันนี้ → ชื่อเมนู → กอง id ของแถวในไทม์ไลน์
  * จับคู่ด้วยชื่อ เพราะ MealLog ไม่ได้ผูก foodId (ไทม์ไลน์รับอาหารจากหลายทาง ไม่ใช่แค่กล่องของเรา)
+ *
+ * 🔴 ต้องเป็น "กอง" ไม่ใช่ค่าเดี่ยว — เมนูของว่างตัวเดียวกันโผล่ได้ทั้งมื้อเช้าและมื้อว่างในวันเดียว
+ *    (ของจริง: 20 ส.ค. สายมังสวิรัติ) ถ้า map ชื่อ→id เดี่ยว ทานมื้อเดียวจะติ๊ก "ทานแล้ว" ทั้ง 2 การ์ด
+ *    การ์ดที่ชื่อซ้ำกันจะหยิบคนละ id จากกอง (takeEaten) — ทาน 1 = หาย 1 ใบ
  */
-async function eatenToday(memberId: string, today: Date): Promise<Map<string, string>> {
+async function eatenToday(memberId: string, today: Date): Promise<Map<string, string[]>> {
   const rows = await prisma.mealLog.findMany({
     where: { memberId, via: "program", date: { gte: today, lt: addDays(today, 1) } },
     select: { id: true, name: true },
     orderBy: { date: "asc" },
   });
-  return new Map(rows.map((r) => [r.name, r.id]));
+  const m = new Map<string, string[]>();
+  for (const r of rows) m.set(r.name, [...(m.get(r.name) ?? []), r.id]);
+  return m;
+}
+
+/** หยิบ 1 id ออกจากกองของชื่อนั้น — การ์ดถัดไปที่ชื่อเดียวกันจะไม่ได้ id ซ้ำ */
+function takeEaten(eaten: Map<string, string[]> | undefined, name: string): string | null {
+  const ids = eaten?.get(name);
+  return ids?.length ? ids.shift()! : null;
 }
 
 export async function GET(req: NextRequest) {
@@ -177,7 +189,7 @@ export async function GET(req: NextRequest) {
       const cell = menuAt.get(`${key}|${slot}`);
       const t = targetBySlot.get(slot)!;
       const isToday = key === dayKey(today);
-      return { slot, target: t, food: cell ? foodPayload(cell.food, t, isToday ? eaten.get(cell.food.name) : null) : null };
+      return { slot, target: t, food: cell ? foodPayload(cell.food, t, isToday ? takeEaten(eaten, cell.food.name) : null) : null };
     });
     return {
       dayNumber: d.dayNumber,

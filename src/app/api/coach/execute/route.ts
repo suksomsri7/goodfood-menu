@@ -51,7 +51,10 @@ export async function POST(req: NextRequest) {
             sugar: g.sugar != null ? num(g.sugar, 1000) : null,
             ingredients: g.ingredients ?? null,
             imageUrl:
-              typeof g.imageUrl === "string" && /^\/uploads\/[\w\-./]+$/.test(g.imageUrl) ? g.imageUrl : null,
+              // 🔴 ห้ามมี ".." — regex เดิม ([\w\-./]) ปล่อย /uploads/../ ผ่านได้ (path traversal ในค่าที่เก็บ)
+              typeof g.imageUrl === "string" && /^\/uploads\/[\w\-./]+$/.test(g.imageUrl) && !g.imageUrl.includes("..")
+                ? g.imageUrl
+                : null,
             // WO-B: หน้ากรอกเองส่ง via="manual" มา · ทางเสียง/AI ไม่ส่งอะไร → "voice" เหมือนเดิม
             via: VIA_KINDS.includes(g.via) ? g.via : "voice",
             ...(at ? { date: at } : {}),
