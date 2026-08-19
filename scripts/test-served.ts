@@ -48,7 +48,7 @@ const t694 = target(694, 49);
 const byRecipe = servedFor(RECIPE, t694, BASE)!;
 check("มีสูตร → source=recipe", byRecipe.source === "recipe", byRecipe.source);
 check("มีสูตร → พลังงานเข้าเป้า (คลาด ≤10%)", Math.abs(byRecipe.gapKcal) <= 69, `ได้ ${byRecipe.kcal} เป้า 694`);
-check("มีสูตร → onTarget", byRecipe.onTarget, JSON.stringify(byRecipe.gap ?? byRecipe.gapKcal));
+check("มีสูตร → onTarget", byRecipe.onTarget, `gapKcal ${byRecipe.gapKcal} · gapProtein ${byRecipe.gapProtein}`);
 check("เข้าเป้าแล้วไม่ต้องมีข้อความอธิบาย", byRecipe.note === null, String(byRecipe.note));
 
 // ── 2. ไม่มีสูตร = ครัวตักตามไซต์ → ต้องคูณ scale ไม่ใช่โชว์กล่องมาตรฐานดิบ ──
