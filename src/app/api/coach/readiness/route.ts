@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthedMember } from "@/lib/coachAuth";
 import { autoParts, bkkDayKey } from "@/lib/readinessStore";
-import { computeReadiness, suggestionFor, type ReadinessBand } from "@/lib/readiness";
+import { computeReadiness, suggestionFor, DEFAULT_SLEEP_GOAL_MIN, type ReadinessBand } from "@/lib/readiness";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
  *
  * GET  /api/coach/readiness?_ts=  → ของวันนี้
  *   - เช็คอินแล้ว  : คืนคะแนน/band/คำแนะนำเดิม (ไม่คิดใหม่ — ตัวเลขที่ user เห็นตอนเช้าต้องไม่เปลี่ยนเองตอนบ่าย)
+ *     + parts ประกอบใหม่จาก snapshot ที่เก็บไว้ (เปิดชีตซ้ำแล้วแท่งรายส่วนต้องไม่หาย)
  *   - ยังไม่เช็คอิน: คืนแค่ "มี/ไม่มี" ข้อมูลจาก Watch + needsAnswers
  *     🔴 ห้ามคิดคะแนนให้ก่อน user ตอบ — คะแนนที่ยังไม่รวมความรู้สึกของเขาคือคะแนนที่ผิด
  * POST /api/coach/readiness { energy?, soreness?, soreAreas?[] }
@@ -55,9 +56,27 @@ export async function GET(req: NextRequest) {
 
     const autoView = {
       hrv: { available: auto.availability.hrv, value: auto.snapshot.hrvMs },
-      rhr: { available: auto.availability.rhr, value: auto.snapshot.rhr },
+      /* base = ค่าปกติ 28 วันของคนนี้เอง — จอใช้โชว์ "58 · ปกติ 59" (ตัวเลขเดี่ยว ๆ อ่านไม่ออกว่าดีหรือแย่) */
+      rhr: {
+        available: auto.availability.rhr,
+        value: auto.snapshot.rhr,
+        base: auto.rhr ? Math.round(auto.rhr.base28dAvg) : null,
+      },
       sleep: { available: auto.availability.sleep, minutes: auto.snapshot.sleepMin },
     };
+
+    /* แท่งรายส่วนตอนเปิดชีตซ้ำ: ประกอบใหม่จาก snapshot ที่เก็บตอนเช็คอิน + baseline ปัจจุบัน
+       score/band ยังใช้ค่าที่เก็บไว้เสมอ (parts ใช้แค่วาดแท่ง — baseline ขยับระหว่างวันได้เล็กน้อย)
+       ส่วนไหน snapshot ไม่มีหรือ baseline หายไปแล้ว = ไม่มี key → จอไม่วาดแท่งนั้น (ห้ามเติมเลขเอง) */
+    const reconParts = existing
+      ? computeReadiness({
+          hrv: existing.hrvMs != null && auto.hrv ? { ...auto.hrv, today7dAvg: existing.hrvMs } : undefined,
+          rhr: existing.rhr != null && auto.rhr ? { ...auto.rhr, today: existing.rhr } : undefined,
+          sleep: existing.sleepMin != null ? { minutes: existing.sleepMin, goalMinutes: DEFAULT_SLEEP_GOAL_MIN } : undefined,
+          energy: existing.energy,
+          soreness: existing.soreness,
+        }).parts
+      : null;
 
     const body = existing
       ? {
@@ -69,6 +88,7 @@ export async function GET(req: NextRequest) {
             soreAreas: existing.soreAreas,
             score: existing.score,
             band: existing.band,
+            parts: reconParts,
             applied: existing.applied,
             appliedAt: existing.appliedAt,
             canUndo: existing.applied && existing.planBackup != null,
