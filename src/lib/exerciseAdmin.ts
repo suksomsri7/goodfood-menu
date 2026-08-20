@@ -5,13 +5,52 @@ const KINDS = ["cardio", "strength", "mobility"];
 const TIERS = ["none", "home", "gym"];
 const UNITS = ["reps", "minutes"];
 
+/** metadata สำหรับ engine เทรน — วงคำศัพท์ต้องตรงกับ scripts/seed-exercise-metadata.ts */
+export const PATTERNS = [
+  "squat", "hinge", "push_h", "push_v", "pull_h", "pull_v", "lunge", "core", "carry", "cardio", "mobility",
+];
+export const EQUIPMENT_NEEDED = [
+  "dumbbell", "barbell", "kettlebell", "band", "bench", "pullup_bar", "machine", "treadmill", "bike",
+];
+export const MUSCLE_TAGS = [
+  "quads", "hamstrings", "glutes", "calves", "adductors", "hip_flexors",
+  "chest", "back", "lats", "traps", "shoulders", "biceps", "triceps", "forearms",
+  "core", "obliques", "lower_back", "full_body",
+];
+
+/** เก็บเฉพาะค่าที่อยู่ในวงคำศัพท์ ไม่ซ้ำ — ค่านอกลิสต์ทิ้งเงียบ (แอดมินเลือกจากชิป ไม่ได้พิมพ์เอง) */
+const pickTags = (v: unknown, allowed: string[]) =>
+  Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === "string" && allowed.includes(x)))] : [];
+
 /** แปลง+ตรวจ field ที่แอดมินกรอก — ใช้ร่วมกันทั้ง POST และ PUT */
 export function exerciseFields(b: any) {
   const name = String(b.name || "").trim();
   if (!name) return { error: "ต้องมีชื่อท่า" };
   const met = Number(b.met);
+  const difficulty = Number(b.difficulty);
+
+  /* metadata engine เทรน — ค่าผิดทำให้ระบบจัด "ท่าแทน" ผิดกลุ่ม จึงรับเฉพาะค่าในวงคำศัพท์
+     🔴 ส่ง field ไหนมาถึงเขียน field นั้น: ผู้เรียกที่ไม่รู้จัก field ใหม่ (ฟอร์มเก่าค้างในเบราว์เซอร์)
+        ต้องไม่ล้าง metadata ที่ seed ไว้ทิ้งโดยไม่ตั้งใจ */
+  const meta = {
+    ...(b.pattern !== undefined ? { pattern: PATTERNS.includes(b.pattern) ? b.pattern : null } : {}),
+    ...(b.primaryMuscles !== undefined ? { primaryMuscles: pickTags(b.primaryMuscles, MUSCLE_TAGS) } : {}),
+    ...(b.loadable !== undefined ? { loadable: b.loadable === true } : {}),
+    ...(b.equipmentNeeded !== undefined ? { equipmentNeeded: pickTags(b.equipmentNeeded, EQUIPMENT_NEEDED) } : {}),
+    ...(b.difficulty !== undefined
+      ? { difficulty: Number.isFinite(difficulty) ? Math.min(5, Math.max(1, Math.round(difficulty))) : 2 }
+      : {}),
+    ...(b.progressionGroup !== undefined
+      ? { progressionGroup: String(b.progressionGroup || "").trim().slice(0, 40) || null }
+      : {}),
+    ...(b.commonMistakes !== undefined
+      ? { commonMistakes: String(b.commonMistakes || "").trim().slice(0, 500) || null }
+      : {}),
+  };
+
   return {
     data: {
+      ...meta,
       name,
       kind: KINDS.includes(b.kind) ? b.kind : "strength",
       equipment: TIERS.includes(b.equipment) ? b.equipment : "none",

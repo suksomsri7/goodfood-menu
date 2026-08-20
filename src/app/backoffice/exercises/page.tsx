@@ -26,6 +26,54 @@ const UNIT_OPTIONS = [
   { value: "minutes", label: "จับเวลา (นาที)" },
 ];
 
+/* metadata ของ engine เทรน (เฟส A) — ค่าตรงนี้คือสิ่งที่ระบบใช้หา "ท่าแทน" ตอนลูกค้าเจ็บ/ไม่มีอุปกรณ์
+   จึงเป็นชิป/ดรอปดาวน์ให้เลือก ไม่ใช่ช่องพิมพ์อิสระ (คำที่พิมพ์เองระบบจับคู่ไม่ได้) */
+const PATTERN_OPTIONS = [
+  { value: "", label: "— ยังไม่ระบุ —" },
+  { value: "squat", label: "ย่อเข่า (squat)" },
+  { value: "hinge", label: "พับสะโพก (hinge)" },
+  { value: "push_h", label: "ดันแนวนอน (push_h)" },
+  { value: "push_v", label: "ดันเหนือหัว (push_v)" },
+  { value: "pull_h", label: "ดึงแนวนอน (pull_h)" },
+  { value: "pull_v", label: "ดึงแนวดิ่ง (pull_v)" },
+  { value: "lunge", label: "ก้าวขาเดียว (lunge)" },
+  { value: "core", label: "แกนกลาง (core)" },
+  { value: "carry", label: "ถือเดิน (carry)" },
+  { value: "cardio", label: "คาร์ดิโอ" },
+  { value: "mobility", label: "ยืดเหยียด" },
+];
+const MUSCLE_OPTIONS: { value: string; label: string }[] = [
+  { value: "quads", label: "ต้นขาหน้า" },
+  { value: "hamstrings", label: "ต้นขาหลัง" },
+  { value: "glutes", label: "ก้น" },
+  { value: "calves", label: "น่อง" },
+  { value: "adductors", label: "ต้นขาด้านใน" },
+  { value: "hip_flexors", label: "สะโพกหน้า" },
+  { value: "chest", label: "อก" },
+  { value: "back", label: "หลัง" },
+  { value: "lats", label: "ปีก" },
+  { value: "traps", label: "บ่า" },
+  { value: "shoulders", label: "ไหล่" },
+  { value: "biceps", label: "แขนหน้า" },
+  { value: "triceps", label: "แขนหลัง" },
+  { value: "forearms", label: "ปลายแขน" },
+  { value: "core", label: "แกนกลาง" },
+  { value: "obliques", label: "เอว" },
+  { value: "lower_back", label: "หลังล่าง" },
+  { value: "full_body", label: "ทั้งตัว" },
+];
+const EQUIPMENT_NEEDED_OPTIONS: { value: string; label: string }[] = [
+  { value: "dumbbell", label: "ดัมเบล" },
+  { value: "barbell", label: "บาร์เบล" },
+  { value: "kettlebell", label: "เคตเทิลเบล" },
+  { value: "band", label: "ยางยืด" },
+  { value: "bench", label: "ม้านั่ง" },
+  { value: "pullup_bar", label: "บาร์โหน" },
+  { value: "machine", label: "เครื่องฟิตเนส" },
+  { value: "treadmill", label: "ลู่วิ่ง" },
+  { value: "bike", label: "จักรยาน" },
+];
+
 interface Exercise {
   id: string;
   key: string;
@@ -41,10 +89,20 @@ interface Exercise {
   videoUrl: string | null;
   isCustom: boolean;
   isActive: boolean;
+  pattern: string | null;
+  primaryMuscles: string[];
+  loadable: boolean;
+  equipmentNeeded: string[];
+  difficulty: number;
+  progressionGroup: string | null;
+  commonMistakes: string | null;
 }
 
 type Form = Partial<Exercise> & { id?: string };
-const EMPTY: Form = { kind: "strength", equipment: "none", impact: "low", unit: "reps", met: 4, isActive: true, images: [] };
+const EMPTY: Form = {
+  kind: "strength", equipment: "none", impact: "low", unit: "reps", met: 4, isActive: true, images: [],
+  pattern: "", primaryMuscles: [], loadable: false, equipmentNeeded: [], difficulty: 2,
+};
 
 const label = (opts: { value: string; label: string }[], v: string) => opts.find((o) => o.value === v)?.label ?? v;
 
@@ -116,6 +174,15 @@ export default function ExercisesPage() {
       });
   }
 
+  /** ชิปเลือกได้หลายค่า (กล้ามเนื้อหลัก / อุปกรณ์ที่ต้องใช้) — กดซ้ำ = เอาออก */
+  function toggleTag(field: "primaryMuscles" | "equipmentNeeded", value: string) {
+    setForm((f) => {
+      if (!f) return f;
+      const cur = f[field] ?? [];
+      return { ...f, [field]: cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value] };
+    });
+  }
+
   const shown = q.trim() ? items.filter((i) => `${i.name} ${i.muscles ?? ""}`.includes(q.trim())) : items;
 
   return (
@@ -162,6 +229,7 @@ export default function ExercisesPage() {
                 <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
                   <th className="px-4 py-3">ท่า</th>
                   <th className="px-4 py-3">ชนิด</th>
+                  <th className="px-4 py-3">รูปแบบ</th>
                   <th className="px-4 py-3">อุปกรณ์</th>
                   <th className="px-4 py-3">หน่วย</th>
                   <th className="px-4 py-3">สื่อ</th>
@@ -193,6 +261,14 @@ export default function ExercisesPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3">{label(KIND_OPTIONS, it.kind)}</td>
+                    <td className="px-4 py-3">
+                      {it.pattern ? (
+                        <span className="text-xs text-gray-600">{label(PATTERN_OPTIONS, it.pattern)}</span>
+                      ) : (
+                        // ยังไม่กรอก = engine จัดท่าแทนให้ท่านี้ไม่ได้ → ทำให้เห็นชัดว่าต้องเติม
+                        <span className="text-xs text-amber-600">ยังไม่ระบุ</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3">{label(TIER_OPTIONS, it.equipment)}</td>
                     <td className="px-4 py-3">{it.unit === "reps" ? "เซ็ต×ครั้ง" : "นาที"}</td>
                     <td className="px-4 py-3">
@@ -309,6 +385,105 @@ export default function ExercisesPage() {
                   onChange={(e) => setForm({ ...form, muscles: e.target.value })}
                   className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 text-sm"
                   placeholder="เช่น ต้นขา · สะโพก · แกนกลาง"
+                />
+              </div>
+
+              {/* ── metadata สำหรับระบบเทรน: ท่าแทน + บันไดความยาก ── */}
+              <div className="col-span-2 pt-2 border-t border-gray-100">
+                <p className="text-xs font-medium text-gray-700">ข้อมูลสำหรับระบบเทรน</p>
+                <p className="text-[11px] text-gray-400">ใช้หาท่าแทนตอนลูกค้าเจ็บ/ไม่มีอุปกรณ์ และเรียงบันไดความยาก</p>
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-500">รูปแบบการเคลื่อนไหว (pattern)</label>
+                <select
+                  value={form.pattern ?? ""}
+                  onChange={(e) => setForm({ ...form, pattern: e.target.value })}
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white"
+                >
+                  {PATTERN_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500">ความยาก 1-5</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={5}
+                  value={form.difficulty ?? 2}
+                  onChange={(e) => setForm({ ...form, difficulty: Number(e.target.value) })}
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                />
+                <p className="text-[11px] text-gray-400 mt-1">1 = มือใหม่ทำได้เลย · 5 = ต้องมีพื้นฐานแน่น</p>
+              </div>
+
+              <div className="col-span-2">
+                <label className="text-xs text-gray-500">กล้ามเนื้อหลัก (เลือกได้หลายมัด)</label>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {MUSCLE_OPTIONS.map((o) => {
+                    const on = (form.primaryMuscles ?? []).includes(o.value);
+                    return (
+                      <button
+                        key={o.value}
+                        type="button"
+                        onClick={() => toggleTag("primaryMuscles", o.value)}
+                        className={`px-2.5 py-1 rounded-full text-xs border ${on ? "bg-[#4CAF50] text-white border-[#4CAF50]" : "bg-white text-gray-600 border-gray-200"}`}
+                      >
+                        {o.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="col-span-2">
+                <label className="text-xs text-gray-500">อุปกรณ์ที่ต้องใช้ (ไม่เลือก = ตัวเปล่า)</label>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {EQUIPMENT_NEEDED_OPTIONS.map((o) => {
+                    const on = (form.equipmentNeeded ?? []).includes(o.value);
+                    return (
+                      <button
+                        key={o.value}
+                        type="button"
+                        onClick={() => toggleTag("equipmentNeeded", o.value)}
+                        className={`px-2.5 py-1 rounded-full text-xs border ${on ? "bg-[#4CAF50] text-white border-[#4CAF50]" : "bg-white text-gray-600 border-gray-200"}`}
+                      >
+                        {o.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="col-span-2 flex items-center gap-2">
+                <input
+                  id="loadable"
+                  type="checkbox"
+                  checked={form.loadable === true}
+                  onChange={(e) => setForm({ ...form, loadable: e.target.checked })}
+                />
+                <label htmlFor="loadable" className="text-sm text-gray-700">
+                  เพิ่มน้ำหนักได้จริง (ดัมเบล/บาร์เบล/เคตเทิล) — ระบบจะสั่งขึ้นน้ำหนักเป็นกิโล
+                </label>
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-500">กลุ่มบันไดความยาก</label>
+                <input
+                  value={form.progressionGroup ?? ""}
+                  onChange={(e) => setForm({ ...form, progressionGroup: e.target.value })}
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                  placeholder="เช่น pushup · squat_bw · plank · row"
+                />
+                <p className="text-[11px] text-gray-400 mt-1">ท่ากลุ่มเดียวกันเรียงตามความยาก — ห้ามปนท่ากระโดดกับท่าไม่กระโดด</p>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500">ข้อผิดพลาดที่พบบ่อย</label>
+                <input
+                  value={form.commonMistakes ?? ""}
+                  onChange={(e) => setForm({ ...form, commonMistakes: e.target.value })}
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                  placeholder="เช่น เข่าบิดเข้าใน · หลังงอตอนลง"
                 />
               </div>
 

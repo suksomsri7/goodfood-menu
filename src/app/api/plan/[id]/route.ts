@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sanitizeLogInstant, clampToDayWindow } from "@/lib/coachLogTime";
+import { planDayWindow, mergeExerciseItemsDone, deriveExerciseDone, derivePlanStatus } from "@/lib/planTick";
 import { prisma } from "@/lib/prisma";
 import { isAiCoachActive } from "@/lib/coaching";
 import { memberFromReq, unauthorizedIfBearer } from "@/lib/memberAuth";
@@ -30,8 +31,8 @@ export async function PATCH(
     // B1: ขอบเขตวันของแผน (plan.date = UTC midnight ของวัน BKK → วัน BKK จริงใน UTC = [−7h, +17h))
     // ใช้กรองตอน "ติ๊กออก" — เดิมลบ log "ชื่อเดียวกัน แถวล่าสุด" โดยไม่ดูวัน
     // แผนใช้เมนู/ท่าซ้ำกันหลายวัน → ติ๊กออกวันนี้เคยเสี่ยงไปลบบันทึกของวันอื่นเงียบ ๆ
-    const dayStart = new Date(plan.date.getTime() - 7 * 3600 * 1000);
-    const dayEnd = new Date(plan.date.getTime() + 17 * 3600 * 1000);
+    // (ย้ายสูตรหน้าต่างวันไป lib/planTick แล้ว — Workout Player ใช้ตัวเดียวกัน)
+    const { dayStart, dayEnd } = planDayWindow(plan.date);
     // แอปส่ง logAt = เวลาปัจจุบันของเครื่องเสมอ แม้เปิดดูแผนของวันย้อนหลัง
     // → ติ๊กแผนเมื่อวานแล้วบันทึกไปโผล่วันนี้ · บังคับให้อยู่ในวันของแผน
     const logDate = clampToDayWindow(logAtRaw, dayStart, dayEnd);
@@ -41,17 +42,16 @@ export async function PATCH(
     }
 
     // ติ๊กรายท่า (Coach native): merge แล้ว derive exerciseDone = ครบทุกท่า
-    const nextItemsDone =
-      exerciseItemsDone && typeof exerciseItemsDone === "object"
-        ? { ...(plan.exerciseItemsDone as Record<string, boolean> | null), ...exerciseItemsDone }
-        : (plan.exerciseItemsDone as Record<string, boolean> | null);
+    const nextItemsDone = mergeExerciseItemsDone(plan.exerciseItemsDone as Record<string, boolean> | null, exerciseItemsDone);
     const exItemsFull =
       (plan.exercisePlan as { items?: { name: string; minutes?: number; sets?: number; reps?: number }[] } | null)?.items ?? [];
-    const exItems = exItemsFull;
-    let nextExerciseDone = typeof exerciseDone === "boolean" ? exerciseDone : plan.exerciseDone;
-    if (exerciseItemsDone && exItems.length > 0) {
-      nextExerciseDone = exItems.every((it) => (nextItemsDone || {})[it.name]);
-    }
+    const nextExerciseDone = deriveExerciseDone({
+      items: exItemsFull,
+      itemsDone: nextItemsDone,
+      itemsPatched: !!exerciseItemsDone,
+      explicit: exerciseDone,
+      current: plan.exerciseDone,
+    });
     const nextMealsDone =
       mealsDone && typeof mealsDone === "object"
         ? { ...(plan.mealsDone as Record<string, boolean> | null), ...mealsDone }
@@ -59,16 +59,7 @@ export async function PATCH(
 
     // คำนวณ status จากความคืบหน้า
     const mealPlan = plan.mealPlan as { meals?: { slot: string }[] } | null;
-    const totalMeals = mealPlan?.meals?.length ?? 0;
-    const doneMeals = nextMealsDone
-      ? Object.values(nextMealsDone).filter(Boolean).length
-      : 0;
-    const allMealsDone = totalMeals > 0 && doneMeals >= totalMeals;
-
-    let status: string;
-    if (nextExerciseDone && allMealsDone) status = "done";
-    else if (nextExerciseDone || doneMeals > 0) status = "partial";
-    else status = "planned";
+    const status = derivePlanStatus(nextExerciseDone, nextMealsDone, mealPlan?.meals?.length ?? 0);
 
     // ── ติ๊ก = บันทึกจริงลง timeline (สร้าง/ลบ log ตาม transition) ──
     const mp = plan.mealPlan as { meals?: { slot: string; menu: string; kcal: number; protein: number; carbs: number; fat: number; sodium?: number; sugar?: number }[] } | null;

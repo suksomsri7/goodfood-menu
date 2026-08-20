@@ -93,6 +93,8 @@ model Member {
   mealPlanDesigns    MealPlanDesign[]
   mealSwaps          MealSwap[]
   enrollments        ProgramEnrollment[]
+  memberEquipment    MemberEquipment[]
+  setLogs            SetLog[]
 
   @@map("members")
 }
@@ -417,7 +419,64 @@ model Exercise {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /// ── metadata สำหรับ engine เทรน (เฟส A) ──
+  /// pattern = รูปแบบการเคลื่อนไหว ใช้หา "ท่าแทน" ตอน user เจ็บ/ไม่มีอุปกรณ์ (ไม่มี pattern = แทนกันมั่วไม่ได้)
+  pattern          String? // squat|hinge|push_h|push_v|pull_h|pull_v|lunge|core|carry|cardio|mobility
+  primaryMuscles   String[] @default([])
+  /// ใส่น้ำหนักเพิ่มได้จริง → progression เดินด้วย "กิโล" · false = เดินด้วยบันไดความยาก/ครั้ง
+  loadable         Boolean  @default(false)
+  equipmentNeeded  String[] @default([]) // dumbbell|barbell|kettlebell|band|bench|pullup_bar|machine|treadmill|bike — ว่าง = ตัวเปล่า
+  difficulty       Int      @default(2) // 1-5 ใช้เรียงบันไดในกลุ่มเดียวกัน
+  /// ท่ากลุ่มเดียวกัน = บันไดความยาก (wall→knee→full) · ห้ามปนท่า impact สูงกับต่ำในบันไดเดียว
+  progressionGroup String?
+  commonMistakes   String?
+
   @@map("exercises")
+}
+
+/// คลังอุปกรณ์รายชิ้นของสมาชิก — แทน Member.equipment ที่มีแค่ 3 ค่า (none/home/gym)
+/// incrementKg คือหัวใจ: ดัมเบลชุด 2-24 กก. ก้าว 2 → สั่งขึ้นน้ำหนัก 16→18 ไม่ใช่ 16→17.5 ที่ user ทำตามไม่ได้
+model MemberEquipment {
+  id          String   @id @default(cuid())
+  memberId    String
+  type        String // dumbbell|barbell|kettlebell|band|bench|pullup_bar|machine|treadmill|bike|full_gym
+  variant     String? // fixed|adjustable
+  minKg       Float?
+  maxKg       Float?
+  incrementKg Float?
+  isPair      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId])
+  @@map("member_equipment")
+}
+
+/// บันทึกรายเซ็ต (Workout Player) — ตารางที่ engine progression ทั้งหมดกินเป็นอาหาร
+/// ExerciseLog ยังอยู่เหมือนเดิมในฐานะ "สรุปต่อท่า" ของไทม์ไลน์/วงแหวน (สร้างจากการรวมยอดตารางนี้)
+model SetLog {
+  id             String   @id @default(cuid())
+  memberId       String
+  planId         String? // เล่นนอกแผนได้ → ว่างได้
+  exerciseKey    String
+  /// snapshot ชื่อ ณ ตอนบันทึก — แอดมินเปลี่ยนชื่อท่าใน DB ได้ แต่บันทึกเก่าต้องอ่านออกเสมอ
+  exerciseName   String
+  setNo          Int
+  targetWeightKg Float?
+  targetReps     Int?
+  targetSec      Int?
+  actualWeightKg Float?
+  actualReps     Int?
+  actualSec      Int?
+  feel           String? // too_easy|easy|good|hard|too_hard
+  rpe            Float? // 1-10 โหมด advanced
+  date           DateTime @default(now())
+  createdAt      DateTime @default(now())
+  member         Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, exerciseKey, date])
+  @@index([memberId, date])
+  @@map("set_logs")
 }
 
 model ExerciseLog {
