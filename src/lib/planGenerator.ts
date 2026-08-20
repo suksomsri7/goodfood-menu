@@ -775,11 +775,16 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
      🔴 ต้องอยู่ "ก่อน" enforceAvoid: ท่าที่เราเพิ่มต้องผ่านด่านข้อห้ามเหมือนท่าอื่นทุกท่า
         (เสียบหลังด่าน = เราจะเป็นทางเดียวในระบบที่ยัดท่าให้คนที่ห้ามทำท่านั้นได้)
      🔴 สัญญาณคิดไม่ได้/DB ล้ม = แผนต้องออกเหมือนเดิมทุกประการ ห้ามล้มทั้งสัปดาห์เพราะของเสริม */
+  /* volumeDown ไม่ทำตรงนี้ — applyProgression เขียนทับ sets ของท่าที่มีข้อมูล
+     การ "ลดเซ็ต" ไม่เพิ่มท่าจึงไม่ต้องผ่านด่านข้อห้าม → ย้ายไปหลัง progression (ด้านล่าง)
+     ให้เป็นคำสุดท้ายเรื่องจำนวนเซ็ตของสัปดาห์นี้ */
+  let pendingVolumeDown = false;
   try {
     const signals = await gatherSignalsSafe(memberId);
     const hints = bodyHintsFromSignals(signals);
-    if (hints.unilateral || hints.mobility || hints.volumeDown) {
-      const hinted = applyBodyHints(days, hints, pool);
+    pendingVolumeDown = hints.volumeDown;
+    if (hints.unilateral || hints.mobility) {
+      const hinted = applyBodyHints(days, { ...hints, volumeDown: false }, pool);
       days = hinted.days;
       if (hinted.applied.length) {
         console.log(`[planGenerator] body hints: ${hinted.applied.join(" · ")} member=${memberId}`);
@@ -812,6 +817,19 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
     }
   } catch (e) {
     console.error("[planGenerator] applyProgression ล้ม — ใช้ตัวเลขตามแผนเดิม:", e);
+  }
+
+  // volumeDown หลัง progression เสมอ (เหตุผลอยู่ที่จุดตั้ง pendingVolumeDown ด้านบน)
+  if (pendingVolumeDown) {
+    try {
+      const cut = applyBodyHints(days, { unilateral: false, mobility: false, volumeDown: true, keepProgram: false }, pool);
+      days = cut.days;
+      if (cut.applied.length) {
+        console.log(`[planGenerator] body hints (หลัง progression): ${cut.applied.join(" · ")} member=${memberId}`);
+      }
+    } catch (e) {
+      console.error("[planGenerator] volumeDown ล้ม — ใช้ตัวเลขตาม progression:", e);
+    }
   }
 
   // เขียนลง DB — ไม่ทับวันที่มีแล้ว
