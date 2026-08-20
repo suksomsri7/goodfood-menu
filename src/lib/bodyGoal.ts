@@ -129,12 +129,15 @@ function pairsOf(current: BodyCurrent, target: BodyTarget): Array<{ key: GoalKey
  * ซึ่งเป็นตัวเดียวกับที่ validateGoal ใช้ดัน targetWeeks ที่สั้นเกินไปขึ้นมา (นิยามเดียว ไม่มีสองมาตรฐาน)
  * weeksSlow = อัตราช้า ไว้พูดกับ user เป็นช่วง
  *
- * ตอบ null เมื่อ: ไม่ได้ตั้งเป้าอะไรเลย · หรือมีเป้าที่ไม่มีค่าปัจจุบันให้เทียบ (ห้ามเดาจุดตั้งต้น)
+ * ตอบ null เมื่อ: ไม่มีเป้าที่คำนวณได้เลย (ไม่ได้ตั้ง หรือตั้งแต่ไม่มีค่าปัจจุบันสักตัว — ห้ามเดาจุดตั้งต้น)
+ * เป้าที่ขาดค่าปัจจุบันถูก "ข้าม" ไม่ใช่ทำให้ทั้งก้อนเงียบ
  */
 export function suggestWeeks(current: BodyCurrent, target: BodyTarget): SuggestWeeksResult | null {
-  const pairs = pairsOf(current, target).filter((p) => p.tgt !== null);
+  /* คิดจากเป้าที่ "มีค่าปัจจุบัน" เท่านั้น — เป้าที่ขาดข้อมูลถูกข้าม (route แจ้ง missingCurrent แยกอยู่แล้ว)
+     🔴 ห้ามตอบ null ทั้งก้อนเพียงเพราะเป้าตัวหนึ่งขาดข้อมูล: นั่นทำให้ด่านอัตราปลอดภัย
+     ของเป้าที่คำนวณได้ (เช่น ลดน้ำหนักเร็วเกิน) เงียบไปด้วย — QC 20 ส.ค. เจอบน prod จริง */
+  const pairs = pairsOf(current, target).filter((p) => p.tgt !== null && p.cur !== null);
   if (pairs.length === 0) return null;
-  if (pairs.some((p) => p.cur === null)) return null;
 
   const perGoal: SuggestPerGoal[] = pairs.map((p) => {
     const cur = p.cur as number;

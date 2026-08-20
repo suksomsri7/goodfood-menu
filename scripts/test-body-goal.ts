@@ -84,10 +84,12 @@ console.log("\n── 1. suggestWeeks: อัตราปลอดภัยแ�
 
   check("ไม่ได้ตั้งเป้าอะไรเลย = null", suggestWeeks({ weightKg: 80 }, {}) === null);
   check("ตั้งเป้าแต่ไม่มีค่าปัจจุบัน = null (ห้ามเดา)", suggestWeeks({}, { weightKg: 74 }) === null);
-  check(
-    "มีเป้า 2 อย่างแต่ขาดค่าปัจจุบัน 1 อย่าง = null",
-    suggestWeeks({ weightKg: 80 }, { weightKg: 74, waistCm: 85 }) === null
-  );
+  /* คำตัดสิน QC 20 ส.ค.: เป้าที่ขาดค่าปัจจุบันถูก "ข้าม" ไม่ใช่ทำให้ทั้งก้อนเงียบ
+     (ของเดิมตอบ null ทั้งก้อน → ด่านอัตราปลอดภัยของเป้าน้ำหนักไม่ทำงาน — เจอบน prod จริง) */
+  const partial = suggestWeeks({ weightKg: 80 }, { weightKg: 74, waistCm: 85 });
+  check("มีเป้า 2 อย่างแต่ขาดค่าปัจจุบัน 1 อย่าง = คิดจากตัวที่มี", partial !== null && partial.limitedBy === "weight");
+  check("เป้าที่ขาดค่าปัจจุบันไม่โผล่ใน perGoal", partial !== null && partial.perGoal.every((g) => g.key === "weight"));
+  check("ด่านปลอดภัยยังทำงาน: ลด 6 กก. = ขั้นต่ำ 8 สัปดาห์", partial !== null && partial.weeks === Math.ceil(6 / 0.75));
 
   const zero = suggestWeeks({ weightKg: 74 }, { weightKg: 74 });
   check("เป้าเท่าปัจจุบัน = 0 สัปดาห์", zero?.weeks === 0);
