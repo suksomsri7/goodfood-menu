@@ -5,6 +5,7 @@ import { buildOpenAI, aiModel } from "@/lib/aiClient";
 import { getSecret } from "@/lib/secrets/store";
 import { pushProactiveMessage, createFlexMessage } from "@/lib/line";
 import { getPersonalizationSafe, type Personalization } from "@/lib/personalization";
+import { buildBodyContextSafe, type BodyContextBlock } from "@/lib/bodyGoalStore";
 
 // AI Coach System Prompt
 export const COACH_SYSTEM_PROMPT = `คุณคือ "โค้ชกู๊ด" โค้ชโภชนาการส่วนตัวมืออาชีพจาก GoodFood
@@ -118,6 +119,9 @@ export interface MemberContext {
   planAdjustNote?: string | null;
   // WO-P.3 (สาย P) — CoachMemory + BehaviorInsight ของ user (จุดเดียว ทุก AI path ใช้ร่วมกัน)
   personalization: Personalization;
+  /* BP-3 §B6 — ตัวเลขร่างกาย (เอว/ไขมันเป็นช่วง + เป้า + สัญญาณ) · ไม่มีสแกน = ไม่มี key นี้เลย
+     🔴 ตัวเลขล้วน ห้ามมี path รูปเด็ดขาด: ก้อนนี้เดินทางเข้า prompt ของผู้ให้บริการ AI */
+  body?: BodyContextBlock;
 }
 
 // Calculate expiry threshold using Thailand timezone
@@ -412,7 +416,7 @@ export async function gatherMemberContext(memberId: string): Promise<MemberConte
   startOfYesterday.setDate(startOfYesterday.getDate() - 1);
 
   // P2: เดิม await เรียงแถว ~8 จุด (+streak เดิมอีก 30 query) ทุกครั้งที่คุยกับโค้ช → ยิงขนานชุดเดียว
-  const [todayMeals, yesterdayMeals, waterLogs, recentOrders, weightLogs, exerciseToday, streakDays, personalization, budget, todayMetrics, sleepLogs, rhrLogs, watchWorkouts] =
+  const [todayMeals, yesterdayMeals, waterLogs, recentOrders, weightLogs, exerciseToday, streakDays, personalization, budget, todayMetrics, sleepLogs, rhrLogs, watchWorkouts, body] =
     await Promise.all([
       prisma.mealLog.findMany({ where: { memberId, date: { gte: startOfDay } } }),
       prisma.mealLog.findMany({ where: { memberId, date: { gte: startOfYesterday, lt: startOfDay } } }),
@@ -459,6 +463,8 @@ export async function gatherMemberContext(memberId: string): Promise<MemberConte
         select: { name: true, duration: true, calories: true, date: true },
         take: 20,
       }),
+      // BP-3 — บริบทร่างกาย (คืน null เร็วด้วย query เดียวถ้ายังไม่เคยสแกน = คนส่วนใหญ่)
+      buildBodyContextSafe(memberId),
     ]);
 
   const todayTotals = todayMeals.reduce(
@@ -560,6 +566,7 @@ export async function gatherMemberContext(memberId: string): Promise<MemberConte
     recovery,
     lastActiveAt: member.updatedAt,
     personalization,
+    ...(body ? { body } : {}),
   };
 }
 

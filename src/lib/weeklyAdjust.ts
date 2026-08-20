@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { isAiCoachActive } from "@/lib/coaching";
 import { generateWeekPlan, bkkTodayKey, addDays } from "@/lib/planGenerator";
 import { estimateEnergy, targetFromTdee, macroTargets } from "@/lib/energyModel";
+import { gatherSignalsSafe } from "@/lib/bodySignalsStore";
 
 const MAX_STEP = 0.1; // ปรับได้ไม่เกิน ±10% ต่อรอบ
 const STEP = 0.08; // ก้าวปรับจริง 8%
@@ -136,6 +137,18 @@ export async function runWeeklyAdjust(opts?: {
       newCal = Math.max(newCal, bmr);
     }
 
+    /* ── BP-3 §B6: สัญญาณ losing_too_fast (น้ำหนักลง >1%/สัปดาห์ + แรงตก) ──
+       ตัวชี้วัดร่างกาย 4 สัปดาห์เห็นสิ่งที่เทรนด์น้ำหนัก 14 วันเห็นไม่ได้: "ลดได้แต่แลกมาด้วยกล้าม"
+       ทางเดิมของไฟล์นี้จะอ่านว่า "กำลังลดได้ดี คงแผนเดิม" ซึ่งคือคำตอบที่ผิดสำหรับเคสนี้
+       🔴 ไม่แก้เป้าเงียบ ๆ — ทุกการปรับลง PlanAdjustment พร้อมเหตุผลไทยที่โค้ชเช้าเอาไปพูดกับ user
+          (ระบบนี้ยังไม่มีกลไก "เสนอ-รอยืนยัน" แยกต่างหาก — ท่อที่มีอยู่คือเหตุผลที่ user ได้อ่านทุกครั้ง) */
+    const bodySignals = await gatherSignalsSafe(m.id);
+    const tooFast = bodySignals.find((s) => s.key === "losing_too_fast");
+    if (tooFast && newCal <= prevCal) {
+      newCal = Math.max(Math.round(clamp(prevCal * (1 + STEP), prevCal, prevCal * (1 + MAX_STEP))), bmr);
+      reason = `${tooFast.message} โค้ชขยับเป้าเป็น ${newCal.toLocaleString("th-TH")} kcal/วัน`;
+    }
+
     if (newCal !== prevCal) {
       // มาโครคิดใหม่ทั้งชุด (โปรตีน ก./กก. ก่อน) — ของเดิม scale ตามแคลอรี่ทำให้โปรตีนบานตามไปด้วย
       const { macros } = macroTargets(newCal, m.weight ?? 70, m.goalWeight, goalType);
@@ -164,7 +177,7 @@ export async function runWeeklyAdjust(opts?: {
           reason,
           prevCalories: prevCal,
           newCalories: newCal,
-          detail: { weightTrend: trend, adherence: adherence.score, adherenceCount: adherence.count },
+          detail: { weightTrend: trend, adherence: adherence.score, adherenceCount: adherence.count, ...(tooFast ? { bodySignal: tooFast.key } : {}) },
         },
       });
 
@@ -178,7 +191,7 @@ export async function runWeeklyAdjust(opts?: {
           reason,
           prevCalories: prevCal,
           newCalories: prevCal,
-          detail: { weightTrend: trend, adherence: adherence.score, adherenceCount: adherence.count, kept: true },
+          detail: { weightTrend: trend, adherence: adherence.score, adherenceCount: adherence.count, kept: true, ...(tooFast ? { bodySignal: tooFast.key } : {}) },
         },
       });
       details.push({ memberId: m.id, name: m.name, status: "kept", prevCalories: prevCal, reason });

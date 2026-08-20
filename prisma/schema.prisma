@@ -103,6 +103,7 @@ model Member {
   bodyScans          BodyScan[]
   bodyMeasurements   BodyMeasurement[]
   bodyGoals          BodyGoal[]
+  bodyReports        BodyReport[]
 
   @@map("members")
 }
@@ -1518,4 +1519,28 @@ model BodyGoal {
 
   @@index([memberId, status])
   @@map("body_goals")
+}
+
+/// รายงานร่างกาย 4 สัปดาห์ (BP-3) — จุดเดียวในระบบ Body ที่มี LLM เข้ามาเกี่ยว
+/// 🔴 stats = ตัวเลขที่ pipeline คิดเสร็จแล้วทั้งหมด · narrative = แค่ "คำเล่า" ของตัวเลขชุดนั้น
+///    เก็บ stats ไว้คู่กันเสมอ เพื่อให้ตรวจย้อนได้ว่าย่อหน้านั้นพูดเกินตัวเลขไหม
+model BodyReport {
+  id       String @id @default(cuid())
+  memberId String
+
+  /// ช่วงของรายงาน (28 วัน) — periodEnd เป็นคีย์กันซ้ำของ cron ด้วย
+  periodStart DateTime
+  periodEnd   DateTime
+
+  stats     Json
+  narrative String
+  /// llm | fallback — ต้องรู้ว่าใครเขียนย่อหน้านี้ เวลาไล่ปัญหาคุณภาพย้อนหลัง
+  source    String @default("fallback")
+
+  createdAt DateTime @default(now())
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, periodEnd])
+  @@index([memberId, periodEnd])
+  @@map("body_reports")
 }

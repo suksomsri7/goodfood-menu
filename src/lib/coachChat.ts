@@ -39,6 +39,30 @@ function buildContextText(
     const ep = plan.exercisePlan as { title?: string };
     lines.push(`แผนวันนี้: ออกกำลังกาย ${ep?.title || "-"}; อาหาร ~${mp?.totalKcal || 0} kcal (${(mp?.meals || []).map((m) => `${m.slot}:${m.menu}`).join(", ")})`);
   }
+  /* BP-3 §B6 — ตัวเลขร่างกาย: เอว/ไขมันต้องพูดเป็น "ช่วง" เสมอ (กล้องประมาณได้ ±2-3 ซม.)
+     ถ้าโค้ชพูดเลขเดี่ยวเมื่อไหร่ user จะเชื่อว่าเป็นค่าที่วัดจริง แล้วสัปดาห์หน้าที่เลขแกว่งเขาจะเลิกเชื่อทั้งระบบ */
+  const b = context.body;
+  if (b) {
+    const parts: string[] = [];
+    if (b.waistCm)
+      parts.push(
+        b.waistCm.source === "tape"
+          ? `เอวจากสายวัด ${b.waistCm.lo} ซม.`
+          : `เอวประมาณ ${b.waistCm.lo}-${b.waistCm.hi} ซม. (ค่าประมาณจากภาพ)`
+      );
+    if (b.bfPct) parts.push(`ไขมันประมาณ ${b.bfPct.lo}-${b.bfPct.hi}%`);
+    if (b.lastScanDaysAgo != null) parts.push(`สแกนล่าสุด ${b.lastScanDaysAgo} วันที่แล้ว`);
+    if (b.scoreOf100 != null) parts.push(`Body Score ${b.scoreOf100}/100`);
+    if (parts.length) lines.push(`ร่างกาย: ${parts.join(" · ")}`);
+    if (b.goal)
+      lines.push(
+        `เป้ารูปร่าง "${b.goal.label}": คืบหน้า ${b.goal.pctDone}%` +
+          (b.goal.onTrack ? ` (${b.goal.onTrack})` : "") +
+          (b.goal.weeksLeft != null ? ` เหลือ ${b.goal.weeksLeft} สัปดาห์` : "")
+      );
+    for (const s of b.signals ?? []) lines.push(`สัญญาณร่างกาย (${s.key}): ${s.message}`);
+  }
+
   // WO-P.3 — memory + insight เฉพาะตัว
   if (context.personalization?.text) lines.push("", context.personalization.text);
   return lines.join("\n");

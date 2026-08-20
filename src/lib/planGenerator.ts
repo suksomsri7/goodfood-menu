@@ -11,6 +11,8 @@ import {
   MAIN_SLOTS, ROTATION_DAYS, type PickableFood,
 } from "@/lib/goodfoodMealPicker";
 import { applyProgressionToWeek } from "@/lib/applyProgression";
+import { gatherSignalsSafe } from "@/lib/bodySignalsStore";
+import { applyBodyHints, bodyHintsFromSignals } from "@/lib/bodyPlanHints";
 
 // ── โครงข้อมูลแผนรายวัน ──
 export interface ExercisePlanItem {
@@ -767,6 +769,24 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
     console.log(
       `[planGenerator] เมนู goodfood มี ${menu.length} รายการ (ต้องการอย่างน้อย 9) — ใช้แผนแบบเดิม member=${memberId}`
     );
+  }
+
+  /* ── BP-3 §B6: สัญญาณร่างกาย 4 สัปดาห์ → ท่าในแผน (imbalance / posture / ลงเร็วเกิน) ──
+     🔴 ต้องอยู่ "ก่อน" enforceAvoid: ท่าที่เราเพิ่มต้องผ่านด่านข้อห้ามเหมือนท่าอื่นทุกท่า
+        (เสียบหลังด่าน = เราจะเป็นทางเดียวในระบบที่ยัดท่าให้คนที่ห้ามทำท่านั้นได้)
+     🔴 สัญญาณคิดไม่ได้/DB ล้ม = แผนต้องออกเหมือนเดิมทุกประการ ห้ามล้มทั้งสัปดาห์เพราะของเสริม */
+  try {
+    const signals = await gatherSignalsSafe(memberId);
+    const hints = bodyHintsFromSignals(signals);
+    if (hints.unilateral || hints.mobility || hints.volumeDown) {
+      const hinted = applyBodyHints(days, hints, pool);
+      days = hinted.days;
+      if (hinted.applied.length) {
+        console.log(`[planGenerator] body hints: ${hinted.applied.join(" · ")} member=${memberId}`);
+      }
+    }
+  } catch (e) {
+    console.error("[planGenerator] body hints ล้ม — ใช้แผนเดิม:", e);
   }
 
   // WO-P.3 — ด่านสุดท้าย: แผนต้องไม่ขัดข้อห้าม (ครอบทั้งแผน AI และแผนสำรอง)
