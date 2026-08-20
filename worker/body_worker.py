@@ -200,7 +200,10 @@ def analyze_one(path: str) -> dict:
     masks = getattr(res, "segmentation_masks", None) or []
     if masks:
         # binary ตัวเดียวใช้ทั้งสามค่า — threshold ต้องเป็นตัวเดียวกัน ไม่งั้น coverage กับ grid จะเล่าคนละเรื่อง
-        binary = masks[0].numpy_view() > MASK_THRESHOLD
+        # mediapipe จริงคืน (H,W,1) ไม่ใช่ (H,W) — บีบแกน channel ทิ้งก่อน ไม่งั้น integral image พัง
+        binary = np.squeeze(np.asarray(masks[0].numpy_view())) > MASK_THRESHOLD
+        if binary.ndim != 2:
+            binary = binary.reshape(binary.shape[0], binary.shape[1])
         mask_coverage = float(np.mean(binary))
         bounds = mask_bounds(binary)
         # ไม่มีกรอบ = mask ว่าง → ตารางก็ไม่มีประโยชน์ (และ null บอกปลายทางตรง ๆ ว่า "วัดไม่ได้")
