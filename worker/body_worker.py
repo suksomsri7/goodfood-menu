@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-body_worker.py — CV worker ของ Body Progress (WO-BP-1 §B2)
+body_worker.py — CV worker ของ Body Progress (WO-BP-1 §B2 · +silhouette grid WO-BP-2 §B1)
 
-ทำอย่างเดียว: รับ path รูป → คืน landmark 33 จุด + ตัวเลขคุณภาพภาพ (ดิบ ๆ ไม่ตัดสิน)
+ทำอย่างเดียว: รับ path รูป → คืน landmark 33 จุด + ตัวเลขคุณภาพภาพ + เงาร่าง (ดิบ ๆ ไม่ตัดสิน)
 คนตัดสินว่า "ผ่าน/ไม่ผ่าน" คือ src/lib/bodyScanGate.ts ฝั่ง Next — ไฟล์นี้ห้ามมีความเห็น
+คนคิดตัวเลขวัด (กว้าง/ลึก/รอบวง) คือ src/lib/bodyMeasure.ts — ไฟล์นี้ส่งแค่ข้อมูลดิบให้
 
 ทำไมเป็น process แยกบน host ไม่ใช่ใน container:
   mediapipe + libgles ติดตั้งบน host แล้ว (PoC ผ่าน 30ms/ภาพ) · ยัดเข้า image Next = image บวมหลายร้อย MB
@@ -23,6 +24,7 @@ body_worker.py — CV worker ของ Body Progress (WO-BP-1 §B2)
         -d '{"paths":["/var/lib/goodfood/private/body/xxx/pending-front.jpg"]}'
 """
 
+import base64
 import json
 import os
 import sys
@@ -47,6 +49,12 @@ MAX_PATHS = 3
 MAX_BODY_BYTES = 64 * 1024
 # mask ถือว่า "เป็นคน" ที่ค่านี้ขึ้นไป (mediapipe คืน float 0-1)
 MASK_THRESHOLD = 0.5
+
+# ขนาดตารางเงาร่างที่ส่งกลับ (WO-BP-2 §B1) — 128×256 bit-packed = 4096 ไบต์ → base64 ~5.5KB
+# ทำไมไม่ส่ง mask เต็ม: mask เต็มของภาพ 720×1280 = ~1MB ต่อภาพ แค่ส่งผ่าน JSON ก็แพงกว่างานทั้งหมดที่เหลือ
+# ทำไม 128×256 พอ: ตัววัดต้องการ "ความกว้างของลำตัวที่ระดับ y" ไม่ใช่ขอบคม — 1 ช่อง ≈ 5-6 พิกเซล (~1 ซม.บนคนจริง)
+GRID_W = 128
+GRID_H = 256
 
 _landmarker = None  # โหลดครั้งเดียวตอนสตาร์ท — โหลดใหม่ทุก request = 300ms+ ต่อภาพ
 
@@ -106,6 +114,62 @@ def mean_luma(rgb: np.ndarray) -> float:
     return float(np.mean(gray))
 
 
+def mask_bounds(binary: np.ndarray):
+    """
+    กรอบสี่เหลี่ยมที่ล้อมเงาร่าง เป็นสัดส่วน 0-1 ของภาพ "ก่อนย่อ" (WO-BP-2 §B1)
+
+    ตัวสเกลส่วนสูงใช้ top→bottom ของกรอบนี้ ไม่ใช่ landmark จมูก→ข้อเท้า:
+      จมูกไม่ใช่ยอดหัว และข้อเท้าไม่ใช่พื้น — ใช้ landmark จะขาดหายไปทั้งกระหม่อมและฝ่าเท้า (~10% ของส่วนสูง)
+      กรอบ mask คือหัวจรดเท้าจริง ๆ ซึ่งเป็นสิ่งเดียวกับ "ส่วนสูง" ที่ผู้ใช้กรอกไว้ในโปรไฟล์
+    bottom/right เป็นขอบนอก (แถวสุดท้าย+1) → (bottom-top)×สูงภาพ = จำนวนพิกเซลของร่างพอดี
+    คืน None ถ้า mask ว่าง (ไม่เจอคน) — ห้ามคืนกรอบเต็มภาพ เพราะปลายทางจะคิดสเกลผิดโดยไม่รู้ตัว
+    """
+    rows = np.any(binary, axis=1)
+    cols = np.any(binary, axis=0)
+    if not rows.any() or not cols.any():
+        return None
+    h, w = int(binary.shape[0]), int(binary.shape[1])
+    r = np.flatnonzero(rows)
+    c = np.flatnonzero(cols)
+    return {
+        "top": round(float(r[0]) / h, 5),
+        "bottom": round(float(r[-1] + 1) / h, 5),
+        "left": round(float(c[0]) / w, 5),
+        "right": round(float(c[-1] + 1) / w, 5),
+    }
+
+
+def mask_grid(binary: np.ndarray) -> dict:
+    """
+    ย่อ mask เป็นตาราง GRID_W×GRID_H แล้ว bit-pack เป็น base64 (row-major · MSB ก่อน)
+
+    ย่อแบบ "เฉลี่ยพื้นที่แล้วตัดที่ 0.5" ไม่ใช่หยิบพิกเซลตัวแทน (nearest):
+      nearest จะทำให้แขน/น่องที่บางกว่า 1 ช่องหายไปทั้งเส้นในบางแถวแบบสุ่ม → ความกว้างกระพริบระหว่างสแกน
+      เฉลี่ยพื้นที่ให้ผลนิ่ง: ภาพเดิม = ตารางเดิมทุกครั้ง (กติกา deterministic ของ WO-BODY §1)
+    ใช้ integral image เพื่อให้เป็น O(พื้นที่ภาพ) ครั้งเดียว — ภาพ 720×1280 ใช้เวลาไม่กี่มิลลิวินาที
+    """
+    h, w = int(binary.shape[0]), int(binary.shape[1])
+    ii = np.zeros((h + 1, w + 1), dtype=np.int32)
+    ii[1:, 1:] = np.cumsum(np.cumsum(binary.astype(np.int32), axis=0), axis=1)
+
+    r_edge = np.linspace(0, h, GRID_H + 1).astype(np.int64)
+    c_edge = np.linspace(0, w, GRID_W + 1).astype(np.int64)
+    r0, r1 = r_edge[:-1, None], r_edge[1:, None]
+    c0, c1 = c_edge[None, :-1], c_edge[None, 1:]
+
+    sums = ii[r1, c1] - ii[r0, c1] - ii[r1, c0] + ii[r0, c0]
+    areas = (r1 - r0) * (c1 - c0)
+    # ช่องที่ไม่มีพิกเซลต้นทางเลย (ภาพเล็กกว่าตาราง) = ว่าง ไม่ใช่ "เป็นคน"
+    cells = np.where(areas > 0, sums * 2 >= areas, False)
+
+    packed = np.packbits(cells.astype(np.uint8), axis=-1, bitorder="big")
+    return {
+        "w": GRID_W,
+        "h": GRID_H,
+        "data": base64.b64encode(packed.tobytes()).decode("ascii"),
+    }
+
+
 def analyze_one(path: str) -> dict:
     """วิเคราะห์ 1 ภาพ → dict ตามสัญญาใน WO-BP-1 §B2 (ตัวเลขดิบล้วน ไม่ตัดสินผ่าน/ไม่ผ่าน)"""
     landmarker = load_landmarker()
@@ -131,10 +195,17 @@ def analyze_one(path: str) -> dict:
             )
 
     mask_coverage = 0.0
+    grid = None
+    bounds = None
     masks = getattr(res, "segmentation_masks", None) or []
     if masks:
-        m = masks[0].numpy_view()
-        mask_coverage = float(np.mean(m > MASK_THRESHOLD))
+        # binary ตัวเดียวใช้ทั้งสามค่า — threshold ต้องเป็นตัวเดียวกัน ไม่งั้น coverage กับ grid จะเล่าคนละเรื่อง
+        binary = masks[0].numpy_view() > MASK_THRESHOLD
+        mask_coverage = float(np.mean(binary))
+        bounds = mask_bounds(binary)
+        # ไม่มีกรอบ = mask ว่าง → ตารางก็ไม่มีประโยชน์ (และ null บอกปลายทางตรง ๆ ว่า "วัดไม่ได้")
+        if bounds is not None:
+            grid = mask_grid(binary)
 
     return {
         "ok": True,
@@ -142,6 +213,9 @@ def analyze_one(path: str) -> dict:
         "personCount": person_count,
         "landmarks": landmarks,
         "maskCoverage": round(mask_coverage, 5),
+        # เพิ่มใหม่ (WO-BP-2 §B1) — ของเดิมทุก field ข้างบนคงรูปเดิมเป๊ะ เพราะ gate ของ BP-1 ยังอ่านอยู่
+        "maskGrid": grid,
+        "maskBounds": bounds,
         "width": width,
         "height": height,
         "meanLuma": round(mean_luma(rgb), 2),

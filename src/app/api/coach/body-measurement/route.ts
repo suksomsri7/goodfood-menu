@@ -4,6 +4,9 @@ import { getAuthedMember } from "@/lib/coachAuth";
 import { bkkDayKey } from "@/lib/readinessStore";
 import { bkkDayWindow } from "@/lib/planTick";
 import { sanitizeLogInstant } from "@/lib/coachLogTime";
+import { remeasureScansNear } from "@/lib/bodyMeasureStore";
+// ป้ายไทยย้ายไปอยู่กับ SITE_TO_ESTIMATE ใน bodyMeasure.ts — สองที่ที่ใช้ต้องอ่านชุดเดียวกัน
+import { SITE_LABELS_TH } from "@/lib/bodyMeasure";
 
 export const dynamic = "force-dynamic";
 
@@ -33,20 +36,6 @@ export const MEASUREMENT_SITES = [
   "calf_r",
 ] as const;
 export type MeasurementSite = (typeof MEASUREMENT_SITES)[number];
-
-export const SITE_LABELS_TH: Record<string, string> = {
-  waist: "เอว",
-  hip: "สะโพก",
-  chest: "รอบอก",
-  shoulder: "ไหล่",
-  neck: "คอ",
-  arm_l: "ต้นแขนซ้าย",
-  arm_r: "ต้นแขนขวา",
-  thigh_l: "ต้นขาซ้าย",
-  thigh_r: "ต้นขาขวา",
-  calf_l: "น่องซ้าย",
-  calf_r: "น่องขวา",
-};
 
 /** ช่วงที่เป็นไปได้ของเส้นรอบวงมนุษย์ (ซม.) — กันพิมพ์ผิดหน่วย (นิ้ว/มิลลิเมตร) และกันนิ้วลั่น */
 const MIN_CM = 10;
@@ -91,8 +80,15 @@ export async function POST(req: NextRequest) {
       ? await prisma.bodyMeasurement.update({ where: { id: existing.id }, data: { valueCm, source, date } })
       : await prisma.bodyMeasurement.create({ data: { memberId: member.id, site, valueCm, source, date } });
 
+    /* สายวัดเข้ามาแล้ว = ระบบเรียน offset ของคนนี้ได้ทันที (WO-BP-2 §B3)
+       วัดสแกนที่อยู่ในระยะ ±3 วันใหม่ ให้กราฟขยับตั้งแต่วินาทีที่เขากดบันทึก ไม่ใช่รอสแกนครั้งหน้า
+       🔴 ล้มตรงนี้ห้ามกระทบการบันทึก — สายวัดถูกเก็บไปแล้ว (remeasureScansNear กลืน error ให้ในตัว) */
+    const recalibrated = await remeasureScansNear(member.id, date);
+
     const res = NextResponse.json({
       ok: true,
+      /** จำนวนสแกนที่ถูกคิดใหม่ด้วยค่านี้ — จอเอาไปบอกได้ว่า "ปรับค่าประมาณให้แล้ว" */
+      recalibrated,
       measurement: {
         id: row.id,
         site: row.site,

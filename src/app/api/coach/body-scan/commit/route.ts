@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthedMember } from "@/lib/coachAuth";
 import { bkkDayKey } from "@/lib/readinessStore";
 import { worstQuality, type ScanQuality } from "@/lib/bodyScanGate";
+import { measureScanSafe } from "@/lib/bodyMeasureStore";
 import {
   movePrivate,
   pendingMetaPath,
@@ -152,6 +153,12 @@ export async function POST(req: NextRequest) {
     }
     await clearPending(member.id);
 
+    /* วัดทันทีในนาทีที่ user ยังรอผลอยู่ (WO-BP-2 §B3)
+       🔴 ล้มตรงนี้ห้ามทำให้ commit ล้ม — รูปถูกเก็บและแถวถูกเขียนไปแล้ว
+          ตอบ measured:false ให้จอบอกว่า "เก็บสแกนแล้ว แต่ยังคิดตัวเลขไม่ได้ กดวัดใหม่ได้"
+          ถ้าโยน error ตรงนี้ user จะเห็นว่า "บันทึกไม่สำเร็จ" แล้วถ่ายใหม่ทั้งชุดโดยไม่จำเป็น */
+    const measured = await measureScanSafe(scanId, member.id);
+
     const res = NextResponse.json({
       ok: true,
       scan: {
@@ -159,10 +166,11 @@ export async function POST(req: NextRequest) {
         date: date.toISOString().slice(0, 10),
         views: available,
         quality,
-        heightCmUsed: member.height ?? null,
+        heightCmUsed: measured.ok ? measured.heightCmUsed : member.height ?? null,
         replacedToday: !!existing,
-        /** BP-1 ยังไม่มีตัวเลขวัด — จอต้องไม่แต่งค่าให้ user เห็น (BP-2 เป็นคนเติม) */
-        estimates: null,
+        /** false = สแกนถูกเก็บแล้วแต่ยังไม่มีตัวเลข (worker ไม่ว่าง) — วัดย้อนหลังได้ที่ POST .../measure */
+        measured: measured.ok,
+        estimates: measured.ok ? measured.estimates : null,
       },
     });
     res.headers.set("Cache-Control", "no-store, must-revalidate");

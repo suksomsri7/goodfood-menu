@@ -106,6 +106,12 @@ export interface WorkerImage {
   width?: number;
   height?: number;
   meanLuma?: number;
+  /* ── เพิ่มใน BP-2 (WO-BP-2 §B1) — gate ไม่ใช้ทั้งสองตัว มีไว้ให้ bodyMeasure.ts ──
+     ประกาศไว้ที่นี่เพราะนี่คือ "สัญญา" ของสิ่งที่ worker คืนมา ไม่ควรมีสองที่ */
+  /** เงาร่างย่อ 128×256 bit-packed base64 (null = mask หาย → วัดไม่ได้) */
+  maskGrid?: { w: number; h: number; data: string } | null;
+  /** กรอบเงาร่างเป็นสัดส่วน 0-1 ของภาพจริง — ตัวสเกลส่วนสูง */
+  maskBounds?: { top: number; bottom: number; left: number; right: number } | null;
 }
 
 export interface GateIssue {
