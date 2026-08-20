@@ -67,6 +67,9 @@ model Member {
   sessionEpoch             Int       @default(0)
   dailyBurnGoal            Int? // เป้าเผาผลาญ/วัน (kcal) ที่ user ตั้งเอง — ว่าง = ใช้ Move goal ของนาฬิกา/คำนวณให้
   notificationsPausedUntil DateTime?
+  /// ยินยอมให้เก็บ/วิเคราะห์ภาพร่างกาย (WO-BODY §5 ข้อ 2) — ว่าง = ยังไม่ยินยอม → สแกนไม่ได้
+  /// ครั้งเดียวพอ แต่ถอนได้ (เซ็ตกลับเป็น null) · ไม่มีค่านี้ = API สแกนตอบ 403 ทุกครั้ง
+  bodyConsentAt            DateTime?
 
   addresses          Address[]
   aiRecommendation   AiRecommendation?
@@ -97,6 +100,9 @@ model Member {
   setLogs            SetLog[]
   progressionStates  ProgressionState[]
   readinessCheckins  ReadinessCheckin[]
+  bodyScans          BodyScan[]
+  bodyMeasurements   BodyMeasurement[]
+  bodyGoals          BodyGoal[]
 
   @@map("members")
 }
@@ -1421,4 +1427,95 @@ model ProgramEnrollment {
   @@index([memberId, status])
   @@index([status, startDate])
   @@map("program_enrollments")
+}
+
+// ═══════════════════ Body Progress (BP-1 · WO-BODY §4) ═══════════════════
+// 🔴 กติกาสถาปัตยกรรมของสามตารางนี้ (WO-BODY §5 — ข้อบังคับ ไม่ใช่ option):
+//    path ในตารางนี้ชี้ไปที่ private dir (PRIVATE_DIR) เท่านั้น — ห้ามอยู่ใต้ public/uploads เด็ดขาด
+//    (public/uploads ถูก nginx เสิร์ฟสาธารณะ + immutable cache 30 วัน = ใครมี URL ก็เปิดรูปร่างกายลูกค้าได้)
+//    รูปออกจากระบบได้ทางเดียว: GET /api/coach/body-photo/[scanId]/[view] (เช็คเจ้าของ + no-store)
+
+/// สแกนร่างกาย 1 ครั้ง = 2-3 ภาพ (หน้า/ข้าง/หลัง) ของวันเดียว
+/// สแกนซ้ำวันเดิม = ทับของเดิม (@@unique([memberId, date])) — ไม่งั้นกราฟเทรนด์จะมีหลายจุดในวันเดียว
+model BodyScan {
+  id       String   @id @default(cuid())
+  memberId String
+  /// วัน BKK (UTC midnight ของวันนั้น +7) — กติกาเดียวกับ DailyPlan.date / ReadinessCheckin.date
+  date     DateTime
+
+  /// 🔴 path สัมพัทธ์ใต้ PRIVATE_DIR เช่น "body/<memberId>/<scanId>-front.jpg"
+  /// เก็บแบบสัมพัทธ์เพราะ mount point ต่างกันระหว่าง container (/app/private) กับ host (/var/lib/goodfood/private)
+  frontPath String
+  sidePath  String
+  backPath  String?
+
+  /// ส่วนสูงที่ใช้เป็นสเกลตอนคิด (ซม.) — null = ตอนสแกนโปรไฟล์ยังไม่มีส่วนสูง (BP-2 คิดค่าสัมบูรณ์ไม่ได้ แต่เก็บภาพ/landmark ไว้ reprocess ได้)
+  heightCmUsed Float?
+  /// good | ok | poor — ผลจาก bodyScanGate (poor ถูกปฏิเสธตั้งแต่ตอนอัปโหลด จึงไม่ควรมี poor ในตารางนี้)
+  quality      String
+
+  /// 33 จุด × ภาพ (ดิบจาก MediaPipe) — เก็บไว้ reprocess เมื่อสูตร BP-2 ดีขึ้น โดยไม่ต้องขอรูปใหม่จากลูกค้า
+  landmarks Json
+  /// ความกว้าง/ลึกดิบต่อระดับกายวิภาค — BP-1 เขียน {} ไว้ก่อน (BP-2 เป็นคนเติม)
+  widthsPx  Json
+  /// ค่าประมาณ (เอว/สะโพก/BF%/posture) พร้อมช่วง+confidence — BP-1 เขียน {} ไว้ก่อน (BP-2 เป็นคนเติม)
+  estimates Json
+
+  createdAt DateTime @default(now())
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, date])
+  @@index([memberId, date])
+  @@map("body_scans")
+}
+
+/// สายวัดจริงของลูกค้า — ground truth ที่แม่นกว่ากล้องเสมอ (WO-BODY §4)
+/// ระบบต้องเลือกค่านี้ก่อนค่าที่ CV ประมาณ เมื่อมีทั้งคู่ในวันเดียวกัน
+model BodyMeasurement {
+  id       String   @id @default(cuid())
+  memberId String
+  /// วัน BKK (UTC midnight +7) เหมือน BodyScan.date
+  date     DateTime
+  /// waist | hip | chest | shoulder | arm_l | arm_r | thigh_l | thigh_r | calf_l | calf_r | neck
+  site     String
+  valueCm  Float
+  /// tape = สายวัดมือ · scale = จากเครื่องชั่ง · cv = ระบบประมาณเอง (BP-2)
+  source   String   @default("tape")
+
+  createdAt DateTime @default(now())
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, site, date])
+  @@index([memberId, date])
+  @@map("body_measurements")
+}
+
+/// เป้าหมายรูปร่าง 1 อัน = 1 อัลบั้ม transformation (ดีไซน์ข้อ 22)
+/// เก็บเป็นตัวเลขล้วน — ไม่มีภาพร่าง "ตัวเองในอนาคต" (การสร้างภาพนั้น = fabrication ห้ามทำ)
+model BodyGoal {
+  id       String @id @default(cuid())
+  memberId String
+  /// ชื่อที่ลูกค้าตั้งเอง เช่น "Summer Body 2026"
+  label    String
+
+  targetWeightKg Float?
+  targetWaistCm  Float?
+  /// ช่วง body fat ที่ตั้งเป้า (lo-hi) — เป้าเป็นช่วงเสมอ เพราะตัววัดให้ค่าเป็นช่วง
+  targetBfLo     Float?
+  targetBfHi     Float?
+
+  /// สแกนตั้งต้นของอัลบั้มนี้ (ภาพ "before") — ไม่ผูก FK เพราะลบสแกนตั้งต้นได้โดยไม่ควรลบเป้าทิ้ง
+  startScanId String?
+  startedAt   DateTime @default(now())
+  /// กี่สัปดาห์ถึงเป้า — คิดจากอัตราปลอดภัย (ลด 0.5-0.75 กก./สัปดาห์ · เอว ~0.5 ซม./สัปดาห์)
+  targetWeeks Int?
+  /// active | achieved | paused | cancelled
+  status      String   @default("active")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, status])
+  @@map("body_goals")
 }
