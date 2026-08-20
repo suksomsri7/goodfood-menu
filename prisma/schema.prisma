@@ -95,6 +95,7 @@ model Member {
   enrollments        ProgramEnrollment[]
   memberEquipment    MemberEquipment[]
   setLogs            SetLog[]
+  progressionStates  ProgressionState[]
 
   @@map("members")
 }
@@ -477,6 +478,32 @@ model SetLog {
   @@index([memberId, exerciseKey, date])
   @@index([memberId, date])
   @@map("set_logs")
+}
+
+/// สถานะ progression ต่อท่า (เฟส B) — "สมอง" ของ engine #3
+/// ทุกค่าในตารางนี้ derive จาก SetLog ได้เสมอ (progressionStore คิดใหม่ทุกครั้งที่บันทึกเซ็ต)
+/// เก็บไว้เพราะ SetLog ย้อนหลังไกลกว่าหน้าต่างที่ API อ่าน — กติกา "นิ่ง 3 สัปดาห์ = พักฟื้น" ต้องจำข้ามหน้าต่างได้
+model ProgressionState {
+  id            String   @id @default(cuid())
+  memberId      String
+  exerciseKey   String
+  /// e1RM (Epley) จากเซ็ตที่ดีที่สุดล่าสุด — ท่าที่ใส่น้ำหนักได้เท่านั้น
+  e1rmKg        Float?
+  /// ตำแหน่งในบันได progressionGroup (0 = ท่าง่ายสุดของกลุ่ม) — ท่าที่ไม่มีบันได = null
+  ladderLevel   Int?
+  lastWeightKg  Float?
+  lastReps      Int?
+  lastSets      Int?
+  /// บวก = สัปดาห์ที่ทำได้ตามเป้าติดกัน · ลบ = สัปดาห์ที่ทำไม่ไหวติดกัน (ใช้กติกาลดบันได)
+  successStreak Int      @default(0)
+  /// สัปดาห์ที่ตัวเลขไม่ขยับติดกัน — ครบ 3 = สั่งสัปดาห์พักฟื้น
+  stallCount    Int      @default(0)
+  updatedAt     DateTime @updatedAt
+  member        Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, exerciseKey])
+  @@index([memberId])
+  @@map("progression_states")
 }
 
 model ExerciseLog {

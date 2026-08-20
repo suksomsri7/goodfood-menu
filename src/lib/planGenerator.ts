@@ -10,6 +10,7 @@ import {
   loadGoodfoodMenu, goodfoodMenuReady, pickMainMeals, recentGoodfoodFoodIds,
   MAIN_SLOTS, ROTATION_DAYS, type PickableFood,
 } from "@/lib/goodfoodMealPicker";
+import { applyProgressionToWeek } from "@/lib/applyProgression";
 
 // ── โครงข้อมูลแผนรายวัน ──
 export interface ExercisePlanItem {
@@ -20,6 +21,15 @@ export interface ExercisePlanItem {
   reps?: number;
   minutes?: number;
   note?: string;
+  // ── เฟส B (additive): ตัวเลขจาก engine progression — แผนเก่าที่ไม่มี field พวกนี้ยังอ่านได้ปกติ ──
+  /** น้ำหนักที่สั่งสัปดาห์นี้ (ท่าที่ใส่น้ำหนักได้) — Workout Player prefill ช่อง kg จากตรงนี้ */
+  weightKg?: number;
+  /** ท่าจับเวลา: วินาทีต่อเซ็ต (minutes ยังอยู่ครบเพื่อให้จอ/แคลอรี่เดิมไม่พัง) */
+  seconds?: number;
+  /** ทำไมสัปดาห์นี้ถึงเป็นเลขนี้ — โชว์ให้ user เห็นว่าระบบจำผลของเขาได้ */
+  rxReason?: string;
+  /** สัปดาห์พักฟื้น (ลดปริมาณ) */
+  deload?: boolean;
 }
 export interface ExercisePlan {
   title: string;
@@ -760,6 +770,24 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
     console.log(`[planGenerator] enforceAvoid แก้ ${enforced.fixed} จุด (${avoidKeywords.join(",")}) member=${memberId}`);
   }
   days = enforced.days;
+
+  /* ── เฟส B: ต่อยอดจากผลจริงของสัปดาห์ก่อน (น้ำหนัก/ครั้ง/เซ็ต + เหตุผล) ──
+     🔴 ต้องอยู่ "หลัง" snapExercises + enforceAvoid เสมอ: ท่าถูกเลือกและกรองข้อห้ามเรียบร้อยแล้ว
+        ตรงนี้แตะแค่ตัวเลขของท่าที่ผ่านด่านมา (ไม่เพิ่ม/ไม่สลับท่า) — ห้ามย้ายขึ้นไปก่อนด่านความปลอดภัย
+     🔴 engine ล้ม = แผนต้องยังออก (ตัวเลขตามที่ AI/แผนสำรองให้มา) ห้ามให้ลูกค้าไม่มีแผนทั้งสัปดาห์ */
+  try {
+    const progressed = await applyProgressionToWeek(memberId, days);
+    days = progressed.days;
+    if (progressed.applied > 0 || progressed.deloadWeek) {
+      console.log(
+        `[planGenerator] progression ต่อยอด ${progressed.applied} ท่า` +
+          `${progressed.deloadWeek ? " · สัปดาห์พักฟื้น" : ""}` +
+          `${progressed.capped ? ` · คุมเพดานปริมาณ ${progressed.capped} pattern` : ""} member=${memberId}`
+      );
+    }
+  } catch (e) {
+    console.error("[planGenerator] applyProgression ล้ม — ใช้ตัวเลขตามแผนเดิม:", e);
+  }
 
   // เขียนลง DB — ไม่ทับวันที่มีแล้ว
   const rows = days.map((d, i) => ({

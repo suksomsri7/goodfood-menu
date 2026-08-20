@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthedMember } from "@/lib/coachAuth";
 import { sanitizeLogInstant, clampToDayWindow } from "@/lib/coachLogTime";
 import { normalizeSets, rollupSets } from "@/lib/setRollup";
+import { updateProgressionState } from "@/lib/progressionStore";
 import {
   planDayWindow,
   bkkDayWindow,
@@ -159,6 +160,14 @@ export async function POST(req: NextRequest) {
         });
         tickedPlan = true;
       }
+    }
+
+    /* เฟส B — อัปเดตสมองของ progression (e1RM / ครั้งล่าสุด / streak / stall) จากบันทึกจริง
+       🔴 ล้มที่นี่ต้องไม่ทำให้ "บันทึกเซ็ต" พัง: ข้อมูลของลูกค้าเข้า DB แล้ว ค่าที่ derive ได้คิดใหม่ได้เสมอ */
+    try {
+      await updateProgressionState(member.id, exerciseKey, logDate);
+    } catch (e) {
+      console.error("[coach/sets] อัปเดต ProgressionState ไม่สำเร็จ (บันทึกเซ็ตสำเร็จแล้ว)", e);
     }
 
     const res = NextResponse.json({
