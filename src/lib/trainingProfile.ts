@@ -434,19 +434,34 @@ export function applyTrainDays(
   startDow: number,
   trainDays: string[] | null | undefined,
   pool: CatalogExercise[]
-): { days: DayPlan[]; rested: number } {
+): { days: DayPlan[]; rested: number; moved: number } {
   const wanted = (trainDays ?? []).filter((d) => (WEEK_DAYS as readonly string[]).includes(d));
-  if (!wanted.length) return { days, rested: 0 };
+  if (!wanted.length) return { days, rested: 0, moved: 0 };
+
+  const dowOf = (i: number) => JS_DAY_TO_KEY[(((startDow + i) % 7) + 7) % 7];
+
+  /* 🔴 ต้อง "ย้าย" ก่อน "ปิด" — AI ไม่รู้ตารางของ user ถ้าวันที่เขาเลือกดันเป็นวันพักของ AI
+     แล้วเราแค่ปิดวันอื่นทิ้ง เขาจะได้สัปดาห์ที่เทรนน้อยกว่าที่ตั้งใจแบบเงียบ ๆ (QC 20 ส.ค. เจอจริง:
+     เลือก จ/พ/ศ แต่พุธกลายเป็นวันพัก) · ย้ายทั้งชุดท่าของวันนอกตาราง → วันในตารางที่ยังว่าง
+     ปลอดภัยเพราะด่าน enforceAvoid/บาดเจ็บรันทีหลังเสมอ · mealPlan ของวันปลายทางคงเดิม (อาหารผูกวัน) */
+  const donors = days.map((_, i) => i).filter((i) => !wanted.includes(dowOf(i)) && !isRestDay(days[i], pool));
+  let moved = 0;
+  const shifted = days.map((d, i) => {
+    if (!wanted.includes(dowOf(i)) || !isRestDay(d, pool)) return d;
+    const from = donors.shift();
+    if (from == null) return d; // เวิร์คเอาต์ไม่พอย้าย = คงวันพักไว้ (ห้ามแต่งวันเทรนขึ้นเอง)
+    moved++;
+    return { ...d, exercisePlan: days[from].exercisePlan };
+  });
 
   let rested = 0;
-  const out = days.map((d, i) => {
-    const dow = JS_DAY_TO_KEY[(((startDow + i) % 7) + 7) % 7];
-    if (wanted.includes(dow)) return d;
+  const out = shifted.map((d, i) => {
+    if (wanted.includes(dowOf(i))) return d;
     if (isRestDay(d, pool)) return d;
     rested++;
     return restDayPlan(d, pool);
   });
-  return { days: out, rested };
+  return { days: out, rested, moved };
 }
 
 /**

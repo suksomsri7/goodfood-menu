@@ -311,6 +311,17 @@ console.log("\n── 9. วันเทรนตรงกับวันที�
   check("วันพักมีท่ายืดเหยียดให้ ไม่ใช่หน้าว่าง", (res.days[0].exercisePlan.items ?? []).length === 1);
   check("วันพักไม่แตะแผนอาหาร", res.days[0].mealPlan.totalKcal === 400);
 
+  /* คำตัดสิน QC 20 ส.ค.: วันในตารางที่ AI จัดเป็นวันพัก ต้องได้เวิร์คเอาต์ "ย้าย" มาจากวันนอกตาราง
+     (เจอบน prod จริง: เลือก จ/พ/ศ แต่พุธกลายเป็นวันพักเพราะ AI สุ่มให้พุธพัก) */
+  const wk = week(["squat_bw", "pushup"]);
+  wk[6] = { ...wk[6], exercisePlan: { title: REST_DAY_TITLE, durationMin: 20, items: [{ key: "stretch_full", name: "ยืดเหยียดทั้งตัว", minutes: 20 }], caloriesTarget: 80 } };
+  const mv = applyTrainDays(wk, startDow, ["mon", "wed", "fri"], pool); // index 6 = วันพุธ (เริ่มพฤหัส)
+  check("วันพุธ (ในตารางแต่ AI ให้พัก) ได้เวิร์คเอาต์ย้ายมา", mv.days[6].exercisePlan.title !== REST_DAY_TITLE);
+  check("นับจำนวนวันที่ย้ายได้ถูก", mv.moved === 1);
+  check("อาหารของวันพุธไม่ถูกย้ายตาม (อาหารผูกกับวัน)", mv.days[6].mealPlan === wk[6].mealPlan);
+  const noDonor = applyTrainDays([day(["stretch_full"])], new Date("2026-08-24T00:00:00.000Z").getUTCDay(), ["mon"], pool);
+  check("ไม่มีเวิร์คเอาต์ให้ย้าย = คงวันพักไว้ (ห้ามแต่งวันเทรนเอง)", noDonor.moved === 0);
+
   const noDays = applyTrainDays(week(["squat_bw"]), startDow, [], pool);
   check("ไม่ได้เลือกวัน = ไม่ยุ่งกับแผน", noDays.rested === 0);
   const already = applyTrainDays([day(["stretch_full"])], startDow, ["mon"], pool);
