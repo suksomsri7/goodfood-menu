@@ -13,7 +13,7 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const { lineUserId, exerciseDone, mealsDone, exerciseItemsDone, logAt } = await request.json();
+    const { lineUserId, exerciseDone, mealsDone, exerciseItemsDone, exerciseItemOverrides, logAt } = await request.json();
     const logAtRaw = sanitizeLogInstant(logAt);
 
     const member = await memberFromReq(request, lineUserId);
@@ -95,6 +95,28 @@ export async function PATCH(
         }
       }
     }
+    /* ค่าที่ user ปรับเองจากชีต "ดูท่า" (เซ็ต/ครั้ง/นาที) — เขียนทับลงแผนก่อนคิด log
+       ทำไมต้องลงแผน: หน้าจอทุกที่อ่านจาก exercisePlan.items ถ้าไม่อัปเดต ตัวเลขที่โชว์กับที่บันทึกจะไม่ตรงกัน
+       clamp กันค่าหลุดโลก (เซ็ต ≤10 · ครั้ง ≤100 · นาที ≤240) */
+    let itemsMutated = false;
+    if (exerciseItemOverrides && typeof exerciseItemOverrides === "object") {
+      const planObj = plan.exercisePlan as { items?: { name: string; minutes?: number; sets?: number; reps?: number }[] } | null;
+      for (const [name, ov] of Object.entries(exerciseItemOverrides as Record<string, { sets?: number; reps?: number; minutes?: number }>)) {
+        const it = planObj?.items?.find((x) => x.name === name);
+        if (!it || !ov || typeof ov !== "object") continue;
+        const clamp = (v: unknown, max: number) => {
+          const n = Math.round(Number(v));
+          return Number.isFinite(n) && n > 0 ? Math.min(max, n) : undefined;
+        };
+        const sets = clamp(ov.sets, 10);
+        const reps = clamp(ov.reps, 100);
+        const minutes = clamp(ov.minutes, 240);
+        if (sets !== undefined) { it.sets = sets; itemsMutated = true; }
+        if (reps !== undefined) { it.reps = reps; itemsMutated = true; }
+        if (minutes !== undefined) { it.minutes = minutes; itemsMutated = true; }
+      }
+    }
+
     const ep = plan.exercisePlan as { title?: string; durationMin?: number; caloriesTarget?: number } | null;
     // ── ติ๊กรายท่า = บันทึกทีละท่าทันที (ไม่ต้องรอครบทุกท่า) ──
     // เดิมสร้าง log ก้อนเดียวตอนครบทุกท่า → user ติ๊ก 1/3 แล้วไม่มีอะไรเข้า timeline/แหวนเลย
@@ -158,6 +180,8 @@ export async function PATCH(
         exerciseDone: nextExerciseDone,
         mealsDone: nextMealsDone ?? undefined,
         exerciseItemsDone: nextItemsDone ?? undefined,
+        // ค่าเซ็ต/ครั้ง/นาทีที่ user ปรับ — mutate ลง object เดิมข้างบนแล้ว เขียนกลับเมื่อมีการแก้จริง
+        ...(itemsMutated ? { exercisePlan: plan.exercisePlan as object } : {}),
         status,
       },
     });

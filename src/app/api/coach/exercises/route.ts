@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resolveMember } from "@/lib/coachResolve";
 import { EXERCISE_CATALOG } from "@/lib/exerciseCatalog";
+import { absoluteImageUrl } from "@/lib/articleFeed";
+import { playableVideo } from "@/lib/youtubeUrl";
 
 export const dynamic = "force-dynamic";
 
@@ -33,9 +35,30 @@ export async function GET(req: NextRequest) {
     console.error("[coach/exercises] weight lookup", e);
   }
 
+  /* คลังจริงอยู่ใน DB แล้ว (แอดมินเพิ่มท่า/รูป/คลิปได้จาก backoffice) — คลังโค้ดเป็นทางถอยตอน DB ว่าง
+     รูป/คลิปติดไปกับแต่ละท่า: images = URL เต็ม · video = แกะจากลิงก์ที่แอดมินวาง (null = ไม่มีคลิป) */
+  const dbRows = await prisma.exercise.findMany({ where: { isActive: true }, orderBy: { name: "asc" } });
+  const items =
+    dbRows.length > 0
+      ? dbRows.map((e) => ({
+          key: e.key,
+          name: e.name,
+          equipment: e.equipment,
+          kind: e.kind,
+          unit: e.unit,
+          impact: e.impact,
+          met: e.met,
+          muscles: e.muscles ?? "",
+          cue: e.cue ?? "",
+          images: e.images.map((u) => absoluteImageUrl(u)).filter((u): u is string => !!u),
+          video: playableVideo(e.videoUrl),
+          media: EXERCISE_CATALOG.find((c) => c.key === e.key)?.media,
+        }))
+      : EXERCISE_CATALOG;
+
   return NextResponse.json({
-    items: EXERCISE_CATALOG,
-    withMedia: EXERCISE_CATALOG.filter((e) => e.media).map((e) => e.key),
+    items,
+    withMedia: items.filter((e: any) => e.media).map((e: any) => e.key),
     weightKg,
     kcalFormula: "met * 3.5 * weightKg / 200 * minutes",
   });

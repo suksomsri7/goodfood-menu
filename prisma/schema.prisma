@@ -394,6 +394,32 @@ model WaterLog {
   @@map("water_logs")
 }
 
+/// คลังท่าออกกำลังกาย — ย้ายจาก exerciseCatalog.ts เข้า DB เพื่อให้แอดมินเพิ่มท่า/ใส่รูป/คลิปเองได้
+/// key ต้องตรงกับคลังโค้ดเดิม (แผนเก่า/ตรรกะ snapExercises อ้างชื่อจาก key เหล่านี้)
+model Exercise {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  name      String
+  kind      String   @default("strength") // cardio | strength | mobility
+  equipment String   @default("none") // none | home | gym
+  impact    String   @default("low") // low | high
+  unit      String   @default("reps") // reps | minutes
+  met       Float    @default(4)
+  muscles   String?
+  /// วิธีทำ/ทิปฟอร์ม — โชว์ในชีต "ดูท่า" ของแอป
+  cue       String?
+  images    String[] @default([])
+  /// ลิงก์ YouTube — แอปทำเป็นสไลด์คลิปเหมือนเมนูอาหาร
+  videoUrl  String?
+  /// ท่าที่แอดมินเพิ่มเอง (ลบจริงได้) — ท่ามาตรฐานปิดใช้งานได้อย่างเดียว (แผน/ตรรกะยังอ้างถึง)
+  isCustom  Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("exercises")
+}
+
 model ExerciseLog {
   id        String   @id @default(cuid())
   memberId  String

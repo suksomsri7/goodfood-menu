@@ -29,6 +29,7 @@ import {
   Share2,
   CalendarDays,
   ClipboardList,
+  Dumbbell,
 } from "lucide-react";
 import { useSidebar } from "./SidebarContext";
 import { useStaff } from "./StaffContext";
@@ -103,6 +104,12 @@ const navGroups: NavGroup[] = [
         href: "/backoffice/ingredients",
         label: "คลังวัตถุดิบ",
         icon: <Carrot className="w-5 h-5" />,
+        moduleId: "foods",
+      },
+      {
+        href: "/backoffice/exercises",
+        label: "ท่าออกกำลังกาย",
+        icon: <Dumbbell className="w-5 h-5" />,
         moduleId: "foods",
       },
     ],

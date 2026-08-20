@@ -1,78 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireStaff } from "@/lib/staffAuth";
+import { exerciseFields, resolveImages } from "@/lib/exerciseAdmin";
 
-// DELETE - Delete an exercise log
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
+export const dynamic = "force-dynamic";
 
-    const exercise = await prisma.exerciseLog.findUnique({
-      where: { id },
-    });
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const staff = await requireStaff(req);
+  if (staff instanceof NextResponse) return staff;
 
-    if (!exercise) {
-      return NextResponse.json(
-        { error: "Exercise not found" },
-        { status: 404 }
-      );
-    }
+  const { id } = await params;
+  const existing = await prisma.exercise.findUnique({ where: { id } });
+  if (!existing) return NextResponse.json({ error: "ไม่พบท่านี้" }, { status: 404 });
 
-    await prisma.exerciseLog.delete({
-      where: { id },
-    });
+  const b = await req.json();
+  const f = exerciseFields(b);
+  if ("error" in f) return NextResponse.json({ error: f.error }, { status: 400 });
 
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Failed to delete exercise:", error);
-    return NextResponse.json(
-      { error: "Failed to delete exercise" },
-      { status: 500 }
-    );
-  }
+  const images = b.images !== undefined ? await resolveImages(b.images) : existing.images;
+  const item = await prisma.exercise.update({ where: { id }, data: { ...f.data, images } });
+  return NextResponse.json({ ok: true, item });
 }
 
-// PUT - Update an exercise log
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const body = await request.json();
-    const { name, type, duration, calories, intensity, note } = body;
+/**
+ * ท่ามาตรฐาน (จากคลังโค้ด) ลบจริงไม่ได้ — แผนเก่า/ตรรกะจัดแผนยังอ้างชื่ออยู่ → ปิดใช้งานแทน
+ * ท่าที่แอดมินเพิ่มเอง (isCustom) ลบจริงได้
+ */
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const staff = await requireStaff(req);
+  if (staff instanceof NextResponse) return staff;
 
-    const exercise = await prisma.exerciseLog.findUnique({
-      where: { id },
-    });
+  const { id } = await params;
+  const existing = await prisma.exercise.findUnique({ where: { id } });
+  if (!existing) return NextResponse.json({ error: "ไม่พบท่านี้" }, { status: 404 });
 
-    if (!exercise) {
-      return NextResponse.json(
-        { error: "Exercise not found" },
-        { status: 404 }
-      );
-    }
-
-    const updated = await prisma.exerciseLog.update({
-      where: { id },
-      data: {
-        ...(name && { name }),
-        ...(type !== undefined && { type }),
-        ...(duration && { duration }),
-        ...(calories && { calories }),
-        ...(intensity !== undefined && { intensity }),
-        ...(note !== undefined && { note }),
-      },
-    });
-
-    return NextResponse.json(updated);
-  } catch (error) {
-    console.error("Failed to update exercise:", error);
-    return NextResponse.json(
-      { error: "Failed to update exercise" },
-      { status: 500 }
-    );
+  if (existing.isCustom) {
+    await prisma.exercise.delete({ where: { id } });
+    return NextResponse.json({ ok: true, deleted: true });
   }
+  await prisma.exercise.update({ where: { id }, data: { isActive: false } });
+  return NextResponse.json({ ok: true, deleted: false, deactivated: true });
 }
