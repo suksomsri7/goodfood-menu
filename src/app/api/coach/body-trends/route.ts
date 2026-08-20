@@ -10,6 +10,7 @@ import {
   type Estimate,
   type TrendLabel,
 } from "@/lib/bodyMeasure";
+import { GOAL_FLOOR_WEIGHT_KG } from "@/lib/bodyGoal";
 
 export const dynamic = "force-dynamic";
 
@@ -149,7 +150,7 @@ export async function GET(req: NextRequest) {
       tape,
       tapeLabels: SITE_LABELS_TH,
       /** พื้นสัญญาณรบกวน — ส่งไปให้จออธิบายได้ว่าทำไมบางสัปดาห์ถึงขึ้นว่า "คงที่" */
-      floors: { circumferenceCm: TREND_FLOOR_CM, bfPct: TREND_FLOOR_BF },
+      floors: { circumferenceCm: TREND_FLOOR_CM, bfPct: TREND_FLOOR_BF, weightKg: GOAL_FLOOR_WEIGHT_KG },
       keys: TREND_KEYS.map((t) => ({ key: t.key, unit: t.unit })),
     });
     res.headers.set("Cache-Control", "no-store, must-revalidate");
