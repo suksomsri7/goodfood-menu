@@ -66,7 +66,20 @@ export async function POST(req: NextRequest) {
       if (!log) return NextResponse.json({ error: "not found" }, { status: 404 });
       count = (await prisma.exerciseLog.deleteMany({ where: { id, memberId: member.id } })).count;
 
-      if (log.source === "plan") {
+      /* log จาก Workout Player: ลบจากไทม์ไลน์ = ติ๊กท่านั้นออกด้วย (สัญญาเดียวกับ log จากติ๊กแผน)
+         + ลบ SetLog รายเซ็ตของท่านั้นในวันเดียวกัน — ข้อมูลที่ user บอกว่าไม่จริง ห้ามเหลือให้ progression กิน */
+      if (log.source === "player" && log.sourceId) {
+        const key = log.sourceId.split(":")[1];
+        if (key) {
+          const d0 = new Date(planDateOf(log.date).getTime() - 7 * 3600 * 1000);
+          const d1 = new Date(planDateOf(log.date).getTime() + 17 * 3600 * 1000);
+          await prisma.setLog.deleteMany({
+            where: { memberId: member.id, exerciseKey: key, date: { gte: d0, lt: d1 } },
+          });
+        }
+      }
+
+      if (log.source === "plan" || log.source === "player") {
         const plan = await prisma.dailyPlan.findFirst({
           where: { memberId: member.id, date: planDateOf(log.date) },
         });

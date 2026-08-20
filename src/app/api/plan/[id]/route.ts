@@ -132,11 +132,23 @@ export async function PATCH(
             },
           });
         } else if (!val && prevItems[name]) {
+          /* ติ๊กออก = "ที่บันทึกไปไม่จริง" — ต้องลบทั้ง log ที่มาจากติ๊กมือ (plan) และจาก Workout Player
+             ไม่งั้นแคลอรี่ค้างในแหวน/ไทม์ไลน์ทั้งที่แผนบอกยังไม่ทำ (เจอจาก E2E เฟส A)
+             log ของ player พ่วง SetLog รายเซ็ต — ข้อมูลเท็จห้ามเหลือไว้ให้ progression engine กิน
+             (exerciseKey แกะจาก sourceId รูปแบบ player:<key>:<วัน> — ไม่เดาจากชื่อ) */
           const last = await prisma.exerciseLog.findFirst({
-            where: { memberId: member.id, source: "plan", name, date: { gte: dayStart, lt: dayEnd } },
+            where: { memberId: member.id, source: { in: ["plan", "player"] }, name, date: { gte: dayStart, lt: dayEnd } },
             orderBy: { createdAt: "desc" },
           });
-          if (last) await prisma.exerciseLog.delete({ where: { id: last.id } });
+          if (last) {
+            await prisma.exerciseLog.delete({ where: { id: last.id } });
+            const key = last.source === "player" ? last.sourceId?.split(":")[1] : null;
+            if (key) {
+              await prisma.setLog.deleteMany({
+                where: { memberId: member.id, exerciseKey: key, date: { gte: dayStart, lt: dayEnd } },
+              });
+            }
+          }
         }
       }
       // แผนที่เคยติ๊กครบด้วยเวอร์ชันเก่าจะมี log ก้อนรวม (ชื่อ = title) ค้างอยู่ → เก็บกวาดตอนติ๊กออก
