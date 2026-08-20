@@ -6,6 +6,8 @@ import { getSecret } from "@/lib/secrets/store";
 import { pushProactiveMessage, createFlexMessage } from "@/lib/line";
 import { getPersonalizationSafe, type Personalization } from "@/lib/personalization";
 import { buildBodyContextSafe, type BodyContextBlock } from "@/lib/bodyGoalStore";
+import { buildTrainingContextSafe } from "@/lib/trainingProfileStore";
+import { trainingLines, type TrainingContextBlock } from "@/lib/trainingProfile";
 
 // AI Coach System Prompt
 export const COACH_SYSTEM_PROMPT = `คุณคือ "โค้ชกู๊ด" โค้ชโภชนาการส่วนตัวมืออาชีพจาก GoodFood
@@ -122,6 +124,10 @@ export interface MemberContext {
   /* BP-3 §B6 — ตัวเลขร่างกาย (เอว/ไขมันเป็นช่วง + เป้า + สัญญาณ) · ไม่มีสแกน = ไม่มี key นี้เลย
      🔴 ตัวเลขล้วน ห้ามมี path รูปเด็ดขาด: ก้อนนี้เดินทางเข้า prompt ของผู้ให้บริการ AI */
   body?: BodyContextBlock;
+  /* WO-PT-D §S5 — โปรไฟล์การเทรน (เป้า/สไตล์/วันที่ว่าง/ข้อจำกัด/PAR-Q/สัปดาห์สอบเทียบ)
+     โค้ชต้องรู้ว่ากำลังคุยกับใคร: คนที่บอกว่าเข่าเจ็บแล้วโค้ชยังเชียร์ให้สควอทหนักขึ้น = ระบบไม่ฟังเขา
+     ยังไม่เคยตั้งโปรไฟล์ = ไม่มี key นี้เลย (ไม่ใช่ก้อนที่เต็มไปด้วยค่าปริยายที่ไม่ใช่ของเขา) */
+  training?: TrainingContextBlock;
 }
 
 // Calculate expiry threshold using Thailand timezone
@@ -416,7 +422,7 @@ export async function gatherMemberContext(memberId: string): Promise<MemberConte
   startOfYesterday.setDate(startOfYesterday.getDate() - 1);
 
   // P2: เดิม await เรียงแถว ~8 จุด (+streak เดิมอีก 30 query) ทุกครั้งที่คุยกับโค้ช → ยิงขนานชุดเดียว
-  const [todayMeals, yesterdayMeals, waterLogs, recentOrders, weightLogs, exerciseToday, streakDays, personalization, budget, todayMetrics, sleepLogs, rhrLogs, watchWorkouts, body] =
+  const [todayMeals, yesterdayMeals, waterLogs, recentOrders, weightLogs, exerciseToday, streakDays, personalization, budget, todayMetrics, sleepLogs, rhrLogs, watchWorkouts, body, training] =
     await Promise.all([
       prisma.mealLog.findMany({ where: { memberId, date: { gte: startOfDay } } }),
       prisma.mealLog.findMany({ where: { memberId, date: { gte: startOfYesterday, lt: startOfDay } } }),
@@ -465,6 +471,8 @@ export async function gatherMemberContext(memberId: string): Promise<MemberConte
       }),
       // BP-3 — บริบทร่างกาย (คืน null เร็วด้วย query เดียวถ้ายังไม่เคยสแกน = คนส่วนใหญ่)
       buildBodyContextSafe(memberId),
+      // WO-PT-D — โปรไฟล์การเทรน (query เดียว + ไม่มีโปรไฟล์ = คืน null เร็ว)
+      buildTrainingContextSafe(memberId),
     ]);
 
   const todayTotals = todayMeals.reduce(
@@ -567,6 +575,7 @@ export async function gatherMemberContext(memberId: string): Promise<MemberConte
     lastActiveAt: member.updatedAt,
     personalization,
     ...(body ? { body } : {}),
+    ...(training ? { training } : {}),
   };
 }
 
@@ -628,6 +637,8 @@ export function buildPrompt(type: CoachingType, context: MemberContext): string 
     : "";
   // การนอน/ชีพจรขณะพัก/เวิร์กเอาต์จากนาฬิกา — ให้โค้ชแนะนำเรื่อง "พักพอไหม" ได้ ไม่ใช่แค่เรื่องกิน
   const recoveryBlock = recoveryLines(context.recovery).join("\n");
+  // WO-PT-D §S5 — โปรไฟล์การเทรน: โค้ชต้องคุยบนตารางและข้อจำกัดจริงของเขา ไม่ใช่ตารางในอุดมคติ
+  const trainingBlock = trainingLines(context.training).join("\n");
 
   const baseInfo = `
 ข้อมูลลูกค้า:
@@ -639,6 +650,7 @@ export function buildPrompt(type: CoachingType, context: MemberContext): string 
 - Streak บันทึกอาหาร: ${context.streakDays} วันติด
 ${activityBlock}
 ${recoveryBlock}
+${trainingBlock}
 เป้าหมายวันนี้:
 - แคลอรี่: ${context.targets.calories} kcal${budgetNote}
 - โปรตีน: ${context.targets.protein}g

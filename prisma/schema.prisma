@@ -104,6 +104,8 @@ model Member {
   bodyMeasurements   BodyMeasurement[]
   bodyGoals          BodyGoal[]
   bodyReports        BodyReport[]
+  trainingProfile    TrainingProfile?
+  injuryLimitations  InjuryLimitation[]
 
   @@map("members")
 }
@@ -550,6 +552,68 @@ model ReadinessCheckin {
   @@unique([memberId, date])
   @@index([memberId, date])
   @@map("readiness_checkins")
+}
+
+/// โปรไฟล์เทรน (WO-PT-D §S1 · WO-PT-ENGINE §3) — คนละเรื่องกับ FoodProfile
+/// นี่คือ "เขาอยากได้อะไร ทำได้แค่ไหน ว่างวันไหน" ที่ generator ต้องใช้ก่อนจะจัดท่าให้ใครสักคน
+model TrainingProfile {
+  memberId       String   @id
+  primaryGoal    String // fat_loss|muscle_gain|strength|endurance|general|athletic
+  secondaryGoals String[] @default([])
+  /// strength|hypertrophy|fatloss_hybrid|endurance|athletic|balanced · null = ให้ระบบเลือกตาม goal
+  style          String?
+  daysPerWeek    Int      @default(3)
+  sessionMin     Int      @default(45)
+  trainDays      String[] @default([]) // ["mon","wed","fri"] — ว่าง = กระจายให้เองตาม daysPerWeek
+  preferredTime  String? // morning|afternoon|evening|"06:00-07:00"
+  likes          String[] @default([])
+  /// เลี่ยงถ้ามีตัวแทน pattern เดียวกัน (soft) — ต่างจาก InjuryLimitation ที่ตัดทิ้งเสมอ (hard)
+  dislikes       String[] @default([])
+  jobType        String? // desk|standing|physical
+  stress         Int? // 1-5
+  waistCm        Float?
+  bodyFatPct     Float?
+  /// เคยเทรนมานานแค่ไหน — ตัวคูณความเร็ว progression (มือใหม่ก้าวถี่กว่า)
+  experienceMonths Int?
+
+  /// สัปดาห์สอบเทียบ (ENGINE §5.1): true = ยังเก็บ feel อยู่ → น้ำหนักเบา reps กลางช่วง
+  /// เคลียร์เองเมื่อครบ 7 วันนับจาก calibrationStartedAt (คิดตอนอ่าน ไม่มี cron)
+  calibration        Boolean   @default(true)
+  /// หมุดเวลาเริ่มสอบเทียบ — แยกจาก updatedAt เพราะแก้โปรไฟล์กลางสัปดาห์ต้องไม่รีเซ็ตนาฬิกา 7 วัน
+  calibrationStartedAt DateTime @default(now())
+  /// คำตอบ PAR-Q 3 ข้อ + answeredAt (+ clearedAt เมื่อ user ยืนยันว่าปรึกษาแพทย์แล้ว)
+  parq               Json?
+  /// ตอบ "ใช่" ข้อใดข้อหนึ่ง = true → intensityCap = low จนกว่าจะปลด
+  parqFlag           Boolean   @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@map("training_profiles")
+}
+
+/// อาการบาดเจ็บแบบโครงสร้าง (WO-PT-ENGINE §3 ข้อ 9)
+/// CoachMemory kind=injury ยังอยู่ในฐานะ "ความจำที่โค้ชเอาไปคุย" แต่ตัวกรองท่าต้องอ่านจากตารางนี้
+/// (ข้อความอิสระกรองท่าไม่ได้จริง — "เข่าซ้ายเจ็บตอนลงน้ำหนัก" ไม่ตรงกับชื่อท่าใดเลย)
+model InjuryLimitation {
+  id            String   @id @default(cuid())
+  memberId      String
+  area          String // shoulder|knee|back|hip|ankle|wrist|neck|other
+  severity      String   @default("caution") // caution (ลดน้ำหนัก) | avoid (ตัด pattern ทิ้ง)
+  avoidPatterns String[] @default([]) // ["squat","push_v"] — map กับ Exercise.pattern
+  avoidKeys     String[] @default([]) // ระบุรายท่า
+  note          String?
+  active        Boolean  @default(true)
+  /// อาการชั่วคราว ("วันนี้ปวดเข่า" = 7 วัน) — ถึงเวลาแล้วถือว่าไม่มีผล โดยไม่ต้องรอ user มาปิดเอง
+  /// 🔴 ทุกจุดที่อ่านต้องกรอง active && (expiresAt = null || expiresAt > now)
+  expiresAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  member        Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, active])
+  @@map("injury_limitations")
 }
 
 model ExerciseLog {

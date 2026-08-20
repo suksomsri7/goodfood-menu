@@ -13,6 +13,11 @@ import {
 import { applyProgressionToWeek } from "@/lib/applyProgression";
 import { gatherSignalsSafe } from "@/lib/bodySignalsStore";
 import { applyBodyHints, bodyHintsFromSignals } from "@/lib/bodyPlanHints";
+import { loadTrainingPlanInputs } from "@/lib/trainingProfileStore";
+import {
+  applyInjuryFilter, applyLightWeek, applyPreferences, applyTrainDays,
+  fitSessionLength, itemsForSessionMin,
+} from "@/lib/trainingProfile";
 
 // ── โครงข้อมูลแผนรายวัน ──
 export interface ExercisePlanItem {
@@ -682,6 +687,11 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
   const personal = await getPersonalizationSafe(memberId);
   const pool = catalogFor(pm.equipment); // ท่าที่ user ทำได้จริงตามอุปกรณ์
 
+  /* ── WO-PT-D §S4: โปรไฟล์การเทรน (วันที่ว่าง/เวลาต่อครั้ง/ชอบ-ไม่ชอบ/อาการบาดเจ็บ/สอบเทียบ) ──
+     ยังไม่เคยตั้งโปรไฟล์ หรืออ่านไม่ได้ = ทุกค่าว่าง → แผนออกเหมือนก่อนเฟส D ทุกประการ */
+  const training = await loadTrainingPlanInputs(memberId);
+  const sessionMin = training.profile?.sessionMin ?? null;
+
   const apiKey = await getSecret("OPENAI_API_KEY");
   if (apiKey) {
     try {
@@ -745,7 +755,9 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
   }
   days = snappedResult.days;
 
-  const variety = ensureVariety(days, pool, pm.equipment);
+  // เวลาต่อครั้งที่ user มีจริงเป็นตัวบอกว่า "อย่างน้อยกี่ท่า" (30 นาที = 3 ท่า · 1 ชม. = 5-6 ท่า)
+  const minItems = sessionMin ? itemsForSessionMin(sessionMin).min : 3;
+  const variety = ensureVariety(days, pool, pm.equipment, minItems);
   if (variety.added > 0) {
     console.log(`[planGenerator] เติมท่าให้ครบ/ให้ใช้อุปกรณ์ ${variety.added} ท่า member=${memberId}`);
   }
@@ -794,6 +806,35 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
     console.error("[planGenerator] body hints ล้ม — ใช้แผนเดิม:", e);
   }
 
+  /* ── WO-PT-D §S4: รูปร่างของสัปดาห์ตามโปรไฟล์ (วันเทรน · ความยาววัน · ชอบ/ไม่ชอบ) ──
+     🔴 ต้องอยู่ "ก่อน" enforceAvoid เหมือน body hints: ท่าที่เราสลับเข้ามาแทนท่าที่ user ไม่ชอบ
+        ต้องผ่านด่านข้อห้ามเหมือนท่าอื่นทุกท่า (สลับหลังด่าน = ยัดท่าที่เขาแพ้/ห้ามทำเข้าแผนได้) */
+  if (training.profile) {
+    try {
+      // วันที่ไม่ได้เลือกไว้ = วันพัก (ไม่ย้ายท่าไปกองวันอื่น — นั่นคือการเพิ่มงานที่เขาไม่ได้ขอ)
+      const scheduled = applyTrainDays(days, startKey.getUTCDay(), training.profile.trainDays, pool);
+      days = scheduled.days;
+
+      // ไม่ชอบ = เปลี่ยนให้เมื่อมีตัวแทน pattern เดียวกัน · ชอบ = ได้เลือกก่อนเมื่อคะแนนเท่ากัน
+      const pref = applyPreferences(
+        days, pool, training.profile.likes ?? [], training.profile.dislikes ?? [], training.patternOf
+      );
+      days = pref.days;
+
+      const fitted = fitSessionLength(days, training.profile.sessionMin, pool);
+      days = fitted.days;
+
+      if (scheduled.rested || pref.swapped || pref.kept || fitted.trimmed) {
+        console.log(
+          `[planGenerator] โปรไฟล์เทรน: วันพักตามตาราง ${scheduled.rested} วัน · สลับท่าที่ไม่ชอบ ${pref.swapped}` +
+            ` (ไม่มีตัวแทนจึงคงไว้ ${pref.kept}) · ตัดท่าให้พอดี ${training.profile.sessionMin} นาที ${fitted.trimmed} ท่า member=${memberId}`
+        );
+      }
+    } catch (e) {
+      console.error("[planGenerator] ปรับแผนตามโปรไฟล์เทรนล้ม — ใช้แผนเดิม:", e);
+    }
+  }
+
   // WO-P.3 — ด่านสุดท้าย: แผนต้องไม่ขัดข้อห้าม (ครอบทั้งแผน AI และแผนสำรอง)
   const enforced = enforceAvoid(days, avoidKeywords);
   if (enforced.fixed > 0) {
@@ -801,12 +842,32 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
   }
   days = enforced.days;
 
+  /* ── WO-PT-D §S4: อาการบาดเจ็บ = hard filter (ด่านเดียวกับ enforceAvoid ต่อท้ายกันทันที) ──
+     keyword ของ enforceAvoid จับจากข้อความที่ user เคยพูด · ตรงนี้จับจาก pattern ในตาราง exercises
+     ต้องมีทั้งคู่: "เข่าเจ็บ" ต้องตัด db_squat ที่ไม่มีคำว่าเข่าหรือสควอทอยู่ในชื่อเลยได้ด้วย
+     🔴 หลังจุดนี้ห้ามมีขั้นตอนไหนเพิ่ม/สลับท่าอีก — เหลือแต่การคิดตัวเลข */
+  if (training.injuries.hasAny) {
+    try {
+      const filtered = applyInjuryFilter(days, training.injuries, training.patternOf, pool);
+      days = filtered.days;
+      if (filtered.removed > 0) {
+        console.log(
+          `[planGenerator] ตัดท่าตามข้อจำกัดร่างกาย ${filtered.removed} ท่า ` +
+            `(pattern: ${[...training.injuries.avoidPatterns].join(",") || "-"}) member=${memberId}`
+        );
+      }
+    } catch (e) {
+      console.error("[planGenerator] ตัวกรองอาการบาดเจ็บล้ม — ใช้แผนหลัง enforceAvoid:", e);
+    }
+  }
+
   /* ── เฟส B: ต่อยอดจากผลจริงของสัปดาห์ก่อน (น้ำหนัก/ครั้ง/เซ็ต + เหตุผล) ──
      🔴 ต้องอยู่ "หลัง" snapExercises + enforceAvoid เสมอ: ท่าถูกเลือกและกรองข้อห้ามเรียบร้อยแล้ว
         ตรงนี้แตะแค่ตัวเลขของท่าที่ผ่านด่านมา (ไม่เพิ่ม/ไม่สลับท่า) — ห้ามย้ายขึ้นไปก่อนด่านความปลอดภัย
      🔴 engine ล้ม = แผนต้องยังออก (ตัวเลขตามที่ AI/แผนสำรองให้มา) ห้ามให้ลูกค้าไม่มีแผนทั้งสัปดาห์ */
   try {
-    const progressed = await applyProgressionToWeek(memberId, days);
+    // repRange มาจาก TrainingProfile (เฟส D) — เดิมทุกคนถูกสั่ง 8-12 ครั้งเท่ากันหมดไม่ว่าเป้าหมายจะเป็นอะไร
+    const progressed = await applyProgressionToWeek(memberId, days, { repRange: training.repRange });
     days = progressed.days;
     if (progressed.applied > 0 || progressed.deloadWeek) {
       console.log(
@@ -829,6 +890,32 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
       }
     } catch (e) {
       console.error("[planGenerator] volumeDown ล้ม — ใช้ตัวเลขตาม progression:", e);
+    }
+  }
+
+  /* ── WO-PT-D §S4: คำสุดท้ายเรื่องน้ำหนัก — สัปดาห์สอบเทียบ / โหมดเบา (PAR-Q) / จุดที่กำลังพักฟื้น ──
+     🔴 ต้องอยู่หลัง progression + volumeDown: ทั้งคู่เขียนตัวเลขทับ ถ้าวางก่อนจะไม่เหลืออะไรเลย
+        (บทเรียนเดียวกับ volumeDown ที่เคยโดน progression เขียนทับจนคำตัดสิน deviation #4 ต้องย้ายลงมา) */
+  if (training.calibration || training.cap === "low" || training.injuries.hasAny) {
+    try {
+      const light = applyLightWeek(days, {
+        calibration: training.calibration,
+        cap: training.cap,
+        repRange: training.repRange,
+        loadableKeys: training.loadableKeys,
+        incrementKg: training.incrementKg,
+        injuries: training.injuries,
+        patternOf: training.patternOf,
+      });
+      days = light.days;
+      if (light.touched > 0) {
+        console.log(
+          `[planGenerator] ปรับความหนัก ${light.touched} ท่า` +
+            `${training.calibration ? " · สัปดาห์สอบเทียบ" : ""}${training.cap === "low" ? " · โหมดเบา (PAR-Q)" : ""} member=${memberId}`
+        );
+      }
+    } catch (e) {
+      console.error("[planGenerator] ปรับความหนักตามโปรไฟล์ล้ม — ใช้ตัวเลขตาม progression:", e);
     }
   }
 

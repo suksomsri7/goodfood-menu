@@ -15,6 +15,11 @@ import type { DayPlan, ExercisePlanItem } from "@/lib/planGenerator";
 /** ข้อความบอกว่าเป็นสัปดาห์พักฟื้น — ไปอยู่ใน aiNote ของทุกวัน */
 export const DELOAD_NOTE = "สัปดาห์พักฟื้น — ลดปริมาณลงให้ร่างกายฟื้นตัว แล้วสัปดาห์หน้าค่อยกลับมาเพิ่ม";
 
+/** ตัวเลือกที่ generator ส่งลงมาจาก TrainingProfile (เฟส D) */
+export interface ProgressionPlanOpts {
+  repRange?: [number, number] | null;
+}
+
 export interface ApplyProgressionResult {
   items: ExercisePlanItem[];
   /** จำนวนท่าที่ถูกเขียนทับด้วยตัวเลขจาก engine */
@@ -51,12 +56,14 @@ function mergeRx(item: ExercisePlanItem, rx: Rx): ExercisePlanItem {
  */
 export async function applyProgression(
   memberId: string,
-  items: ExercisePlanItem[]
+  items: ExercisePlanItem[],
+  /** เฟส D: ช่วงครั้งของสัปดาห์นี้จาก TrainingProfile — ไม่ส่ง = ค่าปริยายเดิม (v1 คือ [8,12] ทุกคน) */
+  opts: ProgressionPlanOpts = {}
 ): Promise<ApplyProgressionResult> {
   const keys = [...new Set(items.map((i) => i.key).filter((k): k is string => !!k))];
   if (!keys.length) return { items, applied: 0, deloadWeek: false, capped: 0 };
 
-  const nexts = await computeNextForKeys(memberId, keys);
+  const nexts = await computeNextForKeys(memberId, keys, new Date(), { repRange: opts.repRange ?? null });
 
   // ── สัปดาห์พักฟื้นทั้งสัปดาห์: ท่าที่ใส่น้ำหนักได้ติด deload ตั้งแต่ครึ่งหนึ่งขึ้นไป ──
   const loadable = keys
@@ -135,7 +142,8 @@ export async function applyProgression(
  */
 export async function applyProgressionToWeek(
   memberId: string,
-  days: DayPlan[]
+  days: DayPlan[],
+  opts: ProgressionPlanOpts = {}
 ): Promise<{ days: DayPlan[]; applied: number; deloadWeek: boolean; capped: number }> {
   const flat: ExercisePlanItem[] = [];
   const spans: { start: number; count: number }[] = [];
@@ -146,7 +154,7 @@ export async function applyProgressionToWeek(
   }
   if (!flat.length) return { days, applied: 0, deloadWeek: false, capped: 0 };
 
-  const res = await applyProgression(memberId, flat);
+  const res = await applyProgression(memberId, flat, opts);
 
   const out = days.map((d, i) => {
     const span = spans[i];

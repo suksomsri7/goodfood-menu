@@ -8,7 +8,7 @@
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint",
-    "test:engines": "npx tsx scripts/test-progression.ts && npx tsx scripts/test-readiness.ts && npx tsx scripts/test-body-gate.ts && npx tsx scripts/test-body-measure.ts && npx tsx scripts/test-body-goal.ts"
+    "test:engines": "npx tsx scripts/test-progression.ts && npx tsx scripts/test-readiness.ts && npx tsx scripts/test-body-gate.ts && npx tsx scripts/test-body-measure.ts && npx tsx scripts/test-body-goal.ts && npx tsx scripts/test-training-profile.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

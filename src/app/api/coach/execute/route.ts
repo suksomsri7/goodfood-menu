@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resolveMember, coachActive } from "@/lib/coachResolve";
 import { upsertMemories } from "@/lib/coachMemory";
+import { syncInjuryMemoryToLimitation } from "@/lib/trainingProfileStore";
 import { bkkDateKey, bkkTodayKey } from "@/lib/planGenerator";
 import { resolveLogTime } from "@/lib/coachLogTime";
 
@@ -134,6 +135,13 @@ export async function POST(req: NextRequest) {
         .map((m: any) => ({ kind: m.kind, fact: String(m.fact).slice(0, 200), source: "chat" }));
       const saved = await upsertMemories(member.id, clean);
       memorySaved = saved.length;
+
+      /* WO-PT-D §S5 — อาการบาดเจ็บเขียนสองชั้น: CoachMemory (ความจำที่โค้ชเอาไปคุย)
+         + InjuryLimitation (ตัวกรองท่าจริงใน generator) เพราะข้อความอิสระกรองท่าไม่ได้
+         ล้มตรงนี้ = ความจำยังบันทึกแล้ว ห้ามทำให้ทั้ง request พัง */
+      for (const m of clean.filter((x: { kind: string }) => x.kind === "injury")) {
+        await syncInjuryMemoryToLimitation(member.id, m.fact);
+      }
     }
 
     return NextResponse.json({ done, memorySaved });

@@ -213,7 +213,12 @@ export interface NextForKey {
 export async function computeNextForKeys(
   memberId: string,
   keys: string[],
-  now = new Date()
+  now = new Date(),
+  /**
+   * เฟส D: ช่วงครั้งจาก TrainingProfile (repRangeFor) — ไม่ส่งมา = ค่าปริยายเดิมของ progression.ts
+   * ใช้กับโหมด loadable เท่านั้น (ท่าที่ใส่น้ำหนักได้) ตามที่ progression.ts เปิดช่องไว้ตั้งแต่เฟส B
+   */
+  opts: { repRange?: [number, number] | null } = {}
 ): Promise<Map<string, NextForKey>> {
   const out = new Map<string, NextForKey>();
   const wanted = [...new Set(keys.map((k) => String(k ?? "").trim()).filter(Boolean))].slice(0, MAX_KEYS);
@@ -300,6 +305,7 @@ export async function computeNextForKeys(
       result = progressLoadable(state, week, {
         incrementKg: pickIncrementKg(equipment, ex?.equipmentNeeded),
         currentRx,
+        ...(opts.repRange ? { repRange: opts.repRange } : {}),
       });
     } else if (mode === "timed") {
       result = progressTimed(state, week, { currentSec: currentRx.seconds, currentRx });

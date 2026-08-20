@@ -5,6 +5,7 @@ import { buildOpenAI, aiModel } from "@/lib/aiClient";
 import { getSecret } from "@/lib/secrets/store";
 import { checkUsageLimit, logAiUsage } from "@/lib/usage-limits";
 import { bkkTodayKey } from "@/lib/planGenerator";
+import { trainingLines } from "@/lib/trainingProfile";
 
 const CHAT_SYSTEM = `คุณคือ "โค้ชกู๊ด" นักโภชนาการและเทรนเนอร์ส่วนตัวคนไทย พูดคุยผ่าน LINE
 กติกา:
@@ -62,6 +63,9 @@ function buildContextText(
       );
     for (const s of b.signals ?? []) lines.push(`สัญญาณร่างกาย (${s.key}): ${s.message}`);
   }
+
+  // WO-PT-D §S5 — โปรไฟล์การเทรน (ตาราง/ข้อจำกัด/โหมดเบา) — โค้ชห้ามสั่งท่าที่ขัดกับข้อจำกัดที่เขาบอกไว้
+  lines.push(...trainingLines(context.training));
 
   // WO-P.3 — memory + insight เฉพาะตัว
   if (context.personalization?.text) lines.push("", context.personalization.text);
