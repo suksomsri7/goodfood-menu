@@ -34,6 +34,11 @@ services:
       - "127.0.0.1:3001:3000"
     volumes:
       - /var/lib/goodfood/uploads:/app/public/uploads
+      # รูปร่างกาย (BP-1) — พื้นที่ส่วนตัว ห้ามอยู่ใต้ public (nginx เสิร์ฟ uploads เป็น public + cache)
+      - /var/lib/goodfood/private:/app/private
+    extra_hosts:
+      # ให้ container เรียก CV worker (mediapipe) ที่รันบน host 127.0.0.1:8077
+      - "host.docker.internal:host-gateway"
     networks:
       - goodfood-net
 

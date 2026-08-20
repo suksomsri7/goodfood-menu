@@ -27,7 +27,8 @@ module.exports = {
       max_memory_restart: "600M",
       env: {
         BODY_PRIVATE_DIR: "/var/lib/goodfood/private",
-        BODY_WORKER_HOST: "127.0.0.1",
+        // 172.17.0.1 = docker bridge — container ถึงได้ โลกภายนอกถึงไม่ได้ (127.0.0.1 container มองไม่เห็น)
+        BODY_WORKER_HOST: "172.17.0.1",
         BODY_WORKER_PORT: "8077",
         PYTHONUNBUFFERED: "1",
       },
