@@ -30,12 +30,17 @@ export interface ExercisePlanItem {
   rxReason?: string;
   /** สัปดาห์พักฟื้น (ลดปริมาณ) */
   deload?: boolean;
+  // ── เฟส C (additive): ผลของ Readiness ที่ปรับแผน "วันนี้" ──
+  /** ทำไมวันนี้ท่านี้ถึงเบาลง/เปลี่ยนไป (เช่น "ลด 1 เซ็ต — คะแนนความพร้อมต่ำ") */
+  readinessNote?: string;
 }
 export interface ExercisePlan {
   title: string;
   durationMin: number;
   items: ExercisePlanItem[];
   caloriesTarget: number;
+  /** ข้อความระดับวันจาก Readiness engine (วันพักฟื้น) */
+  readinessNote?: string;
 }
 export interface MealPlanItem {
   slot: string; // เช้า | กลางวัน | เย็น | ว่าง

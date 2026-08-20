@@ -96,6 +96,7 @@ model Member {
   memberEquipment    MemberEquipment[]
   setLogs            SetLog[]
   progressionStates  ProgressionState[]
+  readinessCheckins  ReadinessCheckin[]
 
   @@map("members")
 }
@@ -504,6 +505,44 @@ model ProgressionState {
   @@unique([memberId, exerciseKey])
   @@index([memberId])
   @@map("progression_states")
+}
+
+/// Check-in ความพร้อมรายวัน (เฟส C) — อาหารของ engine #4 Readiness
+/// ถามแค่ 2 ข้อ (energy/soreness) + จุดที่ปวด — ที่เหลือ (HRV/RHR/นอน) อ่านจาก Watch ที่ซิงก์อยู่แล้ว
+/// เก็บ snapshot ค่าที่ใช้คิดไว้ด้วย เพราะ DailyMetric ถูกเขียนทับได้ตลอดวัน แต่คะแนนที่ user เห็นต้องอธิบายย้อนหลังได้
+model ReadinessCheckin {
+  id        String   @id @default(cuid())
+  memberId  String
+  /// วัน BKK (UTC midnight ของวันนั้น -7) — กติกาเดียวกับ DailyPlan.date
+  date      DateTime
+  /// 1-5 พลังงาน/แรงใจวันนี้ (รวม motivation+stress ตาม ENGINE §5.2)
+  energy    Int?
+  /// 1-5 ปวดกล้ามเนื้อแค่ไหน (5 = ปวดมาก)
+  soreness  Int?
+  /// จุดที่ปวด เช่น knee|back|shoulder — ใช้เลือกว่าจะลด pattern ไหนก่อน
+  soreAreas String[] @default([])
+
+  // ── snapshot ค่าที่ใช้คิดคะแนน ณ ตอน check-in ──
+  hrvMs    Float?
+  rhr      Int?
+  sleepMin Int?
+
+  /// 0-100 · null = ยังไม่มีข้อมูลพอจะให้คะแนน (ห้ามแต่งเลขให้)
+  score     Int?
+  band      String? // full | normal | reduced | recovery
+  /// ปรับแผนของวันนี้ตามคะแนนไปแล้วหรือยัง
+  applied   Boolean   @default(false)
+  appliedAt DateTime?
+  /// สำเนา exercisePlan ก่อนปรับ — undo ต้องคืนของเดิมได้เป๊ะ (ไม่ใช่ "คิดย้อนกลับ" ซึ่งพลาดได้)
+  planBackup Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, date])
+  @@index([memberId, date])
+  @@map("readiness_checkins")
 }
 
 model ExerciseLog {
