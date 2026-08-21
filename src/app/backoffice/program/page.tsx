@@ -9,9 +9,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Header } from "@/components/backoffice/Header";
-import { AlertTriangle, ChefHat, ChevronLeft, ChevronRight, Loader2, Package, Printer, Users, Utensils } from "lucide-react";
+import { AlertTriangle, ChefHat, ChevronLeft, ChevronRight, Loader2, Package, Plus, Printer, Users, Utensils } from "lucide-react";
 import { CustomerSheet } from "./CustomerSheet";
 import { KitchenView, KitchenSlot } from "./KitchenView";
+import { EnrollSheet } from "./EnrollSheet";
 
 type View = "kitchen" | "packing" | "roster" | "courses";
 
@@ -105,6 +106,9 @@ export default function ProgramPage() {
   const [kitchen, setKitchen] = useState<KitchenSlot[]>([]);
   /** ลูกค้าที่กำลังเปิดโปรไฟล์อยู่ — null = ปิด */
   const [openCustomer, setOpenCustomer] = useState<{ id: string; name: string } | null>(null);
+  const [enrollOpen, setEnrollOpen] = useState(false);
+  /** id คอร์สที่กำลังยกเลิกอยู่ — กันกดซ้ำระหว่างรอ server */
+  const [busyCourse, setBusyCourse] = useState<string | null>(null);
   const [members, setMembers] = useState<ServedMember[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   /** คุกกี้พนักงานหมดอายุ (12 ชม.) ขณะที่ localStorage ยังจำ login อยู่ — ต้องบอกให้ชัด ไม่ใช่โชว์หน้าว่าง */
@@ -131,6 +135,28 @@ export default function ProgramPage() {
       setLoading(false);
     }
   }, [view, date]);
+
+  /** ยกเลิกคอร์ส (PATCH ที่มีอยู่แล้ว) — ต้องถามก่อนเพราะกดพลาดแล้วลูกค้าหลุดจากรายการตักทันที */
+  async function cancelCourse(c: Course) {
+    if (!confirm(`ยกเลิกคอร์สของ ${c.member.name}?\nลูกค้าจะหลุดจากรายการอาหารตั้งแต่มื้อถัดไป`)) return;
+    setBusyCourse(c.id);
+    try {
+      const res = await fetch("/api/program/members", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enrollmentId: c.id, status: "cancelled" }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => null);
+        alert(d?.error || "ยกเลิกไม่สำเร็จ");
+        return;
+      }
+      await load();
+    } finally {
+      setBusyCourse(null);
+    }
+  }
 
   useEffect(() => {
     load();
@@ -393,10 +419,21 @@ export default function ProgramPage() {
           ))}
 
         {/* ── คอร์สทั้งหมด ── */}
+        {!loading && view === "courses" && (
+          <div className="mb-3 flex justify-end">
+            <button
+              onClick={() => setEnrollOpen(true)}
+              className="px-4 py-2.5 rounded-xl bg-emerald-500 text-white text-sm font-medium flex items-center gap-2 hover:bg-emerald-600"
+            >
+              <Plus className="w-4 h-4" />
+              เพิ่มลูกค้าเข้าโปรแกรม
+            </button>
+          </div>
+        )}
         {!loading &&
           view === "courses" &&
           (courses.length === 0 ? (
-            <Empty text="ยังไม่มีใครสมัครโปรแกรม" />
+            <Empty text="ยังไม่มีใครสมัครโปรแกรม — กด “เพิ่มลูกค้าเข้าโปรแกรม” ด้านบน" />
           ) : (
             <div className="bg-white rounded-xl border border-gray-100 overflow-x-auto">
               <table className="w-full text-sm">
@@ -407,6 +444,7 @@ export default function ProgramPage() {
                     <th className="px-4 py-3">ช่วงคอร์ส</th>
                     <th className="px-4 py-3">เหลือ</th>
                     <th className="px-4 py-3">สถานะ</th>
+                    <th className="px-4 py-3"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -437,6 +475,17 @@ export default function ProgramPage() {
                           {c.status === "active" ? "กำลังใช้งาน" : c.status === "completed" ? "จบแล้ว" : "ยกเลิก"}
                         </span>
                       </td>
+                      <td className="px-4 py-3 text-right">
+                        {c.status === "active" && (
+                          <button
+                            onClick={() => void cancelCourse(c)}
+                            disabled={busyCourse === c.id}
+                            className="text-xs text-gray-400 hover:text-red-600 disabled:opacity-40"
+                          >
+                            {busyCourse === c.id ? "กำลังยกเลิก..." : "ยกเลิกคอร์ส"}
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -447,6 +496,12 @@ export default function ProgramPage() {
 
       {openCustomer && (
         <CustomerSheet memberId={openCustomer.id} name={openCustomer.name} onClose={() => setOpenCustomer(null)} />
+      )}
+      {enrollOpen && (
+        <EnrollSheet
+          onClose={() => setEnrollOpen(false)}
+          onDone={() => { setEnrollOpen(false); void load(); }}
+        />
       )}
     </div>
   );

@@ -26,6 +26,15 @@ function bkkDateFromParam(raw: string | null): Date {
   return bkkTodayKey();
 }
 
+const TH_MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+/**
+ * วันที่แบบที่คนไทยอ่านในแชท — dateKey เป็น BKK midnight เก็บเป็น UTC อยู่แล้ว
+ * จึงอ่าน getUTC* ตรง ๆ ห้ามแปลงเขตเวลาซ้ำ (แปลงซ้ำ = วันเพี้ยนไป 1 วัน)
+ */
+function thaiDateLabel(dateKey: Date): string {
+  return `${dateKey.getUTCDate()} ${TH_MONTHS[dateKey.getUTCMonth()]} ${dateKey.getUTCFullYear() + 543}`;
+}
+
 /** รหัสติดตามออเดอร์ที่แอดมินเอาไปเทียบกับสมาชิกได้ */
 export function orderCode(memberId: string, dateKey: Date): string {
   return `C-${memberId.slice(-6)}-${dateKey.toISOString().slice(0, 10).replace(/-/g, "")}`;
@@ -116,22 +125,21 @@ function orderResponse(opts: {
   const code = orderCode(memberId, dateKey);
   const dateLabel = dateKey.toISOString().slice(0, 10);
 
-  const lines = single
-    ? [
-        `สั่งอาหารวันที่ ${dateLabel} ครับ`,
-        "",
-        ...items.map((m) => `• ${m.menu}${m.slot ? ` (${m.slot})` : ""} — ${m.price ?? 0} บาท`),
-        "",
-        `รหัสอ้างอิง: ${code}`,
-      ]
-    : [
-        `สั่งอาหารวันที่ ${dateLabel} ครับ`,
-        "",
-        ...items.map((m) => `• ${m.slot}: ${m.menu} — ${m.price ?? 0} บาท`),
-        "",
-        `รวม ${total} บาท`,
-        `รหัสอ้างอิง: ${code}`,
-      ];
+  /* ขึ้นต้นว่า "สนใจสั่งอาหาร" ไม่ใช่ "สั่งอาหาร" (เจ้าของสั่ง 21 ส.ค.)
+     คนกดปุ่มนี้ยังไม่ได้จ่ายและยังไม่ได้ตกลงอะไร — เขียนว่าสั่งแล้วคือพูดแทนเขา
+     แอดมินได้คุยยืนยันก่อนเสมอ · วันที่เป็นภาษาคน ส่วนวันที่แบบเครื่องอ่านอยู่ในรหัสอ้างอิงแล้ว */
+  const lines = [
+    `สนใจสั่งอาหาร วันที่ ${thaiDateLabel(dateKey)}`,
+    "",
+    ...items.map((m) =>
+      single
+        ? `• ${m.menu}${m.slot ? ` (${m.slot})` : ""} — ${m.price ?? 0} บาท`
+        : `• ${m.slot}: ${m.menu} — ${m.price ?? 0} บาท`
+    ),
+    ...(single ? [] : ["", `รวม ${total} บาท`]),
+    "",
+    `รหัสอ้างอิง: ${code}`,
+  ];
   const message = lines.join("\n");
 
   // LINE deep link: ต้องเป็น basic ID พร้อม @ และ encode (@goodfood → %40goodfood)
