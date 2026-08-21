@@ -502,8 +502,19 @@ const TAG_RULES: Record<string, { kinds?: ExerciseKind[]; keys?: string[]; re?: 
   stretching: { kinds: ["mobility"] },
   boxing: { keys: ["shadow_box"], re: /box|ชก|มวย/i },
   cycling: { re: /bike|cycle|จักรยาน/i },
-  rowing: { re: /row_machine|เรือ/i },
+  rowing: { keys: ["rowing_machine"], re: /กรรเชียง|เรือ/i },
   core: { re: /plank|crunch|core|แพลงก์|ครันช์|ท้อง/i },
+  // ว่ายน้ำอยู่ในตัวเลือกของแอปแต่ไม่มีท่าจริงในคลัง (แผนไม่เคยสั่งลงสระ)
+  // → ตั้งใจให้ไม่ match อะไรเลย ส่วนขา "ชอบ" ไปใช้ TAG_LIKE_PROXY ข้างล่างแทน
+  swimming: {},
+};
+/**
+ * กิจกรรมที่แอปให้เลือกได้ แต่ไม่มีท่าจริงในคลัง — ใช้เฉพาะตอนไล่ "ชอบ" เท่านั้น
+ * ชอบว่ายน้ำ → เอียงไปหาคาร์ดิโอแรงกระแทกต่ำที่ให้ความรู้สึกใกล้กันที่สุด
+ * 🔴 ห้ามใช้กับ "ไม่ชอบ": "ไม่ชอบว่ายน้ำ" ต้องไม่ไปเขี่ยเครื่องเดินวงรี/จักรยานออกจากแผน (คนละเรื่องกัน)
+ */
+const TAG_LIKE_PROXY: Record<string, string[]> = {
+  swimming: ["elliptical", "rowing_machine", "stationary_bike"],
 };
 /** คำไทยที่ user/แอปอาจส่งมาแทน tag อังกฤษ */
 const TAG_ALIASES: Record<string, string> = {
@@ -519,15 +530,28 @@ const TAG_ALIASES: Record<string, string> = {
   จักรยาน: "cycling",
   กระโดด: "jumping",
   หน้าท้อง: "core",
+  ว่ายน้ำ: "swimming",
+  กรรเชียง: "rowing",
 };
+
+/**
+ * แท็กทุกตัวที่ server รู้จัก (คีย์กฎ + คำไทยที่รับแทนกันได้)
+ * มีไว้ให้เทสยืนยันว่า "ทุกตัวเลือกที่แอปโชว์ มีที่ลงฝั่ง server" —
+ * ว่ายน้ำเคยหลุดมาแล้ว: แอปให้ติ๊กได้ แต่ server ไม่รู้จัก เลือกไปก็ไม่มีผลอะไรเลย
+ */
+export const KNOWN_TAGS: ReadonlySet<string> = new Set([...Object.keys(TAG_RULES), ...Object.keys(TAG_ALIASES)]);
 
 export function normalizeTag(tag: string): string {
   const t = String(tag ?? "").trim().toLowerCase();
   return TAG_ALIASES[t] ?? t;
 }
 
-/** ท่านี้อยู่ในกลุ่มที่ user บอกว่าชอบ/ไม่ชอบไหม */
-export function matchesTag(ex: CatalogExercise, tag: string): boolean {
+/**
+ * ท่านี้อยู่ในกลุ่มที่ user บอกว่าชอบ/ไม่ชอบไหม
+ * mode = "like" เท่านั้นที่ยอมใช้ตัวแทนใกล้เคียง (TAG_LIKE_PROXY) — ฝั่ง "ไม่ชอบ" ต้องตรงตัวเสมอ
+ * เพราะไม่ชอบ = ตัดของออกจากแผน เดาผิดแล้วผู้ใช้เสียท่าที่เขาไม่ได้เกี่ยงไปฟรี ๆ
+ */
+export function matchesTag(ex: CatalogExercise, tag: string, mode: "like" | "dislike" = "dislike"): boolean {
   const t = normalizeTag(tag);
   const rule = TAG_RULES[t];
   if (!rule) {
@@ -537,10 +561,12 @@ export function matchesTag(ex: CatalogExercise, tag: string): boolean {
   if (rule.keys?.includes(ex.key)) return true;
   if (rule.re && (rule.re.test(ex.key) || rule.re.test(ex.name))) return true;
   if (rule.kinds?.includes(ex.kind)) return true;
+  if (mode === "like" && TAG_LIKE_PROXY[t]?.includes(ex.key)) return true;
   return false;
 }
 
-const inAnyTag = (ex: CatalogExercise, tags: string[]): boolean => tags.some((t) => matchesTag(ex, t));
+const inAnyTag = (ex: CatalogExercise, tags: string[], mode: "like" | "dislike" = "dislike"): boolean =>
+  tags.some((t) => matchesTag(ex, t, mode));
 
 /**
  * ไม่ชอบ = soft filter (WO §S4): เปลี่ยนให้เมื่อมี "ตัวแทนที่ทำงานแทนกันได้จริง" เท่านั้น
@@ -584,7 +610,7 @@ export function applyPreferences(
         return it;
       }
       // ชอบมาก่อน แล้วค่อยตามลำดับในคลัง (คลังเรียงจากง่ายไปยากอยู่แล้ว)
-      const liked = lik.length ? cands.filter((c) => inAnyTag(c, lik)) : [];
+      const liked = lik.length ? cands.filter((c) => inAnyTag(c, lik, "like")) : [];
       const pick = (liked.length ? liked : cands)[0];
       used.add(pick.key);
       used.delete(ex.key);
@@ -758,6 +784,19 @@ const STYLE_TH: Record<string, string> = {
 const DAY_TH: Record<string, string> = {
   mon: "จ", tue: "อ", wed: "พ", thu: "พฤ", fri: "ศ", sat: "ส", sun: "อา",
 };
+/** แท็กกิจกรรม/จุดเจ็บ → คำไทย สำหรับบรรทัดที่โค้ชอ่าน (เก็บเป็นคีย์อังกฤษใน DB เหมือนเดิม) */
+const TAG_TH: Record<string, string> = {
+  strength: "ยกเวท", cardio: "คาร์ดิโอ", running: "วิ่ง", walking: "เดิน", hiit: "HIIT",
+  jumping: "กระโดด", yoga: "โยคะ", stretching: "ยืดเหยียด", boxing: "ชกมวย",
+  cycling: "ปั่นจักรยาน", rowing: "กรรเชียงบก", swimming: "ว่ายน้ำ", core: "หน้าท้อง",
+};
+const AREA_TH: Record<string, string> = {
+  shoulder: "ไหล่", knee: "เข่า", back: "หลัง", hip: "สะโพก",
+  ankle: "ข้อเท้า", wrist: "ข้อมือ", neck: "คอ", other: "จุดอื่น",
+};
+/** คำที่ user พิมพ์เองไม่มีในตาราง = คงคำเดิมไว้ ดีกว่าขึ้นค่าว่าง */
+const tagTh = (t: string) => TAG_TH[normalizeTag(t)] ?? t;
+const areaTh = (a: string) => AREA_TH[a] ?? a;
 
 /** ก้อน training → บรรทัดไทยสำหรับ prompt (ไม่มีข้อมูล = ไม่มีบรรทัด ไม่ใช่เขียนว่า "ไม่ทราบ") */
 export function trainingLines(t: TrainingContextBlock | null | undefined): string[] {
@@ -767,14 +806,14 @@ export function trainingLines(t: TrainingContextBlock | null | undefined): strin
   lines.push(`- เป้าหมายการเทรน: ${GOAL_TH[t.primaryGoal] ?? t.primaryGoal}${style}`);
   const dayText = t.trainDays.length ? t.trainDays.map((d) => DAY_TH[d] ?? d).join(" ") : `${t.daysPerWeek} วัน/สัปดาห์`;
   lines.push(`- ตารางเทรน: ${dayText} · ครั้งละ ${t.sessionMin} นาที${t.preferredTime ? ` · ช่วง ${t.preferredTime}` : ""}`);
-  if (t.likes.length) lines.push(`- ชอบ: ${t.likes.join(" · ")}`);
-  if (t.dislikes.length) lines.push(`- ไม่ชอบ (เลี่ยงให้ถ้ามีตัวแทน): ${t.dislikes.join(" · ")}`);
+  if (t.likes.length) lines.push(`- ชอบ: ${t.likes.map(tagTh).join(" · ")}`);
+  if (t.dislikes.length) lines.push(`- ไม่ชอบ (เลี่ยงให้ถ้ามีตัวแทน): ${t.dislikes.map(tagTh).join(" · ")}`);
   if (t.experienceMonths != null) lines.push(`- เคยเทรนมาแล้วประมาณ ${t.experienceMonths} เดือน`);
   if (t.stress != null) lines.push(`- ความเครียดที่บอกไว้: ${t.stress}/5${t.jobType ? ` · งาน ${t.jobType}` : ""}`);
   if (t.injuries.length) {
     lines.push(
       `- ข้อจำกัดร่างกาย: ${t.injuries
-        .map((i) => `${i.area}${i.severity === "avoid" ? " (ห้ามท่าที่เกี่ยว)" : " (เบาไว้ก่อน)"}${i.until ? ` ถึง ${i.until}` : ""}`)
+        .map((i) => `${areaTh(i.area)}${i.severity === "avoid" ? " (ห้ามท่าที่เกี่ยว)" : " (เบาไว้ก่อน)"}${i.until ? ` ถึง ${i.until}` : ""}`)
         .join(" · ")}`
     );
   }

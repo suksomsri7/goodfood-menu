@@ -5,6 +5,7 @@ import { upsertMemories } from "@/lib/coachMemory";
 import { syncInjuryMemoryToLimitation } from "@/lib/trainingProfileStore";
 import { bkkDateKey, bkkTodayKey } from "@/lib/planGenerator";
 import { resolveLogTime } from "@/lib/coachLogTime";
+import { adjustTodayWorkout } from "@/lib/workoutAdjustStore";
 
 /**
  * execute action ที่ user ยืนยันแล้ว (มาจาก /api/coach/agent)
@@ -28,6 +29,8 @@ export async function POST(req: NextRequest) {
 
     const actions: Array<{ tool: string; args: any }> = (Array.isArray(body.actions) ? body.actions : []).slice(0, 20);
     const done: string[] = [];
+    /** เรื่องที่ทำไม่ได้/ไม่มีอะไรให้ทำ — ต้องบอก user ตรง ๆ ไม่ใช่เงียบแล้วปล่อยให้เข้าใจว่าสำเร็จ */
+    const notes: string[] = [];
     // clamp กันค่าเพี้ยน/ติดลบ/มหาศาล (NaN → 0)
     const num = (v: any, max: number) => Math.min(max, Math.max(0, Number(v) || 0));
 
@@ -109,6 +112,24 @@ export async function POST(req: NextRequest) {
           await prisma.member.update({ where: { id: member.id }, data: { equipment: eq } });
           done.push("set_equipment");
         }
+      } else if (a.tool === "adjust_workout") {
+        /* PT-E §4.4 — "วันนี้เหลือเวลาแค่ 20 นาที" / "วันนี้ปวดเข่า"
+           ผ่าน doConfirm มาแล้วเหมือน action อื่น จึง apply ได้เลย
+           ล้มตรงนี้ห้ามทำให้ทั้งชุด action พัง (คนอาจสั่งบันทึกอาหารมาพร้อมกัน) */
+        try {
+          const mode = g.mode === "sore" ? "sore" : "time";
+          const out = await adjustTodayWorkout(
+            member.id,
+            (member as { equipment?: string | null }).equipment,
+            { mode, minutes: Number(g.minutes), area: g.area, apply: true },
+            new Date()
+          );
+          if (out.applied) done.push("adjust_workout");
+          else notes.push(out.message);
+        } catch (err) {
+          console.error("[coach/execute:adjust_workout]", err);
+          notes.push("ปรับแผนวันนี้ไม่สำเร็จ ลองบอกโค้ชอีกครั้งนะ");
+        }
       } else if (a.tool === "log_weight") {
         const w = Number(g.weight);
         if (Number.isFinite(w) && w > 0 && w <= 500) {
@@ -123,7 +144,8 @@ export async function POST(req: NextRequest) {
           done.push("log_weight");
         }
       }
-      // adjust_plan → เก็บไว้เฟสหลัง (ต้อง regenerate) — ข้ามอย่างปลอดภัย
+      // "จัดแผนทั้งสัปดาห์ใหม่" ยังไม่เปิดให้สั่งด้วยเสียง (ต้อง regenerate ทั้งชุด) — ข้ามอย่างปลอดภัย
+      // ปรับเฉพาะ "วันนี้" ทำได้แล้วที่ adjust_workout ด้านบน
     }
 
     let memorySaved = 0;
@@ -144,7 +166,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ done, memorySaved });
+    return NextResponse.json({ done, memorySaved, ...(notes.length ? { notes } : {}) });
   } catch (e: any) {
     console.error("[coach/execute]", e);
     return NextResponse.json({ error: e.message || "execute failed" }, { status: 500 });

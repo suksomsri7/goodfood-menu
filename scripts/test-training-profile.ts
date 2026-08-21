@@ -31,6 +31,7 @@ import {
   isCalibrationWeek,
   itemsForSessionMin,
   matchesTag,
+  KNOWN_TAGS,
   normalizeInjuryInput,
   normalizeProfileInput,
   parqFlagFrom,
@@ -62,6 +63,8 @@ const ahead = (days: number) => new Date(NOW.getTime() + days * DAY_MS);
 const PATTERN_BY_KEY: Record<string, string> = {
   walk_fast: "cardio", jog_light: "cardio", stair_step: "cardio", shadow_box: "cardio",
   jumping_jack: "cardio", burpee: "cardio", mountain_climber: "cardio",
+  // เครื่องคาร์ดิโอฝั่งฟิตเนส — ตรงกับ pattern ที่ seed ลงตาราง exercises จริง (ตรวจกับ DB แล้ว)
+  treadmill: "cardio", stationary_bike: "cardio", elliptical: "cardio", rowing_machine: "cardio",
   squat_bw: "squat", wall_sit: "squat", db_squat: "squat", barbell_squat: "squat", leg_press: "squat",
   lunge: "lunge", step_up: "lunge",
   glute_bridge: "hinge", db_rdl: "hinge",
@@ -368,6 +371,38 @@ console.log("\n── 11. ชอบ/ไม่ชอบ = soft filter ──");
 
   const nothing = applyPreferences(days, pool, ["yoga"], [], patternOf);
   check("ไม่มีรายการไม่ชอบ = ไม่แตะแผนเลย", nothing.swapped === 0 && nothing.days === days);
+}
+
+// ────────────────────────────────────────────────────────────────
+// แท็กที่แอปให้เลือกได้ ต้องมีที่ลงฝั่ง server ทุกตัว — ว่ายน้ำเคยหลุด (เลือกได้แต่ไม่มีผลอะไรเลย)
+console.log("\n── 11.1 แท็กที่ไม่มีท่าจริงในคลัง (ว่ายน้ำ) + กรรเชียง ──");
+{
+  const ex = (k: string) => EXERCISE_CATALOG.find((e) => e.key === k)!;
+  const gym = catalogFor("gym");
+
+  // คัดลอกจาก ACTIVITY_TAGS ใน coach-app/src/lib/trainingOptions.ts — เพิ่มตัวเลือกในแอปแล้วต้องมาเพิ่มที่นี่ด้วย
+  const APP_TAGS = ["strength", "running", "hiit", "yoga", "boxing", "cycling", "swimming"];
+  const orphan = APP_TAGS.filter((t) => !KNOWN_TAGS.has(t));
+  check(`ทุกแท็กที่แอปให้เลือก server รู้จักหมด`, orphan.length === 0, orphan.join(","));
+
+  check("ชอบว่ายน้ำ → เอียงไปหาคาร์ดิโอกระแทกต่ำแทนได้", matchesTag(ex("elliptical"), "swimming", "like"));
+  check("คำไทย 'ว่ายน้ำ' ใช้แทนกันได้", matchesTag(ex("stationary_bike"), "ว่ายน้ำ", "like"));
+  check(
+    "🔴 ไม่ชอบว่ายน้ำ ต้องไม่ไปเขี่ยเครื่องเดินวงรี/จักรยานออก (คนละเรื่องกัน)",
+    !matchesTag(ex("elliptical"), "swimming") && !matchesTag(ex("stationary_bike"), "swimming")
+  );
+  check("ว่ายน้ำไม่ลามไปจับคาร์ดิโอทั้งกลุ่ม (วิ่งเหยาะไม่ใช่ตัวแทนว่ายน้ำ)", !matchesTag(ex("jog_light"), "swimming", "like"));
+  check("tag rowing จับเครื่องกรรเชียงบกได้ (key จริงคือ rowing_machine)", matchesTag(ex("rowing_machine"), "rowing"));
+
+  const swim = applyPreferences([day(["jog_light", "squat_bw"])], gym, ["swimming"], ["running"], patternOf);
+  const picked = swim.days[0].exercisePlan.items[0].key;
+  check(
+    "ไม่ชอบวิ่ง + ชอบว่ายน้ำ → ได้คาร์ดิโอกระแทกต่ำ ไม่ใช่ตัวแรกในคลัง",
+    swim.swapped === 1 && ["stationary_bike", "elliptical", "rowing_machine"].includes(String(picked))
+  );
+
+  const disSwim = applyPreferences([day(["jog_light", "squat_bw"])], gym, [], ["swimming"], patternOf);
+  check("ไม่ชอบว่ายน้ำอย่างเดียว = ไม่มีอะไรในแผนโดนแตะ", disSwim.swapped === 0 && disSwim.kept === 0);
 }
 
 // ────────────────────────────────────────────────────────────────

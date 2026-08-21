@@ -18,6 +18,7 @@ import {
   applyInjuryFilter, applyLightWeek, applyPreferences, applyTrainDays,
   fitSessionLength, itemsForSessionMin,
 } from "@/lib/trainingProfile";
+import { derivePriorities, type AdjustPlanItem, type MetaOf } from "@/lib/workoutAdjust";
 
 // ── โครงข้อมูลแผนรายวัน ──
 export interface ExercisePlanItem {
@@ -40,6 +41,11 @@ export interface ExercisePlanItem {
   // ── เฟส C (additive): ผลของ Readiness ที่ปรับแผน "วันนี้" ──
   /** ทำไมวันนี้ท่านี้ถึงเบาลง/เปลี่ยนไป (เช่น "ลด 1 เซ็ต — คะแนนความพร้อมต่ำ") */
   readinessNote?: string;
+  // ── เฟส E (additive): ปรับแผน "วันนี้" ตามเวลา/อาการที่เพิ่งเกิด ──
+  /** แก่นของวัน (main) · ของรอง (secondary) · ท่าเสริมที่ตัดได้ก่อน (accessory) — ปั๊มตอน generate */
+  priority?: "main" | "secondary" | "accessory";
+  /** ทำไมวันนี้ท่านี้ถึงเปลี่ยน (เช่น "ลดเหลือ 2 เซ็ต — วันนี้มีเวลา 20 นาที") */
+  adjustNote?: string;
 }
 export interface ExercisePlan {
   title: string;
@@ -917,6 +923,26 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
     } catch (e) {
       console.error("[planGenerator] ปรับความหนักตามโปรไฟล์ล้ม — ใช้ตัวเลขตาม progression:", e);
     }
+  }
+
+  /* ── WO-PT-E §4.4: ปั๊มธง priority (main|secondary|accessory) ลงทุกท่า ──
+     ต้องเป็นขั้นตอนสุดท้ายจริง ๆ: ท่าถูกเลือก/สลับ/ตัดเสร็จแล้ว ธงถึงจะตรงกับแผนที่ user ได้จริง
+     ธงนี้คือสิ่งที่บอกว่า "เหลือเวลา 20 นาที ตัดอะไรได้บ้าง" — ไม่มีธง ตัวปรับแผนต้องเดาเอาเอง
+     🔴 แตะแต่ metadata ไม่แตะท่า/ตัวเลข — วางหลังด่านความปลอดภัยได้อย่างปลอดภัย */
+  try {
+    const metaOf: MetaOf = (item) => {
+      const e = pool.find((x) => x.key === item.key);
+      if (!e) return null;
+      return { key: e.key, name: e.name, pattern: training.patternOf(item), kind: e.kind, unit: e.unit };
+    };
+    days = days.map((d) => {
+      const items = d.exercisePlan.items ?? [];
+      if (!items.length) return d;
+      const prio = derivePriorities(items as unknown as AdjustPlanItem[], metaOf);
+      return { ...d, exercisePlan: { ...d.exercisePlan, items: items.map((it, i) => ({ ...it, priority: prio[i] })) } };
+    });
+  } catch (e) {
+    console.error("[planGenerator] ปั๊มธง priority ล้ม — แผนยังใช้ได้ (ตัวปรับแผนจะเดาจากลำดับท่าแทน):", e);
   }
 
   // เขียนลง DB — ไม่ทับวันที่มีแล้ว
