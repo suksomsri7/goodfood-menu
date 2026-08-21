@@ -644,7 +644,11 @@ export default function SettingsPage() {
             <div>
               <h2 className="font-semibold text-gray-800">LINE OA รับออเดอร์อาหาร</h2>
               <p className="text-sm text-gray-500">
-                ใส่ Basic ID ของ LINE OA (เช่น @goodfood) — ว่างไว้ = ปุ่ม &quot;สั่งอาหาร&quot; ในแอปโค้ชจะไม่ขึ้น
+                ใส่ <b>Basic ID ของ LINE OA</b> — ดูได้ที่ LINE OA Manager › ตั้งค่า › ข้อมูลบัญชี (ของ GOODFOOD คือ <b>@385xnbxz</b>)
+                <br />
+                🔴 ไม่ใช่ชื่อเว็บ — ใส่ <code>@goodfood.in.th</code> แล้วปุ่มจะเปิดแชทไม่เจอ (ต้องซื้อ Premium ID ก่อนถึงใช้ชื่อสวย ๆ ได้)
+                <br />
+                ว่างไว้ = ปุ่ม &quot;สั่งอาหาร&quot; ในแอปโค้ชจะไม่ขึ้น
               </p>
             </div>
           </div>
@@ -654,7 +658,7 @@ export default function SettingsPage() {
                 type="text"
                 value={lineOaId}
                 onChange={(e) => setLineOaId(e.target.value)}
-                placeholder="@goodfood"
+                placeholder="@385xnbxz"
                 className="w-64 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none"
               />
               <button
