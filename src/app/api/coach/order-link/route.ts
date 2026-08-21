@@ -43,7 +43,27 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ available: false, reason: "no_oa_configured" });
   }
 
-  const dateKey = bkkDateFromParam(new URL(req.url).searchParams.get("date"));
+  const params = new URL(req.url).searchParams;
+  const dateKey = bkkDateFromParam(params.get("date"));
+
+  /* สั่งทีละกล่อง — คนที่ยังไม่เข้าโปรแกรมเห็นเมนูจริงของครัวเป็นการ์ดทีละใบ
+     ปุ่มบนการ์ดต้องสั่ง "ใบนั้น" ไม่ใช่ทั้งวันตามแผน (ซึ่งเขายังไม่ได้สมัคร) */
+  const foodId = (params.get("foodId") || "").trim();
+  if (foodId) {
+    const food = await prisma.food.findFirst({
+      where: { id: foodId, isActive: true },
+      select: { id: true, name: true, price: true },
+    });
+    if (!food) return NextResponse.json({ available: false, reason: "food_not_found" });
+    return orderResponse({
+      memberId: member.id,
+      dateKey,
+      rawOa,
+      items: [{ slot: params.get("slot") || "", menu: food.name, foodId: food.id, price: food.price ?? 0, servings: 1, imageUrl: null }],
+      single: true,
+    });
+  }
+
   const plan = await prisma.dailyPlan.findUnique({
     where: { memberId_date: { memberId: member.id, date: dateKey } },
     select: { mealPlan: true },
@@ -56,18 +76,62 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ available: false, reason: "no_orderable_meals" });
   }
 
-  const total = Math.round(meals.reduce((s, m) => s + (m.price ?? 0), 0) * 100) / 100;
-  const code = orderCode(member.id, dateKey);
+  return orderResponse({
+    memberId: member.id,
+    dateKey,
+    rawOa,
+    items: meals.map((m) => ({
+      slot: m.slot,
+      menu: m.menu,
+      foodId: m.foodId ?? null,
+      price: m.price ?? 0,
+      servings: m.servings ?? 1,
+      imageUrl: m.imageUrl ?? null,
+    })),
+  });
+}
+
+interface OrderItem {
+  slot: string;
+  menu: string;
+  foodId: string | null;
+  price: number;
+  servings: number;
+  imageUrl: string | null;
+}
+
+/**
+ * ประกอบข้อความ + deep link จากรายการที่สั่งได้จริง (ใช้ร่วมกันทั้งสั่งทั้งวันและสั่งทีละกล่อง)
+ * 🔴 ข้อความต้องอ่านรู้เรื่องในแชทของแอดมินเอง — รหัสอ้างอิงคือสิ่งเดียวที่ผูกกลับมาที่สมาชิกได้
+ */
+function orderResponse(opts: {
+  memberId: string;
+  dateKey: Date;
+  rawOa: string;
+  items: OrderItem[];
+  single?: boolean;
+}) {
+  const { memberId, dateKey, rawOa, items, single } = opts;
+  const total = Math.round(items.reduce((s, m) => s + (m.price ?? 0), 0) * 100) / 100;
+  const code = orderCode(memberId, dateKey);
   const dateLabel = dateKey.toISOString().slice(0, 10);
 
-  const lines = [
-    `สั่งอาหารวันที่ ${dateLabel} ครับ`,
-    "",
-    ...meals.map((m) => `• ${m.slot}: ${m.menu} — ${m.price ?? 0} บาท`),
-    "",
-    `รวม ${total} บาท`,
-    `รหัสอ้างอิง: ${code}`,
-  ];
+  const lines = single
+    ? [
+        `สั่งอาหารวันที่ ${dateLabel} ครับ`,
+        "",
+        ...items.map((m) => `• ${m.menu}${m.slot ? ` (${m.slot})` : ""} — ${m.price ?? 0} บาท`),
+        "",
+        `รหัสอ้างอิง: ${code}`,
+      ]
+    : [
+        `สั่งอาหารวันที่ ${dateLabel} ครับ`,
+        "",
+        ...items.map((m) => `• ${m.slot}: ${m.menu} — ${m.price ?? 0} บาท`),
+        "",
+        `รวม ${total} บาท`,
+        `รหัสอ้างอิง: ${code}`,
+      ];
   const message = lines.join("\n");
 
   // LINE deep link: ต้องเป็น basic ID พร้อม @ และ encode (@goodfood → %40goodfood)
@@ -82,14 +146,8 @@ export async function GET(req: NextRequest) {
     code,
     total,
     date: dateLabel,
-    items: meals.map((m) => ({
-      slot: m.slot,
-      menu: m.menu,
-      foodId: m.foodId,
-      price: m.price ?? 0,
-      servings: m.servings ?? 1,
-      imageUrl: absoluteImageUrl(m.imageUrl ?? null),
-    })),
+    single: !!single,
+    items: items.map((m) => ({ ...m, imageUrl: absoluteImageUrl(m.imageUrl) })),
   });
   res.headers.set("Cache-Control", "no-store, must-revalidate");
   return res;
