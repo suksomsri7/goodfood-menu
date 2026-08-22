@@ -120,6 +120,15 @@ interface PlanMember {
 async function loadPlanMember(memberId: string): Promise<PlanMember | null> {
   const m = await prisma.member.findUnique({ where: { id: memberId } });
   if (!m) return null;
+  /* tier อุปกรณ์: ฟิลด์ legacy (none|home|gym) เป็นค่าเริ่ม แต่ถ้าคลังอุปกรณ์จริง (MemberEquipment)
+     มีของอยู่ ห้ามถือว่า "none" — QC 22 ส.ค. 69 เจอเคสลงทะเบียนดัมเบลแล้วแผนยังบอดี้เวทล้วน */
+  let equipTier = (["none", "home", "gym"].includes(m.equipment || "") ? m.equipment : "none") as EquipmentTier;
+  if (equipTier === "none") {
+    try {
+      const gear = await prisma.memberEquipment.count({ where: { memberId } });
+      if (gear > 0) equipTier = "home";
+    } catch { /* ตารางยังไม่มี/ล้ม = ใช้ค่า legacy ตามเดิม */ }
+  }
   const bmr = Math.round(m.bmr ?? 1200);
   // เป้าแคลอรี่ ≥ BMR เสมอ (กติกาความปลอดภัย)
   const rawTarget = m.dailyCalories ?? Math.round(m.tdee ?? bmr * 1.2);
@@ -136,7 +145,7 @@ async function loadPlanMember(memberId: string): Promise<PlanMember | null> {
     dietType: m.dietType ?? "ทั่วไป",
     goalType: m.goalType ?? "ลดน้ำหนัก",
     // ไม่เคยถาม = ถือว่าไม่มีอุปกรณ์ (ปลอดภัยสุด) — user บอกโค้ชด้วยเสียงเพื่ออัปเดตได้
-    equipment: (["none", "home", "gym"].includes(m.equipment || "") ? m.equipment : "none") as EquipmentTier,
+    equipment: equipTier,
   };
 }
 
@@ -295,13 +304,16 @@ export function snapExercises(days: DayPlan[], pool: CatalogExercise[]): { days:
       if (!hit || e.name !== it.name) snapped++;
       if (seen.has(e.key)) continue; // กันท่าซ้ำหลังจับคู่
       seen.add(e.key);
+      // "แพลงก์ 10 นาที" (ไม่มีเซ็ต) = ตัวเลขที่เทรนเนอร์จริงไม่สั่ง — ท่า strength จับเวลา
+      // เกิน 3 นาทีโดยไม่มีเซ็ต ให้เป็นรูปแบบมาตรฐาน 3 เซ็ต เซ็ตละ 1 นาที (ตามคลัง)
+      const wildMinutes = e.kind === "strength" && e.unit === "minutes" && !it.sets && Number(it.minutes) > 3;
       items.push({
         key: e.key,
         media: e.media,
         name: e.name,
-        sets: it.sets,
+        sets: wildMinutes ? 3 : it.sets,
         reps: e.unit === "reps" ? it.reps ?? 12 : undefined,
-        minutes: e.unit === "minutes" ? it.minutes ?? 20 : it.minutes,
+        minutes: e.unit === "minutes" ? (wildMinutes ? 1 : it.minutes ?? 20) : it.minutes,
         note: it.note || e.cue,
       });
     }
@@ -327,10 +339,10 @@ export function ensureVariety(
   let added = 0;
   const byKey = new Map(pool.map((e) => [e.key, e]));
 
-  const out = days.map((d) => {
+  const out = days.map((d, dayIdx) => {
     const items = [...d.exercisePlan.items];
-    const isRest = /พัก|ฟื้นฟู/.test(d.exercisePlan.title || "") ||
-      items.every((it) => byKey.get(it.key || "")?.kind === "mobility");
+    // ดูของจริง ไม่เชื่อป้าย "พัก" (AI เคยตั้งชื่อพักแต่ยัดท่าไว้ — ดู isRestDay)
+    const isRest = items.every((it) => byKey.get(it.key || "")?.kind === "mobility");
     if (isRest) return d;
 
     const used = new Set(items.map((it) => it.key || ""));
@@ -349,7 +361,7 @@ export function ensureVariety(
       const usesGear = items.some((it) => (byKey.get(it.key || "")?.equipment ?? "none") !== "none");
       if (!usesGear) {
         const gear = pool.filter((e) => e.equipment !== "none" && e.kind === "strength" && !used.has(e.key));
-        if (gear.length) push(gear[(added + items.length) % gear.length]);
+        if (gear.length) push(gear[(dayIdx * 3 + added + items.length) % gear.length]);
       }
     }
 
@@ -361,13 +373,49 @@ export function ensureVariety(
         (e) => !used.has(e.key) && e.kind === (needCardio ? "cardio" : "strength")
       );
       if (!cand.length) break;
-      push(cand[(items.length + guard) % cand.length]);
+      push(cand[(dayIdx * 2 + items.length + guard) % cand.length]);
     }
 
     return { ...d, exercisePlan: { ...d.exercisePlan, items } };
   });
 
   return { days: out, added };
+}
+
+/**
+ * ทั้งสัปดาห์ต้องมีท่า "ดึง" อย่างน้อย 1 ถ้ามีวันเวทเทรนนิ่ง — อก/ไหล่ล้วนโดยไม่มีหลัง = เสียสมดุลกล้ามเนื้อ
+ * (QC 22 ส.ค. 69: สายกล้ามได้สัปดาห์ที่ไม่มี pull เลยสักท่า)
+ * 🔴 ต้องรัน "ก่อน" enforceAvoid/injury filter — ท่าที่เติมต้องผ่านด่านข้อห้ามเหมือนท่าอื่น
+ */
+export function ensureWeeklyPull(
+  days: DayPlan[],
+  pool: CatalogExercise[],
+  patternOf: (it: { key?: string; name?: string }) => string | null
+): { days: DayPlan[]; added: boolean } {
+  const isPull = (key?: string | null, name?: string | null) => {
+    const pt = patternOf({ key: key ?? undefined, name: name ?? undefined });
+    return pt === "pull_h" || pt === "pull_v";
+  };
+  const hasPull = days.some((d) => (d.exercisePlan.items ?? []).some((it) => isPull(it.key, it.name)));
+  const strengthDays = days
+    .map((d, i) => ({ i, items: d.exercisePlan.items ?? [] }))
+    .filter((x) => x.items.some((it) => Number(it.sets) > 0));
+  if (hasPull || !strengthDays.length) return { days, added: false };
+
+  const cand = pool.find((e) => e.kind === "strength" && isPull(e.key, e.name));
+  if (!cand) return { days, added: false }; // ตัวเปล่าอาจไม่มีท่าดึงในคลัง — ไม่ฝืนแต่ง
+
+  const target = strengthDays.reduce((a, b) => (b.items.length < a.items.length ? b : a));
+  const item: ExercisePlanItem =
+    cand.unit === "reps"
+      ? { key: cand.key, media: cand.media, name: cand.name, sets: 3, reps: 12, note: cand.cue }
+      : { key: cand.key, media: cand.media, name: cand.name, minutes: 10, note: cand.cue };
+  const out = days.map((d, i) =>
+    i === target.i
+      ? { ...d, exercisePlan: { ...d.exercisePlan, items: [...(d.exercisePlan.items ?? []), item] } }
+      : d
+  );
+  return { days: out, added: true };
 }
 
 /** กรองแผนทั้งสัปดาห์ให้ไม่ขัดข้อห้าม — คืนจำนวนจุดที่แก้ */
@@ -769,6 +817,12 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
   }
   days = variety.days;
 
+  const pulled = ensureWeeklyPull(days, pool, training.patternOf);
+  if (pulled.added) {
+    console.log(`[planGenerator] เติมท่าดึง 1 ท่า (ทั้งสัปดาห์ไม่มี pull) member=${memberId}`);
+    days = pulled.days;
+  }
+
   const avoidKeywords = deriveAvoidKeywords(personal.avoid);
 
   // ── เฟส C: มื้อหลักใช้เมนูจริงของ goodfood (ถ้ามีพอ) ──
@@ -852,6 +906,11 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
      keyword ของ enforceAvoid จับจากข้อความที่ user เคยพูด · ตรงนี้จับจาก pattern ในตาราง exercises
      ต้องมีทั้งคู่: "เข่าเจ็บ" ต้องตัด db_squat ที่ไม่มีคำว่าเข่าหรือสควอทอยู่ในชื่อเลยได้ด้วย
      🔴 หลังจุดนี้ห้ามมีขั้นตอนไหนเพิ่ม/สลับท่าอีก — เหลือแต่การคิดตัวเลข */
+  // PAR-Q ติดธง (ยังไม่ยืนยันกับแพทย์) = ห้ามท่ากระแทกสูงด้วย — คนที่ตอบว่ามีอาการแน่นหน้าอก
+  // ตอนออกแรง ไม่ควรได้ "กระโดดตบ" ทั้งที่โหมดเบาลดแต่น้ำหนัก/ครั้ง (QC 22 ส.ค. 69 เจอจริง)
+  if (training.cap === "low" && !training.injuries.avoidHighImpact) {
+    training.injuries = { ...training.injuries, avoidHighImpact: true, hasAny: true };
+  }
   if (training.injuries.hasAny) {
     try {
       const filtered = applyInjuryFilter(days, training.injuries, training.patternOf, pool);

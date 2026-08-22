@@ -348,6 +348,9 @@ export interface InjuryFilters {
   cautionPatterns: Set<string>;
   /** ชื่อไทยของจุดที่เจ็บระดับ caution — ใช้เขียนโน้ตให้ user อ่านรู้เรื่อง */
   cautionAreas: string[];
+  /** เจ็บข้อรับน้ำหนัก (เข่า/ข้อเท้า/สะโพก/หลัง) → ท่ากระแทกสูง (วิ่ง/กระโดด) ห้ามทั้งหมด
+   *  🔴 บทเรียน QC 22 ส.ค. 69: กรองแค่ pattern ทำให้คนเข่า avoid ยังได้ "วิ่งเหยาะ" (pattern=cardio) */
+  avoidHighImpact: boolean;
   hasAny: boolean;
 }
 
@@ -356,6 +359,9 @@ export interface InjuryFilters {
  * area → pattern ใช้ตารางเดียวกับ Readiness (ส่งเข้ามาทาง patternsForArea) — ไม่ระบุ pattern เอง
  * ก็ยังกันได้ เพราะ "เข่าเจ็บ" ต้องแปลว่า squat/lunge โดยที่ user ไม่ต้องรู้ศัพท์เทรน
  */
+/** ข้อรับน้ำหนัก — เจ็บตรงนี้เมื่อไหร่ ท่า impact สูงต้องหายไปทั้งแผน ไม่ว่า severity ระดับไหน */
+const IMPACT_SENSITIVE_AREAS = new Set(["knee", "ankle", "hip", "back"]);
+
 export function injuryFilters(
   injuries: InjuryLike[] | null | undefined,
   now: Date,
@@ -368,6 +374,7 @@ export function injuryFilters(
     cautionKeys: new Set(),
     cautionPatterns: new Set(),
     cautionAreas: [],
+    avoidHighImpact: false,
     hasAny: false,
   };
   for (const inj of injuries ?? []) {
@@ -383,6 +390,7 @@ export function injuryFilters(
       const label = areaLabel(inj.area);
       if (label && !out.cautionAreas.includes(label)) out.cautionAreas.push(label);
     }
+    if (IMPACT_SENSITIVE_AREAS.has(inj.area)) out.avoidHighImpact = true;
     out.hasAny = true;
   }
   return out;
@@ -405,9 +413,10 @@ const isMobility = (it: ExercisePlanItem, pool: CatalogExercise[]): boolean => {
 
 /** วันนั้นเป็นวันพักอยู่แล้วหรือไม่ (ชื่อวัน/ท่าล้วนเป็นยืดเหยียด) */
 export function isRestDay(day: DayPlan, pool: CatalogExercise[]): boolean {
+  // 🔴 ห้ามเชื่อป้าย "พัก" ในชื่อวัน — AI เคยตั้งชื่อว่าพักแต่ยัดเดินเร็ว+แพลงก์ไว้ 30 นาที
+  //    ทำให้ user ที่ขอ 3 วันได้วันกิจกรรม 4 วันแบบเงียบ ๆ · ดูของจริง (items) เท่านั้น
   const items = day.exercisePlan.items ?? [];
   if (!items.length) return true;
-  if (/พัก|ฟื้นฟู/.test(day.exercisePlan.title || "")) return true;
   return items.every((it) => isMobility(it, pool));
 }
 
@@ -461,7 +470,24 @@ export function applyTrainDays(
     rested++;
     return restDayPlan(d, pool);
   });
-  return { days: out, rested, moved };
+
+  // หัวข้อของ AI ขึ้นต้นด้วยชื่อวัน ("วันพุธ - คาร์ดิโอ") — หลังย้ายวันต้องเขียนใหม่ให้ตรงวันจริง
+  // (QC 22 ส.ค. 69: วันจันทร์ขึ้นหัวข้อ "วันพุธ" = ดูไม่เป็นมืออาชีพทันที)
+  const THAI_DAY: Record<string, string> = {
+    sun: "วันอาทิตย์", mon: "วันจันทร์", tue: "วันอังคาร", wed: "วันพุธ",
+    thu: "วันพฤหัสบดี", fri: "วันศุกร์", sat: "วันเสาร์",
+  };
+  const renamed = out.map((d, i) => {
+    const t = d.exercisePlan.title || "";
+    const m = t.match(/^วัน(อาทิตย์|จันทร์|อังคาร|พุธ|พฤหัสบดี|พฤหัสฯ?|พฤหัส|ศุกร์|เสาร์)\s*(?:-\s*)?/);
+    if (!m) return d;
+    const restTitle = t.slice(m[0].length).trim();
+    const correct = THAI_DAY[dowOf(i)];
+    const title = restTitle ? `${correct} - ${restTitle}` : correct;
+    if (title === t) return d;
+    return { ...d, exercisePlan: { ...d.exercisePlan, title } };
+  });
+  return { days: renamed, rested, moved };
 }
 
 /**
@@ -642,21 +668,53 @@ export function applyInjuryFilter(
   patternOf: PatternOfItem,
   pool: CatalogExercise[]
 ): { days: DayPlan[]; removed: number } {
-  if (!filters.avoidKeys.size && !filters.avoidPatterns.size) return { days, removed: 0 };
+  const hasAvoid = filters.avoidKeys.size > 0 || filters.avoidPatterns.size > 0;
+  if (!hasAvoid && !filters.avoidHighImpact) return { days, removed: 0 };
+  const byKey = new Map(pool.map((e) => [e.key, e]));
+  const safePattern = (e: CatalogExercise) => {
+    const pt = patternOf({ key: e.key, name: e.name });
+    return !pt || !filters.avoidPatterns.has(pt);
+  };
   let removed = 0;
 
   const out = days.map((d) => {
     const items = d.exercisePlan.items ?? [];
-    const kept = items.filter((it) => {
+    const used = new Set(items.map((it) => it.key || ""));
+    const next: ExercisePlanItem[] = [];
+    let changed = false;
+    for (const it of items) {
       const key = it.key ?? "";
       const pattern = patternOf(it);
-      const hit = (key && filters.avoidKeys.has(key)) || (pattern && filters.avoidPatterns.has(pattern));
-      if (hit) removed++;
-      return !hit;
-    });
-    if (kept.length === items.length) return d;
-    if (!kept.length) return restDayPlan(d, pool);
-    return { ...d, exercisePlan: { ...d.exercisePlan, items: kept } };
+      if ((key && filters.avoidKeys.has(key)) || (pattern && filters.avoidPatterns.has(pattern))) {
+        removed++;
+        changed = true;
+        continue;
+      }
+      // เจ็บข้อรับน้ำหนัก + ท่า impact สูง → หา "ตัวแทนชนิดเดียวกันที่ไม่กระแทก" ก่อน (วิ่งเหยาะ→เดินเร็ว)
+      // ไม่มีตัวแทนค่อยตัดทิ้ง — ลดปริมาณดีกว่าปล่อยให้คนเข่าเสื่อมไปวิ่ง
+      if (filters.avoidHighImpact && byKey.get(key)?.impact === "high") {
+        const kind = byKey.get(key)!.kind;
+        const sub = pool.find(
+          (e) => e.impact === "low" && e.kind === kind && !used.has(e.key) &&
+            !filters.avoidKeys.has(e.key) && safePattern(e)
+        );
+        removed++;
+        changed = true;
+        if (sub) {
+          used.add(sub.key);
+          next.push(
+            sub.unit === "minutes"
+              ? { key: sub.key, media: sub.media, name: sub.name, minutes: it.minutes ?? 15, note: sub.cue }
+              : { key: sub.key, media: sub.media, name: sub.name, sets: it.sets ?? 3, reps: it.reps ?? 12, note: sub.cue }
+          );
+        }
+        continue;
+      }
+      next.push(it);
+    }
+    if (!changed) return d;
+    if (!next.length) return restDayPlan(d, pool);
+    return { ...d, exercisePlan: { ...d.exercisePlan, items: next } };
   });
   return { days: out, removed };
 }

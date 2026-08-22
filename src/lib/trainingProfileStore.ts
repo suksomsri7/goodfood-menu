@@ -209,6 +209,7 @@ export function emptyPlanInputs(): TrainingPlanInputs {
       cautionKeys: new Set(),
       cautionPatterns: new Set(),
       cautionAreas: [],
+      avoidHighImpact: false,
       hasAny: false,
     },
     repRange: repRangeFor(null, null),
