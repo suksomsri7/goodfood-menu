@@ -734,6 +734,9 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
   if (!pm) throw new Error("member not found");
 
   const weekBatchId = `${memberId}-${startKey.toISOString().slice(0, 10)}`;
+  /* โน้ตโค้ชหัวสัปดาห์ — ประโยคสั้น ๆ ที่เล่าว่า "สัปดาห์นี้โค้ชปรับอะไรให้เพราะอะไร"
+     🔴 ทุกประโยคมาจากสิ่งที่ pipeline ทำจริงเท่านั้น ห้ามแต่งความรู้สึกหรือสัญญาลอย ๆ */
+  const coachFacts: string[] = [];
   let days: DayPlan[] = [];
   let usedFallback = false;
 
@@ -821,6 +824,7 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
   if (pulled.added) {
     console.log(`[planGenerator] เติมท่าดึง 1 ท่า (ทั้งสัปดาห์ไม่มี pull) member=${memberId}`);
     days = pulled.days;
+    coachFacts.push("เพิ่มท่าดึงให้ 1 ท่า เพื่อสมดุลกล้ามหน้า-หลัง");
   }
 
   const avoidKeywords = deriveAvoidKeywords(personal.avoid);
@@ -874,6 +878,11 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
       // วันที่ไม่ได้เลือกไว้ = วันพัก (ไม่ย้ายท่าไปกองวันอื่น — นั่นคือการเพิ่มงานที่เขาไม่ได้ขอ)
       const scheduled = applyTrainDays(days, startKey.getUTCDay(), training.profile.trainDays, pool);
       days = scheduled.days;
+      if (scheduled.moved > 0 || scheduled.rested > 0) {
+        const dayThai: Record<string, string> = { mon: "จ", tue: "อ", wed: "พ", thu: "พฤ", fri: "ศ", sat: "ส", sun: "อา" };
+        const picked = (training.profile.trainDays ?? []).map((d) => dayThai[d] ?? d).join("/");
+        if (picked) coachFacts.push(`จัดวันเทรนตรงกับ ${picked} ที่คุณเลือกไว้`);
+      }
 
       // ไม่ชอบ = เปลี่ยนให้เมื่อมีตัวแทน pattern เดียวกัน · ชอบ = ได้เลือกก่อนเมื่อคะแนนเท่ากัน
       const pref = applyPreferences(
@@ -916,6 +925,11 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
       const filtered = applyInjuryFilter(days, training.injuries, training.patternOf, pool);
       days = filtered.days;
       if (filtered.removed > 0) {
+        coachFacts.push(
+          training.injuries.cautionAreas.length || training.injuries.avoidHighImpact
+            ? `เลี่ยง/สลับท่าที่เสี่ยงกับร่างกายคุณ ${filtered.removed} จุด`
+            : `ตัดท่าที่ขัดข้อจำกัดร่างกาย ${filtered.removed} จุด`
+        );
         console.log(
           `[planGenerator] ตัดท่าตามข้อจำกัดร่างกาย ${filtered.removed} ท่า ` +
             `(pattern: ${[...training.injuries.avoidPatterns].join(",") || "-"}) member=${memberId}`
@@ -934,6 +948,11 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
     // repRange มาจาก TrainingProfile (เฟส D) — เดิมทุกคนถูกสั่ง 8-12 ครั้งเท่ากันหมดไม่ว่าเป้าหมายจะเป็นอะไร
     const progressed = await applyProgressionToWeek(memberId, days, { repRange: training.repRange });
     days = progressed.days;
+    if (progressed.deloadWeek) {
+      coachFacts.push("สัปดาห์นี้เป็นสัปดาห์พักฟื้น — ลดปริมาณให้ร่างกายตามเก็บความแข็งแรง");
+    } else if (progressed.applied > 0) {
+      coachFacts.push(`ตั้งตัวเลขให้ ${progressed.applied} ท่าจากผลที่คุณเล่นจริงสัปดาห์ก่อน`);
+    }
     if (progressed.applied > 0 || progressed.deloadWeek) {
       console.log(
         `[planGenerator] progression ต่อยอด ${progressed.applied} ท่า` +
@@ -969,6 +988,7 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
         repRange: training.repRange,
         loadableKeys: training.loadableKeys,
         incrementKg: training.incrementKg,
+        experienceMonths: training.profile?.experienceMonths ?? null,
         injuries: training.injuries,
         patternOf: training.patternOf,
       });
@@ -1005,12 +1025,22 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
   }
 
   // เขียนลง DB — ไม่ทับวันที่มีแล้ว
+  // ── โน้ตโค้ชหัวสัปดาห์ (เก็บซ้ำทุกวันของ batch — แอปอ่านจากแผนวันไหนก็ได้) ──
+  if (training.calibration) {
+    coachFacts.unshift("สัปดาห์นี้เป็นสัปดาห์สอบเทียบ เริ่มเบาไว้ก่อนเพื่อเก็บ feel ของคุณ แล้วสัปดาห์หน้าโค้ชจะตั้งน้ำหนักจริงให้");
+  } else if (training.cap === "low") {
+    coachFacts.unshift("ยังคุมความหนักไว้ระดับเบาตามคำตอบสุขภาพ จนกว่าจะยืนยันกับแพทย์");
+  }
+  if (goodfoodDays > 0) coachFacts.push(`มื้อหลักจัดจากเมนูจริงของครัว ${goodfoodDays} วัน`);
+  const weekNote = coachFacts.length ? `โค้ชจัดสัปดาห์นี้ให้แบบนี้ครับ: ${coachFacts.join(" · ")}` : null;
+
   const rows = days.map((d, i) => ({
     memberId,
     date: addDays(startKey, i),
     exercisePlan: d.exercisePlan as object,
     mealPlan: d.mealPlan as object,
     aiNote: d.aiNote ?? null,
+    weekNote,
     weekBatchId,
   }));
   const result = await prisma.dailyPlan.createMany({ data: rows, skipDuplicates: true });

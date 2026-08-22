@@ -303,6 +303,7 @@ model DailyPlan {
   exercisePlan      Json // {title, durationMin, items:[{name,sets?,reps?,minutes?,note}], caloriesTarget}
   mealPlan          Json // {meals:[{slot,menu,ingredients?,kcal,protein,carbs,fat,sodium?,sugar?}], totalKcal}
   aiNote            String? // เหตุผล/การปรับแผนของ AI
+  weekNote          String? // โน้ตโค้ชหัวสัปดาห์ — เล่าว่าสัปดาห์นี้ปรับอะไรเพราะอะไร (ตัวเลขจากโค้ดล้วน)
   status            String   @default("planned") // planned | done | partial | skipped
   exerciseDone      Boolean  @default(false)
   mealsDone         Json? // {"เช้า":true,...}

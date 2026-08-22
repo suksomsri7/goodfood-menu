@@ -41,6 +41,19 @@ export const CALIBRATION_DAYS = 7;
 export const LIGHT_LOAD_FACTOR = 0.5;
 /** ยังไม่เคยมีตัวเลขของตัวเอง → เริ่มที่ก้าวต่ำสุดของอุปกรณ์ × 2 (เบาที่สุดที่ยังพอรู้สึก) */
 export const CALIBRATION_START_STEPS = 2;
+
+/**
+ * experienceFactor (PT-D deviation #3 — เจ้าของสั่ง "ทำให้หมด" 22 ส.ค. 69 จึงเคาะนิยามอนุรักษ์นิยม):
+ * ประสบการณ์มีผล "จุดเริ่ม" ของสัปดาห์สอบเทียบเท่านั้น — ไม่แตะอัตรา progression
+ * (ขึ้นเร็ว/ช้าให้ SetLog จริงเป็นคนตัดสิน ไม่ใช่คำบอกเล่า)
+ *   <6 เดือน/ไม่ระบุ = 2 ก้าว · 6-24 เดือน = 3 ก้าว · >24 เดือน = 4 ก้าว (ดัมเบล 2.5 → 5/7.5/10 กก.)
+ */
+export function calibrationStartSteps(experienceMonths?: number | null): number {
+  const m = Number(experienceMonths);
+  if (!Number.isFinite(m) || m < 6) return CALIBRATION_START_STEPS;
+  if (m <= 24) return CALIBRATION_START_STEPS + 1;
+  return CALIBRATION_START_STEPS + 2;
+}
 /** บาดเจ็บระดับ caution → ลดน้ำหนักเป้า 20% */
 export const CAUTION_LOAD_FACTOR = 0.8;
 export const DEFAULT_INCREMENT_KG = 0.5;
@@ -743,6 +756,8 @@ export interface LightWeekOptions {
   loadableKeys: Set<string>;
   /** ก้าวต่ำสุดของอุปกรณ์ที่ user มี — ไม่มี = ไม่ตั้งน้ำหนักให้คนที่ยังไม่เคยยก */
   incrementKg: number | null;
+  /** เดือนประสบการณ์จากโปรไฟล์ — คนมีพื้นฐานเริ่มสอบเทียบหนักกว่ามือใหม่ (calibrationStartSteps) */
+  experienceMonths?: number | null;
   injuries: InjuryFilters;
   patternOf: PatternOfItem;
 }
@@ -783,7 +798,7 @@ export function applyLightWeek(days: DayPlan[], opts: LightWeekOptions): { days:
           next.weightKg = roundToIncrement(it.weightKg * LIGHT_LOAD_FACTOR, opts.incrementKg);
         } else if (loadable && opts.incrementKg) {
           // ยังไม่เคยมีตัวเลขของตัวเอง → เริ่มที่ก้าวต่ำสุด×2 (เบาพอที่จะเก็บ feel ได้โดยไม่เจ็บ)
-          next.weightKg = roundToIncrement(opts.incrementKg * CALIBRATION_START_STEPS, opts.incrementKg);
+          next.weightKg = roundToIncrement(opts.incrementKg * calibrationStartSteps(opts.experienceMonths), opts.incrementKg);
         }
         if (it.reps != null) next.reps = targetReps;
         reasons.push(note);
