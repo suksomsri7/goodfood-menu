@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 // POST /api/plan/generate { lineUserId?, start? }  (+ Bearer สำหรับ native)
 export async function POST(request: NextRequest) {
   try {
-    const { lineUserId, start } = await request.json();
+    const { lineUserId, start, force } = await request.json();
 
     // gate สิทธิ์ (JWT native หรือ lineUserId LIFF)
     // access token เท่านั้น — นาฬิกาไม่ได้สร้างแผน (เรียกแค่ initial-data/plan/plan[id]/execute/agent)
@@ -29,6 +29,16 @@ export async function POST(request: NextRequest) {
     // เริ่มสัปดาห์: วันนี้ หรือ สัปดาห์หน้า (วันนี้+7)
     const startKey = start === "nextWeek" ? addDays(bkkTodayKey(), 7) : bkkTodayKey();
     const endKey = addDays(startKey, 6);
+
+    /* force = จัดแผนใหม่ทับของเดิม — ใช้ตอน "เพิ่งตั้งโปรไฟล์การเทรนเสร็จ"
+       🔴 ต้องลบก่อน ไม่ใช่ createMany เฉย ๆ: generateWeekPlan ใช้ skipDuplicates
+          ถ้าไม่ลบ แผนเก่าจะค้างอยู่เงียบ ๆ แล้ว user เข้าใจว่าโปรไฟล์ไม่มีผล
+       🔴 ลบเฉพาะวันที่ยังไม่ถึง/วันนี้ — ประวัติที่ติ๊กไปแล้วของวันก่อนหน้าห้ามแตะ */
+    if (force) {
+      await prisma.dailyPlan.deleteMany({
+        where: { memberId: member.id, date: { gte: startKey, lte: endKey } },
+      });
+    }
 
     // กันสร้างซ้ำ: ถ้าช่วง 7 วันนี้มีแผนครบแล้ว → 409
     const existing = await prisma.dailyPlan.count({
