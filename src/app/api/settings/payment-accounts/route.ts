@@ -1,9 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { uploadToBunny, deleteFromBunny, isBase64Image, isBunnyCdnUrl } from "@/lib/bunny";
+import { requireStaff } from "@/lib/staffAuth";
 
 // GET - ดึงรายการบัญชีรับชำระเงิน
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const accounts = await prisma.paymentAccount.findMany({
       orderBy: [
@@ -24,6 +28,9 @@ export async function GET() {
 
 // POST - เพิ่มบัญชีรับชำระเงินใหม่
 export async function POST(request: NextRequest) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const body = await request.json();
     const { bankName, accountName, accountNumber, qrCodeUrl, isDefault } = body;

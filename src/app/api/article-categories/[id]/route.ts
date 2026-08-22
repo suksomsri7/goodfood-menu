@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { requireStaff } from "@/lib/staffAuth";
 
 // GET - ดึงหมวดบทความตาม ID
 export async function GET(
@@ -39,6 +40,9 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -76,6 +80,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const { id } = await params;
 

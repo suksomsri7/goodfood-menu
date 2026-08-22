@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireStaff } from "@/lib/staffAuth";
 
 // GET - ดึงรายการ conversations ทั้งหมด
 export async function GET(request: NextRequest) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";

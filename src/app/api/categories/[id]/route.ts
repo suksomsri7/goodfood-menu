@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { requireStaff } from "@/lib/staffAuth";
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -42,6 +43,9 @@ export async function GET(request: NextRequest, { params }: Params) {
 
 // PUT - แก้ไขหมวดอาหาร
 export async function PUT(request: NextRequest, { params }: Params) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -87,6 +91,9 @@ export async function PUT(request: NextRequest, { params }: Params) {
 
 // DELETE - ลบหมวดอาหาร
 export async function DELETE(request: NextRequest, { params }: Params) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const { id } = await params;
 
@@ -126,6 +133,9 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 
 // PATCH - Toggle สถานะหรือเปลี่ยน order
 export async function PATCH(request: NextRequest, { params }: Params) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const { id } = await params;
     const body = await request.json();

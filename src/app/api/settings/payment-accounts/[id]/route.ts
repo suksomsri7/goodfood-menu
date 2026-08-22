@@ -1,12 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { uploadToBunny, deleteFromBunny, isBase64Image, isBunnyCdnUrl } from "@/lib/bunny";
+import { requireStaff } from "@/lib/staffAuth";
 
 // GET - ดึงบัญชีตาม ID
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const { id } = await params;
 
@@ -36,6 +40,9 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -109,6 +116,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const { id } = await params;
 

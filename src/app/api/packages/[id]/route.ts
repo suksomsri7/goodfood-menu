@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { uploadToBunny, deleteFromBunny, isBase64Image } from "@/lib/bunny";
+import { requireStaff } from "@/lib/staffAuth";
 
 // GET - ดึงแพ็คเกจตาม ID
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -32,9 +33,12 @@ export async function GET(
 
 // PUT - อัพเดทแพ็คเกจทั้งหมด
 export async function PUT(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -104,9 +108,12 @@ export async function PUT(
 
 // PATCH - อัพเดทบางฟิลด์ของแพ็คเกจ
 export async function PATCH(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -176,9 +183,12 @@ export async function PATCH(
 
 // DELETE - ลบแพ็คเกจ
 export async function DELETE(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const { id } = await params;
     

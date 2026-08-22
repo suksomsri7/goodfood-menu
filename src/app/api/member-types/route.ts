@@ -1,8 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { requireStaff } from "@/lib/staffAuth";
 
 // GET - ดึงรายการประเภทสมาชิกทั้งหมด
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const memberTypes = await prisma.memberType.findMany({
       orderBy: { order: "asc" },
@@ -25,6 +29,9 @@ export async function GET() {
 
 // POST - สร้างประเภทสมาชิกใหม่
 export async function POST(request: NextRequest) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const body = await request.json();
 

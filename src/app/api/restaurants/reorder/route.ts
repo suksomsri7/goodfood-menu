@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireStaff } from "@/lib/staffAuth";
 
 // PUT /api/restaurants/reorder - Reorder restaurants
 export async function PUT(request: NextRequest) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const { items } = await request.json();
 

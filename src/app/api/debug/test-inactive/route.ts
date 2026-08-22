@@ -7,9 +7,13 @@ import {
   isAiCoachActive
 } from "@/lib/coaching";
 import { pushProactiveMessage } from "@/lib/line";
+import { requireStaff } from "@/lib/staffAuth";
 
 // Debug endpoint to test inactive notification system
 export async function GET(request: NextRequest) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   const { searchParams } = new URL(request.url);
   const lineUserId = searchParams.get("lineUserId");
   const sendTest = searchParams.get("sendTest") === "true";

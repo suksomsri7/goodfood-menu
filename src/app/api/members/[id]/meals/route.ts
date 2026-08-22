@@ -1,11 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { requireStaff } from "@/lib/staffAuth";
 
 // GET - ดึงรายการอาหารของสมาชิก
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const { id } = await params;
     const { searchParams } = new URL(request.url);

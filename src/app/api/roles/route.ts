@@ -1,8 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { requireStaff } from "@/lib/staffAuth";
 
 // GET - List all roles
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const roles = await prisma.role.findMany({
       include: {
@@ -25,6 +29,9 @@ export async function GET() {
 
 // POST - Create new role
 export async function POST(request: NextRequest) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const body = await request.json();
     const { name, description, permissions } = body;

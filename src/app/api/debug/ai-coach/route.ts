@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendCoachingMessage, gatherMemberContext, isAiCoachActive, CoachingType } from "@/lib/coaching";
 import { getAllUsageLimits } from "@/lib/usage-limits";
+import { requireStaff } from "@/lib/staffAuth";
 
 // POST - Test send coaching message
 export async function POST(request: NextRequest) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const body = await request.json();
     const { memberId, type = "exercise" } = body;
@@ -77,6 +81,9 @@ export async function POST(request: NextRequest) {
 
 // GET - Debug AI Coach status for a member
 export async function GET(request: NextRequest) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const { searchParams } = new URL(request.url);
     const lineUserId = searchParams.get("lineUserId");

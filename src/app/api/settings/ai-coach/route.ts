@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getCreditCosts, setCreditCosts, CREDIT_LABELS, DEFAULT_CREDIT_COSTS } from "@/lib/aiCredits";
+import { requireStaff } from "@/lib/staffAuth";
 
 // GET - ดึงการตั้งค่า AI Coach
 export async function GET() {
@@ -48,7 +49,10 @@ export async function GET() {
 }
 
 // PATCH - อัพเดทการตั้งค่า AI Coach และ Activity Settings
-export async function PATCH(request: Request) {
+export async function PATCH(request: NextRequest) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const body = await request.json();
     const { 

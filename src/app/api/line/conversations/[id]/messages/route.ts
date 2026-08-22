@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { pushMessage, createTextMessage, createImageMessage, createStickerMessage } from "@/lib/line";
 import { uploadToBunny } from "@/lib/bunny";
+import { requireStaff } from "@/lib/staffAuth";
 
 // POST - ส่งข้อความหา user
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const { id } = await params;
     const body = await request.json();

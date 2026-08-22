@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { uploadToBunny, isBase64Image } from "@/lib/bunny";
+import { requireStaff } from "@/lib/staffAuth";
 
 // GET - ดึงรายการแพ็คเกจทั้งหมด
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const restaurantId = searchParams.get("restaurantId");
@@ -33,7 +34,10 @@ export async function GET(request: Request) {
 }
 
 // POST - สร้างแพ็คเกจใหม่
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const body = await request.json();
     const { name, description, requiredItems, discountType, discountValue, freeItems, imageUrl, restaurantId } = body;

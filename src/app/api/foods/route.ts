@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { uploadToBunny, uploadMultipleToBunny, isBase64Image } from "@/lib/bunny";
+import { requireStaff } from "@/lib/staffAuth";
 
 // GET - ดึงรายการเมนูอาหารทั้งหมด
 export async function GET(request: NextRequest) {
@@ -54,6 +55,9 @@ export async function GET(request: NextRequest) {
 
 // POST - สร้างเมนูอาหารใหม่
 export async function POST(request: NextRequest) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const body = await request.json();
     const {

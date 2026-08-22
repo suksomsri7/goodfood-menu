@@ -1,8 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireStaff } from "@/lib/staffAuth";
 
 // GET - ดึงจำนวนข้อความที่ยังไม่ได้อ่านทั้งหมด
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const result = await prisma.lineConversation.aggregate({
       _sum: {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { uploadToBunny, deleteFromBunny, isBase64Image } from "@/lib/bunny";
+import { requireStaff } from "@/lib/staffAuth";
 
 // GET /api/restaurants/[id] - Get restaurant by ID with all data
 export async function GET(
@@ -73,6 +74,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const { id } = await params;
     const data = await request.json();
@@ -144,6 +148,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const gate = await requireStaff(request);
+  if (gate instanceof NextResponse) return gate;
+
   try {
     const { id } = await params;
 

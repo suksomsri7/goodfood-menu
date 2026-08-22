@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { pushMessage, createOrderFlexMessage, createOrderConfirmedFlexMessage } from "@/lib/line";
+import { requireStaff } from "@/lib/staffAuth";
 
 // สร้างเลข Order
 function generateOrderNumber() {
@@ -20,6 +21,13 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status");
     const limit = searchParams.get("limit");
     const lineUserId = searchParams.get("lineUserId");
+
+    // 🔴 ไม่ระบุ lineUserId = ขอ "ออเดอร์ทั้งร้าน" → หน้าหลังบ้านเท่านั้น
+    //    (ลูกค้าดูของตัวเองผ่าน ?lineUserId= เหมือนเดิม ไม่กระทบ)
+    if (!lineUserId) {
+      const gate = await requireStaff(request);
+      if (gate instanceof NextResponse) return gate;
+    }
 
     // Build where clause
     const where: any = {};
