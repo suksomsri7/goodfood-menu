@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { pushMessage, createOrderFlexMessage, createOrderConfirmedFlexMessage } from "@/lib/line";
 import { requireStaff } from "@/lib/staffAuth";
+import { trustedLineUserId } from "@/lib/memberAuth";
 
 // สร้างเลข Order
 function generateOrderNumber() {
@@ -20,13 +21,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const limit = searchParams.get("limit");
-    const lineUserId = searchParams.get("lineUserId");
-
-    // 🔴 ไม่ระบุ lineUserId = ขอ "ออเดอร์ทั้งร้าน" → หน้าหลังบ้านเท่านั้น
-    //    (ลูกค้าดูของตัวเองผ่าน ?lineUserId= เหมือนเดิม ไม่กระทบ)
-    if (!lineUserId) {
-      const gate = await requireStaff(request);
-      if (gate instanceof NextResponse) return gate;
+    const askedFor = searchParams.get("lineUserId");
+    // พนักงานหลังบ้าน = เห็นออเดอร์ทั้งร้าน · ลูกค้า = เห็นของตัวเองจากคุกกี้ที่แลกกับ LINE เท่านั้น
+    const staffGate = askedFor ? null : await requireStaff(request);
+    const isStaff = !!staffGate && !(staffGate instanceof NextResponse);
+    const lineUserId = isStaff ? null : await trustedLineUserId(request, askedFor);
+    if (!isStaff && !lineUserId) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
 
     // Build where clause
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
       items, 
       totalPrice, 
       memberId, 
-      lineUserId, 
+      lineUserId: _rawLineUserId, 
       note,
       discount,
       discountType,
@@ -106,6 +107,8 @@ export async function POST(request: NextRequest) {
       deliveryFee,
       addressId, // ที่อยู่จัดส่ง
     } = body;
+    const lineUserId = await trustedLineUserId(request, _rawLineUserId as string | null);
+    if (!lineUserId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
     // Allow orders without items for premium upgrades
     const isPremiumUpgrade = coursePlan === "PREMIUM_UPGRADE";

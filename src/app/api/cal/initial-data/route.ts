@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { memberFromReq, unauthorizedIfBearer } from "@/lib/memberAuth";
+import { memberFromReq, unauthorizedIfBearer, unauthorizedIfNoIdentity } from "@/lib/memberAuth";
 import { getDailyBudget } from "@/lib/dailyBudget";
 import { estimateEnergy } from "@/lib/energyModel";
 import { getCreditSnapshot } from "@/lib/usage-limits";
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     if (!member) {
       // 🔴 นาฬิกา/แอปที่ถือ token หมดอายุต้องได้ 401 ไม่ใช่ 404 (build 31 ขึ้น "โหลดข้อมูลไม่สำเร็จ (404)")
-      const denied = unauthorizedIfBearer(request);
+      const denied = unauthorizedIfBearer(request) ?? (await unauthorizedIfNoIdentity(request));
       if (denied) return denied;
       return NextResponse.json(
         { error: "Member not found" },

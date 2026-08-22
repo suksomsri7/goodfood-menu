@@ -41,6 +41,24 @@ const CASES: Case[] = [
   { path: "/api/staff", method: "POST", body: {}, expect: "locked", note: "สร้างพนักงานใหม่ (ยกระดับสิทธิ์)" },
   { path: "/api/settings/ai-coach", method: "PATCH", body: {}, expect: "locked", note: "แก้ค่าโค้ช AI" },
 
+  // ── ฝั่ง LIFF: ตัวตนต้องมาจากคุกกี้ที่แลกกับ LINE เท่านั้น (ส่ง ?lineUserId= มาเฉย ๆ ต้องไม่ผ่าน) ──
+  { path: "/api/meals?lineUserId=Uqctest&date=2026-08-22", expect: "locked", note: "บันทึกอาหารของคนอื่น" },
+  { path: "/api/water?lineUserId=Uqctest", expect: "locked", note: "น้ำของคนอื่น" },
+  { path: "/api/weight?lineUserId=Uqctest", expect: "locked", note: "น้ำหนักของคนอื่น" },
+  { path: "/api/cart?lineUserId=Uqctest", expect: "locked", note: "ตะกร้าของคนอื่น" },
+  { path: "/api/addresses?lineUserId=Uqctest", expect: "locked", note: "ที่อยู่ของคนอื่น" },
+  { path: "/api/members/me?lineUserId=Uqctest", expect: "locked", note: "โปรไฟล์ของคนอื่น" },
+  { path: "/api/member/progress-photos?lineUserId=Uqctest", expect: "locked", note: "รูป progress ของคนอื่น" },
+  { path: "/api/member/notification-settings?lineUserId=Uqctest", expect: "locked", note: "ตั้งค่าแจ้งเตือนของคนอื่น" },
+  { path: "/api/orders?lineUserId=Uqctest", expect: "locked", note: "ออเดอร์ของคนอื่น" },
+  { path: "/api/cal/initial-data?lineUserId=Uqctest", expect: "locked", note: "หน้าแคลอรี่ของคนอื่น" },
+  { path: "/api/plan?lineUserId=Uqctest&month=2026-08", expect: "locked", note: "แผนของคนอื่น" },
+  { path: "/api/recommendation?lineUserId=Uqctest", expect: "locked", note: "คำแนะนำ AI ของคนอื่น (เผาเครดิต)" },
+  { path: "/api/members/me", method: "POST", body: { lineUserId: "Uqctest", displayName: "x" }, expect: "locked", note: "สร้าง/แก้โปรไฟล์คนอื่น" },
+  { path: "/api/meals", method: "POST", body: { lineUserId: "Uqctest", name: "x", calories: 1 }, expect: "locked", note: "ยัดบันทึกอาหารให้คนอื่น" },
+  { path: "/api/weight", method: "POST", body: { lineUserId: "Uqctest", weight: 70 }, expect: "locked", note: "ยัดน้ำหนักให้คนอื่น" },
+  { path: "/api/auth/liff", method: "POST", body: { idToken: "ไม่ใช่ token จริง" }, expect: "locked", note: "แลก session ด้วย token ปลอม" },
+
   // ── ต้องเปิด (ลูกค้าใช้จริง) ──
   { path: "/api/auth/setup-status", expect: "open", note: "หน้า login ถามว่ามีพนักงานหรือยัง" },
   { path: "/api/foods", expect: "open", note: "เมนูอาหารหน้าร้าน" },

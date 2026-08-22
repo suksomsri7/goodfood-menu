@@ -16,6 +16,8 @@ import {
   login,
   isInClient,
   getLiffIdForPath,
+  exchangeLiffSession,
+  exchangeDevSession,
   LiffProfile,
 } from "@/lib/liff";
 
@@ -72,20 +74,23 @@ export function LiffProvider({ children }: LiffProviderProps) {
         const devMode = urlParams.get("dev") === "true";
         
         // DEV MODE: Skip LIFF and use mock profile
+        // 🔴 ต้องมี ?code= ที่ตรงกับ DEV_LOGIN_CODE ด้วย — เดิม ?dev=true เฉย ๆ ก็สวมเป็น dev-user-001 ได้จากอินเทอร์เน็ต
         if (devMode) {
+          const devCode = urlParams.get("code") || "";
+          const ok = devCode ? await exchangeDevSession(devCode) : false;
+          if (!ok) {
+            setError("โหมดทดสอบต้องใส่ ?dev=true&code=<DEV_LOGIN_CODE>");
+            setIsReady(true);
+            return;
+          }
           console.log("🔧 Dev mode enabled: Using mock LIFF profile");
-          const mockProfile = {
+          setProfile({
             userId: "dev-user-001",
             displayName: "Developer (Test Mode)",
             pictureUrl: undefined,
-          };
-          setProfile(mockProfile);
+          });
           setLoggedIn(true);
           setInClient(false);
-          
-          // Register dev user in database (non-blocking)
-          registerUser(mockProfile);
-          
           setIsReady(true);
           return;
         }
@@ -119,17 +124,20 @@ export function LiffProvider({ children }: LiffProviderProps) {
 
         if (loggedInCheck) {
           setLoggedIn(true);
-          
-          // OPTIMIZATION: Get profile and register in parallel
+
           const userProfile = await getProfile();
+          // 🔴 ต้องแลก session ให้เสร็จก่อนปล่อย profile ออกไป — หน้าต่าง ๆ ยิง /api/ ทันทีที่เห็น profile
+          //    ถ้ายังไม่มีคุกกี้ ทุกคำขอจะได้ 401 (server ไม่เชื่อ lineUserId ใน query แล้ว)
+          const sessionOk = await exchangeLiffSession(userProfile);
+          if (!sessionOk) {
+            setError("ยืนยันตัวตนกับ LINE ไม่สำเร็จ ลองเปิดหน้านี้ใหม่จากแอป LINE");
+          }
           if (userProfile) {
             setProfile(userProfile);
-            // Register/update user in database (non-blocking)
-            registerUser(userProfile);
           }
-          
+
           const elapsed = Date.now() - initStartTime.current;
-          console.log(`[LIFF] Ready in ${elapsed}ms`);
+          console.log(`[LIFF] Ready in ${elapsed}ms (session=${sessionOk})`);
         } else {
           // Not logged in - trigger login (works in both LIFF browser and external browser)
           login();
@@ -162,17 +170,4 @@ export function LiffProvider({ children }: LiffProviderProps) {
   );
 }
 
-// Register or update user in database (non-blocking)
-function registerUser(profile: LiffProfile) {
-  fetch("/api/members/me", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      lineUserId: profile.userId,
-      displayName: profile.displayName,
-      pictureUrl: profile.pictureUrl,
-    }),
-  }).catch((error) => {
-    console.error("Failed to register user:", error);
-  });
-}
+// สมัคร/อัปเดตโปรไฟล์ย้ายไปทำใน POST /api/auth/liff แล้ว (คำขอเดียวจบ + ตัวตนผ่าน LINE จริง)

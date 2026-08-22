@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { trustedLineUserId } from "@/lib/memberAuth";
 
 // GET - Get member progress photos
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const lineUserId = searchParams.get("lineUserId");
+    const lineUserId = await trustedLineUserId(request, searchParams.get("lineUserId"));
+    if (!lineUserId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
     if (!lineUserId) {
       return NextResponse.json(
@@ -78,7 +80,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const lineUserId = searchParams.get("lineUserId");
+    const lineUserId = await trustedLineUserId(request, searchParams.get("lineUserId"));
+    if (!lineUserId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
     if (!lineUserId) {
       return NextResponse.json(
@@ -181,7 +184,8 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const photoId = searchParams.get("photoId");
-    const lineUserId = searchParams.get("lineUserId");
+    const lineUserId = await trustedLineUserId(request, searchParams.get("lineUserId"));
+    if (!lineUserId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
     if (!photoId || !lineUserId) {
       return NextResponse.json(

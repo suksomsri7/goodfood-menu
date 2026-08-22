@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { trustedMember } from "@/lib/memberAuth";
+import { readStaff } from "@/lib/staffAuth";
 
 // PATCH - Update order item quantity
 export async function PATCH(
@@ -21,6 +23,7 @@ export async function PATCH(
     // Find the order item first
     const existingItem = await prisma.orderItem.findUnique({
       where: { id },
+      include: { order: { select: { memberId: true } } },
     });
 
     if (!existingItem) {
@@ -28,6 +31,13 @@ export async function PATCH(
         { error: "Order item not found" },
         { status: 404 }
       );
+    }
+
+    // 🔴 เดิมแก้/ลบรายการในออเดอร์ของใครก็ได้จาก id ล้วน — ต้องเป็นเจ้าของออเดอร์หรือพนักงาน
+    const member = await trustedMember(request);
+    const isOwner = !!member && !!existingItem.order?.memberId && member.id === existingItem.order.memberId;
+    if (!isOwner && !(await readStaff(request))) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
 
     if (quantity === 0) {

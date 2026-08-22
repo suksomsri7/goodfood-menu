@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { trustedLineUserId } from "@/lib/memberAuth";
 
 // GET - Get meal logs for a user on a specific date
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const lineUserId = searchParams.get("lineUserId");
+    const lineUserId = await trustedLineUserId(request, searchParams.get("lineUserId"));
+    if (!lineUserId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     const dateStr = searchParams.get("date"); // YYYY-MM-DD (local date from client)
     const tzOffsetStr = searchParams.get("tzOffset"); // Client timezone offset in minutes
 
@@ -81,7 +83,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const {
-      lineUserId,
+      lineUserId: _rawLineUserId,
       name,
       weight,
       multiplier = 1,
@@ -95,6 +97,8 @@ export async function POST(request: NextRequest) {
       ingredients,
       date,
     } = body;
+    const lineUserId = await trustedLineUserId(request, _rawLineUserId as string | null);
+    if (!lineUserId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
     if (!lineUserId || !name || calories === undefined) {
       return NextResponse.json(

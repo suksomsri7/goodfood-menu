@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { buildOpenAI, aiModel } from "@/lib/aiClient";
 import { getSecret } from "@/lib/secrets/store";
+import { trustedLineUserId } from "@/lib/memberAuth";
 
 // Rate limit: 10 requests per day per user
 const DAILY_REQUEST_LIMIT = 10;
@@ -49,7 +50,8 @@ function isFromToday(date: Date): boolean {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const lineUserId = searchParams.get("lineUserId");
+    const lineUserId = await trustedLineUserId(request, searchParams.get("lineUserId"));
+    if (!lineUserId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     const forceRefresh = searchParams.get("refresh") === "true";
 
     if (!lineUserId) {
@@ -237,7 +239,8 @@ export async function GET(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const lineUserId = searchParams.get("lineUserId");
+    const lineUserId = await trustedLineUserId(request, searchParams.get("lineUserId"));
+    if (!lineUserId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
     if (!lineUserId) {
       return NextResponse.json(

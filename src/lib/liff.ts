@@ -93,6 +93,50 @@ export function isInClient(): boolean {
   return liff.isInClient();
 }
 
+/**
+ * แลก token ของ LINE เป็น session ของเว็บ (คุกกี้ httpOnly)
+ *
+ * 🔴 ต้องเรียกให้เสร็จ "ก่อน" หน้าไหนจะยิง /api/... — ตั้งแต่ 22 ส.ค. 69 ฝั่ง server
+ *    เลิกเชื่อ `?lineUserId=` ที่หน้าเว็บส่งไปแล้ว (ใครรู้ id คนอื่นเคยสวมรอยได้)
+ */
+export async function exchangeLiffSession(profile?: LiffProfile | null): Promise<boolean> {
+  if (!isInitialized) return false;
+  try {
+    const idToken = liff.getIDToken();
+    const accessToken = liff.getAccessToken();
+    if (!idToken && !accessToken) return false;
+
+    const res = await fetch("/api/auth/liff", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        idToken,
+        accessToken,
+        displayName: profile?.displayName,
+        pictureUrl: profile?.pictureUrl,
+      }),
+    });
+    return res.ok;
+  } catch (error) {
+    console.error("แลก session กับเซิร์ฟเวอร์ไม่สำเร็จ:", error);
+    return false;
+  }
+}
+
+/** โหมดทดสอบในเบราว์เซอร์ (?dev=true&code=...) — ต้องรู้รหัสที่เก็บใน secret_settings */
+export async function exchangeDevSession(code: string): Promise<boolean> {
+  try {
+    const res = await fetch("/api/auth/liff", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ devCode: code }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export function getOS(): string | undefined {
   if (!isInitialized) return undefined;
   return liff.getOS();

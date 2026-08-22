@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { trustedLineUserId } from "@/lib/memberAuth";
 
 // GET - ดึงรายการที่อยู่ของ member
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const lineUserId = searchParams.get("lineUserId");
+    const lineUserId = await trustedLineUserId(request, searchParams.get("lineUserId"));
+    if (!lineUserId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
     if (!lineUserId) {
       return NextResponse.json(
@@ -48,7 +50,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const {
-      lineUserId,
+      lineUserId: _rawLineUserId,
       label,
       name,
       phone,
@@ -60,6 +62,8 @@ export async function POST(request: NextRequest) {
       note,
       isDefault,
     } = body;
+    const lineUserId = await trustedLineUserId(request, _rawLineUserId as string | null);
+    if (!lineUserId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
     if (!lineUserId || !name || !phone || !address || !province || !postalCode) {
       return NextResponse.json(
@@ -124,7 +128,7 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const {
       id,
-      lineUserId,
+      lineUserId: _rawLineUserId,
       label,
       name,
       phone,
@@ -136,6 +140,8 @@ export async function PATCH(request: NextRequest) {
       note,
       isDefault,
     } = body;
+    const lineUserId = await trustedLineUserId(request, _rawLineUserId as string | null);
+    if (!lineUserId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
     if (!id || !lineUserId) {
       return NextResponse.json(
@@ -206,7 +212,8 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
-    const lineUserId = searchParams.get("lineUserId");
+    const lineUserId = await trustedLineUserId(request, searchParams.get("lineUserId"));
+    if (!lineUserId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
     if (!id || !lineUserId) {
       return NextResponse.json(

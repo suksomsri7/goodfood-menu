@@ -3,7 +3,7 @@ import { sanitizeLogInstant, clampToDayWindow } from "@/lib/coachLogTime";
 import { planDayWindow, mergeExerciseItemsDone, deriveExerciseDone, derivePlanStatus } from "@/lib/planTick";
 import { prisma } from "@/lib/prisma";
 import { isAiCoachActive } from "@/lib/coaching";
-import { memberFromReq, unauthorizedIfBearer } from "@/lib/memberAuth";
+import { memberFromReq, unauthorizedIfBearer, unauthorizedIfNoIdentity } from "@/lib/memberAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,7 @@ export async function PATCH(
 
     const member = await memberFromReq(request, lineUserId);
     if (!member) {
-      return unauthorizedIfBearer(request) ?? NextResponse.json({ error: "Member not found" }, { status: 404 });
+      return unauthorizedIfBearer(request) ?? (await unauthorizedIfNoIdentity(request)) ?? NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
     if (!isAiCoachActive(member)) {
       return NextResponse.json({ error: "ฟีเจอร์นี้สำหรับสมาชิกคอร์ส", locked: true }, { status: 403 });

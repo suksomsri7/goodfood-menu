@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkUsageLimit, logAiUsage, creditsExhaustedResponse } from "@/lib/usage-limits";
+import { trustedLineUserId } from "@/lib/memberAuth";
 
 // Open Food Facts API
 const OPEN_FOOD_FACTS_API = "https://world.openfoodfacts.org/api/v2/product";
@@ -87,7 +88,8 @@ export async function GET(
   try {
     const { code: barcode } = await params;
     const { searchParams } = new URL(request.url);
-    const lineUserId = searchParams.get("lineUserId");
+    const lineUserId = await trustedLineUserId(request, searchParams.get("lineUserId"));
+    if (!lineUserId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
     if (!barcode || barcode.length < 8) {
       return NextResponse.json(

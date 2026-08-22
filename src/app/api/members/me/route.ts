@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { trustedLineUserId, trustedLineUserIdOrStaff } from "@/lib/memberAuth";
 
 // POST - Register or update member
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { lineUserId, displayName, pictureUrl } = body;
+    const { lineUserId: _rawLineUserId, displayName, pictureUrl } = body;
+    const lineUserId = await trustedLineUserId(request, _rawLineUserId as string | null);
+    if (!lineUserId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
     if (!lineUserId) {
       return NextResponse.json(
@@ -55,7 +58,8 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const lineUserId = searchParams.get("lineUserId");
+    const lineUserId = await trustedLineUserIdOrStaff(request, searchParams.get("lineUserId"));
+    if (!lineUserId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
     if (!lineUserId) {
       return NextResponse.json(
@@ -151,7 +155,9 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { lineUserId, ...updateData } = body;
+    const { lineUserId: _rawLineUserId, ...updateData } = body;
+    const lineUserId = await trustedLineUserId(request, _rawLineUserId as string | null);
+    if (!lineUserId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
     if (!lineUserId) {
       return NextResponse.json(

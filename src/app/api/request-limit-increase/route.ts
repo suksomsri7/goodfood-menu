@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pushMessage } from "@/lib/line";
 import { prisma } from "@/lib/prisma";
+import { trustedLineUserId } from "@/lib/memberAuth";
 
 export async function POST(request: NextRequest) {
   try {
-    const { lineUserId } = await request.json();
+    const body = await request.json();
+    const { lineUserId: _rawLineUserId } = body;
+    const lineUserId = await trustedLineUserId(request, _rawLineUserId as string | null);
+    if (!lineUserId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
     if (!lineUserId) {
       return NextResponse.json(
