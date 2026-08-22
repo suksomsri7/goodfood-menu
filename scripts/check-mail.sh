@@ -22,7 +22,8 @@ echo "$MX" | grep -q "improvmx.com"      && { echo "✅ MX ชี้ ImprovMX �
 echo "$TXT" | grep -q "v=spf1" || echo "⚠️  ยังไม่มี SPF (ผู้รับบางเจ้าจะตีเป็นสแปม)"
 
 if [ "${SEND_TEST:-0}" = "1" ]; then
-  KEY=$(grep -h '^RESEND_API_KEY=' /root/projects/shark-in-th/.env 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"')
+  # 📌 คีย์ที่ใช้ได้จริงอยู่ใน .env.production.local — ตัวใน .env เป็นค่าว่าง
+  KEY=$(grep -h '^RESEND_API_KEY=' /root/projects/shark-in-th/.env.production.local 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"')
   if [ -z "$KEY" ]; then
     echo "⚠️  ไม่เจอ RESEND_API_KEY — ข้ามการส่งเมลทดสอบ"
     exit 0
