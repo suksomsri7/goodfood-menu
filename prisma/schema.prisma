@@ -415,6 +415,9 @@ model Exercise {
   id        String   @id @default(cuid())
   key       String   @unique
   name      String
+  /// ชื่อสากลภาษาอังกฤษ (Bodyweight Squat / Dumbbell Row) — ใช้ค้นในหลังบ้าน + หาคลิปอ้างอิง
+  /// null ได้: แถวเก่าที่แอดมินเพิ่มเองยังไม่มีชื่ออังกฤษ (seed เติมให้เฉพาะที่ยังว่าง)
+  nameEn    String?
   kind      String   @default("strength") // cardio | strength | mobility
   equipment String   @default("none") // none | home | gym
   impact    String   @default("low") // low | high

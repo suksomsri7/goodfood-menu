@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
       ? dbRows.map((e) => ({
           key: e.key,
           name: e.name,
+          nameEn: e.nameEn ?? "",
           equipment: e.equipment,
           kind: e.kind,
           unit: e.unit,

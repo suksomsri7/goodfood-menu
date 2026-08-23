@@ -33,6 +33,9 @@ export function exerciseFields(b: any) {
      🔴 ส่ง field ไหนมาถึงเขียน field นั้น: ผู้เรียกที่ไม่รู้จัก field ใหม่ (ฟอร์มเก่าค้างในเบราว์เซอร์)
         ต้องไม่ล้าง metadata ที่ seed ไว้ทิ้งโดยไม่ตั้งใจ */
   const meta = {
+    /* ชื่ออังกฤษไม่บังคับ (ท่าที่แอดมินเพิ่มเองอาจไม่มีชื่อสากล) — ว่างเก็บเป็น null ไม่ใช่สตริงว่าง
+       seed จะได้รู้ว่า "ยังไม่มีใครกรอก" แล้วเติมให้ทีหลังได้ตอนคลังโค้ดมีชื่อ */
+    ...(b.nameEn !== undefined ? { nameEn: String(b.nameEn || "").trim().slice(0, 120) || null } : {}),
     ...(b.pattern !== undefined ? { pattern: PATTERNS.includes(b.pattern) ? b.pattern : null } : {}),
     ...(b.primaryMuscles !== undefined ? { primaryMuscles: pickTags(b.primaryMuscles, MUSCLE_TAGS) } : {}),
     ...(b.loadable !== undefined ? { loadable: b.loadable === true } : {}),

@@ -4,7 +4,8 @@
  * คลังท่าออกกำลังกาย — เพิ่มท่า + ใส่รูปสาธิต (สูงสุด 6) + ลิงก์คลิป YouTube
  *
  * รูป/คลิปที่ใส่ตรงนี้ขึ้นในแอปทันที (ชีต "ดูท่า" ของหน้าแผน) ไม่ต้องรอ build แอป
- * ท่ามาตรฐาน 46 ท่าลบไม่ได้ (แผนเก่า/ตัวจัดแผนยังอ้างถึง) — ปิดใช้งานแทน · ท่าที่เพิ่มเองลบจริงได้
+ * ท่ามาตรฐาน (จากคลังโค้ด exerciseCatalog.ts) ลบไม่ได้ (แผนเก่า/ตัวจัดแผนยังอ้างถึง) — ปิดใช้งานแทน
+ * ท่าที่เพิ่มเองลบจริงได้ · คลังโตเกิน 100 ท่าแล้ว จึงมีแถบตัวกรองด้านบนไว้หาท่าให้เจอ
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -78,6 +79,7 @@ interface Exercise {
   id: string;
   key: string;
   name: string;
+  nameEn: string | null;
   kind: string;
   equipment: string;
   impact: string;
@@ -110,6 +112,12 @@ export default function ExercisesPage() {
   const [items, setItems] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
+  // ตัวกรอง: คลังโตเกิน 100 ท่าแล้ว เลื่อนหาด้วยตาไม่ไหว
+  const [fKind, setFKind] = useState("");
+  const [fEquip, setFEquip] = useState("");
+  const [fPattern, setFPattern] = useState("");
+  const [fActive, setFActive] = useState(false);
+  const [fNoImage, setFNoImage] = useState(false);
   const [form, setForm] = useState<Form | null>(null);
   const [busy, setBusy] = useState(false);
   const [authErr, setAuthErr] = useState(false);
@@ -183,7 +191,24 @@ export default function ExercisesPage() {
     });
   }
 
-  const shown = q.trim() ? items.filter((i) => `${i.name} ${i.muscles ?? ""}`.includes(q.trim())) : items;
+  /* กรองฝั่งเบราว์เซอร์ทั้งหมด — คลังมีหลักร้อยท่า โหลดครั้งเดียวแล้วกรองในเครื่องเร็วกว่ายิง API ทุกคีย์
+     ค้นหาจับทั้งชื่อไทย/ชื่ออังกฤษ/key/กล้ามเนื้อ (เจ้าของร้านพิมพ์ "squat" ก็ต้องเจอ "สควอทน้ำหนักตัว") */
+  const needle = q.trim().toLowerCase();
+  const shown = items.filter((i) => {
+    if (needle && !`${i.name} ${i.nameEn ?? ""} ${i.key} ${i.muscles ?? ""}`.toLowerCase().includes(needle)) return false;
+    if (fKind && i.kind !== fKind) return false;
+    // ช่องอุปกรณ์รวม 2 เรื่องไว้ด้วยกัน: ระดับอุปกรณ์ (tier:none/home/gym) กับอุปกรณ์รายชิ้น
+    if (fEquip.startsWith("tier:") && i.equipment !== fEquip.slice(5)) return false;
+    if (fEquip.startsWith("need:") && !(i.equipmentNeeded ?? []).includes(fEquip.slice(5))) return false;
+    if (fPattern === "none" ? !!i.pattern : fPattern && i.pattern !== fPattern) return false;
+    if (fActive && !i.isActive) return false;
+    if (fNoImage && (i.images?.length ?? 0) > 0) return false;
+    return true;
+  });
+  const filterOn = !!(needle || fKind || fEquip || fPattern || fActive || fNoImage);
+  const selectCls = "px-3 py-2.5 rounded-lg border border-gray-200 text-sm bg-white";
+  const toggleCls = (on: boolean) =>
+    `px-3 py-2 rounded-lg border text-sm ${on ? "bg-[#4CAF50] text-white border-[#4CAF50]" : "bg-white text-gray-600 border-gray-200"}`;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -208,15 +233,58 @@ export default function ExercisesPage() {
           </div>
         )}
 
-        <div className="relative max-w-md">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="ค้นหาท่า / กล้ามเนื้อ"
-            className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-gray-200 text-sm bg-white"
-          />
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[240px] max-w-md">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="ค้นหา: ชื่อไทย / ชื่ออังกฤษ / key / กล้ามเนื้อ"
+              className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-gray-200 text-sm bg-white"
+            />
+          </div>
+
+          <select value={fKind} onChange={(e) => setFKind(e.target.value)} className={selectCls}>
+            <option value="">ชนิด: ทั้งหมด</option>
+            {KIND_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+
+          <select value={fEquip} onChange={(e) => setFEquip(e.target.value)} className={selectCls}>
+            <option value="">อุปกรณ์: ทั้งหมด</option>
+            <optgroup label="ระดับอุปกรณ์">
+              {TIER_OPTIONS.map((o) => <option key={o.value} value={`tier:${o.value}`}>{o.label}</option>)}
+            </optgroup>
+            <optgroup label="ต้องใช้ชิ้นนี้">
+              {EQUIPMENT_NEEDED_OPTIONS.map((o) => <option key={o.value} value={`need:${o.value}`}>{o.label}</option>)}
+            </optgroup>
+          </select>
+
+          <select value={fPattern} onChange={(e) => setFPattern(e.target.value)} className={selectCls}>
+            <option value="">รูปแบบ: ทั้งหมด</option>
+            <option value="none">ยังไม่ระบุ</option>
+            {PATTERN_OPTIONS.filter((o) => o.value).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+
+          <button type="button" onClick={() => setFActive((v) => !v)} className={toggleCls(fActive)}>
+            เฉพาะที่เปิดใช้งาน
+          </button>
+          {/* ปุ่มนี้มีไว้ให้เจ้าของไล่อัปรูปทีละท่าจนครบ — ไม่มีรูป = ลูกค้าเห็นแต่ชื่อในแอป */}
+          <button type="button" onClick={() => setFNoImage((v) => !v)} className={toggleCls(fNoImage)}>
+            ยังไม่มีรูป
+          </button>
+
+          {filterOn && (
+            <button
+              type="button"
+              onClick={() => { setQ(""); setFKind(""); setFEquip(""); setFPattern(""); setFActive(false); setFNoImage(false); }}
+              className="px-3 py-2 text-sm text-gray-500 underline"
+            >
+              ล้างตัวกรอง
+            </button>
+          )}
         </div>
+
+        <p className="text-xs text-gray-500">แสดง {shown.length} จาก {items.length} ท่า</p>
 
         {loading ? (
           <div className="flex items-center gap-2 text-gray-500 text-sm">
@@ -256,6 +324,8 @@ export default function ExercisesPage() {
                         )}
                         <div>
                           <div className="font-medium text-gray-900">{it.name}</div>
+                          {/* ชื่ออังกฤษไว้ใต้ชื่อไทย — ใช้เทียบกับคลิปฝรั่ง/คุยกับเทรนเนอร์ */}
+                          <div className="text-xs text-gray-500">{it.nameEn || "—"}</div>
                           <div className="text-xs text-gray-400">{it.muscles || (it.isCustom ? "ท่าที่เพิ่มเอง" : it.key)}</div>
                         </div>
                       </div>
@@ -314,7 +384,7 @@ export default function ExercisesPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
+              <div>
                 <label className="text-xs text-gray-500">ชื่อท่า (ภาษาไทย)</label>
                 <input
                   value={form.name ?? ""}
@@ -322,6 +392,16 @@ export default function ExercisesPage() {
                   className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 text-sm"
                   placeholder="เช่น สควอทน้ำหนักตัว"
                 />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500">ชื่อสากล (อังกฤษ)</label>
+                <input
+                  value={form.nameEn ?? ""}
+                  onChange={(e) => setForm({ ...form, nameEn: e.target.value })}
+                  className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                  placeholder="เช่น Bodyweight Squat"
+                />
+                <p className="text-[11px] text-gray-400 mt-1">ใช้ค้นหาในหลังบ้าน + หาคลิปอ้างอิง (ไม่โชว์ในแอปลูกค้า)</p>
               </div>
 
               <div>

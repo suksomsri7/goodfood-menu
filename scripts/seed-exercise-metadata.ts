@@ -1,13 +1,16 @@
 /**
- * เติม metadata ให้ท่าออกกำลังกาย 46 ท่า (pattern / กล้ามเนื้อหลัก / loadable / อุปกรณ์ / ความยาก / บันได)
+ * เติม metadata ให้ท่าออกกำลังกายที่อยู่ใน DB แล้ว (pattern / กล้ามเนื้อหลัก / loadable / อุปกรณ์ / ความยาก / บันได)
  * รัน: npx tsx scripts/seed-exercise-metadata.ts --dry   (ดูตารางก่อน — ไม่แตะ DB)
  *      npx tsx scripts/seed-exercise-metadata.ts --apply (เขียนจริง)
  *
  * 🔴 --apply อัปเดตเฉพาะแถวที่ pattern ยังว่าง — ของที่แอดมินแก้เองแล้วห้ามทับ
- * 🔴 ตารางข้างล่างคือ "ด่านความปลอดภัย" ของทั้งเฟส: ค่าที่ผิดทำให้ระบบจัดท่าแทน/บันไดความยากผิด
- *    → hardcode ไว้ในไฟล์นี้ให้คนไล่อ่านทีละแถวได้ ไม่ให้ AI เดาตอนรัน
+ * 🔴 metadata คือ "ด่านความปลอดภัย" ของทั้งเฟส: ค่าที่ผิดทำให้ระบบจัดท่าแทน/บันไดความยากผิด
+ *    → ตั้งแต่ ส.ค. 69 ย้ายไปอยู่ใน src/lib/exerciseCatalog.ts ที่เดียว (เดิมมีตารางซ้ำในไฟล์นี้
+ *      พอคลังโตขึ้นก็เริ่มไม่ตรงกัน) ไฟล์นี้เหลือหน้าที่ "เอาลง DB + โชว์ตารางให้คนไล่ตรวจ"
+ *    หมายเหตุ: ท่าใหม่ที่ seed-exercises.js สร้าง จะมี metadata ติดไปตั้งแต่ create อยู่แล้ว
+ *      ไฟล์นี้จึงเหลือไว้เติมย้อนหลังให้แถวเก่าที่สร้างก่อนมีคอลัมน์เหล่านี้
  *
- * --dry ต้องรันได้แม้คอลัมน์ใหม่ยังไม่ถูก push ขึ้น DB (อ่านแค่ key/name) — ตารางมาจากไฟล์นี้ล้วน ๆ
+ * --dry ต้องรันได้แม้คอลัมน์ใหม่ยังไม่ถูก push ขึ้น DB (อ่านแค่ key/name)
  */
 import { PrismaClient } from "@prisma/client";
 import { EXERCISE_CATALOG } from "../src/lib/exerciseCatalog";
@@ -35,75 +38,22 @@ interface Meta {
 }
 
 /**
- * กติกาที่ใช้ตัดสินตอนกรอกตารางนี้
- *  1. loadable = true เฉพาะท่าที่ "ถือดัมเบล/บาร์เบล/เคตเทิล" เท่านั้น
- *     เครื่องฟิตเนสใส่น้ำหนักได้ก็จริง แต่เราไม่รู้ก้าวของ pin stack ของยิมแต่ละที่ → สั่งกิโลไปก็เชื่อไม่ได้
- *  2. progressionGroup ใส่เฉพาะที่มีบันไดจริง (pushup / squat_bw / plank / row) — ท่าที่ขึ้นน้ำหนักได้ไม่ต้องมีบันได
- *  3. ห้ามปนท่า impact สูง (กระโดด/วิ่ง) กับ impact ต่ำในบันไดเดียวกัน — คนเข่าไม่ดีต้องไม่ถูกดันขึ้นท่ากระโดด
- *     (มีด่านตรวจอัตโนมัติท้ายไฟล์ อ่าน impact จาก exerciseCatalog.ts)
- *  4. ท่าเสริมกล้ามเล็ก (น่อง/แขน) จัด pattern ตามวันที่มันอยู่จริงในโปรแกรม push/pull/legs
- *     — calf_raise=squat(วันขา) · db_curl=pull_h(วันดึง) · db_tricep=push_h(วันดัน)
+ * ตารางนี้ = ภาพสะท้อนของ src/lib/exerciseCatalog.ts (แหล่งความจริงเดียว)
+ * กติกาที่ใช้ตัดสินตอนกรอกอยู่ในหัวไฟล์คลังนั้นแล้ว — แก้ค่าให้ไปแก้ที่คลัง ห้ามแก้ที่นี่
  */
-const METADATA: Record<string, Meta> = {
-  // ── ตัวเปล่า: คาร์ดิโอ ──
-  walk_fast:        { pattern: "cardio", primaryMuscles: ["quads", "glutes", "calves"], loadable: false, equipmentNeeded: [], difficulty: 1 },
-  jog_light:        { pattern: "cardio", primaryMuscles: ["quads", "hamstrings", "calves"], loadable: false, equipmentNeeded: [], difficulty: 3 },
-  stair_step:       { pattern: "cardio", primaryMuscles: ["quads", "glutes", "calves"], loadable: false, equipmentNeeded: [], difficulty: 2 },
-  jumping_jack:     { pattern: "cardio", primaryMuscles: ["full_body", "calves", "shoulders"], loadable: false, equipmentNeeded: [], difficulty: 2 },
-  mountain_climber: { pattern: "cardio", primaryMuscles: ["core", "hip_flexors", "shoulders"], loadable: false, equipmentNeeded: [], difficulty: 3 },
-  burpee:           { pattern: "cardio", primaryMuscles: ["full_body", "quads", "chest"], loadable: false, equipmentNeeded: [], difficulty: 4 },
-  shadow_box:       { pattern: "cardio", primaryMuscles: ["shoulders", "core", "back"], loadable: false, equipmentNeeded: [], difficulty: 2 },
-
-  // ── ตัวเปล่า: กำลัง ──
-  // บันได squat_bw: สควอทสองขา(2) → สเต็ปอัพขาเดียว(3) → ลันจ์(4) ทั้งหมด impact ต่ำ นับครั้งเหมือนกัน
-  squat_bw:      { pattern: "squat", primaryMuscles: ["quads", "glutes"], loadable: false, equipmentNeeded: [], difficulty: 2, progressionGroup: "squat_bw" },
-  // นั่งพิงกำแพงเป็นท่าค้างจับเวลา (คนละหน่วยกับบันไดที่นับครั้ง) → ไม่เข้าบันได
-  wall_sit:      { pattern: "squat", primaryMuscles: ["quads"], loadable: false, equipmentNeeded: [], difficulty: 2 },
-  lunge:         { pattern: "lunge", primaryMuscles: ["quads", "glutes", "hamstrings"], loadable: false, equipmentNeeded: [], difficulty: 4, progressionGroup: "squat_bw" },
-  glute_bridge:  { pattern: "hinge", primaryMuscles: ["glutes", "hamstrings", "lower_back"], loadable: false, equipmentNeeded: [], difficulty: 1 },
-  pushup:        { pattern: "push_h", primaryMuscles: ["chest", "shoulders", "triceps"], loadable: false, equipmentNeeded: [], difficulty: 3, progressionGroup: "pushup" },
-  pushup_knee:   { pattern: "push_h", primaryMuscles: ["chest", "triceps", "shoulders"], loadable: false, equipmentNeeded: [], difficulty: 2, progressionGroup: "pushup" },
-  plank:         { pattern: "core", primaryMuscles: ["core", "shoulders"], loadable: false, equipmentNeeded: [], difficulty: 2, progressionGroup: "plank" },
-  side_plank:    { pattern: "core", primaryMuscles: ["obliques", "core"], loadable: false, equipmentNeeded: [], difficulty: 3, progressionGroup: "plank" },
-  crunch:        { pattern: "core", primaryMuscles: ["core"], loadable: false, equipmentNeeded: [], difficulty: 1 },
-  bicycle_crunch:{ pattern: "core", primaryMuscles: ["core", "obliques"], loadable: false, equipmentNeeded: [], difficulty: 2 },
-  superman:      { pattern: "core", primaryMuscles: ["lower_back", "glutes"], loadable: false, equipmentNeeded: [], difficulty: 1 },
-  bird_dog:      { pattern: "core", primaryMuscles: ["core", "lower_back", "glutes"], loadable: false, equipmentNeeded: [], difficulty: 1 },
-  calf_raise:    { pattern: "squat", primaryMuscles: ["calves"], loadable: false, equipmentNeeded: [], difficulty: 1 },
-  step_up:       { pattern: "lunge", primaryMuscles: ["quads", "glutes"], loadable: false, equipmentNeeded: [], difficulty: 3, progressionGroup: "squat_bw" },
-
-  // ── ตัวเปล่า: ยืดเหยียด/ฟื้นฟู ──
-  stretch_full: { pattern: "mobility", primaryMuscles: ["full_body"], loadable: false, equipmentNeeded: [], difficulty: 1 },
-  yoga_basic:   { pattern: "mobility", primaryMuscles: ["full_body", "core"], loadable: false, equipmentNeeded: [], difficulty: 2 },
-  cat_cow:      { pattern: "mobility", primaryMuscles: ["lower_back", "core"], loadable: false, equipmentNeeded: [], difficulty: 1 },
-  hip_stretch:  { pattern: "mobility", primaryMuscles: ["hip_flexors", "glutes"], loadable: false, equipmentNeeded: [], difficulty: 1 },
-
-  // ── ดัมเบล / ยางยืด (home) ──
-  db_squat:        { pattern: "squat", primaryMuscles: ["quads", "glutes"], loadable: true, equipmentNeeded: ["dumbbell"], difficulty: 3 },
-  db_row:          { pattern: "pull_h", primaryMuscles: ["back", "lats", "biceps"], loadable: true, equipmentNeeded: ["dumbbell"], difficulty: 3, progressionGroup: "row" },
-  db_press:        { pattern: "push_v", primaryMuscles: ["shoulders", "triceps"], loadable: true, equipmentNeeded: ["dumbbell"], difficulty: 3 },
-  db_curl:         { pattern: "pull_h", primaryMuscles: ["biceps"], loadable: true, equipmentNeeded: ["dumbbell"], difficulty: 2 },
-  db_tricep:       { pattern: "push_h", primaryMuscles: ["triceps"], loadable: true, equipmentNeeded: ["dumbbell"], difficulty: 2 },
-  db_rdl:          { pattern: "hinge", primaryMuscles: ["hamstrings", "glutes", "lower_back"], loadable: true, equipmentNeeded: ["dumbbell"], difficulty: 3 },
-  // ยางยืดไม่ได้ชั่งเป็นกิโล (แรงต้านขึ้นกับเส้น/ระยะยืด) → loadable=false เดินหน้าด้วยจำนวนครั้ง/เส้นที่หนักขึ้น
-  band_row:        { pattern: "pull_h", primaryMuscles: ["back", "lats", "biceps"], loadable: false, equipmentNeeded: ["band"], difficulty: 2, progressionGroup: "row" },
-  band_pull_apart: { pattern: "pull_h", primaryMuscles: ["shoulders", "traps", "back"], loadable: false, equipmentNeeded: ["band"], difficulty: 1 },
-  farmer_walk:     { pattern: "carry", primaryMuscles: ["forearms", "traps", "core"], loadable: true, equipmentNeeded: ["dumbbell"], difficulty: 3 },
-
-  // ── ฟิตเนส (gym) ──
-  treadmill:       { pattern: "cardio", primaryMuscles: ["quads", "hamstrings", "calves"], loadable: false, equipmentNeeded: ["treadmill"], difficulty: 2 },
-  stationary_bike: { pattern: "cardio", primaryMuscles: ["quads", "glutes", "calves"], loadable: false, equipmentNeeded: ["bike"], difficulty: 1 },
-  elliptical:      { pattern: "cardio", primaryMuscles: ["full_body", "quads"], loadable: false, equipmentNeeded: ["machine"], difficulty: 1 },
-  rowing_machine:  { pattern: "cardio", primaryMuscles: ["back", "quads", "lats"], loadable: false, equipmentNeeded: ["machine"], difficulty: 3 },
-  lat_pulldown:    { pattern: "pull_v", primaryMuscles: ["lats", "back", "biceps"], loadable: false, equipmentNeeded: ["machine"], difficulty: 2 },
-  chest_press:     { pattern: "push_h", primaryMuscles: ["chest", "shoulders", "triceps"], loadable: false, equipmentNeeded: ["machine"], difficulty: 2 },
-  leg_press:       { pattern: "squat", primaryMuscles: ["quads", "glutes"], loadable: false, equipmentNeeded: ["machine"], difficulty: 2 },
-  leg_curl:        { pattern: "hinge", primaryMuscles: ["hamstrings"], loadable: false, equipmentNeeded: ["machine"], difficulty: 2 },
-  cable_row:       { pattern: "pull_h", primaryMuscles: ["back", "lats", "biceps"], loadable: false, equipmentNeeded: ["machine"], difficulty: 4, progressionGroup: "row" },
-  barbell_bench:   { pattern: "push_h", primaryMuscles: ["chest", "triceps", "shoulders"], loadable: true, equipmentNeeded: ["barbell", "bench"], difficulty: 4 },
-  barbell_squat:   { pattern: "squat", primaryMuscles: ["quads", "glutes", "hamstrings"], loadable: true, equipmentNeeded: ["barbell"], difficulty: 4 },
-  pullup_assist:   { pattern: "pull_v", primaryMuscles: ["lats", "back", "biceps"], loadable: false, equipmentNeeded: ["machine"], difficulty: 3 },
-};
+const METADATA: Record<string, Meta> = Object.fromEntries(
+  EXERCISE_CATALOG.map((e) => [
+    e.key,
+    {
+      pattern: e.pattern,
+      primaryMuscles: [...e.primaryMuscles],
+      loadable: e.loadable,
+      equipmentNeeded: [...e.equipmentNeeded],
+      difficulty: e.difficulty,
+      ...(e.progressionGroup ? { progressionGroup: e.progressionGroup } : {}),
+    },
+  ]),
+);
 
 /** ด่านตรวจตัวเอง — ค่าหลุดวงคำศัพท์/บันไดปนแรงกระแทก = หยุดก่อนเขียน DB */
 function selfCheck(): string[] {
