@@ -32,11 +32,16 @@ interface MemberRow {
 /** พรุ่งนี้ (เวลาไทย) — ครัวซื้อของล่วงหน้า สมัครวันนี้กินวันนี้ไม่ได้ */
 const tomorrowKey = () => new Date(Date.now() + 7 * 3600 * 1000 + 86400000).toISOString().slice(0, 10);
 
-export function EnrollSheet({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+export function EnrollSheet({ onClose, onDone, initialMember }: {
+  onClose: () => void;
+  onDone: () => void;
+  /** เปิดจากหน้าสมาชิก = รู้ตัวลูกค้าอยู่แล้ว ไม่ต้องให้แอดมินค้นซ้ำ */
+  initialMember?: MemberRow | null;
+}) {
   const [q, setQ] = useState("");
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [searching, setSearching] = useState(false);
-  const [picked, setPicked] = useState<MemberRow | null>(null);
+  const [picked, setPicked] = useState<MemberRow | null>(initialMember ?? null);
 
   const [track, setTrack] = useState("standard");
   const [startDate, setStartDate] = useState(tomorrowKey());

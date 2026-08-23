@@ -887,6 +887,19 @@ export default function MembersPage() {
                           </div>
                         </div>
 
+                        {/* ทางลัดไปสมัครโปรแกรมปิ่นโต — แอดมินมองหาที่หน้าสมาชิกก่อนเสมอ (เจ้าของทัก 23 ส.ค.)
+                            ตัวฟอร์มจริงอยู่หน้า "คนในโปรแกรม" (เลือกคอร์ส/กี่วัน/มื้อ/ราคา) — เปิดพร้อมลูกค้าคนนี้เลย */}
+                        <a
+                          href={`/backoffice/program?enroll=${memberDetail.id}&name=${encodeURIComponent(memberDetail.displayName || memberDetail.name || "")}`}
+                          className="flex items-center justify-between bg-[#E8F5E9] border border-[#C8E6C9] rounded-xl px-4 py-3 mb-4 hover:bg-[#DCEDC8] transition-colors"
+                        >
+                          <div>
+                            <p className="font-semibold text-[#2E7D32]">เพิ่มเข้าโปรแกรมปิ่นโต</p>
+                            <p className="text-xs text-[#558B2F]">เลือกคอร์ส/สายอาหาร · จำนวนวัน · มื้อที่ส่ง · ราคา</p>
+                          </div>
+                          <span className="text-[#2E7D32] text-lg">→</span>
+                        </a>
+
                         {/* AI Coach - Editable */}
                         <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-6 border border-purple-100">
                           <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">

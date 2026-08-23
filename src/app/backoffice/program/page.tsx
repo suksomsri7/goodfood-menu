@@ -13,6 +13,7 @@ import { AlertTriangle, ChefHat, ChevronLeft, ChevronRight, Loader2, Package, Pl
 import { CustomerSheet } from "./CustomerSheet";
 import { KitchenView, KitchenSlot } from "./KitchenView";
 import { EnrollSheet } from "./EnrollSheet";
+import { useSearchParams } from "next/navigation";
 
 type View = "kitchen" | "packing" | "roster" | "courses";
 
@@ -107,6 +108,16 @@ export default function ProgramPage() {
   /** ลูกค้าที่กำลังเปิดโปรไฟล์อยู่ — null = ปิด */
   const [openCustomer, setOpenCustomer] = useState<{ id: string; name: string } | null>(null);
   const [enrollOpen, setEnrollOpen] = useState(false);
+  const [enrollPrefill, setEnrollPrefill] = useState<{ id: string; name: string | null; displayName: string | null; phone: string | null } | null>(null);
+  const search = useSearchParams();
+
+  // มาจากหน้าสมาชิก (?enroll=<id>&name=...) → เปิดชีตพร้อมลูกค้าคนนั้นเลย ไม่ต้องค้นซ้ำ
+  useEffect(() => {
+    const id = search?.get("enroll");
+    if (!id) return;
+    setEnrollPrefill({ id, name: search?.get("name") ?? null, displayName: search?.get("name") ?? null, phone: null });
+    setEnrollOpen(true);
+  }, [search]);
   /** id คอร์สที่กำลังยกเลิกอยู่ — กันกดซ้ำระหว่างรอ server */
   const [busyCourse, setBusyCourse] = useState<string | null>(null);
   const [members, setMembers] = useState<ServedMember[]>([]);
@@ -499,8 +510,9 @@ export default function ProgramPage() {
       )}
       {enrollOpen && (
         <EnrollSheet
-          onClose={() => setEnrollOpen(false)}
-          onDone={() => { setEnrollOpen(false); void load(); }}
+          initialMember={enrollPrefill}
+          onClose={() => { setEnrollOpen(false); setEnrollPrefill(null); }}
+          onDone={() => { setEnrollOpen(false); setEnrollPrefill(null); void load(); }}
         />
       )}
     </div>
