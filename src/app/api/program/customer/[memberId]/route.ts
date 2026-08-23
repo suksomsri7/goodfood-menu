@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/staffAuth";
-import { dailyTarget, mealTargets, thaiDate, trackLabel } from "@/lib/program";
+import { SPICE_LABELS, dailyTarget, mealTargets, thaiDate, trackLabel } from "@/lib/program";
 
 export const dynamic = "force-dynamic";
 
@@ -27,8 +27,6 @@ const GOAL_LABEL: Record<string, string> = {
   gain: "เพิ่มน้ำหนัก",
   muscle: "เพิ่มกล้ามเนื้อ",
 };
-
-const SPICE = ["ไม่กินเผ็ด", "เผ็ดน้อย", "เผ็ดกลาง", "เผ็ดมาก"];
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ memberId: string }> }) {
   const staff = await requireStaff(req);
@@ -121,7 +119,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ memb
           avoidMeats: profile.avoidMeats,
           dislikedVeggies: profile.dislikedVeggies,
           eatsVegetables: profile.eatsVegetables,
-          spiceLabel: SPICE[profile.spiceLevel] ?? null,
+          spiceLabel: SPICE_LABELS[profile.spiceLevel] ?? null,
           tastePref: profile.tastePref,
           cuisines: profile.cuisines,
           mealSlots: profile.mealSlots,
@@ -150,12 +148,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ memb
             enrolledLabel: thaiDate(new Date(Date.UTC(active.createdAt.getUTCFullYear(), active.createdAt.getUTCMonth(), active.createdAt.getUTCDate())), false),
           }
         : null,
+      /**
+       * ทุกใบสมัคร ใหม่สุดอยู่บน — แอดมินใช้ดูว่าคนนี้อยู่กับเรามากี่รอบ เว้นช่วงนานไหม เคยยกเลิกกลางคันหรือเปล่า
+       * 🔴 ห้ามกรองใบที่ยกเลิกออก — "ยกเลิกแล้วกลับมาใหม่" คือสัญญาณที่ต้องเอาไปปรับบริการ
+       */
       history: enrollments.map((e) => ({
         id: e.id,
         trackLabel: trackLabel(e.track),
         startLabel: thaiDate(e.startDate, false),
         endLabel: thaiDate(e.endDate, false),
         totalDays: e.totalDays,
+        slots: e.slots,
         status: e.status,
         price: e.price,
       })),

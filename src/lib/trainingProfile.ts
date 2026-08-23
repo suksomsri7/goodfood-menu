@@ -838,7 +838,8 @@ export interface TrainingContextBlock {
   injuries: Array<{ area: string; severity: string; note: string | null; until: string | null }>;
 }
 
-const GOAL_TH: Record<string, string> = {
+/** export เพราะหลังบ้านต้องโชว์เป้าหมายเดียวกันกับที่ prompt ใช้ — คนละตารางเมื่อไร คำก็เพี้ยนกัน */
+export const GOAL_TH: Record<string, string> = {
   fat_loss: "ลดไขมัน",
   muscle_gain: "เพิ่มกล้าม",
   strength: "เพิ่มความแข็งแรง",
@@ -854,7 +855,8 @@ const STYLE_TH: Record<string, string> = {
   athletic: "เชิงกีฬา",
   balanced: "สมดุล",
 };
-const DAY_TH: Record<string, string> = {
+/** export เพราะหลังบ้านโชว์ตารางวันเทรนด้วยตัวย่อชุดเดียวกัน */
+export const DAY_TH: Record<string, string> = {
   mon: "จ", tue: "อ", wed: "พ", thu: "พฤ", fri: "ศ", sat: "ส", sun: "อา",
 };
 /** แท็กกิจกรรม/จุดเจ็บ → คำไทย สำหรับบรรทัดที่โค้ชอ่าน (เก็บเป็นคีย์อังกฤษใน DB เหมือนเดิม) */
@@ -863,12 +865,12 @@ const TAG_TH: Record<string, string> = {
   jumping: "กระโดด", yoga: "โยคะ", stretching: "ยืดเหยียด", boxing: "ชกมวย",
   cycling: "ปั่นจักรยาน", rowing: "กรรเชียงบก", swimming: "ว่ายน้ำ", core: "หน้าท้อง",
 };
-const AREA_TH: Record<string, string> = {
+export const AREA_TH: Record<string, string> = {
   shoulder: "ไหล่", knee: "เข่า", back: "หลัง", hip: "สะโพก",
   ankle: "ข้อเท้า", wrist: "ข้อมือ", neck: "คอ", other: "จุดอื่น",
 };
 /** คำที่ user พิมพ์เองไม่มีในตาราง = คงคำเดิมไว้ ดีกว่าขึ้นค่าว่าง */
-const tagTh = (t: string) => TAG_TH[normalizeTag(t)] ?? t;
+export const tagTh = (t: string) => TAG_TH[normalizeTag(t)] ?? t;
 const areaTh = (a: string) => AREA_TH[a] ?? a;
 
 /** ก้อน training → บรรทัดไทยสำหรับ prompt (ไม่มีข้อมูล = ไม่มีบรรทัด ไม่ใช่เขียนว่า "ไม่ทราบ") */

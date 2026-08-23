@@ -1,6 +1,26 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { requireStaff } from "@/lib/staffAuth";
+import { SPICE_LABELS, thaiDate, trackLabel } from "@/lib/program";
+import { AREA_TH, DAY_TH, GOAL_TH, tagTh } from "@/lib/trainingProfile";
+import { EQUIPMENT_LABEL_TH } from "@/lib/memberEquipment";
+import { BAND_LABEL_TH, ReadinessBand } from "@/lib/readiness";
+
+/**
+ * ข้อมูลที่สมาชิกกรอกไว้ในแอป — แอดมินต้องเห็นเพื่อคุยกับลูกค้าได้ตรงเรื่อง
+ *
+ * 🔴 ตัวเลขเท่านั้น ห้ามมีรูปวัดสัดส่วนโผล่มาทางนี้เด็ดขาด (ลูกค้าให้รูปไว้ให้ระบบวัด ไม่ได้ให้คนดู)
+ * 🔴 ทุกก้อนพังแยกกันได้ — โปรไฟล์เทรนยังไม่มี ต้องไม่ทำให้หน้าสมาชิกทั้งหน้าโหลดไม่ขึ้น
+ *    (เดิมทั้ง endpoint อยู่ใน try เดียว = ตารางใหม่ที่ยังไม่ได้ migrate จะล้มทั้งหน้า)
+ */
+const safe = <T,>(p: Promise<T>, fallback: T): Promise<T> =>
+  p.catch((e) => {
+    console.error("appData sub-query failed:", e);
+    return fallback;
+  });
+
+/** วันที่ในตารางเหล่านี้เก็บเป็นเที่ยงคืน UTC ของวัน BKK — ฟอร์แมตด้วย thaiDate ตรง ๆ ได้เลย */
+const SEVERITY_TH: Record<string, string> = { caution: "ระวัง", avoid: "เลี่ยงท่าที่กระทบ" };
 
 // GET - ดึงรายละเอียดสมาชิก
 export async function GET(
@@ -77,9 +97,150 @@ export async function GET(
       })),
     };
 
+    // ── ข้อมูลที่เก็บมาจากแอป ── (แต่ละก้อนล้มแยกกันได้ ดู comment ที่ safe())
+    const now = new Date();
+    const [
+      foodProfile,
+      trainingProfile,
+      equipment,
+      injuries,
+      mealFeedbacks,
+      readiness,
+      enrollments,
+    ] = await Promise.all([
+      safe(prisma.foodProfile.findUnique({ where: { memberId: id } }), null),
+      safe(prisma.trainingProfile.findUnique({ where: { memberId: id } }), null),
+      safe(
+        prisma.memberEquipment.findMany({
+          where: { memberId: id },
+          orderBy: { createdAt: "asc" },
+          select: { id: true, type: true, minKg: true, maxKg: true, incrementKg: true },
+        }),
+        [] as { id: string; type: string; minKg: number | null; maxKg: number | null; incrementKg: number | null }[]
+      ),
+      safe(
+        prisma.injuryLimitation.findMany({
+          // 🔴 อาการชั่วคราวที่หมดอายุแล้วถือว่าไม่มีผล — โชว์ต่อจะทำให้แอดมินคุยผิด
+          where: { memberId: id, active: true, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+          orderBy: { createdAt: "desc" },
+          select: { id: true, area: true, severity: true, note: true },
+        }),
+        [] as { id: string; area: string; severity: string; note: string | null }[]
+      ),
+      safe(
+        prisma.mealFeedback.findMany({
+          where: { memberId: id },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+          select: { id: true, foodName: true, slot: true, taste: true, portion: true, note: true, createdAt: true },
+        }),
+        [] as {
+          id: string; foodName: string; slot: string | null;
+          taste: number | null; portion: number | null; note: string | null; createdAt: Date;
+        }[]
+      ),
+      safe(
+        prisma.readinessCheckin.findMany({
+          where: { memberId: id },
+          orderBy: { date: "desc" },
+          take: 7,
+          select: { id: true, date: true, score: true, band: true },
+        }),
+        [] as { id: string; date: Date; score: number | null; band: string | null }[]
+      ),
+      safe(
+        prisma.programEnrollment.findMany({
+          where: { memberId: id },
+          orderBy: { startDate: "desc" },
+          select: { track: true, status: true, endDate: true },
+        }),
+        [] as { track: string; status: string; endDate: Date }[]
+      ),
+    ]);
+
+    const latestEnrollment = enrollments[0] ?? null;
+
+    const appData = {
+      foodProfile: foodProfile
+        ? {
+            allergies: foodProfile.allergies,
+            avoidMeats: foodProfile.avoidMeats,
+            dislikedVeggies: foodProfile.dislikedVeggies,
+            tastePref: foodProfile.tastePref,
+            spiceLevel: foodProfile.spiceLevel,
+            spiceLabel: SPICE_LABELS[foodProfile.spiceLevel] ?? null,
+            cuisines: foodProfile.cuisines,
+            budgetPerDay: foodProfile.budgetPerDay,
+            healthConditions: foodProfile.healthConditions,
+            mealSlots: foodProfile.mealSlots,
+          }
+        : null,
+      trainingProfile: trainingProfile
+        ? {
+            primaryGoal: trainingProfile.primaryGoal,
+            /** แปลเป็นไทยตรงนี้ เพราะตารางคำอยู่ใน lib ฝั่ง server — หน้าเว็บไม่ต้องรู้จักคีย์อังกฤษ */
+            primaryGoalLabel: GOAL_TH[trainingProfile.primaryGoal] ?? trainingProfile.primaryGoal,
+            daysPerWeek: trainingProfile.daysPerWeek,
+            sessionMin: trainingProfile.sessionMin,
+            trainDays: trainingProfile.trainDays,
+            trainDaysLabel: trainingProfile.trainDays.map((d) => DAY_TH[d] ?? d),
+            likes: trainingProfile.likes,
+            /** คำที่ user พิมพ์เองไม่มีในตาราง = คงคำเดิม ดีกว่าโชว์ช่องว่าง */
+            likesLabel: trainingProfile.likes.map(tagTh),
+            dislikes: trainingProfile.dislikes,
+            dislikesLabel: trainingProfile.dislikes.map(tagTh),
+            experienceMonths: trainingProfile.experienceMonths,
+            parqFlag: trainingProfile.parqFlag,
+            calibration: trainingProfile.calibration,
+          }
+        : null,
+      equipment: equipment.map((e) => ({
+        id: e.id,
+        type: e.type,
+        typeLabel: EQUIPMENT_LABEL_TH[e.type] ?? e.type,
+        minKg: e.minKg,
+        maxKg: e.maxKg,
+        incrementKg: e.incrementKg,
+      })),
+      injuries: injuries.map((i) => ({
+        id: i.id,
+        area: i.area,
+        areaLabel: AREA_TH[i.area] ?? i.area,
+        severity: i.severity,
+        severityLabel: SEVERITY_TH[i.severity] ?? i.severity,
+        note: i.note,
+      })),
+      mealFeedbacks: mealFeedbacks.map((f) => ({
+        id: f.id,
+        foodName: f.foodName,
+        slot: f.slot,
+        taste: f.taste,
+        portion: f.portion,
+        note: f.note,
+        createdAt: f.createdAt,
+      })),
+      readiness: readiness.map((r) => ({
+        id: r.id,
+        date: r.date,
+        dateLabel: thaiDate(r.date, false),
+        score: r.score,
+        band: r.band,
+        /** null = ยังไม่มีข้อมูลพอให้คะแนน (ห้ามเดาเป็น "ปกติ") */
+        bandLabel: r.band ? BAND_LABEL_TH[r.band as ReadinessBand] ?? r.band : null,
+      })),
+      programSummary: {
+        count: enrollments.length,
+        latestStatus: latestEnrollment?.status ?? null,
+        latestTrack: latestEnrollment?.track ?? null,
+        latestTrackLabel: latestEnrollment ? trackLabel(latestEnrollment.track) : null,
+        latestEndLabel: latestEnrollment ? thaiDate(latestEnrollment.endDate, false) : null,
+      },
+    };
+
     return NextResponse.json({
       ...member,
       aiUsageStats,
+      appData,
     });
   } catch (error) {
     console.error("Error fetching member:", error);

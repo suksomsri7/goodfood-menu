@@ -37,6 +37,17 @@ export const MIN_TRIMMED_MINUTES = 10;
 
 export type ReadinessBand = "full" | "normal" | "reduced" | "recovery";
 
+/**
+ * ป้ายไทยของ band — ใช้ในหน้าที่โชว์ผลย่อ ๆ (เช่นหลังบ้าน) ที่ไม่มีที่พอสำหรับประโยคเต็มจาก suggestionFor()
+ * 🔴 ต้องสื่อ "ระบบสั่งให้ทำอะไรกับแผนวันนั้น" ไม่ใช่แค่บอกว่าคะแนนสูง/ต่ำ
+ */
+export const BAND_LABEL_TH: Record<ReadinessBand, string> = {
+  full: "พร้อมเต็มที่",
+  normal: "พร้อมปกติ",
+  reduced: "ลดปริมาณ",
+  recovery: "ขอพักฟื้น",
+};
+
 export interface HrvInput {
   /** ค่าเฉลี่ย HRV 7 วันล่าสุด (ms) */
   today7dAvg: number;

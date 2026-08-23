@@ -35,7 +35,7 @@ interface Customer {
       trackLabel: string; startLabel: string; endLabel: string; totalDays: number;
       slots: string[]; price: number; deliveryNote: string | null; address: string | null; enrolledLabel: string;
     } | null;
-    history: { id: string; trackLabel: string; startLabel: string; endLabel: string; totalDays: number; status: string; price: number }[];
+    history: { id: string; trackLabel: string; startLabel: string; endLabel: string; totalDays: number; slots: string[]; status: string; price: number }[];
   };
   addresses: { id: string; text: string | null; isDefault: boolean }[];
   weights: { date: string; weight: number }[];
@@ -45,6 +45,18 @@ interface Customer {
 }
 
 const SWAP_REASON: Record<string, string> = { dislike: "ไม่ชอบ", bored: "เบื่อ", variety: "อยากลองอย่างอื่น" };
+/**
+ * สถานะคอร์ส — "จบคอร์ส" กับ "ยกเลิก" ต้องอ่านออกจากกันได้ทันทีด้วยสี
+ * expired มาจากคอร์สเก่าที่หมดอายุก่อนระบบจะมีตัวปิดอัตโนมัติ — ยังเจอใน DB จริงอยู่
+ */
+const STATUS_TEXT: Record<string, string> = {
+  active: "กำลังใช้งาน",
+  cancelled: "ยกเลิก",
+  completed: "จบคอร์ส",
+  expired: "จบคอร์ส",
+};
+const statusTone = (s: string): "green" | "red" | "gray" =>
+  s === "active" ? "green" : s === "cancelled" ? "red" : "gray";
 const ACTIVITY: Record<string, string> = {
   sedentary: "นั่งทำงานเป็นหลัก", light: "ขยับเบา ๆ", moderate: "ออกกำลังกายปานกลาง",
   active: "ออกกำลังกายหนัก", very_active: "ออกกำลังกายหนักมาก",
@@ -271,21 +283,38 @@ export function CustomerSheet({ memberId, name, onClose }: { memberId: string; n
                 ) : (
                   <p className="text-sm text-gray-500">ตอนนี้ไม่มีคอร์สที่กำลังใช้งาน</p>
                 )}
+              </Card>
 
-                {data.program.history.length > 1 && (
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    <p className="text-xs text-gray-500 mb-1.5">คอร์สที่ผ่านมา</p>
-                    {data.program.history.map((h) => (
-                      <div key={h.id} className="flex items-center gap-2 text-xs text-gray-600 py-0.5">
-                        <span>{h.startLabel}–{h.endLabel}</span>
-                        <span className="text-gray-400">{h.trackLabel}</span>
-                        <Chip
-                          text={h.status === "active" ? "กำลังใช้งาน" : h.status === "completed" ? "จบแล้ว" : "ยกเลิก"}
-                          tone={h.status === "active" ? "green" : "gray"}
-                        />
-                      </div>
-                    ))}
-                  </div>
+              {/* ── ประวัติการเข้าโปรแกรม ──
+                  ทุกใบสมัคร ไม่ยุบ ไม่กรองที่ยกเลิกออก — เป็นของที่เอาไว้อ่านเพื่อปรับบริการ
+                  ("อยู่กับเรากี่รอบ · เว้นช่วงนานไหม · เคยยกเลิกกลางคันตอนไหน")
+                  ใหม่สุดอยู่บน เพราะคำถามแรกของคนอ่านคือ "ล่าสุดเป็นยังไง" */}
+              <Card title="ประวัติการเข้าโปรแกรม">
+                {data.program.history.length === 0 ? (
+                  <p className="text-sm text-gray-500">ยังไม่เคยสมัครโปรแกรม</p>
+                ) : (
+                  <>
+                    <p className="text-xs text-gray-500 mb-2">
+                      สมัครมาแล้ว {data.program.history.length} คอร์ส (นับรวมคอร์สที่ยกเลิกกลางคัน)
+                    </p>
+                    <div className="space-y-2">
+                      {data.program.history.map((h) => (
+                        <div key={h.id} className="border-b border-gray-50 pb-2 last:border-0 last:pb-0">
+                          <div className="flex items-baseline gap-2 flex-wrap text-sm">
+                            <span className="text-gray-900">{h.trackLabel}</span>
+                            <span className="text-gray-600">
+                              {h.startLabel}–{h.endLabel}
+                            </span>
+                            <Chip text={STATUS_TEXT[h.status] ?? h.status} tone={statusTone(h.status)} />
+                          </div>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {h.totalDays} วัน · {h.slots.length ? h.slots.join("/") : "—"} ·{" "}
+                            {h.price.toLocaleString("th-TH")} บาท
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </>
                 )}
               </Card>
 

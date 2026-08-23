@@ -80,6 +80,12 @@ export function trackConflicts(track: string, food: { name: string; ingredients?
   return def.forbid.filter((kw) => blob.includes(kw));
 }
 
+/**
+ * ป้ายระดับความเผ็ดตาม FoodProfile.spiceLevel (0-3)
+ * อยู่ตรงนี้เพราะมีหลายหน้าที่ต้องโชว์ค่าเดียวกัน — ก๊อปคำไปวางแยกเมื่อไร ป้ายจะเพี้ยนกันเอง
+ */
+export const SPICE_LABELS = ["ไม่กินเผ็ด", "เผ็ดน้อย", "เผ็ดกลาง", "เผ็ดมาก"];
+
 // ─────────────────────────── มื้ออาหาร ───────────────────────────
 
 /**

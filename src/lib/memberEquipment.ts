@@ -23,6 +23,23 @@ export const EQUIPMENT_TYPES = [
 
 export type EquipmentType = (typeof EQUIPMENT_TYPES)[number];
 
+/**
+ * ชื่อไทยของอุปกรณ์ — ใช้คำชุดเดียวกับหน้า "ท่าออกกำลังกาย" ในหลังบ้าน
+ * (คีย์ยังเป็นอังกฤษใน DB เหมือนเดิม เปลี่ยนแค่สิ่งที่คนอ่านเห็น)
+ */
+export const EQUIPMENT_LABEL_TH: Record<string, string> = {
+  dumbbell: "ดัมเบล",
+  barbell: "บาร์เบล",
+  kettlebell: "เคตเทิลเบล",
+  band: "ยางยืด",
+  bench: "ม้านั่ง",
+  pullup_bar: "บาร์โหน",
+  machine: "เครื่องฟิตเนส",
+  treadmill: "ลู่วิ่ง",
+  bike: "จักรยาน",
+  full_gym: "ฟิตเนสครบ",
+};
+
 /** ของที่นับเป็น "ฟิตเนสครบ" — เข้าถึงเครื่องได้ = ทำท่า tier gym ได้ทั้งหมด */
 const GYM_TYPES = ["full_gym", "machine"];
 

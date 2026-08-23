@@ -4,7 +4,7 @@
  * คนในโปรแกรม — ข้อมูลชุดเดียว 3 มุมมอง
  *   ครัว   : มื้อ → จาน → ตักยังไง กี่กล่อง   (คนแพ็คตักทีละหม้อ ไม่ได้ไล่อ่านทีละคน)
  *   รายคน  : ใครต้องการสารอาหารเท่าไรในแต่ละมื้อ (มุมนักโภชนาการ)
- *   คอร์ส  : ใครสมัครถึงวันไหน เหลือกี่วัน
+ *   คอร์ส  : รายชื่อคน (หนึ่งคนหนึ่งแถว) ตอนนี้อยู่คอร์สไหน เหลือกี่วัน เคยเข้ามาแล้วกี่รอบ
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -81,17 +81,19 @@ interface ServedMember {
   profile: { allergies: string[]; healthConditions: string[]; avoidMeats: string[]; dislikedVeggies: string[] } | null;
 }
 
-interface Course {
-  id: string;
-  member: { name: string; phone: string | null };
-  trackLabel: string;
-  startLabel: string;
-  endLabel: string;
-  totalDays: number;
-  remaining: number;
-  slots: string[];
-  price: number;
-  status: string;
+/**
+ * หนึ่งแถว = หนึ่งคน (ไม่ใช่หนึ่งใบสมัคร)
+ * 🔴 ยกเลิกแล้วสมัครใหม่ = ใบใหม่ในฐานข้อมูล (ถูกต้อง ประวัติต้องอยู่ครบ)
+ *    แต่ในรายชื่อต้องเห็นเป็นคนเดียว ไม่งั้นแอดมินอ่านแล้วนึกว่าลูกค้าเพิ่มขึ้น
+ *    ใบทั้งหมดของเขาดูได้ในโปรไฟล์ (กดที่ชื่อ → "ประวัติการเข้าโปรแกรม")
+ */
+interface ProgramMember {
+  memberId: string;
+  name: string;
+  phone: string | null;
+  courseCount: number;
+  active: { id: string; trackLabel: string; remaining: number; endLabel: string } | null;
+  latest: { trackLabel: string; endLabel: string; status: string };
 }
 
 const todayKey = () => new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
@@ -121,7 +123,7 @@ export default function ProgramPage() {
   /** id คอร์สที่กำลังยกเลิกอยู่ — กันกดซ้ำระหว่างรอ server */
   const [busyCourse, setBusyCourse] = useState<string | null>(null);
   const [members, setMembers] = useState<ServedMember[]>([]);
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [programMembers, setProgramMembers] = useState<ProgramMember[]>([]);
   /** คุกกี้พนักงานหมดอายุ (12 ชม.) ขณะที่ localStorage ยังจำ login อยู่ — ต้องบอกให้ชัด ไม่ใช่โชว์หน้าว่าง */
   const [authErr, setAuthErr] = useState(false);
 
@@ -131,7 +133,7 @@ export default function ProgramPage() {
       if (view === "courses") {
         const res = await fetch("/api/program/enrollments", { credentials: "include" });
         setAuthErr(res.status === 401);
-        if (res.ok) setCourses((await res.json()).enrollments);
+        if (res.ok) setProgramMembers((await res.json()).members);
         return;
       }
       const res = await fetch(`/api/program/members?date=${date}&view=${view}`, { credentials: "include" });
@@ -147,16 +149,17 @@ export default function ProgramPage() {
     }
   }, [view, date]);
 
-  /** ยกเลิกคอร์ส (PATCH ที่มีอยู่แล้ว) — ต้องถามก่อนเพราะกดพลาดแล้วลูกค้าหลุดจากรายการตักทันที */
-  async function cancelCourse(c: Course) {
-    if (!confirm(`ยกเลิกคอร์สของ ${c.member.name}?\nลูกค้าจะหลุดจากรายการอาหารตั้งแต่มื้อถัดไป`)) return;
-    setBusyCourse(c.id);
+  /** ยกเลิกคอร์สที่กำลังใช้งานของคนนี้ (PATCH ที่มีอยู่แล้ว) — ต้องถามก่อนเพราะกดพลาดแล้วลูกค้าหลุดจากรายการตักทันที */
+  async function cancelCourse(m: ProgramMember) {
+    if (!m.active) return;
+    if (!confirm(`ยกเลิกคอร์สของ ${m.name}?\nลูกค้าจะหลุดจากรายการอาหารตั้งแต่มื้อถัดไป`)) return;
+    setBusyCourse(m.active.id);
     try {
       const res = await fetch("/api/program/members", {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enrollmentId: c.id, status: "cancelled" }),
+        body: JSON.stringify({ enrollmentId: m.active.id, status: "cancelled" }),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => null);
@@ -184,7 +187,8 @@ export default function ProgramPage() {
               { key: "kitchen", label: "เมนูครัว", icon: <ChefHat className="w-4 h-4" /> },
               { key: "packing", label: "ใบแพ็ค (ย่อ)", icon: <Package className="w-4 h-4" /> },
               { key: "roster", label: "รายคน (โภชนาการ)", icon: <Users className="w-4 h-4" /> },
-              { key: "courses", label: "คอร์สทั้งหมด", icon: <Utensils className="w-4 h-4" /> },
+              // เปลี่ยนชื่อจาก "คอร์สทั้งหมด" เพราะตอนนี้แถวหนึ่ง = คนหนึ่ง ไม่ใช่ใบสมัครหนึ่งใบ
+              { key: "courses", label: "รายชื่อลูกค้า", icon: <Utensils className="w-4 h-4" /> },
             ] as const
           ).map((t) => (
             <button
@@ -443,7 +447,7 @@ export default function ProgramPage() {
         )}
         {!loading &&
           view === "courses" &&
-          (courses.length === 0 ? (
+          (programMembers.length === 0 ? (
             <Empty text="ยังไม่มีใครสมัครโปรแกรม — กด “เพิ่มลูกค้าเข้าโปรแกรม” ด้านบน" />
           ) : (
             <div className="bg-white rounded-xl border border-gray-100 overflow-x-auto">
@@ -451,49 +455,63 @@ export default function ProgramPage() {
                 <thead>
                   <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
                     <th className="px-4 py-3">ลูกค้า</th>
-                    <th className="px-4 py-3">สาย</th>
-                    <th className="px-4 py-3">ช่วงคอร์ส</th>
-                    <th className="px-4 py-3">เหลือ</th>
-                    <th className="px-4 py-3">สถานะ</th>
+                    <th className="px-4 py-3">ตอนนี้</th>
+                    <th className="px-4 py-3">รวมทั้งหมด</th>
                     <th className="px-4 py-3"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {courses.map((c) => (
-                    <tr key={c.id} className="border-b border-gray-50 last:border-0">
+                  {programMembers.map((m) => (
+                    <tr key={m.memberId} className="border-b border-gray-50 last:border-0">
                       <td className="px-4 py-3">
-                        <span className="font-medium text-gray-900">{c.member.name}</span>
-                        {c.member.phone && <span className="block text-xs text-gray-400">{c.member.phone}</span>}
-                      </td>
-                      <td className="px-4 py-3 text-gray-600">{c.trackLabel}</td>
-                      <td className="px-4 py-3 text-gray-600 text-xs">
-                        {c.startLabel} → {c.endLabel}
-                        <span className="block text-gray-400">
-                          {c.totalDays} วัน · {c.slots.join("/")}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={c.remaining <= 2 ? "text-amber-600 font-semibold" : "text-gray-600"}>
-                          {c.remaining} วัน
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`px-2 py-0.5 rounded text-xs ${
-                            c.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
-                          }`}
+                        <button
+                          onClick={() => setOpenCustomer({ id: m.memberId, name: m.name })}
+                          className="font-medium text-gray-900 hover:text-[#4CAF50] underline decoration-dotted underline-offset-4 text-left"
                         >
-                          {c.status === "active" ? "กำลังใช้งาน" : c.status === "completed" ? "จบแล้ว" : "ยกเลิก"}
-                        </span>
+                          {m.name}
+                        </button>
+                        {m.phone && <span className="block text-xs text-gray-400">{m.phone}</span>}
                       </td>
+                      <td className="px-4 py-3">
+                        {m.active ? (
+                          <>
+                            <span className="px-2 py-0.5 rounded text-xs bg-green-100 text-green-700">
+                              กำลังใช้งาน
+                            </span>
+                            <span className="block text-xs text-gray-600 mt-1">
+                              {m.active.trackLabel} ·{" "}
+                              <span className={m.active.remaining <= 2 ? "text-amber-600 font-semibold" : ""}>
+                                เหลือ {m.active.remaining} วัน
+                              </span>
+                            </span>
+                            <span className="block text-xs text-gray-400">ถึง {m.active.endLabel}</span>
+                          </>
+                        ) : (
+                          <>
+                            <span
+                              className={`px-2 py-0.5 rounded text-xs ${
+                                m.latest.status === "cancelled"
+                                  ? "bg-red-50 text-red-600"
+                                  : "bg-gray-100 text-gray-500"
+                              }`}
+                            >
+                              {m.latest.status === "cancelled" ? "ยกเลิก" : "จบคอร์สแล้ว"}
+                            </span>
+                            <span className="block text-xs text-gray-400 mt-1">
+                              {m.latest.trackLabel} · คอร์สล่าสุดถึง {m.latest.endLabel}
+                            </span>
+                          </>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 text-xs">เคยเข้า {m.courseCount} คอร์ส</td>
                       <td className="px-4 py-3 text-right">
-                        {c.status === "active" && (
+                        {m.active && (
                           <button
-                            onClick={() => void cancelCourse(c)}
-                            disabled={busyCourse === c.id}
+                            onClick={() => void cancelCourse(m)}
+                            disabled={busyCourse === m.active.id}
                             className="text-xs text-gray-400 hover:text-red-600 disabled:opacity-40"
                           >
-                            {busyCourse === c.id ? "กำลังยกเลิก..." : "ยกเลิกคอร์ส"}
+                            {busyCourse === m.active.id ? "กำลังยกเลิก..." : "ยกเลิกคอร์ส"}
                           </button>
                         )}
                       </td>

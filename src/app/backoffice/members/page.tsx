@@ -30,6 +30,9 @@ import {
   MessageCircle,
   Dumbbell,
   ChefHat,
+  Smartphone,
+  HeartPulse,
+  Activity,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { formatDistanceToNow, format } from "date-fns";
@@ -90,6 +93,51 @@ interface AiUsageStats {
   recentLogs: { id: string; usageType: string; createdAt: string }[];
 }
 
+/**
+ * ข้อมูลที่ลูกค้ากรอกไว้ในแอป — แอดมินเคยเห็นแค่โปรไฟล์พื้นฐาน เลยตอบลูกค้าไม่ตรงเรื่อง
+ * 🔴 ตัวเลขล้วน ไม่มีรูปวัดสัดส่วน — ลูกค้าให้รูปไว้ให้ระบบวัด ไม่ได้ให้คนเปิดดู
+ */
+interface AppData {
+  foodProfile: {
+    allergies: string[];
+    avoidMeats: string[];
+    dislikedVeggies: string[];
+    tastePref: string | null;
+    spiceLevel: number;
+    spiceLabel: string | null;
+    cuisines: string[];
+    budgetPerDay: number | null;
+    healthConditions: string[];
+    mealSlots: string[];
+  } | null;
+  trainingProfile: {
+    primaryGoal: string;
+    primaryGoalLabel: string;
+    daysPerWeek: number;
+    sessionMin: number;
+    trainDays: string[];
+    trainDaysLabel: string[];
+    likes: string[];
+    likesLabel: string[];
+    dislikes: string[];
+    dislikesLabel: string[];
+    experienceMonths: number | null;
+    parqFlag: boolean;
+    calibration: boolean;
+  } | null;
+  equipment: { id: string; type: string; typeLabel: string; minKg: number | null; maxKg: number | null; incrementKg: number | null }[];
+  injuries: { id: string; area: string; areaLabel: string; severity: string; severityLabel: string; note: string | null }[];
+  mealFeedbacks: { id: string; foodName: string; slot: string | null; taste: number | null; portion: number | null; note: string | null; createdAt: string }[];
+  readiness: { id: string; date: string; dateLabel: string; score: number | null; band: string | null; bandLabel: string | null }[];
+  programSummary: {
+    count: number;
+    latestStatus: string | null;
+    latestTrack: string | null;
+    latestTrackLabel: string | null;
+    latestEndLabel: string | null;
+  };
+}
+
 interface MemberDetail {
   id: string;
   lineUserId: string;
@@ -120,6 +168,7 @@ interface MemberDetail {
   addresses: Address[];
   weightLogs: { id: string; weight: number; date: string }[];
   aiUsageStats?: AiUsageStats;
+  appData?: AppData;
   createdAt: string;
   updatedAt: string;
 }
@@ -206,6 +255,83 @@ function formatTimeAgo(date: string): string {
   }
 }
 
+/** ป้ายรสชาติ/ปริมาณจาก MealFeedback — 🔴 "ไม่พอ" กับ "เยอะไป" ต้องอ่านออกจากกันได้ในแวบเดียว */
+const TASTE_TAG: Record<number, { text: string; tone: TagTone }> = {
+  1: { text: "ไม่อร่อย", tone: "red" },
+  2: { text: "เฉย ๆ", tone: "gray" },
+  3: { text: "อร่อย", tone: "green" },
+};
+const PORTION_TAG: Record<number, { text: string; tone: TagTone }> = {
+  1: { text: "ไม่พอ", tone: "amber" },
+  2: { text: "พอดี", tone: "gray" },
+  3: { text: "เยอะไป", tone: "amber" },
+};
+
+type TagTone = "gray" | "red" | "amber" | "green" | "blue";
+
+function Tag({ text, tone = "gray" }: { text: string; tone?: TagTone }) {
+  const cls = {
+    gray: "bg-gray-100 text-gray-600",
+    red: "bg-red-50 text-red-700",
+    amber: "bg-amber-50 text-amber-700",
+    green: "bg-green-50 text-green-700",
+    blue: "bg-blue-50 text-blue-700",
+  }[tone];
+  return <span className={`px-2 py-0.5 rounded text-xs ${cls}`}>{text}</span>;
+}
+
+/**
+ * การ์ดหนึ่งหัวข้อในแท็บ "ข้อมูลจากแอป"
+ * 🔴 ไม่มีข้อมูล ต้องเขียนว่า "ยังไม่มีข้อมูล" — ช่องโล่ง ๆ ทำให้คนอ่านสรุปเองว่า "ไม่มีอะไรต้องระวัง"
+ */
+function AppSection({
+  title,
+  icon: Icon,
+  empty,
+  children,
+}: {
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  empty?: boolean;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="bg-gray-50 rounded-xl p-6">
+      <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+        <Icon className="w-5 h-5" />
+        {title}
+      </h3>
+      {empty ? <p className="text-sm text-gray-400">ยังไม่มีข้อมูล</p> : children}
+    </div>
+  );
+}
+
+/** บรรทัด "ป้าย: ค่า" — ตอบว่าง = "—" (ถามแล้วแต่เขาไม่ได้ตอบ ต่างจากยังไม่ได้ถาม) */
+function AppRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline gap-3">
+      <span className="text-sm text-gray-500 w-32 shrink-0">{label}</span>
+      <span className="text-sm text-gray-900 flex-1">{value || "—"}</span>
+    </div>
+  );
+}
+
+/** แถวป้ายหลายอัน — ว่างแล้วขึ้น "—" แทนแถวหาย เพื่อให้เห็นว่าหัวข้อนี้มีอยู่แต่ยังไม่มีคำตอบ */
+function AppTags({ label, items, tone }: { label: string; items: string[]; tone?: TagTone }) {
+  return (
+    <div className="flex items-baseline gap-3">
+      <span className="text-sm text-gray-500 w-32 shrink-0">{label}</span>
+      <span className="flex-1 flex flex-wrap gap-1.5">
+        {items.length === 0 ? (
+          <span className="text-sm text-gray-900">—</span>
+        ) : (
+          items.map((t) => <Tag key={t} text={t} tone={tone} />)
+        )}
+      </span>
+    </div>
+  );
+}
+
 export default function MembersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [members, setMembers] = useState<Member[]>([]);
@@ -223,7 +349,7 @@ export default function MembersPage() {
   const [memberTypes, setMemberTypes] = useState<MemberType[]>([]);
 
   // Detail modal state
-  const [activeTab, setActiveTab] = useState<"profile" | "meals" | "orders" | "ai">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "app" | "meals" | "orders" | "ai">("profile");
   const [memberDetail, setMemberDetail] = useState<MemberDetail | null>(null);
   const [meals, setMeals] = useState<MealLog[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -770,6 +896,7 @@ export default function MembersPage() {
                 <div className="flex gap-1 px-6">
                   {[
                     { id: "profile", label: "ข้อมูลทั่วไป", icon: User },
+                    { id: "app", label: "ข้อมูลจากแอป", icon: Smartphone },
                     { id: "ai", label: "AI Usage", icon: Brain },
                     { id: "meals", label: "Stock อาหาร", icon: Utensils },
                     { id: "orders", label: "ประวัติออเดอร์", icon: ShoppingBag },
@@ -1145,6 +1272,262 @@ export default function MembersPage() {
                               })}
                             </div>
                           </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ── ข้อมูลจากแอป ──
+                        ทุกอย่างที่ลูกค้ากรอกไว้ในแอปเอง แอดมินเคยไม่เห็นเลย เลยตอบลูกค้าไม่ตรงเรื่อง
+                        🔴 เรียงตาม "ความเสียหายถ้าพลาด": แพ้อาหาร/โรค → บาดเจ็บ → รสนิยม → เทรน → เสียงหลังทาน
+                        🔴 ตัวเลขล้วน ไม่มีรูปวัดสัดส่วน (ลูกค้าให้รูปไว้ให้ระบบวัด ไม่ได้ให้คนเปิดดู) */}
+                    {activeTab === "app" && memberDetail && (
+                      <div className="space-y-6">
+                        {!memberDetail.appData ? (
+                          <div className="text-center py-12 text-gray-500">
+                            <Smartphone className="w-12 h-12 mx-auto text-gray-300 mb-4" />
+                            <p>ยังไม่มีข้อมูล</p>
+                          </div>
+                        ) : (
+                          <>
+                            {/* แบบสำรวจอาหาร */}
+                            <AppSection
+                              title="แบบสำรวจอาหาร"
+                              icon={Utensils}
+                              empty={!memberDetail.appData.foodProfile}
+                            >
+                              {memberDetail.appData.foodProfile && (
+                                <div className="space-y-2.5">
+                                  <AppTags
+                                    label="แพ้อาหาร"
+                                    items={memberDetail.appData.foodProfile.allergies}
+                                    tone="red"
+                                  />
+                                  <AppTags
+                                    label="โรคประจำตัว"
+                                    items={memberDetail.appData.foodProfile.healthConditions}
+                                    tone="amber"
+                                  />
+                                  <AppTags
+                                    label="ไม่กินเนื้อ"
+                                    items={memberDetail.appData.foodProfile.avoidMeats}
+                                  />
+                                  <AppTags
+                                    label="ผักที่ไม่ชอบ"
+                                    items={memberDetail.appData.foodProfile.dislikedVeggies}
+                                  />
+                                  <AppRow
+                                    label="แนวรสชาติ"
+                                    value={memberDetail.appData.foodProfile.tastePref || ""}
+                                  />
+                                  <AppRow
+                                    label="ความเผ็ด"
+                                    value={memberDetail.appData.foodProfile.spiceLabel || ""}
+                                  />
+                                  <AppTags label="แนวอาหารที่ชอบ" items={memberDetail.appData.foodProfile.cuisines} />
+                                  <AppTags label="มื้อที่รับ" items={memberDetail.appData.foodProfile.mealSlots} />
+                                  <AppRow
+                                    label="งบต่อวัน"
+                                    value={
+                                      memberDetail.appData.foodProfile.budgetPerDay
+                                        ? `${memberDetail.appData.foodProfile.budgetPerDay.toLocaleString("th-TH")} บาท`
+                                        : ""
+                                    }
+                                  />
+                                </div>
+                              )}
+                            </AppSection>
+
+                            {/* จุดที่บาดเจ็บ */}
+                            <AppSection
+                              title="จุดที่บาดเจ็บ / ต้องเลี่ยง"
+                              icon={AlertTriangle}
+                              empty={memberDetail.appData.injuries.length === 0}
+                            >
+                              <div className="space-y-2">
+                                {memberDetail.appData.injuries.map((inj) => (
+                                  <div key={inj.id} className="flex items-baseline gap-2 flex-wrap">
+                                    <span className="text-sm font-medium text-gray-900">{inj.areaLabel}</span>
+                                    <Tag
+                                      text={inj.severityLabel}
+                                      tone={inj.severity === "avoid" ? "red" : "amber"}
+                                    />
+                                    {inj.note && <span className="text-sm text-gray-600">{inj.note}</span>}
+                                  </div>
+                                ))}
+                              </div>
+                            </AppSection>
+
+                            {/* โปรไฟล์การเทรน */}
+                            <AppSection
+                              title="โปรไฟล์การเทรน"
+                              icon={Dumbbell}
+                              empty={!memberDetail.appData.trainingProfile}
+                            >
+                              {memberDetail.appData.trainingProfile && (
+                                <div className="space-y-2.5">
+                                  <AppRow
+                                    label="เป้าหมาย"
+                                    value={memberDetail.appData.trainingProfile.primaryGoalLabel}
+                                  />
+                                  <AppRow
+                                    label="ความถี่"
+                                    value={`${memberDetail.appData.trainingProfile.daysPerWeek} วัน/สัปดาห์ · ครั้งละ ${memberDetail.appData.trainingProfile.sessionMin} นาที`}
+                                  />
+                                  <AppTags
+                                    label="วันที่เทรน"
+                                    items={memberDetail.appData.trainingProfile.trainDaysLabel}
+                                  />
+                                  <AppTags
+                                    label="ชอบ"
+                                    items={memberDetail.appData.trainingProfile.likesLabel}
+                                    tone="green"
+                                  />
+                                  <AppTags
+                                    label="ไม่ชอบ"
+                                    items={memberDetail.appData.trainingProfile.dislikesLabel}
+                                  />
+                                  <AppRow
+                                    label="ประสบการณ์"
+                                    value={
+                                      memberDetail.appData.trainingProfile.experienceMonths != null
+                                        ? `${memberDetail.appData.trainingProfile.experienceMonths} เดือน`
+                                        : ""
+                                    }
+                                  />
+                                  <div className="flex items-baseline gap-3">
+                                    <span className="text-sm text-gray-500 w-32 shrink-0">สถานะระบบ</span>
+                                    <span className="flex-1 flex flex-wrap gap-1.5">
+                                      {memberDetail.appData.trainingProfile.parqFlag && (
+                                        <Tag text="PAR-Q ติดธง — ระบบคุมความหนักไว้ระดับเบา" tone="amber" />
+                                      )}
+                                      {memberDetail.appData.trainingProfile.calibration && (
+                                        <Tag text="อยู่ในสัปดาห์สอบเทียบ" tone="blue" />
+                                      )}
+                                      {!memberDetail.appData.trainingProfile.parqFlag &&
+                                        !memberDetail.appData.trainingProfile.calibration && (
+                                          <span className="text-sm text-gray-900">ปกติ</span>
+                                        )}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                            </AppSection>
+
+                            {/* อุปกรณ์ */}
+                            <AppSection
+                              title="อุปกรณ์ที่มี"
+                              icon={Dumbbell}
+                              empty={memberDetail.appData.equipment.length === 0}
+                            >
+                              <div className="space-y-2">
+                                {memberDetail.appData.equipment.map((eq) => (
+                                  <div key={eq.id} className="flex items-baseline gap-3">
+                                    <span className="text-sm text-gray-900 w-32 shrink-0">{eq.typeLabel}</span>
+                                    <span className="text-sm text-gray-500 flex-1">
+                                      {eq.minKg != null || eq.maxKg != null
+                                        ? `${eq.minKg ?? "?"}–${eq.maxKg ?? "?"} กก.`
+                                        : "ไม่ได้ระบุน้ำหนัก"}
+                                      {eq.incrementKg != null && ` · ก้าวละ ${eq.incrementKg} กก.`}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </AppSection>
+
+                            {/* ความพร้อมรายวัน */}
+                            <AppSection
+                              title="ความพร้อม 7 วันล่าสุด"
+                              icon={HeartPulse}
+                              empty={memberDetail.appData.readiness.length === 0}
+                            >
+                              <div className="space-y-1.5">
+                                {memberDetail.appData.readiness.map((r) => (
+                                  <div key={r.id} className="flex items-center gap-3 text-sm">
+                                    <span className="text-gray-500 w-32 shrink-0">{r.dateLabel}</span>
+                                    {/* score = null คือ "ข้อมูลไม่พอให้คะแนน" ไม่ใช่ 0 คะแนน */}
+                                    <span className="font-medium text-gray-900 w-16">
+                                      {r.score != null ? `${r.score}/100` : "—"}
+                                    </span>
+                                    {r.bandLabel && <Tag text={r.bandLabel} tone={r.band === "recovery" || r.band === "reduced" ? "amber" : "green"} />}
+                                  </div>
+                                ))}
+                              </div>
+                            </AppSection>
+
+                            {/* เสียงหลังทาน */}
+                            <AppSection
+                              title="เสียงหลังทาน 10 มื้อล่าสุด"
+                              icon={MessageSquare}
+                              empty={memberDetail.appData.mealFeedbacks.length === 0}
+                            >
+                              <div className="space-y-2.5">
+                                {memberDetail.appData.mealFeedbacks.map((f) => (
+                                  <div key={f.id} className="border-b border-gray-100 pb-2.5 last:border-0 last:pb-0">
+                                    <div className="flex items-baseline gap-2 flex-wrap">
+                                      <span className="text-sm text-gray-900">{f.foodName}</span>
+                                      {f.slot && <span className="text-xs text-gray-400">({f.slot})</span>}
+                                      {f.taste != null && TASTE_TAG[f.taste] && (
+                                        <Tag text={TASTE_TAG[f.taste].text} tone={TASTE_TAG[f.taste].tone} />
+                                      )}
+                                      {f.portion != null && PORTION_TAG[f.portion] && (
+                                        <Tag text={PORTION_TAG[f.portion].text} tone={PORTION_TAG[f.portion].tone} />
+                                      )}
+                                      <span className="ml-auto text-xs text-gray-400">
+                                        {format(new Date(f.createdAt), "d MMM", { locale: th })}
+                                      </span>
+                                    </div>
+                                    {f.note && <p className="text-xs text-gray-600 mt-0.5">“{f.note}”</p>}
+                                  </div>
+                                ))}
+                              </div>
+                            </AppSection>
+
+                            {/* โปรแกรมปิ่นโต */}
+                            <AppSection
+                              title="โปรแกรมปิ่นโต"
+                              icon={Activity}
+                              empty={memberDetail.appData.programSummary.count === 0}
+                            >
+                              <div className="space-y-2.5">
+                                <AppRow
+                                  label="เคยเข้า"
+                                  value={`${memberDetail.appData.programSummary.count} คอร์ส`}
+                                />
+                                <AppRow
+                                  label="คอร์สล่าสุด"
+                                  value={[
+                                    memberDetail.appData.programSummary.latestTrackLabel,
+                                    memberDetail.appData.programSummary.latestEndLabel
+                                      ? `ถึง ${memberDetail.appData.programSummary.latestEndLabel}`
+                                      : null,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" · ")}
+                                />
+                                <div className="flex items-baseline gap-3">
+                                  <span className="text-sm text-gray-500 w-32 shrink-0">สถานะ</span>
+                                  <span className="flex-1">
+                                    <Tag
+                                      text={
+                                        memberDetail.appData.programSummary.latestStatus === "active"
+                                          ? "กำลังใช้งาน"
+                                          : memberDetail.appData.programSummary.latestStatus === "cancelled"
+                                            ? "ยกเลิก"
+                                            : "จบคอร์ส"
+                                      }
+                                      tone={
+                                        memberDetail.appData.programSummary.latestStatus === "active"
+                                          ? "green"
+                                          : memberDetail.appData.programSummary.latestStatus === "cancelled"
+                                            ? "red"
+                                            : "gray"
+                                      }
+                                    />
+                                  </span>
+                                </div>
+                              </div>
+                            </AppSection>
+                          </>
                         )}
                       </div>
                     )}
