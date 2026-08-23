@@ -40,6 +40,7 @@ interface Customer {
   addresses: { id: string; text: string | null; isDefault: boolean }[];
   weights: { date: string; weight: number }[];
   swaps: { createdAt: string; reason: string; from: string | null; to: string | null }[];
+  feedbacks?: { at: string; foodName: string; slot: string | null; taste: number | null; portion: number | null; note: string | null }[];
   orders: { id: string; orderNumber: string; totalPrice: number; status: string; createdAt: string }[];
 }
 
@@ -154,6 +155,29 @@ export function CustomerSheet({ memberId, name, onClose }: { memberId: string; n
                   <p className="text-sm text-gray-500">ยังไม่เคยทำแบบสำรวจ</p>
                 )}
               </Card>
+
+              {/* ── เสียงหลังทานรายมื้อ (จากชีตถามในแอป) — ของจริงที่ครัวใช้ปรับรส/ปริมาณ ── */}
+              {(data.feedbacks?.length ?? 0) > 0 && (
+                <Card title="เสียงจากลูกค้าหลังทาน">
+                  <div className="space-y-2 text-sm">
+                    {data.feedbacks!.map((f, i) => (
+                      <div key={i} className="border-b border-gray-50 pb-2 last:border-0 last:pb-0">
+                        <div className="flex items-baseline gap-2 flex-wrap">
+                          <span className="text-gray-900">{f.foodName}</span>
+                          {f.slot && <span className="text-xs text-gray-400">({f.slot})</span>}
+                          {f.taste != null && (
+                            <Chip text={["ไม่อร่อย", "เฉย ๆ", "อร่อย"][f.taste - 1]} tone={f.taste === 1 ? "red" : f.taste === 3 ? "green" : "gray"} />
+                          )}
+                          {f.portion != null && (
+                            <Chip text={["ไม่พอ ยังหิว", "ปริมาณพอดี", "เยอะไป เหลือ"][f.portion - 1]} tone={f.portion === 2 ? "gray" : "amber"} />
+                          )}
+                        </div>
+                        {f.note && <p className="text-xs text-gray-600 mt-0.5">“{f.note}”</p>}
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
 
               {/* ── เมนูที่เปลี่ยนออก ── */}
               {data.swaps.length > 0 && (

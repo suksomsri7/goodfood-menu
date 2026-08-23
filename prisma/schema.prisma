@@ -101,6 +101,7 @@ model Member {
   progressionStates  ProgressionState[]
   readinessCheckins  ReadinessCheckin[]
   bodyScans          BodyScan[]
+  mealFeedbacks      MealFeedback[]
   bodyMeasurements   BodyMeasurement[]
   bodyGoals          BodyGoal[]
   bodyReports        BodyReport[]
@@ -1503,6 +1504,27 @@ model ProgramEnrollment {
 
 /// สแกนร่างกาย 1 ครั้ง = 2-3 ภาพ (หน้า/ข้าง/หลัง) ของวันเดียว
 /// สแกนซ้ำวันเดิม = ทับของเดิม (@@unique([memberId, date])) — ไม่งั้นกราฟเทรนด์จะมีหลายจุดในวันเดียว
+/// เสียงจากลูกค้าหลังทานแต่ละมื้อ — วัตถุดิบของครัวในการปรับรส/ปริมาณรายคน (เจ้าของสั่ง 23 ส.ค. 69)
+model MealFeedback {
+  id       String   @id @default(cuid())
+  memberId String
+  foodId   String?
+  foodName String
+  slot     String? // เช้า | กลางวัน | ว่าง | เย็น
+  date     DateTime // วัน BKK (กติกาเดียวกับ DailyPlan.date)
+  /// 1=ไม่อร่อย 2=เฉย ๆ 3=อร่อย
+  taste    Int?
+  /// 1=ไม่พอ(ยังหิว) 2=พอดี 3=เยอะไป(เหลือ)
+  portion  Int?
+  note     String?
+  createdAt DateTime @default(now())
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, date])
+  @@index([foodId])
+  @@map("meal_feedbacks")
+}
+
 model BodyScan {
   id       String   @id @default(cuid())
   memberId String

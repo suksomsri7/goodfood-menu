@@ -49,7 +49,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ memb
   });
   if (!member) return NextResponse.json({ error: "ไม่พบลูกค้ารายนี้" }, { status: 404 });
 
-  const [profile, enrollments, addresses, weights, swaps, orders] = await Promise.all([
+  const [profile, enrollments, addresses, weights, swaps, orders, feedbacks] = await Promise.all([
     prisma.foodProfile.findUnique({ where: { memberId } }),
     prisma.programEnrollment.findMany({
       where: { memberId },
@@ -70,6 +70,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ memb
       orderBy: { createdAt: "desc" },
       take: 5,
       select: { id: true, orderNumber: true, totalPrice: true, status: true, createdAt: true },
+    }),
+    // เสียงหลังทานรายมื้อ — ครัวใช้ปรับรส/ปริมาณรายคน
+    prisma.mealFeedback.findMany({
+      where: { memberId },
+      orderBy: { createdAt: "desc" },
+      take: 12,
+      select: { createdAt: true, foodName: true, slot: true, taste: true, portion: true, note: true },
     }),
   ]);
 
@@ -156,6 +163,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ memb
 
     addresses: addresses.map((a) => ({ id: a.id, text: fmtAddr(a), isDefault: a.isDefault })),
     weights: weights.map((w) => ({ date: w.date, weight: w.weight })),
+    feedbacks: feedbacks.map((f) => ({
+      at: f.createdAt,
+      foodName: f.foodName,
+      slot: f.slot,
+      taste: f.taste,
+      portion: f.portion,
+      note: f.note,
+    })),
     swaps: swaps.map((s) => ({
       createdAt: s.createdAt,
       reason: s.reason,
