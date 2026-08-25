@@ -843,11 +843,37 @@ model Ingredient {
   /// ที่มาของตัวเลข เขียนเป็นข้อความ เช่น "ฉลากข้างถุง" / "คลังอาหาร: อกไก่ย่าง 100 กรัม"
   source      String?
   isActive    Boolean      @default(true)
+
+  // ── ของที่ลูกค้าเห็นตอนจัดชามเองในแอป (จอสั่งอาหาร 6 ขั้น) ────────────────
+  /// ชื่ออังกฤษที่โชว์ใต้ชื่อไทยในแอป
+  nameEn       String?
+  /// ชื่อที่โชว์ในแอป ถ้าต่างจากชื่อในคลัง — ของเดียวกันที่ขายคนละขั้นต้องแยกแถว
+  /// (ข้าวโพดเป็นฐาน 120 ก. กับข้าวโพดเป็นผัก 70 ก. คนละราคา) แต่ลูกค้าควรเห็นแค่ "ข้าวโพด"
+  displayName  String?
+  /// รูปวัตถุดิบ — /uploads/ingredients/xxx.jpg
+  imageUrl     String?
+  /// ขั้นที่ลูกค้าเลือกตัวนี้ได้: base|protein|veggies|toppings|sauce|finish
+  /// null = เป็นวัตถุดิบหลังบ้านอย่างเดียว ไม่โผล่ในจอสั่งอาหาร
+  bowlStep     String?
+  /// ปริมาณต่อ 1 ที่ (portion) หน่วยเดียวกับ unit — ใช้แปลงค่าต่อ 100 ให้เป็นต่อ 1 ที่
+  portionSize  Float?
+  /// ราคาที่บวกเพิ่มต่อ 1 ที่ (บาท) — 0 = รวมอยู่ในราคาฐานของชามแล้ว
+  portionPrice Int          @default(0)
+  /// สารก่อภูมิแพ้ที่ต้องกันคนแพ้ — shrimp|fish|egg|milk|soy|wheat|peanut|treenut|sesame|shellfish
+  allergens    String[]     @default([])
+  /// ลำดับที่โชว์ในขั้นนั้น (น้อยขึ้นก่อน)
+  sortOrder    Int          @default(0)
+  /// ของหมดชั่วคราว — ครัวกดปุ่มเดียวแล้วหายจากแอปทันที (ต่างจาก isActive ที่แปลว่าเลิกขาย)
+  soldOut      Boolean      @default(false)
+  /// เวลาที่กดว่าหมด — ไว้ให้ครัวเห็นว่าค้างมากี่วันแล้ว
+  soldOutAt    DateTime?
+
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   recipeItems RecipeItem[]
 
   @@index([isActive, name])
+  @@index([bowlStep, sortOrder])
   @@map("ingredients")
 }
 
@@ -1248,6 +1274,13 @@ model SystemSetting {
 
   // LINE OA ที่ใช้รับออเดอร์อาหาร (เช่น "@goodfood") — ว่าง = ปุ่มสั่งในแอปยังไม่เปิด
   lineOaId String?
+
+  // ราคาฐานของชามจัดเอง (บาท) — รวม base + ผัก + ซอส + ของโรยหน้าแล้ว
+  // โปรตีน/ท็อปปิ้งบวกเพิ่มรายชิ้นตาม Ingredient.portionPrice
+  bowlBasePrice Int @default(99)
+  // เพดานจำนวน "ที่" ต่อขั้น — { base, protein, veggies, toppings, sauce, finish }
+  // null = ใช้ค่าเริ่มต้นใน src/lib/bowl.ts
+  bowlStepLimits Json?
 
   // ราคาเครดิต AI ต่อ action (โหมด combined) — null = ใช้ค่าเริ่มต้นในโค้ด (src/lib/aiCredits.ts)
   // { chat, photo, plan, barcode, textAnalysis, exerciseAnalysis, recommend, menuSelect }

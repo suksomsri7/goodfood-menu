@@ -20,7 +20,7 @@ interface SecretItem {
   key: string;
   label: string;
   description: string;
-  group: "AI" | "LINE" | "Other";
+  group: "AI" | "LINE" | "Login แอป" | "Other";
   href?: string;
   hasValue: boolean;
   source: "db" | "env" | "none";
@@ -29,10 +29,11 @@ interface SecretItem {
   updatedBy: string | null;
 }
 
-const GROUP_ORDER: SecretItem["group"][] = ["AI", "LINE", "Other"];
+const GROUP_ORDER: SecretItem["group"][] = ["Login แอป", "AI", "LINE", "Other"];
 const GROUP_LABEL: Record<SecretItem["group"], string> = {
   AI: "AI Services",
   LINE: "LINE",
+  "Login แอป": "ทางเข้าแอป (Apple / Google / LINE / Facebook)",
   Other: "อื่นๆ",
 };
 

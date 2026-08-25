@@ -2,7 +2,7 @@ export type SecretKeyMeta = {
   key: string;
   label: string;
   description: string;
-  group: "AI" | "LINE" | "Other";
+  group: "AI" | "LINE" | "Login แอป" | "Other";
   href?: string;
 };
 
@@ -47,6 +47,49 @@ export const SECRET_KEY_REGISTRY: SecretKeyMeta[] = [
     label: "LINE Channel Access Token",
     description: "LINE Messaging API long-lived token (สำหรับ push/reply)",
     group: "LINE",
+  },
+
+  // เข้าสู่ระบบในแอป Coach (social login)
+  {
+    key: "APPLE_CLIENT_ID",
+    label: "Apple Client ID (bundle id)",
+    description: "bundle id ของแอป เช่น th.in.coach.app — ใส่หลายค่าคั่นด้วยจุลภาคได้",
+    group: "Login แอป",
+  },
+  {
+    key: "GOOGLE_CLIENT_ID",
+    label: "Google Client ID",
+    description: "OAuth client id ที่ใช้ตรวจ id_token (ใส่ทั้ง iOS/Android/Web คั่นด้วยจุลภาค)",
+    href: "https://console.cloud.google.com/apis/credentials",
+    group: "Login แอป",
+  },
+  {
+    key: "LINE_LOGIN_CHANNEL_ID",
+    label: "LINE Login Channel ID",
+    description: "🔴 คนละตัวกับ Messaging API channel — เอาจาก LINE Login channel",
+    href: "https://developers.line.biz/console/",
+    group: "Login แอป",
+  },
+  {
+    key: "LINE_LOGIN_CHANNEL_SECRET",
+    label: "LINE Login Channel Secret",
+    description: "ใช้แลก code เป็น token ฝั่งเซิร์ฟเวอร์ (ไม่เก็บในแอป)",
+    href: "https://developers.line.biz/console/",
+    group: "Login แอป",
+  },
+  {
+    key: "FACEBOOK_APP_ID",
+    label: "Facebook App ID",
+    description: "แอปที่เปิด product Facebook Login ไว้",
+    href: "https://developers.facebook.com/apps/",
+    group: "Login แอป",
+  },
+  {
+    key: "FACEBOOK_APP_SECRET",
+    label: "Facebook App Secret",
+    description: "ใช้แลก code เป็น token ฝั่งเซิร์ฟเวอร์ (ไม่เก็บในแอป)",
+    href: "https://developers.facebook.com/apps/",
+    group: "Login แอป",
   },
 
   // SHARK Integration (auto-post to FB/IG via SHARK)

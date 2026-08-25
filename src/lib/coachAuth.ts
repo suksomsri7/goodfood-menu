@@ -167,7 +167,14 @@ async function requiredAudiences(secretKey: string): Promise<string[]> {
   return list;
 }
 
-export type VerifiedIdentity = { provider: "apple" | "google"; providerId: string; email?: string; emailVerified: boolean };
+export type VerifiedIdentity = {
+  provider: "apple" | "google" | "line" | "facebook";
+  providerId: string;
+  email?: string;
+  emailVerified: boolean;
+  /// ชื่อที่ provider ส่งมา (LINE/Facebook มีให้ · Apple ให้เฉพาะครั้งแรก)
+  displayName?: string;
+};
 
 export async function verifyAppleToken(identityToken: string): Promise<VerifiedIdentity> {
   const aud = await requiredAudiences("APPLE_CLIENT_ID");

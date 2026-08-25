@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/staffAuth";
-import { IngredientPayload, validateIngredient } from "../route";
+import { IngredientPayload, validateIngredient, resolveIngredientImage, cleanAllergens } from "../route";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +48,22 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       isEstimate: body.isEstimate ?? false,
       source: body.source !== undefined ? body.source?.trim() || null : existing.source,
       isActive: body.isActive ?? existing.isActive,
+      nameEn: body.nameEn !== undefined ? body.nameEn?.trim() || null : existing.nameEn,
+      displayName: body.displayName !== undefined ? body.displayName?.trim() || null : existing.displayName,
+      imageUrl: body.imageUrl !== undefined ? ((await resolveIngredientImage(body.imageUrl)) ?? null) : existing.imageUrl,
+      bowlStep: body.bowlStep !== undefined ? body.bowlStep || null : existing.bowlStep,
+      portionSize: body.portionSize !== undefined ? num(body.portionSize) : existing.portionSize,
+      portionPrice: body.portionPrice !== undefined ? Math.round(num(body.portionPrice) ?? 0) : existing.portionPrice,
+      allergens: cleanAllergens(body.allergens) ?? existing.allergens,
+      sortOrder: body.sortOrder !== undefined ? Math.round(num(body.sortOrder) ?? 0) : existing.sortOrder,
+      soldOut: body.soldOut ?? existing.soldOut,
+      // จดเวลาเฉพาะตอน "เปลี่ยนเป็นหมด" ไม่งั้นกดแก้อย่างอื่นแล้ววันที่เด้งใหม่ทุกครั้ง
+      soldOutAt:
+        body.soldOut === undefined || body.soldOut === existing.soldOut
+          ? existing.soldOutAt
+          : body.soldOut
+            ? new Date()
+            : null,
     },
   });
   return NextResponse.json({ item });

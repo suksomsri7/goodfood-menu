@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/staffAuth";
 import { ROLES } from "@/lib/recipe";
+import { ALLERGEN_OPTIONS, BOWL_STEP_KEYS } from "@/lib/bowl";
+import { isBase64Image, uploadToBunny } from "@/lib/bunny";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +31,17 @@ export interface IngredientPayload {
   isEstimate?: boolean;
   source?: string | null;
   isActive?: boolean;
+  // ── ฝั่งจอสั่งอาหารในแอป ──
+  nameEn?: string | null;
+  displayName?: string | null;
+  /// รับได้ทั้ง URL เดิม และ data:image/... (จะอัปโหลดลงดิสก์ให้เอง)
+  imageUrl?: string | null;
+  bowlStep?: string | null;
+  portionSize?: number | null;
+  portionPrice?: number | null;
+  allergens?: string[];
+  sortOrder?: number | null;
+  soldOut?: boolean;
 }
 
 const UNITS = ["g", "ml", "pc"];
@@ -71,8 +84,37 @@ export function validateIngredient(b: IngredientPayload, { partial = false } = {
     const v = num(b[key]);
     if (v !== null && v > 100) return `${label}ต่อ 100 ก. เกิน 100 ก. ไม่ได้`;
   }
+
+  // ── ฝั่งจอสั่งอาหาร: ถ้าจะให้ลูกค้าเลือกได้ ต้องมีครบทั้งขั้น รูป และปริมาณต่อที่ ──
+  if (b.bowlStep !== undefined && b.bowlStep !== null && b.bowlStep !== "") {
+    if (!(BOWL_STEP_KEYS as readonly string[]).includes(b.bowlStep)) return "ขั้นในจอสั่งอาหารไม่ถูกต้อง";
+    const portion = num(b.portionSize);
+    if (!partial && !portion) return "วัตถุดิบที่ให้ลูกค้าเลือกเองต้องระบุปริมาณต่อ 1 ที่ ไม่งั้นคิดแคลอรี่กับราคาไม่ได้";
+    if (portion !== null && portion <= 0) return "ปริมาณต่อ 1 ที่ ต้องมากกว่า 0";
+  }
+  const portion = num(b.portionSize);
+  if (portion !== null && portion > 1000) return "ปริมาณต่อ 1 ที่ ดูมากผิดปกติ (เกิน 1000) — ตรวจหน่วยอีกที";
+  const price = num(b.portionPrice);
+  if (price !== null && (price < 0 || price > 5000)) return "ราคาต่อ 1 ที่ ต้องอยู่ระหว่าง 0–5000 บาท";
+  if (b.allergens !== undefined && !Array.isArray(b.allergens)) return "สารก่อภูมิแพ้ต้องเป็นรายการ";
   return null;
 }
+
+/** รับได้ทั้ง URL เดิมและ data URL — ถ้าเป็น base64 จะเซฟลงดิสก์แล้วคืน path สาธารณะ */
+export async function resolveIngredientImage(raw: string | null | undefined): Promise<string | null | undefined> {
+  if (raw === undefined) return undefined;
+  if (!raw) return null;
+  if (!isBase64Image(raw)) return raw;
+  return uploadToBunny(raw, "ingredients", "ingredient.jpg");
+}
+
+const cleanAllergens = (list: string[] | undefined): string[] | undefined => {
+  if (!list) return undefined;
+  const valid = new Set(ALLERGEN_OPTIONS.map((a) => a.value));
+  return [...new Set(list.map((a) => String(a).trim()).filter((a) => valid.has(a)))];
+};
+
+export { cleanAllergens };
 
 export async function GET(req: NextRequest) {
   const staff = await requireStaff(req);
@@ -81,14 +123,30 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q")?.trim();
   const all = searchParams.get("all") === "1";
+  const step = searchParams.get("step")?.trim();
+
+  const stepFilter =
+    step === "none"
+      ? { bowlStep: null }
+      : step && (BOWL_STEP_KEYS as readonly string[]).includes(step)
+        ? { bowlStep: step }
+        : {};
 
   const items = await prisma.ingredient.findMany({
     where: {
       ...(all ? {} : { isActive: true }),
-      ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
+      ...stepFilter,
+      ...(q
+        ? {
+            OR: [
+              { name: { contains: q, mode: "insensitive" as const } },
+              { nameEn: { contains: q, mode: "insensitive" as const } },
+            ],
+          }
+        : {}),
     },
-    orderBy: { name: "asc" },
-    take: 300,
+    orderBy: [{ bowlStep: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
+    take: 400,
   });
 
   // เอาไว้เตือนตอนจะลบ — วัตถุดิบที่ถูกใช้ในสูตรอยู่ ลบแล้วสูตรพัง
@@ -128,6 +186,16 @@ export async function POST(req: NextRequest) {
       stepGrams: Math.round(num(body.stepGrams) ?? 10),
       isEstimate: body.isEstimate ?? true,
       source: body.source?.trim() || null,
+      nameEn: body.nameEn?.trim() || null,
+      displayName: body.displayName?.trim() || null,
+      imageUrl: (await resolveIngredientImage(body.imageUrl)) ?? null,
+      bowlStep: body.bowlStep || null,
+      portionSize: num(body.portionSize),
+      portionPrice: Math.round(num(body.portionPrice) ?? 0),
+      allergens: cleanAllergens(body.allergens) ?? [],
+      sortOrder: Math.round(num(body.sortOrder) ?? 0),
+      soldOut: body.soldOut ?? false,
+      soldOutAt: body.soldOut ? new Date() : null,
     },
   });
   return NextResponse.json({ item: created }, { status: 201 });

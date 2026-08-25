@@ -40,6 +40,13 @@ const CASES: Case[] = [
   { path: "/api/promotions", method: "POST", body: {}, expect: "locked", note: "สร้างโปรโมชัน" },
   { path: "/api/staff", method: "POST", body: {}, expect: "locked", note: "สร้างพนักงานใหม่ (ยกระดับสิทธิ์)" },
   { path: "/api/settings/ai-coach", method: "PATCH", body: {}, expect: "locked", note: "แก้ค่าโค้ช AI" },
+  { path: "/api/ingredients?all=1", expect: "locked", note: "คลังวัตถุดิบ (ต้นทุน/สูตรของร้าน)" },
+  { path: "/api/ingredients", method: "POST", body: {}, expect: "locked", note: "เพิ่มวัตถุดิบ" },
+  { path: "/api/bowl/config", expect: "locked", note: "ราคาฐานชามจัดเอง" },
+  { path: "/api/bowl/config", method: "PUT", body: { basePrice: 1 }, expect: "locked", note: "แก้ราคาฐานชาม (ราคาขายจริง)" },
+  { path: "/api/bowl/catalog?lineUserId=Uqctest", expect: "locked", note: "เมนูวัตถุดิบ + ธงแพ้ของคนอื่น" },
+  { path: "/api/bowl/quote", method: "POST", body: { picks: [] }, expect: "locked", note: "คิดราคาชามในนามคนอื่น" },
+  { path: "/api/bowl/order", method: "POST", body: { picks: [] }, expect: "locked", note: "สั่งชามในนามคนอื่น" },
 
   // ── ฝั่ง LIFF: ตัวตนต้องมาจากคุกกี้ที่แลกกับ LINE เท่านั้น (ส่ง ?lineUserId= มาเฉย ๆ ต้องไม่ผ่าน) ──
   { path: "/api/meals?lineUserId=Uqctest&date=2026-08-22", expect: "locked", note: "บันทึกอาหารของคนอื่น" },
@@ -58,9 +65,12 @@ const CASES: Case[] = [
   { path: "/api/meals", method: "POST", body: { lineUserId: "Uqctest", name: "x", calories: 1 }, expect: "locked", note: "ยัดบันทึกอาหารให้คนอื่น" },
   { path: "/api/weight", method: "POST", body: { lineUserId: "Uqctest", weight: 70 }, expect: "locked", note: "ยัดน้ำหนักให้คนอื่น" },
   { path: "/api/auth/liff", method: "POST", body: { idToken: "ไม่ใช่ token จริง" }, expect: "locked", note: "แลก session ด้วย token ปลอม" },
+  { path: "/api/auth/native/line", method: "POST", body: { code: "ไม่ใช่ code จริง" }, expect: "locked", note: "แลก session LINE ด้วย code ปลอม" },
+  { path: "/api/auth/native/facebook", method: "POST", body: { code: "ไม่ใช่ code จริง" }, expect: "locked", note: "แลก session Facebook ด้วย code ปลอม" },
 
   // ── ต้องเปิด (ลูกค้าใช้จริง) ──
   { path: "/api/auth/setup-status", expect: "open", note: "หน้า login ถามว่ามีพนักงานหรือยัง" },
+  { path: "/api/auth/native/providers", expect: "open", note: "จอ login ในแอปถามว่าเข้าได้ทางไหน (ไม่มี secret)" },
   { path: "/api/foods", expect: "open", note: "เมนูอาหารหน้าร้าน" },
   { path: "/api/categories", expect: "open", note: "หมวดอาหารหน้าร้าน" },
   { path: "/api/restaurants?active=true", expect: "open", note: "รายชื่อร้านหน้าเมนู" },
