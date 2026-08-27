@@ -9,6 +9,7 @@ import { sendPush } from "@/lib/push";
 import { isAiCoachActive } from "@/lib/coaching";
 import { bkkTodayKey } from "@/lib/planGenerator";
 import { buildRiskWindow, dayKeyRange } from "@/lib/statCards";
+import { buildTodos } from "@/lib/todos";
 
 const DAILY_CAP = 3; // จำนวน nudge สูงสุด/วัน/คน
 const THRESH = 0.8;
@@ -20,6 +21,9 @@ type Nudge = {
   body: string;
   /** หมวด notification (iOS) — ใส่เฉพาะ nudge ที่มีปุ่มลัดในแจ้งเตือน */
   categoryId?: string;
+  /** งานค้างข้อไหนในหน้าแรก — กดแจ้งเตือนแล้วแอปเปิดข้อนั้นให้เลย */
+  todoKey?: string;
+  todoAction?: string;
 };
 type PrefFlags = {
   notifyWaterReminder: boolean;
@@ -60,9 +64,9 @@ export async function runNudges(now = new Date()) {
     if (nudgesToday >= DAILY_CAP) { details.push({ memberId: m.id, status: "capped" }); continue; }
 
     // รวมข้อมูลวันนี้
-    const [mealAgg, waterAgg, mealCount, sleeps, metrics] = await Promise.all([
+    // น้ำไม่ต้องดึงแล้ว — ย้ายไปเป็นหน้าที่ของ buildTodos ทั้งก้อน
+    const [mealAgg, mealCount, sleeps, metrics] = await Promise.all([
       prisma.mealLog.aggregate({ where: { memberId: m.id, date: { gte: start, lt: end } }, _sum: { calories: true, protein: true, sodium: true, sugar: true } }),
-      prisma.waterLog.aggregate({ where: { memberId: m.id, date: { gte: start, lt: end } }, _sum: { amount: true } }),
       prisma.mealLog.count({ where: { memberId: m.id, date: { gte: start, lt: end } } }),
       prisma.sleepLog.findMany({ where: { memberId: m.id }, orderBy: { date: "desc" }, take: 3 }),
       // วง Stand/Exercise จาก Apple Watch (ถ้าเชื่อมไว้) — ใช้เตือนเรื่องนั่งนาน/ยังไม่ได้ขยับ
@@ -75,11 +79,9 @@ export async function runNudges(now = new Date()) {
     const protein = mealAgg._sum.protein || 0;
     const sodium = mealAgg._sum.sodium || 0;
     const sugar = mealAgg._sum.sugar || 0;
-    const water = waterAgg._sum.amount || 0;
     const tProtein = m.dailyProtein || 100;
     const tSodium = m.dailySodium || 2300;
     const tSugar = m.dailySugar || 50;
-    const tWater = m.dailyWater || 2000;
     // Apple: ยืนครบ 12 ชม. · ออกกำลังกาย 30 นาที · มีค่าเฉพาะคนที่ใส่ Watch
     const standHours = metrics.reduce((s2, x) => Math.max(s2, x.standHours ?? 0), 0);
     const exerciseMin = metrics.reduce((s2, x) => Math.max(s2, x.exerciseMin ?? 0), 0);
@@ -87,6 +89,34 @@ export async function runNudges(now = new Date()) {
 
     // เลือก nudge ที่เหมาะที่สุด 1 อัน (เรียงความสำคัญ) ที่ยังไม่ส่งวันนี้
     const candidates: Nudge[] = [];
+
+    /* 🔴 26 ส.ค. 69 (เจ้าของเลือกข้อ ก): แจ้งเตือนต้องอ่าน "สิ่งที่ควรทำตอนนี้" ชุดเดียวกับที่แอปโชว์
+       ของเดิมต่างคนต่างคิด → เตือนเรื่องน้ำทั้งที่ในแอปไม่ขึ้นรายการนั้นแล้ว หรือกดแจ้งเตือนแล้วไม่รู้จะทำอะไรต่อ
+       งานค้างมาก่อนเสมอ และแนบ todo/action ไปให้แอปเปิดข้อนั้นได้ทันที
+       (ข้อ "ชั่งน้ำหนัก" ไม่เอามาที่นี่ — มี cron weigh-reminder จันทร์/พฤหัสดูแลอยู่แล้ว จะซ้ำ) */
+    const todos = await buildTodos(m).catch(() => []);
+    const TODO_PREF: Record<string, keyof PrefFlags> = {
+      readiness: "notifyMorningCoach",
+      water: "notifyWaterReminder",
+      breakfast: "notifyMorningCoach",
+      lunch: "notifyMorningCoach",
+      bodyScan: "notifyEveningSummary",
+    };
+    for (const t of todos) {
+      const pref = TODO_PREF[t.key];
+      if (!pref) continue; // ข้อที่มีตัวเตือนของตัวเองอยู่แล้ว (weigh)
+      candidates.push({
+        type: `nudge_todo_${t.key}`,
+        pref,
+        title: t.title,
+        body: t.sub ?? "แตะเพื่อทำให้จบเลยครับ",
+        ...(t.action === "water250" ? { categoryId: "NUDGE_WATER" } : {}),
+        todoKey: t.key,
+        todoAction: t.action,
+      });
+    }
+    /** เรื่องที่รายการงานค้างเป็นเจ้าของแล้ว — ห้ามให้ nudge เวอร์ชันเก่าเตือนซ้อน */
+    const todoKeys = new Set(todos.map((t) => t.key));
 
     // ── เตือนก่อน "ช่วงเวลาเสี่ยง" 30 นาที (การ์ด #5) ──
     // ยิงเฉพาะชั่วโมงก่อนหน้าช่วงนั้น และเฉพาะคนที่โดนบ่อยจริง (≥1/3 ของวันในช่วงข้อมูล)
@@ -112,14 +142,11 @@ export async function runNudges(now = new Date()) {
       candidates.push({ type: "nudge_sugar", pref: "notifyEveningSummary", title: "ระวังน้ำตาล 🍬", body: `น้ำตาลวันนี้ ~${Math.round(sugar)} g ใกล้เป้า ${tSugar} แล้ว ลดของหวาน/เครื่องดื่มหวานนะครับ` });
     if (hour >= 15 && protein < tProtein * 0.6)
       candidates.push({ type: "nudge_protein", pref: "notifyEveningSummary", title: "เติมโปรตีน 🥩", body: `วันนี้ได้โปรตีน ${Math.round(protein)}/${tProtein} g ยังห่างเป้า มื้อเย็นเพิ่มไข่/อกไก่/เต้าหู้หน่อยนะครับ` });
-    if (hour >= 14 && water < tWater * 0.5)
-      candidates.push({
-        type: "nudge_water", pref: "notifyWaterReminder", title: "ดื่มน้ำ 💧",
-        body: `วันนี้ดื่มน้ำ ${water}/${tWater} ml ยังน้อยอยู่ จิบน้ำเพิ่มหน่อยนะครับ`,
-        // ปุ่ม "ดื่มแล้ว +250" กดจากแจ้งเตือน/นาฬิกาได้เลย ไม่ต้องเปิดแอป
-        categoryId: "NUDGE_WATER",
-      });
-    if (hour >= 13 && mealCount === 0)
+    /* 🔴 ตัว nudge_water เดิมถูกถอดออก (26 ส.ค. 69) — เรื่องน้ำให้รายการงานค้างเป็นเจ้าของคนเดียว
+       ของเดิมเงื่อนไขหลวมกว่า (แค่ "ยังไม่ถึงครึ่งเป้า") พอเลย 3 ทุ่มรายการปิดไปแล้วแต่ตัวนี้ยังเตือนอยู่
+       เจ้าของเจอกับตัว: ได้เตือนเรื่องน้ำซ้ำอีกอันหลังรายการหายไปแล้ว */
+    // รายการงานค้างรู้เรื่อง "กดไม่ได้กินมื้อนี้" ด้วย → ถ้ามันขึ้นข้อมื้ออาหารแล้ว ตัวนี้ต้องเงียบ
+    if (hour >= 13 && mealCount === 0 && !todoKeys.has("breakfast") && !todoKeys.has("lunch"))
       candidates.push({ type: "nudge_nolog", pref: "notifyMorningCoach", title: "ยังไม่ได้บันทึกมื้อเลย 🍽️", body: "วันนี้ยังไม่มีบันทึกอาหารเลยครับ กดถ่ายรูปหรือพูดกับโค้ชได้เลย" });
     // นั่งติดเก้าอี้: บ่ายแล้วแต่ยืนไม่ถึงครึ่งของชั่วโมงที่ผ่านมา (เทียบเวลาตื่นคร่าว ๆ 07:00)
     if (hasWatch && hour >= 14 && standHours < Math.floor((hour - 7) * 0.5))
@@ -144,7 +171,11 @@ export async function runNudges(now = new Date()) {
       {
         title: picked.title,
         body: picked.body,
-        data: { screen: "today", nudge: picked.type },
+        data: {
+          screen: "today",
+          nudge: picked.type,
+          ...(picked.todoKey ? { todo: picked.todoKey, action: picked.todoAction } : {}),
+        },
         ...(picked.categoryId ? { categoryId: picked.categoryId } : {}),
       },
       "nudge"
