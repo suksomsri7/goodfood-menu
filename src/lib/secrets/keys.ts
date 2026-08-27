@@ -2,7 +2,7 @@ export type SecretKeyMeta = {
   key: string;
   label: string;
   description: string;
-  group: "AI" | "LINE" | "Login แอป" | "Other";
+  group: "AI" | "LINE" | "Login แอป" | "อุปกรณ์สุขภาพ" | "Other";
   href?: string;
 };
 
@@ -116,6 +116,36 @@ export const SECRET_KEY_REGISTRY: SecretKeyMeta[] = [
     label: "SHARK Channel IDs",
     description: "Channel IDs ที่จะโพสต์ (คั่นด้วย comma)",
     group: "Other",
+  },
+
+  // อุปกรณ์สุขภาพ (ดึงข้อมูลเข้าแอป Coach — ไม่ใช่การล็อกอิน)
+  {
+    key: "FITBIT_CLIENT_ID",
+    label: "Fitbit Client ID",
+    description: "ใส่แล้วปุ่ม \"เชื่อม Fitbit\" จะโผล่ในแอปเอง (Fitbit ไม่เขียนลง Apple Health จึงต้องต่อตรง)",
+    group: "อุปกรณ์สุขภาพ",
+    href: "https://dev.fitbit.com/apps/new",
+  },
+  {
+    key: "FITBIT_CLIENT_SECRET",
+    label: "Fitbit Client Secret",
+    description: "OAuth 2.0 Client Secret ของแอป Fitbit · ประเภทแอปต้องเป็น Personal ถึงจะขอ intraday ได้",
+    group: "อุปกรณ์สุขภาพ",
+    href: "https://dev.fitbit.com/apps",
+  },
+  {
+    key: "STRAVA_CLIENT_ID",
+    label: "Strava Client ID",
+    description: "ใส่แล้วปุ่ม \"เชื่อม Strava\" จะโผล่ในแอปเอง (ดึงกิจกรรมวิ่ง/ปั่นเข้าบันทึกออกกำลังกาย)",
+    group: "อุปกรณ์สุขภาพ",
+    href: "https://www.strava.com/settings/api",
+  },
+  {
+    key: "STRAVA_CLIENT_SECRET",
+    label: "Strava Client Secret",
+    description: "Client Secret ของแอป Strava",
+    group: "อุปกรณ์สุขภาพ",
+    href: "https://www.strava.com/settings/api",
   },
 ];
 

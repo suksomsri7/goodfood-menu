@@ -34,6 +34,34 @@ async function sessionKey(): Promise<Uint8Array> {
   return new TextEncoder().encode(s);
 }
 
+/**
+ * ตั๋วอายุสั้นสำหรับพา memberId ข้ามไป-กลับกับเว็บภายนอก (OAuth `state` ของการเชื่อมอุปกรณ์)
+ *
+ * 🔴 ห้ามส่ง memberId ดิบ ๆ ไปเป็น state — ใครเดา id คนอื่นได้ก็ผูกบัญชี Fitbit ตัวเองเข้าคนอื่นได้
+ *    เซ็นด้วยกุญแจเดียวกับ session และอายุสั้น (10 นาที) พอสำหรับกดยินยอมหนึ่งครั้ง
+ */
+export async function signStateTicket(memberId: string, purpose: string): Promise<string> {
+  const key = await sessionKey();
+  return new SignJWT({ typ: "state", purpose })
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject(memberId)
+    .setIssuer(ISSUER)
+    .setIssuedAt()
+    .setExpirationTime("10m")
+    .sign(key);
+}
+
+export async function verifyStateTicket(token: string, purpose: string): Promise<string | null> {
+  try {
+    const key = await sessionKey();
+    const { payload } = await jwtVerify(token, key, { issuer: ISSUER, algorithms: ["HS256"] });
+    if (payload.typ !== "state" || payload.purpose !== purpose || !payload.sub) return null;
+    return payload.sub as string;
+  } catch {
+    return null;
+  }
+}
+
 export type SessionClaims = { sub: string; typ: "access" | "refresh" | "watch" };
 /** typ ที่ถือว่า "ใช้เรียก API ของ member ได้" — refresh ไม่อยู่ในนี้โดยตั้งใจ */
 const APP_TYPES = ["access", "watch"];

@@ -47,6 +47,9 @@ export async function GET(req: NextRequest) {
         hrvMs: true, vo2max: true, hrRecovery: true, respiratoryRate: true, spo2: true,
         wristTempDelta: true, breathDisturb: true, distanceM: true, flights: true,
         daylightMin: true, walkingSpeed: true, basalKcal: true, mindfulMin: true, audioDb: true,
+        // จากเครื่องชั่งอัจฉริยะ (Fitdays/Withings/Xiaomi ฯลฯ ที่เขียนลง Apple Health / Health Connect)
+        // 🔴 ค่าพวกนี้ "วัดจริง" ไม่ใช่ค่าประเมินจากรูป — หน้าร่างกายต้องแยกป้ายให้ชัด
+        bodyFatPct: true, leanMassKg: true,
       },
     }),
   ]);
@@ -135,6 +138,11 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     days: Object.entries(byDay).map(([date, v]) => ({ date, ...v })),
     weights: weights.map((w) => ({ date: w.date, weight: w.weight })),
+    /* ค่าองค์ประกอบร่างกายจากเครื่องชั่ง — ส่งเป็นชุดของตัวเองเพราะ "ไม่ผูกกับการสแกนรูป"
+       (ของเดิมโผล่เฉพาะวันที่มีสแกน → คนที่มีแต่เครื่องชั่งไม่เคยเห็นเลยสักครั้ง) */
+    scale: metrics
+      .filter((m) => m.bodyFatPct != null || m.leanMassKg != null)
+      .map((m) => ({ date: m.date, bodyFatPct: m.bodyFatPct, leanMassKg: m.leanMassKg })),
     forecast,
     member: {
       dailyCalories: member.dailyCalories, dailyWater: member.dailyWater,

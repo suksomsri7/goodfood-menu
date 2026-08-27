@@ -22,6 +22,10 @@ interface Case {
 const CASES: Case[] = [
   // ── ต้องปิด (401) ──
   { path: "/api/members", expect: "locked", note: "รายชื่อสมาชิก + ข้อมูลสุขภาพ" },
+  // เชื่อมอุปกรณ์สุขภาพ — token ของ Fitbit/Strava เปิดอ่านข้อมูลย้อนหลังได้ทั้งบัญชี ห้ามหลุด
+  { path: "/api/coach/integrations", expect: "locked", note: "รายการบริการที่เชื่อมไว้" },
+  { path: "/api/coach/integrations/fitbit/start", expect: "locked", note: "ขอ URL ยินยอม Fitbit" },
+  { path: "/api/coach/integrations?provider=fitbit", method: "DELETE", expect: "locked", note: "ยกเลิกการเชื่อม" },
   { path: "/api/staff", expect: "locked", note: "บัญชีพนักงาน" },
   { path: "/api/roles", expect: "locked", note: "สิทธิ์การใช้งาน" },
   { path: "/api/member-types", expect: "locked", note: "ประเภทสมาชิก" },
@@ -47,6 +51,9 @@ const CASES: Case[] = [
   { path: "/api/bowl/catalog?lineUserId=Uqctest", expect: "locked", note: "เมนูวัตถุดิบ + ธงแพ้ของคนอื่น" },
   { path: "/api/bowl/quote", method: "POST", body: { picks: [] }, expect: "locked", note: "คิดราคาชามในนามคนอื่น" },
   { path: "/api/bowl/order", method: "POST", body: { picks: [] }, expect: "locked", note: "สั่งชามในนามคนอื่น" },
+  { path: "/api/backoffice/food-stock?memberId=x", expect: "locked", note: "คลังอาหารรายคน (ของที่ลูกค้าจ่ายเงินมาแล้ว)" },
+  { path: "/api/backoffice/food-stock", method: "POST", body: {}, expect: "locked", note: "แจกของเข้าคลังลูกค้า" },
+  { path: "/api/backoffice/food-stock", method: "PATCH", body: { id: "x" }, expect: "locked", note: "แก้ยอดคงเหลือในคลัง" },
 
   // ── ฝั่ง LIFF: ตัวตนต้องมาจากคุกกี้ที่แลกกับ LINE เท่านั้น (ส่ง ?lineUserId= มาเฉย ๆ ต้องไม่ผ่าน) ──
   { path: "/api/meals?lineUserId=Uqctest&date=2026-08-22", expect: "locked", note: "บันทึกอาหารของคนอื่น" },

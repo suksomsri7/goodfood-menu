@@ -99,6 +99,26 @@ export async function POST(req: NextRequest) {
       counts.weights++;
     }
 
+    /* รอบเอวจากอุปกรณ์ (Withings / สายวัดอัจฉริยะ / แอปเครื่องชั่งบางตัวเขียนลง Health)
+       🔴 ห้ามทับของที่ user วัดเอง: สายวัดมือคือ ground truth ของจอร่างกาย (ดู body.tsx)
+          วันไหนมีแถว tape แล้ว = ข้ามไปเลย · ที่เหลือ upsert เป็น source "scale" */
+    const waist = Number((body as { waistCm?: unknown }).waistCm);
+    if (Number.isFinite(waist) && waist >= 30 && waist <= 250) {
+      const bkk = new Date(Date.now() + 7 * 3600e3);
+      const dayKey = new Date(Date.UTC(bkk.getUTCFullYear(), bkk.getUTCMonth(), bkk.getUTCDate()));
+      const existing = await prisma.bodyMeasurement.findFirst({
+        where: { memberId: member.id, site: "waist", date: dayKey },
+        select: { id: true, source: true },
+      });
+      if (!existing) {
+        await prisma.bodyMeasurement.create({
+          data: { memberId: member.id, site: "waist", date: dayKey, valueCm: waist, source: "scale" },
+        });
+      } else if (existing.source === "scale") {
+        await prisma.bodyMeasurement.update({ where: { id: existing.id }, data: { valueCm: waist } });
+      }
+    }
+
     /*
      * 🔴 การนอนต้อง "รวมทั้งคืน" ก่อนบันทึก
      *
