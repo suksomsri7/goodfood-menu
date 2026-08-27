@@ -34,7 +34,7 @@ export function LogoLoader({
           style={{ width: config.logo, height: config.logo }}
         >
           <Image
-            src="/logo.jpg"
+            src="/brand/goodfood-logo.png"
             alt="GOOD FOOD"
             fill
             className="object-contain rounded-lg"

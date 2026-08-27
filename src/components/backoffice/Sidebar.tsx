@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import {
@@ -298,9 +299,8 @@ export function Sidebar() {
       <div className="h-16 flex items-center justify-between px-4 border-b border-gray-100">
         {!collapsed && (
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-[#4CAF50] flex items-center justify-center">
-              <span className="text-white font-bold">G</span>
-            </div>
+            {/* เครื่องหมายจริงของแบรนด์ — เดิมเป็นกล่องสีเขียวใส่ตัว "G" ที่วาดเอง (คนละสีกับโลโก้จริงด้วย) */}
+            <Image src="/brand/goodfood-mark.png" alt="" width={1024} height={1024} className="w-8 h-8 rounded-lg" />
             <span className="font-bold text-gray-900">GoodFood</span>
           </div>
         )}

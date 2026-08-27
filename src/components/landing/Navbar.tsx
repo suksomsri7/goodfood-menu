@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, UtensilsCrossed } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 interface NavLink {
   label: string;
@@ -67,13 +68,17 @@ export function Navbar() {
       >
         <nav className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
-              <UtensilsCrossed className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-lg font-bold text-gray-900 tracking-wide">
-              GOOD <span className="text-emerald-500">FOOD</span>
-            </span>
+          {/* โลโก้จริงของแบรนด์ (เจ้าของส่งไฟล์มา 27 ส.ค. 69) — เดิมเป็นไอคอนช้อนส้อม + ข้อความที่พิมพ์เอง
+              ซึ่งไม่ตรงกับโลโก้ที่ใช้จริงที่อื่น · ไฟล์ต้นฉบับอยู่ public/brand/ */}
+          <Link href="/" className="flex items-center">
+            <Image
+              src="/brand/goodfood-logo.png"
+              alt="Good Food"
+              width={2400}
+              height={962}
+              priority
+              className="h-9 w-auto"
+            />
           </Link>
 
           {/* Desktop Nav */}
