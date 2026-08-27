@@ -158,6 +158,16 @@ export async function PATCH(req: NextRequest) {
   if (Object.keys(data).length === 0) return NextResponse.json({ error: "nothing to update" }, { status: 400 });
 
   const updated = await prisma.member.update({ where: { id: member.id }, data });
+
+  /* 🔴 น้ำหนักเป้าเคยเก็บ 2 ที่แล้วไม่คุยกัน — member.goalWeight (หน้าโปรไฟล์) กับ BodyGoal.targetWeightKg (อัลบั้มเป้ารูปร่าง)
+     ผลคือแก้ที่หนึ่งแล้วอีกหน้ายังโชว์เลขเก่า ตอนนี้ให้แก้ที่ไหนก็เดินไปหากันเสมอ */
+  if (data.goalWeight != null) {
+    await prisma.bodyGoal.updateMany({
+      where: { memberId: member.id, status: "active" },
+      data: { targetWeightKg: data.goalWeight as number },
+    });
+  }
+
   return NextResponse.json({
     ok: true,
     ...view(updated),

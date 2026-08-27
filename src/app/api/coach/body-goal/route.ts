@@ -92,6 +92,11 @@ export async function POST(req: NextRequest) {
       });
     });
 
+    // ดูหมายเหตุใน settings PATCH — เป้าน้ำหนักต้องเป็นค่าเดียวกันทั้งหน้าโปรไฟล์และอัลบั้มเป้ารูปร่าง
+    if (saved.targetWeightKg != null) {
+      await prisma.member.update({ where: { id: member.id }, data: { goalWeight: saved.targetWeightKg } });
+    }
+
     const res = NextResponse.json({
       goal,
       suggested: suggestion,
