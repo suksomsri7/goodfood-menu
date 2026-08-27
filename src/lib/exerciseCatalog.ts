@@ -255,10 +255,27 @@ export function kcalForExercise(met: number, weightKg: number, minutes: number):
 
 const TIER_ORDER: Record<EquipmentTier, number> = { none: 0, home: 1, gym: 2 };
 
-/** ท่าที่ user ทำได้จริงตามอุปกรณ์ที่มี (gym = ได้ทุกท่า) */
-export function catalogFor(tier: EquipmentTier | null | undefined): CatalogExercise[] {
+/**
+ * ท่าที่ user ทำได้จริงตามอุปกรณ์ที่มี
+ *
+ * `owned` = คลังอุปกรณ์รายชิ้นของเขา (MemberEquipment) — ส่งมาเมื่อไหร่จะกรองละเอียดขึ้นอีกชั้น
+ * 🔴 27 ส.ค. 69 เจ้าของทัก: กรอกอุปกรณ์ไว้ตั้งเยอะแต่แผนไม่เคยรู้จักเลย
+ *    ของเดิมดูแค่ tier 3 ระดับ → คนมีแค่ยางยืดได้ท่าดัมเบล, คนมีลู่วิ่งอย่างเดียวได้ท่าเครื่องทั้งฟิตเนส
+ *    ตอนนี้ถ้ามีคลังอุปกรณ์จริง จะตัดท่าที่ต้องใช้ของที่เขาไม่มีออก
+ * 🔴 คลังว่าง = ไม่ได้แปลว่า "ไม่มีอะไรเลย" แต่แปลว่า "ยังไม่ได้กรอก" → ใช้ tier ตามเดิม ห้ามตัดจนแผนว่าง
+ */
+export function catalogFor(
+  tier: EquipmentTier | null | undefined,
+  owned?: readonly string[] | null
+): CatalogExercise[] {
   const max = TIER_ORDER[tier || "none"];
-  return EXERCISE_CATALOG.filter((e) => TIER_ORDER[e.equipment] <= max);
+  const byTier = EXERCISE_CATALOG.filter((e) => TIER_ORDER[e.equipment] <= max);
+  if (!owned || owned.length === 0) return byTier;
+
+  const have = new Set(owned);
+  // "ฟิตเนสครบ" = เข้าถึงของทุกอย่างในยิม ไม่ต้องมากรอกทีละชิ้น
+  if (have.has("full_gym")) return byTier;
+  return byTier.filter((e) => (e.equipmentNeeded ?? []).every((need) => have.has(need)));
 }
 
 const norm = (s: string) => s.toLowerCase().replace(/[\s\-_.·/()]/g, "");

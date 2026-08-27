@@ -9,15 +9,40 @@
 
 /** ชนิดอุปกรณ์ที่ระบบรู้จัก (ค่านอกลิสต์ = ปฏิเสธ ไม่ใช่เดาให้) */
 export const EQUIPMENT_TYPES = [
+  // ── ของถ่วงน้ำหนัก ──
   "dumbbell",
   "barbell",
+  "ez_bar",
   "kettlebell",
+  "weight_plate",
+  "sandbag",
+  "ankle_weights",
+  // ── แรงต้าน/ตัวช่วยแบบไม่มีน้ำหนัก ──
   "band",
+  "trx",
+  "battle_rope",
+  "jump_rope",
+  // ── โครง/ที่รองรับ ──
   "bench",
+  "squat_rack",
   "pullup_bar",
+  "dip_bar",
+  "stability_ball",
+  "yoga_mat",
+  "foam_roller",
+  "medicine_ball",
+  // ── เครื่องในฟิตเนส ──
   "machine",
+  "cable",
+  "smith_machine",
+  "leg_press",
+  // ── คาร์ดิโอ ──
   "treadmill",
   "bike",
+  "rowing_machine",
+  "elliptical",
+  "stair_climber",
+  // ── เหมารวม ──
   "full_gym",
 ] as const;
 
@@ -30,23 +55,53 @@ export type EquipmentType = (typeof EQUIPMENT_TYPES)[number];
 export const EQUIPMENT_LABEL_TH: Record<string, string> = {
   dumbbell: "ดัมเบล",
   barbell: "บาร์เบล",
+  ez_bar: "บาร์ EZ (บาร์หยัก)",
   kettlebell: "เคตเทิลเบล",
+  weight_plate: "แผ่นน้ำหนัก",
+  sandbag: "ถุงทราย",
+  ankle_weights: "ถ่วงข้อเท้า/ข้อมือ",
   band: "ยางยืด",
+  trx: "สายห้อย TRX",
+  battle_rope: "เชือกแบทเทิลโรป",
+  jump_rope: "เชือกกระโดด",
   bench: "ม้านั่ง",
+  squat_rack: "แร็ค/ชั้นวางบาร์",
   pullup_bar: "บาร์โหน",
+  dip_bar: "บาร์ดิป",
+  stability_ball: "บอลโยคะ",
+  yoga_mat: "เสื่อโยคะ",
+  foam_roller: "โฟมโรลเลอร์",
+  medicine_ball: "เมดิซินบอล",
   machine: "เครื่องฟิตเนส",
+  cable: "เคเบิลครอส",
+  smith_machine: "สมิธแมชชีน",
+  leg_press: "เครื่องเลกเพรส",
   treadmill: "ลู่วิ่ง",
   bike: "จักรยาน",
+  rowing_machine: "เครื่องพายเรือ",
+  elliptical: "เครื่องเดินวงรี",
+  stair_climber: "เครื่องเดินขึ้นบันได",
   full_gym: "ฟิตเนสครบ",
 };
 
+/** จัดกลุ่มไว้ให้จอเลือกอุปกรณ์อ่านง่าย — 29 ชนิดเรียงยาวเป็นพืดคือของที่ไม่มีใครกรอกจนจบ */
+export const EQUIPMENT_GROUPS: Array<{ label: string; types: string[] }> = [
+  { label: "น้ำหนักอิสระ", types: ["dumbbell", "barbell", "ez_bar", "kettlebell", "weight_plate", "sandbag", "ankle_weights"] },
+  { label: "แรงต้าน/เชือก", types: ["band", "trx", "battle_rope", "jump_rope"] },
+  { label: "ม้านั่งและโครง", types: ["bench", "squat_rack", "pullup_bar", "dip_bar"] },
+  { label: "อุปกรณ์พื้น", types: ["yoga_mat", "stability_ball", "foam_roller", "medicine_ball"] },
+  { label: "เครื่องในฟิตเนส", types: ["machine", "cable", "smith_machine", "leg_press"] },
+  { label: "คาร์ดิโอ", types: ["treadmill", "bike", "rowing_machine", "elliptical", "stair_climber"] },
+  { label: "เหมารวม", types: ["full_gym"] },
+];
+
 /** ของที่นับเป็น "ฟิตเนสครบ" — เข้าถึงเครื่องได้ = ทำท่า tier gym ได้ทั้งหมด */
-const GYM_TYPES = ["full_gym", "machine"];
+const GYM_TYPES = ["full_gym", "machine", "cable", "smith_machine", "leg_press"];
 
 /** ปรับได้/ตายตัว — มีผลกับ increment (ดัมเบลตายตัว 1 คู่ = ขึ้นน้ำหนักไม่ได้เลย) */
 const VARIANTS = ["fixed", "adjustable"];
 
-export const MAX_EQUIPMENT_ITEMS = 20;
+export const MAX_EQUIPMENT_ITEMS = 30;
 
 export interface EquipmentItem {
   type: string;

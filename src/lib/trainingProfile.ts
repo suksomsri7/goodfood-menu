@@ -533,16 +533,29 @@ export function fitSessionLength(
 const TAG_RULES: Record<string, { kinds?: ExerciseKind[]; keys?: string[]; re?: RegExp }> = {
   strength: { kinds: ["strength"] },
   cardio: { kinds: ["cardio"] },
-  running: { re: /jog|run|วิ่ง/i },
-  walking: { re: /walk|เดิน/i },
+  /* 🔴 27 ส.ค. 69 — regex กว้างไปจนจับผิดตัว (ตรวจเทียบกับคลังท่าจริงทั้ง 116 ท่าถึงเจอ):
+     · /run/ ไป match `crunch` และ `bicycle_crunch` → "ไม่ชอบวิ่ง" เขี่ยครันช์ออกจากแผน
+     · /box/ ไป match `squat_box` → "ไม่ชอบชกมวย" เขี่ยสควอทนั่งเก้าอี้ออก
+     · /ยืด/ ไป match "ยางยืดโรว์/ยางยืดกางอก" → "ไม่ชอบโยคะ" เขี่ยท่ายางยืดออก
+     กติกาใหม่: คำอังกฤษต้องอยู่ที่ขอบคำ (^ หรือ _) เสมอ · คำไทยต้องเป็นคำที่ไม่ซ้อนกับของอื่น */
+  running: { re: /(^|_)(jog|run|sprint)(_|$)|วิ่ง/i },
+  walking: { re: /(^|_)walk(ing)?(_|$)|เดิน/i },
   hiit: { keys: ["burpee", "mountain_climber", "jumping_jack"] },
-  jumping: { keys: ["burpee", "jumping_jack"], re: /jump|กระโดด/i },
-  yoga: { kinds: ["mobility"], re: /yoga|โยคะ|ยืด/i },
+  jumping: { keys: ["burpee", "jumping_jack"], re: /(^|_)jump/i, },
+  yoga: { keys: ["yoga_basic", "cat_cow"], re: /(^|_)yoga|โยคะ/i },
   stretching: { kinds: ["mobility"] },
-  boxing: { keys: ["shadow_box"], re: /box|ชก|มวย/i },
-  cycling: { re: /bike|cycle|จักรยาน/i },
+  boxing: { keys: ["shadow_box"], re: /(^|_)boxing|มวย|ชกลม/i },
+  cycling: { re: /(^|_)(bike|cycle|cycling)(_|$)|จักรยาน(?!อากาศ)/i }, // กัน "จักรยานอากาศ" ซึ่งเป็นท่าหน้าท้อง ไม่ใช่การปั่น
   rowing: { keys: ["rowing_machine"], re: /กรรเชียง|เรือ/i },
-  core: { re: /plank|crunch|core|แพลงก์|ครันช์|ท้อง/i },
+  core: { re: /(^|_)(plank|crunch|core)|แพลงก์|ครันช์|หน้าท้อง/i },
+  /* ── ท่าเฉพาะ (เพิ่ม 27 ส.ค. 69) ──
+     เจ้าของทักว่า 7 หมวดเดิมหยาบเกิน: "ยกเวท" ครอบ 92 ท่าจาก 116 ท่า
+     คนที่เข่าไม่ดีอยากตัดแค่สควอท ไม่ใช่ตัดเวททั้งหมด · ทุกกฎด้านล่างตรวจแล้วว่าชนท่าจริงกี่ท่า */
+  squat: { re: /(^|_)squat|สควอท/i },              // 11 ท่า
+  pushup: { re: /(^|_)push_?up|วิดพื้น|ดันพื้น/i }, // 6 ท่า
+  pullup: { re: /(^|_)(pull_?up|chin_?up)|โหน|ดึงข้อ/i }, // 3 ท่า
+  lunge: { re: /(^|_)lunge|ลันจ์/i },              // 3 ท่า
+  stairs: { re: /(^|_)stair|บันได/i },             // 3 ท่า
   // ว่ายน้ำมีท่าจริงในคลังแล้ว (ส.ค. 69) → "ไม่ชอบว่ายน้ำ" ต้องเขี่ยท่านี้ออกได้
   // 🔴 ผูกกับ key ตัวเดียวเท่านั้น ห้ามใส่ kinds:["cardio"] — ไม่ชอบว่ายน้ำ ≠ ไม่ชอบคาร์ดิโอทั้งกลุ่ม
   // ส่วนขา "ชอบ" ยังมี TAG_LIKE_PROXY ข้างล่างช่วยเอียงไปหาคาร์ดิโอกระแทกต่ำเมื่อไม่มีสระ
@@ -571,6 +584,15 @@ const TAG_ALIASES: Record<string, string> = {
   กระโดด: "jumping",
   หน้าท้อง: "core",
   ว่ายน้ำ: "swimming",
+  สควอท: "squat",
+  วิดพื้น: "pushup",
+  ดันพื้น: "pushup",
+  โหน: "pullup",
+  ดึงข้อ: "pullup",
+  ลันจ์: "lunge",
+  บันได: "stairs",
+  ขึ้นบันได: "stairs",
+  พายเรือ: "rowing",
   กรรเชียง: "rowing",
 };
 

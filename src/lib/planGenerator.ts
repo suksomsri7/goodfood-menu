@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { EQUIPMENT_LABEL_TH } from "@/lib/memberEquipment";
 import { buildOpenAI, aiModel } from "@/lib/aiClient";
 import { getSecret } from "@/lib/secrets/store";
 import { getPersonalizationSafe, type Personalization } from "@/lib/personalization";
@@ -115,6 +116,8 @@ interface PlanMember {
   dietType: string;
   goalType: string;
   equipment: EquipmentTier;
+  /** คลังอุปกรณ์รายชิ้นที่ user กรอกไว้ — ว่าง = ยังไม่ได้กรอก (ไม่ใช่ "ไม่มีอะไรเลย") */
+  ownedEquipment: string[];
 }
 
 async function loadPlanMember(memberId: string): Promise<PlanMember | null> {
@@ -123,12 +126,12 @@ async function loadPlanMember(memberId: string): Promise<PlanMember | null> {
   /* tier อุปกรณ์: ฟิลด์ legacy (none|home|gym) เป็นค่าเริ่ม แต่ถ้าคลังอุปกรณ์จริง (MemberEquipment)
      มีของอยู่ ห้ามถือว่า "none" — QC 22 ส.ค. 69 เจอเคสลงทะเบียนดัมเบลแล้วแผนยังบอดี้เวทล้วน */
   let equipTier = (["none", "home", "gym"].includes(m.equipment || "") ? m.equipment : "none") as EquipmentTier;
-  if (equipTier === "none") {
-    try {
-      const gear = await prisma.memberEquipment.count({ where: { memberId } });
-      if (gear > 0) equipTier = "home";
-    } catch { /* ตารางยังไม่มี/ล้ม = ใช้ค่า legacy ตามเดิม */ }
-  }
+  let ownedEquipment: string[] = [];
+  try {
+    const gear = await prisma.memberEquipment.findMany({ where: { memberId }, select: { type: true } });
+    ownedEquipment = [...new Set(gear.map((g) => g.type))];
+    if (equipTier === "none" && ownedEquipment.length > 0) equipTier = "home";
+  } catch { /* ตารางยังไม่มี/ล้ม = ใช้ค่า legacy ตามเดิม */ }
   const bmr = Math.round(m.bmr ?? 1200);
   // เป้าแคลอรี่ ≥ BMR เสมอ (กติกาความปลอดภัย)
   const rawTarget = m.dailyCalories ?? Math.round(m.tdee ?? bmr * 1.2);
@@ -146,6 +149,7 @@ async function loadPlanMember(memberId: string): Promise<PlanMember | null> {
     goalType: m.goalType ?? "ลดน้ำหนัก",
     // ไม่เคยถาม = ถือว่าไม่มีอุปกรณ์ (ปลอดภัยสุด) — user บอกโค้ชด้วยเสียงเพื่ออัปเดตได้
     equipment: equipTier,
+    ownedEquipment,
   };
 }
 
@@ -171,7 +175,7 @@ function fallbackDay(pm: PlanMember, dayIndex: number): DayPlan {
   const totalKcal = meals.reduce((s, m) => s + m.kcal, 0);
   const isHigh = pm.activityLevel === "active" || pm.activityLevel === "very_active";
   const restDay = dayIndex % 7 === 6; // วันที่ 7 = พัก
-  const pool = catalogFor(pm.equipment);
+  const pool = catalogFor(pm.equipment, pm.ownedEquipment);
   const pick = (key: string, kind: "cardio" | "strength" | "mobility") =>
     pool.find((e) => e.key === key) || defaultExercise(pool, kind);
   const asItem = (e: CatalogExercise, extra: Partial<ExercisePlanItem>): ExercisePlanItem => ({
@@ -522,6 +526,18 @@ function sanitizeDay(raw: unknown, pm: PlanMember, dayIndex: number): DayResult 
   }
 }
 
+/**
+ * บอก AI ว่าสมาชิกมีอุปกรณ์อะไรจริง ๆ ไม่ใช่แค่ 3 ระดับ
+ * 🔴 27 ส.ค. 69: ของเดิมส่งไปแค่ "ดัมเบล/ยางยืดที่บ้าน" ให้ทุกคนที่ tier=home เหมือนกันหมด
+ *    คนกรอกว่ามีลู่วิ่ง+บาร์โหน กับคนมียางยืดเส้นเดียว ได้แผนหน้าตาเดียวกัน
+ */
+function equipmentLine(pm: PlanMember): string {
+  const tierText = { none: "ไม่มีอุปกรณ์ (ตัวเปล่า)", home: "ของออกกำลังกายที่บ้าน", gym: "ฟิตเนสครบ" }[pm.equipment];
+  if (!pm.ownedEquipment.length) return `${tierText} (ยังไม่ได้ระบุรายชิ้น)`;
+  const names = pm.ownedEquipment.map((t) => EQUIPMENT_LABEL_TH[t] ?? t).join(" · ");
+  return `${tierText} — ระบุไว้ว่ามี: ${names} · **ห้ามสั่งท่าที่ต้องใช้อุปกรณ์นอกรายการนี้**`;
+}
+
 function buildWeekPrompt(pm: PlanMember, personal: Personalization, pool: CatalogExercise[]): string {
   // WO-P.3 — memory + insight เฉพาะตัวเข้าแผนทุกครั้ง (รวมถึงตอน weeklyAdjust regenerate)
   const personalBlock = personal.text ? `\n${personal.text}\n` : "";
@@ -531,7 +547,7 @@ function buildWeekPrompt(pm: PlanMember, personal: Personalization, pool: Catalo
 
   return `คุณเป็นนักโภชนาการและเทรนเนอร์คนไทย ออกแบบแผน 7 วันสำหรับสมาชิก
 เป้าหมาย: ${pm.goalType} · รูปแบบอาหาร: ${pm.dietType} · ระดับกิจกรรม: ${pm.activityLevel}
-อุปกรณ์ที่สมาชิกมี: ${{ none: "ไม่มีอุปกรณ์ (ตัวเปล่า)", home: "ดัมเบล/ยางยืดที่บ้าน", gym: "ฟิตเนสครบ" }[pm.equipment]}
+อุปกรณ์ที่สมาชิกมี: ${equipmentLine(pm)}
 เป้าต่อวัน: แคลอรี่ ${pm.targetKcal} kcal, โปรตีน ${pm.protein}g, คาร์บ ${pm.carbs}g, ไขมัน ${pm.fat}g, โซเดียม ≤${pm.sodium}mg, น้ำตาล ≤${pm.sugar}g
 ${personalBlock}
 กติกาสำคัญ:
@@ -742,7 +758,7 @@ export async function generateWeekPlan(memberId: string, startKey: Date): Promis
 
   // WO-P.3 — memory/insight ของ user (จุดเดียวกับที่โค้ชใช้) · ใช้ทั้งใน prompt และด่านกันข้อห้าม
   const personal = await getPersonalizationSafe(memberId);
-  const pool = catalogFor(pm.equipment); // ท่าที่ user ทำได้จริงตามอุปกรณ์
+  const pool = catalogFor(pm.equipment, pm.ownedEquipment); // ท่าที่ user ทำได้จริงตามอุปกรณ์ที่กรอกไว้
 
   /* ── WO-PT-D §S4: โปรไฟล์การเทรน (วันที่ว่าง/เวลาต่อครั้ง/ชอบ-ไม่ชอบ/อาการบาดเจ็บ/สอบเทียบ) ──
      ยังไม่เคยตั้งโปรไฟล์ หรืออ่านไม่ได้ = ทุกค่าว่าง → แผนออกเหมือนก่อนเฟส D ทุกประการ */
