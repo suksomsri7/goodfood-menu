@@ -84,6 +84,7 @@ model Member {
   weightLogs         WeightLog[]
   authIdentities     AuthIdentity[]
   deviceTokens       DeviceToken[]
+  healthConnections  HealthConnection[]
   sleepLogs          SleepLog[]
   dailyMetrics       DailyMetric[]
   workoutSessions    WorkoutSession[]
@@ -100,6 +101,8 @@ model Member {
   setLogs            SetLog[]
   progressionStates  ProgressionState[]
   readinessCheckins  ReadinessCheckin[]
+  todoSkips          TodoSkip[]
+  foodStocks         MemberFoodStock[]
   bodyScans          BodyScan[]
   mealFeedbacks      MealFeedback[]
   bodyMeasurements   BodyMeasurement[]
@@ -361,11 +364,11 @@ model AiRecommendation {
 }
 
 model MealLog {
-  id          String   @id @default(cuid())
+  id          String           @id @default(cuid())
   memberId    String
   name        String
   weight      Float?
-  multiplier  Float    @default(1)
+  multiplier  Float            @default(1)
   calories    Float
   protein     Float
   carbs       Float
@@ -374,11 +377,14 @@ model MealLog {
   sugar       Float?
   imageUrl    String?
   ingredients String?
-  via         String   @default("manual") // photo | barcode | voice | manual
-  date        DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  via         String           @default("manual") // photo | barcode | voice | manual
+  /// บันทึกนี้ตัดมาจากคลังอาหารของสมาชิกใบไหน — ลบบันทึกแล้วต้องคืนของกลับเข้าคลัง
+  stockId     String?
+  date        DateTime         @default(now())
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  member      Member           @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  stock       MemberFoodStock? @relation(fields: [stockId], references: [id], onDelete: SetNull)
 
   @@index([memberId, date])
   @@map("meal_logs")
@@ -542,11 +548,11 @@ model ReadinessCheckin {
   sleepMin Int?
 
   /// 0-100 · null = ยังไม่มีข้อมูลพอจะให้คะแนน (ห้ามแต่งเลขให้)
-  score     Int?
-  band      String? // full | normal | reduced | recovery
+  score      Int?
+  band       String? // full | normal | reduced | recovery
   /// ปรับแผนของวันนี้ตามคะแนนไปแล้วหรือยัง
-  applied   Boolean   @default(false)
-  appliedAt DateTime?
+  applied    Boolean   @default(false)
+  appliedAt  DateTime?
   /// สำเนา exercisePlan ก่อนปรับ — undo ต้องคืนของเดิมได้เป๊ะ (ไม่ใช่ "คิดย้อนกลับ" ซึ่งพลาดได้)
   planBackup Json?
 
@@ -562,34 +568,34 @@ model ReadinessCheckin {
 /// โปรไฟล์เทรน (WO-PT-D §S1 · WO-PT-ENGINE §3) — คนละเรื่องกับ FoodProfile
 /// นี่คือ "เขาอยากได้อะไร ทำได้แค่ไหน ว่างวันไหน" ที่ generator ต้องใช้ก่อนจะจัดท่าให้ใครสักคน
 model TrainingProfile {
-  memberId       String   @id
-  primaryGoal    String // fat_loss|muscle_gain|strength|endurance|general|athletic
-  secondaryGoals String[] @default([])
+  memberId         String   @id
+  primaryGoal      String // fat_loss|muscle_gain|strength|endurance|general|athletic
+  secondaryGoals   String[] @default([])
   /// strength|hypertrophy|fatloss_hybrid|endurance|athletic|balanced · null = ให้ระบบเลือกตาม goal
-  style          String?
-  daysPerWeek    Int      @default(3)
-  sessionMin     Int      @default(45)
-  trainDays      String[] @default([]) // ["mon","wed","fri"] — ว่าง = กระจายให้เองตาม daysPerWeek
-  preferredTime  String? // morning|afternoon|evening|"06:00-07:00"
-  likes          String[] @default([])
+  style            String?
+  daysPerWeek      Int      @default(3)
+  sessionMin       Int      @default(45)
+  trainDays        String[] @default([]) // ["mon","wed","fri"] — ว่าง = กระจายให้เองตาม daysPerWeek
+  preferredTime    String? // morning|afternoon|evening|"06:00-07:00"
+  likes            String[] @default([])
   /// เลี่ยงถ้ามีตัวแทน pattern เดียวกัน (soft) — ต่างจาก InjuryLimitation ที่ตัดทิ้งเสมอ (hard)
-  dislikes       String[] @default([])
-  jobType        String? // desk|standing|physical
-  stress         Int? // 1-5
-  waistCm        Float?
-  bodyFatPct     Float?
+  dislikes         String[] @default([])
+  jobType          String? // desk|standing|physical
+  stress           Int? // 1-5
+  waistCm          Float?
+  bodyFatPct       Float?
   /// เคยเทรนมานานแค่ไหน — ตัวคูณความเร็ว progression (มือใหม่ก้าวถี่กว่า)
   experienceMonths Int?
 
   /// สัปดาห์สอบเทียบ (ENGINE §5.1): true = ยังเก็บ feel อยู่ → น้ำหนักเบา reps กลางช่วง
   /// เคลียร์เองเมื่อครบ 7 วันนับจาก calibrationStartedAt (คิดตอนอ่าน ไม่มี cron)
-  calibration        Boolean   @default(true)
+  calibration          Boolean  @default(true)
   /// หมุดเวลาเริ่มสอบเทียบ — แยกจาก updatedAt เพราะแก้โปรไฟล์กลางสัปดาห์ต้องไม่รีเซ็ตนาฬิกา 7 วัน
   calibrationStartedAt DateTime @default(now())
   /// คำตอบ PAR-Q 3 ข้อ + answeredAt (+ clearedAt เมื่อ user ยืนยันว่าปรึกษาแพทย์แล้ว)
-  parq               Json?
+  parq                 Json?
   /// ตอบ "ใช่" ข้อใดข้อหนึ่ง = true → intensityCap = low จนกว่าจะปลด
-  parqFlag           Boolean   @default(false)
+  parqFlag             Boolean  @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -602,20 +608,20 @@ model TrainingProfile {
 /// CoachMemory kind=injury ยังอยู่ในฐานะ "ความจำที่โค้ชเอาไปคุย" แต่ตัวกรองท่าต้องอ่านจากตารางนี้
 /// (ข้อความอิสระกรองท่าไม่ได้จริง — "เข่าซ้ายเจ็บตอนลงน้ำหนัก" ไม่ตรงกับชื่อท่าใดเลย)
 model InjuryLimitation {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   memberId      String
   area          String // shoulder|knee|back|hip|ankle|wrist|neck|other
-  severity      String   @default("caution") // caution (ลดน้ำหนัก) | avoid (ตัด pattern ทิ้ง)
-  avoidPatterns String[] @default([]) // ["squat","push_v"] — map กับ Exercise.pattern
-  avoidKeys     String[] @default([]) // ระบุรายท่า
+  severity      String    @default("caution") // caution (ลดน้ำหนัก) | avoid (ตัด pattern ทิ้ง)
+  avoidPatterns String[]  @default([]) // ["squat","push_v"] — map กับ Exercise.pattern
+  avoidKeys     String[]  @default([]) // ระบุรายท่า
   note          String?
-  active        Boolean  @default(true)
+  active        Boolean   @default(true)
   /// อาการชั่วคราว ("วันนี้ปวดเข่า" = 7 วัน) — ถึงเวลาแล้วถือว่าไม่มีผล โดยไม่ต้องรอ user มาปิดเอง
   /// 🔴 ทุกจุดที่อ่านต้องกรอง active && (expiresAt = null || expiresAt > now)
   expiresAt     DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  member        Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  member        Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   @@index([memberId, active])
   @@map("injury_limitations")
@@ -809,6 +815,7 @@ model Food {
   category       Category           @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   restaurant     Restaurant?        @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   orderItems     OrderItem[]
+  memberStocks   MemberFoodStock[]
   promotionGifts PromotionGift[]
   promotionItems PromotionItem[]
   calendarItems  MenuCalendarItem[]
@@ -821,28 +828,28 @@ model Food {
 /// 🔴 ต้องเป็นต่อ 100 เสมอ ไม่ใช่ต่อหน่วยบริโภค ไม่งั้นคิด "อกไก่ 100→190 ก." ไม่ได้
 ///    (ต่างจาก food_catalog ที่เก็บต่อจาน — คลังนั้นเอาไว้ช่วยกรอก ไม่ได้ใช้คิดสูตร)
 model Ingredient {
-  id          String       @id @default(cuid())
-  name        String       @unique
+  id            String  @id @default(cuid())
+  name          String  @unique
   /// g = ชั่งเป็นกรัม · ml = ตวง · pc = นับชิ้น/ฟอง (ใส่ gramsPerPiece ด้วย)
-  unit        String       @default("g")
+  unit          String  @default("g")
   /// น้ำหนักต่อชิ้นเมื่อ unit = pc (ไข่ 1 ฟอง ≈ 50 ก.) — ใช้แปลงกลับเป็นกรัมตอนคิด
   gramsPerPiece Float?
-  calories    Float
-  protein     Float
-  carbs       Float
-  fat         Float
-  fiber       Float?
-  sodium      Float?
-  sugar       Float?
+  calories      Float
+  protein       Float
+  carbs         Float
+  fat           Float
+  fiber         Float?
+  sodium        Float?
+  sugar         Float?
   /// บทบาทตั้งต้นเวลาเอาไปใส่สูตร — protein | carb | veg | fat | other
-  defaultRole String       @default("other")
+  defaultRole   String  @default("other")
   /// ครัวชั่งละเอียดได้แค่ไหน — เนื้อ/ข้าว 10 ก. · ซอส/เครื่องปรุง 5 ก.
-  stepGrams   Int          @default(10)
+  stepGrams     Int     @default(10)
   /// true = ตัวเลขยังไม่ได้ยืนยันโดยครัว (เช่นเพิ่งดึงมาช่วยกรอกจากคลังอาหาร)
-  isEstimate  Boolean      @default(true)
+  isEstimate    Boolean @default(true)
   /// ที่มาของตัวเลข เขียนเป็นข้อความ เช่น "ฉลากข้างถุง" / "คลังอาหาร: อกไก่ย่าง 100 กรัม"
-  source      String?
-  isActive    Boolean      @default(true)
+  source        String?
+  isActive      Boolean @default(true)
 
   // ── ของที่ลูกค้าเห็นตอนจัดชามเองในแอป (จอสั่งอาหาร 6 ขั้น) ────────────────
   /// ชื่ออังกฤษที่โชว์ใต้ชื่อไทยในแอป
@@ -858,13 +865,13 @@ model Ingredient {
   /// ปริมาณต่อ 1 ที่ (portion) หน่วยเดียวกับ unit — ใช้แปลงค่าต่อ 100 ให้เป็นต่อ 1 ที่
   portionSize  Float?
   /// ราคาที่บวกเพิ่มต่อ 1 ที่ (บาท) — 0 = รวมอยู่ในราคาฐานของชามแล้ว
-  portionPrice Int          @default(0)
+  portionPrice Int       @default(0)
   /// สารก่อภูมิแพ้ที่ต้องกันคนแพ้ — shrimp|fish|egg|milk|soy|wheat|peanut|treenut|sesame|shellfish
-  allergens    String[]     @default([])
+  allergens    String[]  @default([])
   /// ลำดับที่โชว์ในขั้นนั้น (น้อยขึ้นก่อน)
-  sortOrder    Int          @default(0)
+  sortOrder    Int       @default(0)
   /// ของหมดชั่วคราว — ครัวกดปุ่มเดียวแล้วหายจากแอปทันที (ต่างจาก isActive ที่แปลว่าเลิกขาย)
-  soldOut      Boolean      @default(false)
+  soldOut      Boolean   @default(false)
   /// เวลาที่กดว่าหมด — ไว้ให้ครัวเห็นว่าค้างมากี่วันแล้ว
   soldOutAt    DateTime?
 
@@ -1255,6 +1262,64 @@ model BarcodeScanHistory {
   @@map("barcode_scan_history")
 }
 
+/// คลังอาหารรายคน — แอดมินกดเพิ่มให้ลูกค้าหลังรับออเดอร์ในแชท
+///
+/// 🔴 เพิ่มได้เฉพาะ "เมนูของครัว" (Food) เท่านั้น (เจ้าของเคาะ 26 ส.ค. 69)
+/// 🔴 โภชนาการ/ชื่อ/รูป เก็บเป็นสำเนาไว้ที่นี่ — เมนูครัวแก้สูตรทีหลังต้องไม่กระทบของที่ลูกค้าถืออยู่
+/// 🔴 remaining ลดเมื่อลูกค้ากดบันทึกจาก "คลังอาหารของฉัน" เท่านั้น
+///    (ลบบันทึกทิ้ง = คืนของเข้าคลัง — ดู MealLog.stockId)
+model MemberFoodStock {
+  id        String    @id @default(cuid())
+  memberId  String
+  foodId    String
+  /// สำเนาไว้ตอนเพิ่ม ไม่อ่านสดจากเมนูครัว
+  name      String
+  imageUrl  String?
+  calories  Float
+  protein   Float
+  carbs     Float
+  fat       Float
+  sodium    Float?
+  sugar     Float?
+  /// กล่อง | ชาม | จาน | ถุง | ขวด | แก้ว | ชิ้น | ห่อ | ที่
+  unit      String    @default("กล่อง")
+  /// จำนวนที่เพิ่มเข้ามาทั้งหมด (ไว้ดูย้อนหลังว่าใช้ไปเท่าไร)
+  quantity  Int
+  /// คงเหลือตอนนี้ — 0 = ไม่โผล่ในแอปแล้ว แต่ยังอยู่ในหลังบ้านให้กดเติม
+  remaining Int
+  /// ไม่ใส่ก็ได้ (อาหารสดค่อยใส่)
+  expiresAt DateTime?
+  note      String?
+  /// ใครเป็นคนเพิ่ม — เวลามีปัญหา "ของหายไปไหน" ต้องสาวกลับได้
+  addedBy   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  member    Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  food      Food      @relation(fields: [foodId], references: [id], onDelete: Restrict)
+  mealLogs  MealLog[]
+
+  @@index([memberId, remaining])
+  @@map("member_food_stocks")
+}
+
+/// "วันนี้ไม่ได้กินมื้อนี้" — ผู้ใช้กดข้ามงานค้างของวันนั้น
+/// 🔴 มีไว้เพื่อไม่ให้ระบบตื๊อคนที่ไม่กินมื้อเช้าเป็นปกติ (IF/อดมื้อเช้า)
+///    ข้ามบ่อยพอ = เลิกถามมื้อนั้นไปเลย (ดู src/app/api/coach/todos/route.ts)
+model TodoSkip {
+  id        String   @id @default(cuid())
+  memberId  String
+  /// breakfast | lunch | dinner | water | ... (ตรงกับ key ของ todo)
+  key       String
+  /// วันตามปฏิทินไทย เก็บเป็น UTC midnight ของวันนั้น (กติกาเดียวกับ DailyPlan)
+  date      DateTime
+  createdAt DateTime @default(now())
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, key, date])
+  @@index([memberId, key, date])
+  @@map("todo_skips")
+}
+
 model SystemSetting {
   id String @id @default("system")
 
@@ -1277,7 +1342,7 @@ model SystemSetting {
 
   // ราคาฐานของชามจัดเอง (บาท) — รวม base + ผัก + ซอส + ของโรยหน้าแล้ว
   // โปรตีน/ท็อปปิ้งบวกเพิ่มรายชิ้นตาม Ingredient.portionPrice
-  bowlBasePrice Int @default(99)
+  bowlBasePrice  Int   @default(99)
   // เพดานจำนวน "ที่" ต่อขั้น — { base, protein, veggies, toppings, sauce, finish }
   // null = ใช้ค่าเริ่มต้นใน src/lib/bowl.ts
   bowlStepLimits Json?
@@ -1542,17 +1607,17 @@ model ProgramEnrollment {
 /// สแกนซ้ำวันเดิม = ทับของเดิม (@@unique([memberId, date])) — ไม่งั้นกราฟเทรนด์จะมีหลายจุดในวันเดียว
 /// เสียงจากลูกค้าหลังทานแต่ละมื้อ — วัตถุดิบของครัวในการปรับรส/ปริมาณรายคน (เจ้าของสั่ง 23 ส.ค. 69)
 model MealFeedback {
-  id       String   @id @default(cuid())
-  memberId String
-  foodId   String?
-  foodName String
-  slot     String? // เช้า | กลางวัน | ว่าง | เย็น
-  date     DateTime // วัน BKK (กติกาเดียวกับ DailyPlan.date)
+  id        String   @id @default(cuid())
+  memberId  String
+  foodId    String?
+  foodName  String
+  slot      String? // เช้า | กลางวัน | ว่าง | เย็น
+  date      DateTime // วัน BKK (กติกาเดียวกับ DailyPlan.date)
   /// 1=ไม่อร่อย 2=เฉย ๆ 3=อร่อย
-  taste    Int?
+  taste     Int?
   /// 1=ไม่พอ(ยังหิว) 2=พอดี 3=เยอะไป(เหลือ)
-  portion  Int?
-  note     String?
+  portion   Int?
+  note      String?
   createdAt DateTime @default(now())
   member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
@@ -1666,4 +1731,32 @@ model BodyReport {
   @@unique([memberId, periodEnd])
   @@index([memberId, periodEnd])
   @@map("body_reports")
+}
+
+/// การเชื่อมบริการสุขภาพภายนอกของสมาชิก (Fitbit / Strava)
+/// 🔴 ต่างจาก AuthIdentity: อันนั้นคือ "ล็อกอินด้วยอะไร" อันนี้คือ "ดึงข้อมูลจากที่ไหน"
+///    คนหนึ่งอาจล็อกอินด้วย Apple แต่ดึงข้อมูลจาก Fitbit ก็ได้
+/// 🔴 token เก็บแบบเข้ารหัส (AES-GCM ด้วย SECRETS_MASTER_KEY) เหมือน secret_settings
+///    เพราะ access token ของ Fitbit เปิดอ่านข้อมูลสุขภาพย้อนหลังได้ทั้งบัญชี
+model HealthConnection {
+  id         String    @id @default(cuid())
+  memberId   String
+  /// fitbit | strava
+  provider   String
+  /// user id ฝั่งผู้ให้บริการ — ไว้ตรวจว่าเป็นบัญชีเดิมหรือเปลี่ยนคน
+  externalId String
+  tokenEnc   String
+  refreshEnc String?
+  expiresAt  DateTime?
+  scope      String?
+  /// ดึงข้อมูลถึงวันไหนแล้ว — cron จะดึงต่อจากนี้ ไม่ใช่ไล่ใหม่ทั้งหมดทุกครั้ง
+  lastSyncAt DateTime?
+  lastError  String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  member     Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, provider])
+  @@index([provider])
+  @@map("health_connections")
 }

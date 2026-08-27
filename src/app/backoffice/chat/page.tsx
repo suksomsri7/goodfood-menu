@@ -32,7 +32,9 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Users,
+  PackagePlus,
 } from "lucide-react";
+import { FoodStockPanel } from "@/components/backoffice/FoodStockPanel";
 import { useState, useEffect, useRef, useCallback, MouseEvent as ReactMouseEvent } from "react";
 
 interface Conversation {
@@ -130,6 +132,9 @@ const statusConfig: Record<string, { label: string; color: string; bgColor: stri
 export default function ChatPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  /** คลังอาหารของลูกค้าที่กำลังคุยอยู่ — เจ้าของเคาะ 26 ส.ค. 69 ว่าต้องเพิ่มได้จากในแชทเลย
+      (จังหวะที่ลูกค้าเพิ่งพิมพ์สั่ง คือจังหวะที่แอดมินจะกดจริง) */
+  const [showStock, setShowStock] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageText, setMessageText] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -1147,6 +1152,13 @@ export default function ChatPage() {
                   <ImageIcon className="w-5 h-5" />
                 </button>
                 <button
+                  onClick={() => setShowStock(true)}
+                  className="p-2 rounded-xl hover:bg-green-50 transition-colors text-[#4CAF50]"
+                  title="เพิ่มอาหารเข้าคลังของลูกค้า"
+                >
+                  <PackagePlus className="w-5 h-5" />
+                </button>
+                <button
                   onClick={() => setShowStickerPicker(!showStickerPicker)}
                   className={`p-2 rounded-xl transition-colors ${
                     showStickerPicker
@@ -1362,6 +1374,24 @@ export default function ChatPage() {
       </div>
 
       {/* Image Preview Modal */}
+      {/* คลังอาหารของลูกค้าคนนี้ — เปิดจากปุ่มในแถบพิมพ์ข้อความ */}
+      {showStock && selectedConversation && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowStock(false)}>
+          <div className="bg-white w-full max-w-lg rounded-2xl max-h-[88vh] overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="font-semibold text-gray-900">คลังอาหารของ {selectedConversation.displayName}</h3>
+                <p className="text-xs text-gray-500">เพิ่มหลังรับออเดอร์ · ลูกค้ากดบันทึกในแอปแล้วตัดยอดให้เอง</p>
+              </div>
+              <button onClick={() => setShowStock(false)} className="p-1.5 rounded hover:bg-gray-100">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <FoodStockPanel lineUserId={selectedConversation.lineUserId} memberName={selectedConversation.displayName} compact />
+          </div>
+        </div>
+      )}
+
       <AnimatePresence>
         {showImageUpload && selectedImage && (
           <motion.div

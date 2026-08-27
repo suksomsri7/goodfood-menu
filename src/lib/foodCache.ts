@@ -4,6 +4,7 @@
  * ไม่ต้องมีตารางใหม่: MealLog ที่ user ยืนยันบันทึกไปแล้วคือแคชที่ดีที่สุดอยู่แล้ว
  * (ผ่านตาเจ้าตัวมาแล้วรอบหนึ่ง) — ของตัวเองก่อน ถ้าไม่มีค่อยดูของทั้งระบบ
  */
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { normaliseFoodName } from "@/lib/foodName";
 
@@ -58,6 +59,8 @@ export interface FrequentFood {
   sodium: number | null;
   sugar: number | null;
   count: number;
+  /** เคยกินในช่วงเวลาใกล้ ๆ ตอนนี้กี่ครั้ง (ใส่เมื่อส่ง nowHour มา) */
+  nearCount?: number;
 }
 
 /**
@@ -65,20 +68,42 @@ export interface FrequentFood {
  * แยกจาก frequentFoods() ที่คืนข้อความยาวสำหรับใส่ prompt AI (ห้ามเปลี่ยน shape ของตัวนั้น)
  * เกณฑ์ min 1 ครั้ง เพราะฝั่งแอปอยากเห็น "ของที่เคยกิน" ทั้งหมด ไม่ใช่แค่ที่ซ้ำ
  */
-export async function frequentFoodsList(memberId: string, limit = 30, minCount = 1): Promise<FrequentFood[]> {
+export async function frequentFoodsList(
+  memberId: string,
+  limit = 30,
+  minCount = 1,
+  /**
+   * ชั่วโมงปัจจุบัน (เวลาไทย) — ส่งมาเมื่อไร รายการจะเรียง "ของที่เคยกินช่วงเวลานี้" ขึ้นก่อน
+   *
+   * 🔴 เจ้าของเคาะ 26 ส.ค. 69: ให้ยึด "ช่วงเวลา" ไม่ใช่ชื่อมื้อ (เช้า/กลางวัน/เย็น)
+   *    เปิดตอน 7 โมงต้องเจอโจ๊ก/กาแฟ · เปิดบ่ายสามต้องเจอของว่างที่กินประจำ
+   *    ใช้กรอบ ±90 นาที และคร่อมเที่ยงคืนได้ (23:00 ต้องจับคู่กับ 00:30)
+   */
+  nowHour?: number,
+): Promise<FrequentFood[]> {
+  const near =
+    nowHour === undefined
+      ? Prisma.sql`0`
+      : /* ระยะห่างเป็นนาทีจากเวลานี้ แบบวนรอบ 24 ชม. → ≤90 นาที = "ช่วงเดียวกัน" */
+        Prisma.sql`CASE WHEN LEAST(
+            abs((extract(hour from ("date" + interval '7 hours')) * 60 + extract(minute from ("date" + interval '7 hours'))) - ${nowHour * 60}),
+            1440 - abs((extract(hour from ("date" + interval '7 hours')) * 60 + extract(minute from ("date" + interval '7 hours'))) - ${nowHour * 60})
+          ) <= 90 THEN 1 ELSE 0 END`;
+
   const rows = await prisma.$queryRaw<
-    Array<{ name: string; kcal: number; p: number; c: number; f: number; na: number | null; su: number | null; n: number }>
+    Array<{ name: string; kcal: number; p: number; c: number; f: number; na: number | null; su: number | null; n: number; near_n: number }>
   >`
     SELECT name,
            round(avg(calories))::int AS kcal, round(avg(protein))::int AS p,
            round(avg(carbs))::int AS c, round(avg(fat))::int AS f,
            round(avg(sodium))::int AS na, round(avg(sugar))::int AS su,
-           count(*)::int AS n
+           count(*)::int AS n,
+           sum(${near})::int AS near_n
     FROM meal_logs
     WHERE "memberId" = ${memberId} AND "date" >= now() - interval '60 days'
     GROUP BY name
     HAVING count(*) >= ${minCount}
-    ORDER BY count(*) DESC, max("date") DESC
+    ORDER BY sum(${near}) DESC, count(*) DESC, max("date") DESC
     LIMIT ${limit}
   `;
   return rows.map((r) => ({
@@ -90,6 +115,8 @@ export async function frequentFoodsList(memberId: string, limit = 30, minCount =
     sodium: r.na ?? null,
     sugar: r.su ?? null,
     count: r.n,
+    /** เคยกินช่วงเวลานี้กี่ครั้ง — แอปเอาไปขึ้นว่า "เคยกินช่วงนี้ 12 ครั้ง" */
+    nearCount: r.near_n ?? 0,
   }));
 }
 
@@ -174,6 +201,8 @@ export async function frequentFoodsInWindow(
     sodium: r.na ?? null,
     sugar: r.su ?? null,
     count: r.n,
+    /** เคยกินช่วงเวลานี้กี่ครั้ง — แอปเอาไปขึ้นว่า "เคยกินช่วงนี้ 12 ครั้ง" */
+    nearCount: r.n,
   }));
 }
 

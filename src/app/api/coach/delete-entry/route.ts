@@ -46,6 +46,21 @@ export async function POST(req: NextRequest) {
       if (!log) return NextResponse.json({ error: "not found" }, { status: 404 });
       count = (await prisma.mealLog.deleteMany({ where: { id, memberId: member.id } })).count;
 
+      /* 🔴 บันทึกนี้ตัดมาจาก "คลังอาหารของฉัน" → ลบทิ้งต้องคืนของเข้าคลัง
+         (กดผิดแล้วของที่ลูกค้าจ่ายเงินมาหายฟรีไม่ได้ · คืนไม่เกินยอดที่เคยให้ไป) */
+      if (count > 0 && log.stockId) {
+        const stock = await prisma.memberFoodStock.findFirst({
+          where: { id: log.stockId, memberId: member.id },
+          select: { id: true, quantity: true, remaining: true },
+        });
+        if (stock && stock.remaining < stock.quantity) {
+          await prisma.memberFoodStock.update({
+            where: { id: stock.id },
+            data: { remaining: { increment: 1 } },
+          });
+        }
+      }
+
       if (log.via === "plan") {
         const plan = await prisma.dailyPlan.findFirst({
           where: { memberId: member.id, date: planDateOf(log.date) },

@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { resolveMember } from "@/lib/coachResolve";
 import { frequentFoodsList } from "@/lib/foodCache";
+import { expiryLabel, stockFlags } from "@/lib/foodStock";
 
 export const dynamic = "force-dynamic";
 
@@ -35,8 +36,36 @@ export async function GET(req: NextRequest) {
 
     const q = (req.nextUrl.searchParams.get("q") || "").trim().slice(0, 60);
 
+    /* คลังอาหารของคนนี้ (แอดมินเพิ่มให้หลังรับออเดอร์) — ต้องมาก่อนทุกอย่าง
+       เพราะเป็นของที่เขาจ่ายเงินมาแล้วและกดบันทึกได้โดยไม่ต้องพิมพ์เลย
+       🔴 ของหมด (remaining 0) ไม่ส่งไป · ของหมดอายุแล้วส่งไปแต่ติดธงให้แอปกันไว้ */
+    const stockRows = await prisma.memberFoodStock.findMany({
+      where: { memberId: member.id, remaining: { gt: 0 } },
+      orderBy: [{ expiresAt: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
+      take: 20,
+    });
+    const stock = stockRows.map((r) => ({
+      stockId: r.id,
+      name: r.name,
+      imageUrl: r.imageUrl,
+      unit: r.unit,
+      remaining: r.remaining,
+      calories: r.calories,
+      protein: r.protein,
+      carbs: r.carbs,
+      fat: r.fat,
+      sodium: r.sodium,
+      sugar: r.sugar,
+      expiryText: expiryLabel(r.expiresAt),
+      ...stockFlags(r),
+      source: "stock" as const,
+    }));
+
     // เมนูที่เคยกิน = คำตอบที่ตรงตัวที่สุดของคนนี้ → มาก่อนคลังกลางเสมอ
-    const freqRows = await frequentFoodsList(member.id, q ? 60 : 30);
+    /* เรียง "ของที่เคยกินช่วงเวลานี้" ขึ้นก่อน (เจ้าของเคาะ: ยึดช่วงเวลา ไม่ใช่ชื่อมื้อ)
+       เวลาไทย = UTC+7 คิดจากเวลาเซิร์ฟเวอร์ ไม่ใช่เวลาเครื่องผู้ใช้ (เครื่องอาจตั้งเขตเวลาอื่น) */
+    const bkkHourNow = new Date(Date.now() + 7 * 3600 * 1000).getUTCHours();
+    const freqRows = await frequentFoodsList(member.id, q ? 60 : 30, 1, bkkHourNow);
     const needle = q.toLowerCase();
     const frequent = (q ? freqRows.filter((r) => r.name.toLowerCase().includes(needle)) : freqRows)
       .slice(0, LIMIT)
@@ -48,10 +77,12 @@ export async function GET(req: NextRequest) {
         fat: r.fat,
         sodium: r.sodium,
         sugar: r.sugar,
+        nearCount: r.nearCount ?? 0,
+        count: r.count,
         source: "frequent" as const,
       }));
 
-    if (!q) return NextResponse.json({ frequent });
+    if (!q) return NextResponse.json({ stock, frequent });
 
     /*
      * คลังกลาง: ต้องค้นทั้ง name และ aliases แบบ contains
@@ -70,7 +101,7 @@ export async function GET(req: NextRequest) {
     `);
 
     const catalog = rows.map((r) => ({ ...r, source: "catalog" as const }));
-    return NextResponse.json({ frequent, catalog });
+    return NextResponse.json({ stock, frequent, catalog });
   } catch (e: any) {
     console.error("[coach/foods]", e);
     return NextResponse.json({ error: "search failed" }, { status: 500 });

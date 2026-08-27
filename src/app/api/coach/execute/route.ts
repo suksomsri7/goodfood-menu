@@ -42,9 +42,22 @@ export async function POST(req: NextRequest) {
         const baseName = String(g.name || "อาหาร").trim();
         const portion = typeof g.portion === "string" ? g.portion.trim() : "";
         const fullName = portion && !baseName.includes(portion) ? `${baseName} ${portion}` : baseName;
+        /* 🔴 กดจาก "คลังอาหารของฉัน" เท่านั้นที่ตัดสต๊อก — ส่ง stockId มาด้วย
+           พิมพ์ชื่อเดียวกันจากช่องค้นหา/ที่กินบ่อย = ไม่ตัด (เขาอาจไปกินร้านข้างนอก)
+           ตัดแบบมีเงื่อนไข remaining > 0 เพื่อกันกดรัว ๆ แล้วติดลบ */
+        let stockId: string | null = null;
+        if (typeof g.stockId === "string" && g.stockId) {
+          const hit = await prisma.memberFoodStock.updateMany({
+            where: { id: g.stockId, memberId: member.id, remaining: { gt: 0 } },
+            data: { remaining: { decrement: 1 } },
+          });
+          if (hit.count > 0) stockId = g.stockId;
+          else notes.push("ของในคลังหมดพอดี — บันทึกให้แล้วแต่ไม่ได้ตัดยอด");
+        }
         await prisma.mealLog.create({
           data: {
             memberId: member.id,
+            stockId,
             name: fullName.slice(0, 120),
             weight: g.weight != null ? num(g.weight, 5000) : null,
             calories: num(g.calories, 6000),

@@ -34,6 +34,7 @@ import {
   HeartPulse,
   Activity,
 } from "lucide-react";
+import { FoodStockPanel } from "@/components/backoffice/FoodStockPanel";
 import { useState, useEffect } from "react";
 import { formatDistanceToNow, format } from "date-fns";
 import { th } from "date-fns/locale";
@@ -1644,6 +1645,10 @@ export default function MembersPage() {
                     {/* Meals Tab (Stock อาหาร) */}
                     {activeTab === "meals" && (
                       <div className="space-y-6">
+                        {/* คลังอาหารของคนนี้ (แอดมินเพิ่มให้หลังรับออเดอร์) — ต้องอยู่บนสุดของแท็บนี้
+                            เพราะเป็น "ของที่เขาถืออยู่จริง" ส่วนตัวเลขข้างล่างคือสิ่งที่กินไปแล้ววันนี้ */}
+                        <FoodStockPanel memberId={selectedMember.id} memberName={selectedMember.displayName || selectedMember.name || undefined} />
+
                         {/* Today Stats */}
                         <div className="grid grid-cols-4 gap-4">
                           <div className="bg-orange-50 rounded-xl p-4 text-center">
