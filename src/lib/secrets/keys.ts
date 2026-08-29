@@ -147,6 +147,34 @@ export const SECRET_KEY_REGISTRY: SecretKeyMeta[] = [
     group: "อุปกรณ์สุขภาพ",
     href: "https://www.strava.com/settings/api",
   },
+
+  // บอท Telegram สำหรับคิวตรวจคลิปท่าออกกำลังกาย
+  {
+    key: "FOODIE_BOT_TOKEN",
+    label: "Foodie Bot Token",
+    description: "โทเคนของ @Foodie_goodfood_bot — ใช้ส่งการ์ดให้กดผ่าน/ไม่ผ่าน",
+    group: "Other",
+  },
+  {
+    key: "FOODIE_BOT_CHAT_ID",
+    label: "Foodie Bot Chat ID",
+    description: "แชทที่จะรับการ์ด (ของเจ้าของร้าน)",
+    group: "Other",
+  },
+  {
+    key: "FOODIE_WEBHOOK_SECRET",
+    label: "Foodie Webhook Secret",
+    description: "ค่าลับที่ Telegram แนบมาทุก request — กันคนอื่นยิง webhook มั่ว",
+    group: "Other",
+  },
+
+  {
+    key: "YOUTUBE_API_KEY",
+    label: "YouTube Data API Key",
+    description: "ใช้ค้นคลิปสอนท่าออกกำลังกายให้ครบทั้งคลัง (scripts/seed-exercise-videos.ts) · ฟรี 10,000 หน่วย/วัน = ~100 ท่า/วัน",
+    group: "Other",
+    href: "https://console.cloud.google.com/apis/library/youtube.googleapis.com",
+  },
 ];
 
 export function findKeyMeta(key: string): SecretKeyMeta | undefined {

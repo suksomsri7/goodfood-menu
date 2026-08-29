@@ -27,7 +27,11 @@ export async function GET(req: NextRequest) {
  * 🔴 ไม่ใช่แค่ปิดการ์ด — เก็บไว้เป็นพฤติกรรมด้วย ข้ามครบ 3 ครั้งใน 14 วัน ระบบจะเลิกถามมื้อนั้นเอง
  *    (คนทำ IF ไม่ควรโดนตื๊อทุกเช้าไปตลอดชีวิต)
  */
-const SKIPPABLE = new Set(["breakfast", "lunch", "dinner"]);
+/* ปัดซ้ายทิ้งได้ทุกข้อ (เจ้าของสั่ง 28 ส.ค. 69) — แต่ยังจำกัดเฉพาะคีย์ที่ระบบรู้จัก
+   ห้ามรับคีย์อะไรก็ได้ ไม่งั้นตารางบวมด้วยขยะที่ไม่มีใครอ่าน */
+const SKIPPABLE = new Set(["breakfast", "lunch", "dinner", "water", "readiness", "weigh", "bodyScan"]);
+/** เฉพาะมื้ออาหารที่ "ข้ามบ่อย = เลิกถาม" — ข้ออื่นทิ้งได้แค่วันต่อวัน */
+const LEARNABLE = new Set(["breakfast", "lunch", "dinner"]);
 
 export async function POST(req: NextRequest) {
   const member = await getAuthedMember(req);
@@ -54,6 +58,6 @@ export async function POST(req: NextRequest) {
     ok: true,
     skippedToday: true,
     // บอกให้รู้ตัวว่าระบบเรียนรู้แล้ว ไม่ใช่เงียบหายไปเฉย ๆ
-    note: times >= 3 ? "รับทราบครับ — ต่อไปผมจะไม่ถามมื้อนี้อีก (เปลี่ยนใจได้ทุกเมื่อ แค่บันทึกมื้อนี้เข้ามา)" : undefined,
+    note: times >= 3 && LEARNABLE.has(key) ? "รับทราบครับ — ต่อไปผมจะไม่ถามมื้อนี้อีก (เปลี่ยนใจได้ทุกเมื่อ แค่บันทึกมื้อนี้เข้ามา)" : undefined,
   });
 }

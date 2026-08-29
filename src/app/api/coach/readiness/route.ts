@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthedMember } from "@/lib/coachAuth";
 import { autoParts, bkkDayKey } from "@/lib/readinessStore";
-import { computeReadiness, suggestionFor, DEFAULT_SLEEP_GOAL_MIN, type ReadinessBand } from "@/lib/readiness";
+import { computeReadiness, readinessReasons, suggestionFor, DEFAULT_SLEEP_GOAL_MIN, type ReadinessBand, recurringSoreAdvice } from "@/lib/readiness";
 
 export const dynamic = "force-dynamic";
 
@@ -78,6 +78,33 @@ export async function GET(req: NextRequest) {
         }).parts
       : null;
 
+    /* อาการที่บ่นซ้ำที่เดิม — ดู 7 วันหลังสุด (ไม่รวมวันนี้ก็ได้ ให้เห็นแนวโน้มจริง) */
+    const recent = await prisma.readinessCheckin.findMany({
+      where: { memberId: member.id, date: { gte: new Date(dayKey.getTime() - 7 * 86400000) } },
+      select: { soreAreas: true },
+      orderBy: { date: "desc" },
+      take: 7,
+    });
+    const soreAdvice = recurringSoreAdvice(recent);
+
+    /* 🔴 ปิดลูป: สิ่งที่ user บอกไว้ "หลังเล่นครั้งก่อน" ต้องถูกหยิบมาใช้ ไม่ใช่เก็บไว้เฉย ๆ
+       feel มีอยู่แล้วและ engine progression ใช้ตั้งน้ำหนัก — แต่จอความพร้อมไม่เคยพูดถึงเลย
+       พอโค้ชพูดว่า "ครั้งก่อนคุณบอกว่าหนักเกิน" user จะรู้สึกว่าโค้ชจำได้จริง (ไม่ใช่แค่คำนวณ) */
+    const lastSets = await prisma.setLog.findMany({
+      where: { memberId: member.id, feel: { not: null }, date: { gte: new Date(dayKey.getTime() - 3 * 86400000) } },
+      select: { feel: true },
+      orderBy: { date: "desc" },
+      take: 12,
+    });
+    const hardCount = lastSets.filter((x) => x.feel === "too_hard" || x.feel === "hard").length;
+    const easyCount = lastSets.filter((x) => x.feel === "too_easy" || x.feel === "easy").length;
+    const lastFeelNote =
+      lastSets.length >= 3 && hardCount >= Math.ceil(lastSets.length / 2)
+        ? "ครั้งก่อนคุณบอกว่าหนักไป — วันนี้โค้ชเลยไม่ดันเพิ่ม"
+        : lastSets.length >= 3 && easyCount >= Math.ceil(lastSets.length / 2)
+        ? "ครั้งก่อนคุณบอกว่าเบาไป — ถ้าวันนี้ไหว โค้ชขยับขึ้นให้ได้"
+        : null;
+
     const body = existing
       ? {
           needsAnswers: false,
@@ -94,9 +121,21 @@ export async function GET(req: NextRequest) {
             canUndo: existing.applied && existing.planBackup != null,
           },
           suggestion: suggestionFor(existing.score, (existing.band as ReadinessBand) ?? "normal"),
+          /** เหตุผลภาษาคน — จอเอาไปโชว์แทนคะแนนดิบ (เจ้าของทัก 28 ส.ค. 69 ว่า "37/100" ไม่สื่ออะไร) */
+          reasons: reconParts
+            ? readinessReasons(reconParts, {
+                sleepMinutes: existing.sleepMin,
+                soreAreas: existing.soreAreas,
+                energy: existing.energy,
+              })
+            : [],
+          /** อาการที่บ่นซ้ำที่เดิม — โค้ชควรทัก ไม่ใช่ลดเซ็ตไปเรื่อย ๆ */
+          soreAdvice: soreAdvice?.text ?? null,
+          /** สิ่งที่ user บอกหลังเล่นครั้งก่อน — โชว์ให้เห็นว่าระบบจำและเอาไปใช้จริง */
+          lastFeelNote,
           auto: autoView,
         }
-      : { needsAnswers: true, date: dayStr(dayKey), checkin: null, auto: autoView };
+      : { needsAnswers: true, date: dayStr(dayKey), checkin: null, soreAdvice: soreAdvice?.text ?? null, lastFeelNote, auto: autoView };
 
     const res = NextResponse.json(body);
     res.headers.set("Cache-Control", "no-store, must-revalidate");
@@ -155,6 +194,11 @@ export async function POST(req: NextRequest) {
       score: result.score,
       band: result.band,
       suggestion: suggestionFor(result.score, result.band),
+      reasons: readinessReasons(result.parts, {
+        sleepMinutes: checkin.sleepMin,
+        soreAreas: checkin.soreAreas,
+        energy: checkin.energy,
+      }),
       parts: result.parts,
       missing: result.missing,
       /** true = band นี้มีอะไรให้ปรับในแผนวันนี้ (จอค่อยขึ้นปุ่ม "ปรับแผนให้เบาลง") */

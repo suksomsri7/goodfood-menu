@@ -449,3 +449,70 @@ export function adjustPlanForReadiness(
 
   return { items: next, changed: removed > 0, cutSets: removed, replacedDay: false };
 }
+
+/**
+ * เหตุผลภาษาคน — "ทำไมวันนี้ถึงไม่เหมือนเดิม"
+ *
+ * 🔴 28 ส.ค. 69 เจ้าของทัก: จอโชว์ "37/100" ซึ่งไม่ได้บอกอะไรกับคนเลย
+ *    เทรนเนอร์จริงไม่พูดว่า "คุณได้ 37 คะแนน" เขาพูดว่า "เมื่อคืนนอน 5 ชม. แล้วน่องยังปวดจากเมื่อวาน"
+ *    ฟังก์ชันนี้หยิบ "ตัวการจริง" ที่ฉุดคะแนนมากที่สุด 1-2 อย่างมาพูดเป็นประโยค
+ *
+ * 🔴 พูดเฉพาะสิ่งที่มีข้อมูลจริง — ไม่มีนาฬิกา = ห้ามพูดถึง HRV/ชีพจร (จะกลายเป็นแต่งเรื่อง)
+ */
+export function readinessReasons(
+  parts: ReadinessParts,
+  ctx?: { sleepMinutes?: number | null; soreAreas?: string[] | null; energy?: number | null }
+): string[] {
+  const WEAK = 0.45; // ต่ำกว่านี้ = เป็นตัวฉุดจริง ไม่ใช่แค่ต่ำกว่าค่าเฉลี่ยนิดหน่อย
+  const out: Array<{ w: number; text: string }> = [];
+
+  if (parts.sleep != null && parts.sleep < WEAK) {
+    const m = ctx?.sleepMinutes;
+    const h = m && m > 0 ? `${Math.floor(m / 60)} ชม.${m % 60 ? ` ${Math.round(m % 60)} นาที` : ""}` : null;
+    out.push({ w: parts.sleep, text: h ? `เมื่อคืนนอนแค่ ${h}` : "เมื่อคืนนอนไม่พอ" });
+  }
+  if (parts.soreness != null && parts.soreness < WEAK) {
+    const areas = (ctx?.soreAreas ?? []).filter(Boolean);
+    out.push({ w: parts.soreness, text: areas.length ? `ยังปวด${areas.join("/")}อยู่` : "ยังปวดกล้ามเนื้อจากครั้งก่อน" });
+  }
+  if (parts.energy != null && parts.energy < WEAK) {
+    out.push({ w: parts.energy, text: "คุณบอกว่าแรงเหลือน้อย" });
+  }
+  if (parts.hrv != null && parts.hrv < WEAK) {
+    out.push({ w: parts.hrv, text: "HRV ต่ำกว่าค่าปกติของคุณ (ร่างกายยังฟื้นไม่เต็ม)" });
+  }
+  if (parts.rhr != null && parts.rhr < WEAK) {
+    out.push({ w: parts.rhr, text: "ชีพจรตอนตื่นสูงกว่าปกติ" });
+  }
+
+  // เอาตัวที่ฉุดแรงที่สุดก่อน · เกิน 2 ข้อคนอ่านไม่ไหวและเริ่มรู้สึกโดนตำหนิ
+  return out.sort((a, b) => a.w - b.w).slice(0, 2).map((x) => x.text);
+}
+
+/**
+ * อาการที่ "บ่นซ้ำที่เดิม" — เทรนเนอร์จริงจะทัก ไม่ใช่หั่นเซ็ตเงียบ ๆ ไปเรื่อย ๆ
+ *
+ * 🔴 28 ส.ค. 69: ของเดิมเห็นว่าปวดเข่าก็แค่ลดเซ็ตท่าที่ลงเข่า ทำแบบนี้ได้ทุกวันไม่จบ
+ *    ปวดที่เดิม 3 วันใน 7 วัน = สัญญาณว่า "ต้องเปลี่ยนวิธี" ไม่ใช่ "ลดปริมาณอีกนิด"
+ * 🔴 ห้ามวินิจฉัยโรคหรือสั่งให้หยุด — บอกสิ่งที่เห็น + เสนอทางเลือก แล้วให้เขาตัดสิน
+ */
+export function recurringSoreAdvice(
+  history: Array<{ soreAreas: string[] | null }>,
+  minTimes = 3
+): { area: string; times: number; text: string } | null {
+  const count = new Map<string, number>();
+  for (const h of history) {
+    for (const a of new Set((h.soreAreas ?? []).filter(Boolean))) {
+      count.set(a, (count.get(a) ?? 0) + 1);
+    }
+  }
+  let worst: { area: string; times: number } | null = null;
+  for (const [area, times] of count) {
+    if (times >= minTimes && (!worst || times > worst.times)) worst = { area, times };
+  }
+  if (!worst) return null;
+  return {
+    ...worst,
+    text: `${worst.area}บ่นมา ${worst.times} วันใน 7 วันหลัง — สัปดาห์นี้ลองเลี่ยงท่าที่ลง${worst.area}ดูไหมครับ ถ้ายังไม่ดีขึ้นควรให้หมอดู`,
+  };
+}

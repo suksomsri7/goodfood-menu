@@ -553,6 +553,9 @@ model ReadinessCheckin {
   /// ปรับแผนของวันนี้ตามคะแนนไปแล้วหรือยัง
   applied    Boolean   @default(false)
   appliedAt  DateTime?
+  /// ปรับแผนไปด้วยช่วงไหน — ตอบแบบสอบถามใหม่แล้วช่วงเปลี่ยน ต้องปรับแผนใหม่ได้
+  /// (ของเดิมล็อกวันละครั้ง → ป้ายขึ้น "วันพักฟื้น" แต่แผนยังเป็นของรอบก่อน เจ้าของเจอกับตัว 28 ส.ค. 69)
+  appliedBand String?
   /// สำเนา exercisePlan ก่อนปรับ — undo ต้องคืนของเดิมได้เป๊ะ (ไม่ใช่ "คิดย้อนกลับ" ซึ่งพลาดได้)
   planBackup Json?
 
@@ -1759,4 +1762,33 @@ model HealthConnection {
   @@unique([memberId, provider])
   @@index([provider])
   @@map("health_connections")
+}
+
+/// คิวคลิปท่าออกกำลังกายที่รอเจ้าของตรวจผ่าน Telegram
+///
+/// 🔴 สถานะต้องอยู่ใน DB ไม่ใช่หน่วยความจำของบอท — บทเรียนจาก content-bot:
+///    restart ทีเดียวแล้วยิงการ์ดซ้ำทั้งชุด เพราะจำว่า "ส่งไปแล้ว" ไว้ในตัวแปร
+/// 🔴 เก็บหลายใบต่อท่า (rank) ไว้ล่วงหน้า เพื่อให้ปุ่ม "ขอตัวอื่น" เสิร์ฟได้ทันที
+///    ไม่ต้องไปค้น YouTube ตอนผู้ใช้กด (ช้า + พึ่ง API ที่อาจล่ม)
+model ExerciseVideoCandidate {
+  id          String    @id @default(cuid())
+  exerciseKey String
+  videoId     String
+  title       String
+  channel     String?
+  /// pending = ยังไม่ได้ส่ง · sent = ส่งแล้วรอกด · approved | rejected | skipped
+  status      String    @default("pending")
+  /// ลำดับตัวเลือกภายในท่าเดียวกัน (เลขน้อยเสิร์ฟก่อน)
+  rank        Int       @default(0)
+  /// ลำดับความสำคัญของ "ท่า" — ท่าที่ลูกค้ามีโอกาสเจอบ่อยกว่าต้องถูกตรวจก่อน
+  /// (0 = เคยอยู่ในแผนจริงแล้ว · 10 = ตัวเปล่า · 20 = ใช้ของที่บ้าน · 30 = ต้องมีฟิตเนส)
+  priority    Int       @default(50)
+  sentAt      DateTime?
+  decidedAt   DateTime?
+  messageId   Int?
+  createdAt   DateTime  @default(now())
+
+  @@unique([exerciseKey, videoId])
+  @@index([status, priority, rank])
+  @@map("exercise_video_candidates")
 }

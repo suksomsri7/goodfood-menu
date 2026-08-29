@@ -21,7 +21,16 @@ const prisma = new PrismaClient();
 const PATTERNS = [
   "squat", "hinge", "push_h", "push_v", "pull_h", "pull_v", "lunge", "core", "carry", "cardio", "mobility",
 ];
-const EQUIPMENT = ["dumbbell", "barbell", "kettlebell", "band", "bench", "pullup_bar", "machine", "treadmill", "bike"];
+const EQUIPMENT = [
+  // 🔴 ต้องตรงกับ EQUIPMENT_TYPES ใน src/lib/memberEquipment.ts เสมอ
+  //    (ขยายเป็น 29 ชนิดเมื่อ 27 ส.ค. 69 แต่ลืมขยายวงคำศัพท์ตรงนี้ → เพิ่มท่าที่ใช้ของใหม่ไม่ได้เลย)
+  "dumbbell", "barbell", "ez_bar", "kettlebell", "weight_plate", "sandbag", "ankle_weights",
+  "band", "trx", "battle_rope", "jump_rope",
+  "bench", "squat_rack", "pullup_bar", "dip_bar",
+  "stability_ball", "yoga_mat", "foam_roller", "medicine_ball",
+  "machine", "cable", "smith_machine", "leg_press",
+  "treadmill", "bike", "rowing_machine", "elliptical", "stair_climber",
+];
 const MUSCLES = [
   "quads", "hamstrings", "glutes", "calves", "adductors", "hip_flexors",
   "chest", "back", "lats", "traps", "shoulders", "biceps", "triceps", "forearms",

@@ -80,7 +80,7 @@ export async function buildTodos(member: TodoMember, now = new Date()): Promise<
       todos.push({
         key: "water",
         title: "จิบน้ำให้ทันเป้า",
-        sub: `วันนี้ ${water.toLocaleString("th-TH")}/${waterGoal.toLocaleString("th-TH")} มล. — แตะเพื่อบันทึก +250`,
+        sub: `วันนี้ ${water.toLocaleString("th-TH")}/${waterGoal.toLocaleString("th-TH")} มล. — แตะเพื่อบันทึกน้ำ`,
         action: "water250",
       });
     }
@@ -131,5 +131,8 @@ export async function buildTodos(member: TodoMember, now = new Date()): Promise<
     }
   }
 
-  return todos;
+  /* 🔴 28 ส.ค. 69 เจ้าของสั่ง: ปัดซ้ายที่การ์ด = ลบข้อนั้นทิ้ง
+     เดิมกดข้ามได้เฉพาะมื้ออาหาร (มีปุ่ม "ไม่ได้กินมื้อนี้") ข้ออื่นปิดไม่ได้เลย
+     ตอนนี้ปัดทิ้งได้ทุกข้อ แต่ "ทิ้งวันนี้" เท่านั้น — พรุ่งนี้ถ้ายังค้างอยู่ก็ขึ้นใหม่ */
+  return todos.filter((t) => !skippedToday(t.key));
 }

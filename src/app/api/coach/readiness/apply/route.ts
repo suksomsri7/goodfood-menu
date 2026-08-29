@@ -54,7 +54,12 @@ export async function POST(req: NextRequest) {
       return res;
     }
 
-    if (checkin.applied) {
+    /* 🔴 28 ส.ค. 69: ของเดิมล็อก "ปรับได้วันละครั้ง" แบบไม่ดูว่าคำตอบเปลี่ยนไปหรือยัง
+       เจ้าของตอบใหม่ (แย่ลง) → ป้ายเปลี่ยนเป็น "วันพักฟื้น" แต่แผนยังเป็นของรอบก่อน = ขัดกันคาหนังคาเขา
+       กติกาใหม่: ปรับซ้ำได้เมื่อ "ช่วงความพร้อมเปลี่ยน" เท่านั้น — กดปุ่มรัว ๆ ด้วยคำตอบเดิมยังไม่ตัดซ้ำ
+       และต้องคืนแผนต้นฉบับก่อนเสมอ ไม่งั้นตัดซ้อนตัด (เซ็ตหายเป็นทวีคูณ) */
+    const sameBandAlready = checkin.applied && checkin.appliedBand === band;
+    if (sameBandAlready) {
       const res = NextResponse.json({
         ok: true,
         applied: true,
@@ -73,7 +78,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "วันนี้ยังไม่มีแผนออกกำลังกายให้ปรับ" }, { status: 404 });
     }
 
-    const ep = (plan.exercisePlan as ExercisePlanJson | null) ?? {};
+    /* ปรับซ้ำ = ต้องคิดจาก "แผนต้นฉบับ" ที่สำรองไว้ ไม่ใช่แผนที่โดนตัดไปแล้วรอบก่อน */
+    const backup = checkin.applied ? (checkin.planBackup as ExercisePlanJson | null) : null;
+    const ep = backup ?? ((plan.exercisePlan as ExercisePlanJson | null) ?? {});
     const items = Array.isArray(ep.items) ? ep.items : [];
     const patternOf = await buildPatternOf(items);
     const adjusted = adjustPlanForReadiness(items, band, checkin.soreAreas, patternOf);
@@ -106,7 +113,9 @@ export async function POST(req: NextRequest) {
         data: {
           applied: true,
           appliedAt: new Date(),
-          planBackup: (plan.exercisePlan ?? Prisma.JsonNull) as Prisma.InputJsonValue,
+          appliedBand: band,
+          // สำรองไว้ครั้งแรกครั้งเดียว — ปรับซ้ำต้องยังกลับไปหาแผน "ก่อนแตะ" ได้เสมอ
+          ...(checkin.planBackup ? {} : { planBackup: (plan.exercisePlan ?? Prisma.JsonNull) as Prisma.InputJsonValue }),
         },
       }),
     ]);

@@ -10,7 +10,13 @@ export const PATTERNS = [
   "squat", "hinge", "push_h", "push_v", "pull_h", "pull_v", "lunge", "core", "carry", "cardio", "mobility",
 ];
 export const EQUIPMENT_NEEDED = [
-  "dumbbell", "barbell", "kettlebell", "band", "bench", "pullup_bar", "machine", "treadmill", "bike",
+  // 🔴 ต้องตรงกับ EQUIPMENT_TYPES ใน memberEquipment.ts และวงคำศัพท์ในสคริปต์ seed
+  "dumbbell", "barbell", "ez_bar", "kettlebell", "weight_plate", "sandbag", "ankle_weights",
+  "band", "trx", "battle_rope", "jump_rope",
+  "bench", "squat_rack", "pullup_bar", "dip_bar",
+  "stability_ball", "yoga_mat", "foam_roller", "medicine_ball",
+  "machine", "cable", "smith_machine", "leg_press",
+  "treadmill", "bike", "rowing_machine", "elliptical", "stair_climber",
 ];
 export const MUSCLE_TAGS = [
   "quads", "hamstrings", "glutes", "calves", "adductors", "hip_flexors",
