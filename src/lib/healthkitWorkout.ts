@@ -128,6 +128,66 @@ const HK_ENUM_KEY_TH: Record<string, string> = Object.fromEntries(
 );
 
 /**
+ * ชื่อ enum ของ **Health Connect** (Android) → ชื่อไทย
+ *
+ * 🔴 คนละชุดกับ HealthKit สิ้นเชิง ทั้งชื่อและตัวเลข — เคยเป็นบั๊กจริง:
+ *    แอป Android ส่งเลขดิบ `"56"` (HC = วิ่ง) ขึ้นมา แล้วฟังก์ชันข้างล่างเห็นตัวเลขล้วน
+ *    เลยตีความว่าเป็นรหัส HealthKit → ได้ชื่อกิจกรรมผิด
+ *    ตอนนี้ฝั่งแอปแปลงเป็นชื่ออังกฤษก่อนส่ง (coach-app/src/lib/healthAndroid.ts)
+ *    ตารางนี้จึงรับ "running" / "strength_training" ไม่ใช่ตัวเลข
+ *
+ * 🔴 รายชื่อคีย์ทั้ง 83 ตัวมาจาก `ExerciseType` ของ react-native-health-connect ตรง ๆ
+ *    (node -e "require('react-native-health-connect/lib/commonjs/constants.js')") ไม่ได้พิมพ์เอง
+ *    ที่แปลไทยคือชุดที่คนไทยใช้จริง ที่เหลือปล่อยตกไปที่ค่าสำรอง
+ */
+const HC_NAME_TH: Record<string, string> = {
+  running: "วิ่ง",
+  running_treadmill: "วิ่งลู่",
+  walking: "เดิน",
+  hiking: "เดินป่า",
+  biking: "ปั่นจักรยาน",
+  biking_stationary: "ปั่นจักรยานอยู่กับที่",
+  swimming_pool: "ว่ายน้ำ (สระ)",
+  swimming_open_water: "ว่ายน้ำ (แหล่งน้ำเปิด)",
+  strength_training: "เวทเทรนนิ่ง",
+  weightlifting: "ยกน้ำหนัก",
+  calisthenics: "ท่าตัวเปล่า",
+  boot_camp: "บูตแคมป์",
+  high_intensity_interval_training: "HIIT",
+  elliptical: "เครื่องเดินวงรี",
+  rowing: "พายเรือ",
+  rowing_machine: "เครื่องพายเรือ",
+  stair_climbing: "เดินขึ้นบันได",
+  stair_climbing_machine: "เครื่องเดินขึ้นบันได",
+  yoga: "โยคะ",
+  pilates: "พิลาทิส",
+  stretching: "ยืดเหยียด",
+  guided_breathing: "ฝึกหายใจ",
+  dancing: "เต้น",
+  martial_arts: "ศิลปะการต่อสู้",
+  boxing: "ชกมวย",
+  badminton: "แบดมินตัน",
+  tennis: "เทนนิส",
+  table_tennis: "ปิงปอง",
+  basketball: "บาสเกตบอล",
+  soccer: "ฟุตบอล",
+  volleyball: "วอลเลย์บอล",
+  golf: "กอล์ฟ",
+  rock_climbing: "ปีนผา",
+  skating: "สเก็ต",
+  skiing: "สกี",
+  snowboarding: "สโนว์บอร์ด",
+  surfing: "โต้คลื่น",
+  scuba_diving: "ดำน้ำลึก",
+  paddling: "พายเรือแคนู",
+  gymnastics: "ยิมนาสติก",
+  exercise_class: "คลาสออกกำลังกาย",
+  wheelchair: "วีลแชร์",
+  other_workout: HK_WORKOUT_FALLBACK,
+  workout: HK_WORKOUT_FALLBACK,
+};
+
+/**
  * ชื่อที่จะเก็บลง ExerciseLog.name
  * รับได้ทั้งเลข (52), สตริงตัวเลข ("52") และชื่อที่แอปส่งมาเป็นข้อความอยู่แล้ว ("เดินเร็ว")
  * ไม่รู้จัก → "ออกกำลังกาย (Watch)" (ดีกว่าโชว์รหัสดิบให้ user งง)
@@ -146,6 +206,9 @@ export function healthkitWorkoutName(type: unknown): string {
   // ชื่ออังกฤษของ enum (เผื่อแอปเวอร์ชันหลังส่งเป็น "walking" แทนตัวเลข)
   const byKey = HK_ENUM_KEY_TH[s.toLowerCase()];
   if (byKey) return byKey;
+  // ชื่อ enum ของ Health Connect (Android) — คนละชุดกับ HealthKit
+  const byHc = HC_NAME_TH[s.toLowerCase()];
+  if (byHc) return byHc;
   // ข้อความอื่น = แอปตั้งชื่อมาเองแล้ว ใช้ตามนั้น
   return s;
 }

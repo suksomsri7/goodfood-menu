@@ -55,6 +55,11 @@ export async function sendPush(memberId: string, payload: PushPayload, type = "s
     body: payload.body,
     data: payload.data || {},
     sound: "default",
+    /* 🔴 channelId ต้องตรงกับที่แอปสร้างไว้ใน coach-app/app/_layout.tsx (ensureAndroidChannel)
+       ไม่ส่งมา = Android เอาไปลงช่องทาง default ที่ importance ต่ำ → เข้าถาดเงียบ ๆ
+       ไม่เด้ง heads-up banner แบบ iOS (Fable QC WO-B8 · 29 ส.ค. 69)
+       ⚠️ iOS ไม่สนใจฟิลด์นี้ ส่งไปทุกเครื่องได้เลย ไม่ต้องแยกตามแพลตฟอร์ม */
+    channelId: "default",
     // ใส่เฉพาะเมื่อมีหมวดจริง — ส่ง undefined ไปด้วยไม่มีประโยชน์และทำ payload รก
     ...(payload.categoryId ? { categoryId: payload.categoryId } : {}),
   }));
