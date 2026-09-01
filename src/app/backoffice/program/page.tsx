@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Header } from "@/components/backoffice/Header";
 import { AlertTriangle, ChefHat, ChevronLeft, ChevronRight, Loader2, Package, Plus, Printer, Users, Utensils } from "lucide-react";
 import { CustomerSheet } from "./CustomerSheet";
+import { PtAlertsPanel } from "./PtAlertsPanel";
 import { KitchenView, KitchenSlot } from "./KitchenView";
 import { EnrollSheet } from "./EnrollSheet";
 import { useSearchParams } from "next/navigation";
@@ -109,9 +110,20 @@ export default function ProgramPage() {
   const [kitchen, setKitchen] = useState<KitchenSlot[]>([]);
   /** ลูกค้าที่กำลังเปิดโปรไฟล์อยู่ — null = ปิด */
   const [openCustomer, setOpenCustomer] = useState<{ id: string; name: string } | null>(null);
+  /** เปิดจากแถบเตือนสายเทรน = เปิดที่แท็บการเทรนเลย · เปิดจากรายชื่อปกติ = แท็บข้อมูลลูกค้า */
+  const [customerTab, setCustomerTab] = useState<"customer" | "training">("customer");
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [enrollPrefill, setEnrollPrefill] = useState<{ id: string; name: string | null; displayName: string | null; phone: string | null } | null>(null);
   const search = useSearchParams();
+
+  /* ลิงก์ตรงถึงคน (?member=<id>&name=...&tab=training) — ส่งต่อกันในทีมได้
+     คนรับลิงก์เปิดมาเจอโปรไฟล์คนนั้นเลย ไม่ต้องไล่หาชื่อในตารางเอง */
+  useEffect(() => {
+    const id = search?.get("member");
+    if (!id) return;
+    setOpenCustomer({ id, name: search?.get("name") ?? "ลูกค้า" });
+    setCustomerTab(search?.get("tab") === "training" ? "training" : "customer");
+  }, [search]);
 
   // มาจากหน้าสมาชิก (?enroll=<id>&name=...) → เปิดชีตพร้อมลูกค้าคนนั้นเลย ไม่ต้องค้นซ้ำ
   useEffect(() => {
@@ -181,6 +193,9 @@ export default function ProgramPage() {
       <Header title="คนในโปรแกรม" subtitle="ใครได้รับอาหารวันนี้ · ต้องการสารอาหารเท่าไร · ตักยังไง" />
 
       <div className="p-6 space-y-5">
+        {/* เรื่องค้างของสายเทรน — กดชื่อแล้วเปิดโปรไฟล์ที่แท็บการเทรนเลย ไม่ต้องไปหาเอง */}
+        <PtAlertsPanel onOpenMember={(m) => { setOpenCustomer(m); setCustomerTab("training"); }} />
+
         <div className="flex items-center gap-2 flex-wrap">
           {(
             [
@@ -524,7 +539,12 @@ export default function ProgramPage() {
       </div>
 
       {openCustomer && (
-        <CustomerSheet memberId={openCustomer.id} name={openCustomer.name} onClose={() => setOpenCustomer(null)} />
+        <CustomerSheet
+          memberId={openCustomer.id}
+          name={openCustomer.name}
+          initialTab={customerTab}
+          onClose={() => { setOpenCustomer(null); setCustomerTab("customer"); }}
+        />
       )}
       {enrollOpen && (
         <EnrollSheet

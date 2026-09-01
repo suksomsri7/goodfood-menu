@@ -32,6 +32,8 @@ import {
   itemsForSessionMin,
   matchesTag,
   KNOWN_TAGS,
+  TAG_KEYS,
+  tagLabel,
   normalizeInjuryInput,
   normalizeProfileInput,
   parqFlagFrom,
@@ -545,6 +547,16 @@ console.log("\n── 16. ความบริสุทธิ์ของเอ
   check("trainingProfile.ts: ไม่เรียกเวลาปัจจุบัน (รับ now เข้ามาเสมอ)", !/new Date\(\)|Date\.now\(/.test(code));
   check("trainingProfile.ts: ไม่ยิงเน็ต/ไม่เรียก AI", !/\bfetch\(|openai/i.test(code));
 }
+
+
+/* ── ป้ายไทยของแท็กชอบ/ไม่ชอบ ───────────────────────────────────────────
+   หน้าหลังบ้านเคยโชว์ค่าดิบ "strength, running" ให้แอดมินอ่าน — แท็กใหม่ที่ลืมใส่ป้าย
+   จะหลุดเป็นภาษาอังกฤษอีก ข้อสอบข้อนี้กันไว้ตั้งแต่ตอนเพิ่มกฎ */
+for (const k of TAG_KEYS) {
+  check(`แท็ก "${k}" มีป้ายไทย`, tagLabel(k) !== k && /[\u0E00-\u0E7F]/.test(tagLabel(k)) || k === "hiit", tagLabel(k));
+}
+check("ป้ายไทยรับคำไทยที่ผู้ใช้ส่งมาได้ด้วย", tagLabel("ว่ายน้ำ") === "ว่ายน้ำ", tagLabel("ว่ายน้ำ"));
+check("แท็กที่ไม่รู้จักคืนค่าเดิม ไม่กลืนหาย", tagLabel("zzz") === "zzz");
 
 console.log(`\n${failed === 0 ? "✅" : "❌"} ผ่าน ${total - failed}/${total} เคส`);
 process.exit(failed === 0 ? 0 : 1);

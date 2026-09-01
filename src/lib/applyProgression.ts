@@ -9,6 +9,7 @@
  *    ไฟล์นี้จึงแตะแค่ "ตัวเลข" ของท่าที่ผ่านด่านมาแล้ว ไม่เพิ่ม/เปลี่ยน/สลับท่าเอง
  */
 import { computeNextForKeys, type NextForKey } from "@/lib/progressionStore";
+import { pendingOverrides, markConsumed, type PendingOverrides } from "@/lib/ptOverride";
 import { capWeeklyVolume, deloadSets, type Rx } from "@/lib/progression";
 import type { DayPlan, ExercisePlanItem } from "@/lib/planGenerator";
 
@@ -18,7 +19,24 @@ export const DELOAD_NOTE = "สัปดาห์พักฟื้น — ล�
 /** ตัวเลือกที่ generator ส่งลงมาจาก TrainingProfile (เฟส D) */
 export interface ProgressionPlanOpts {
   repRange?: [number, number] | null;
+  /**
+   * ใบสั่งของโค้ชมนุษย์ที่อ่านมาแล้ว — ส่งเข้ามาเพื่อให้ทั้งสัปดาห์ใช้ชุดเดียวกัน
+   * ไม่ส่ง = ไฟล์นี้ไปอ่านเอง (ทางเรียกเดี่ยว ๆ ยังทำงานถูก)
+   */
+  overrides?: PendingOverrides;
 }
+
+/**
+ * ข้อความบอกลูกค้าว่าเลขนี้มาจากคน ไม่ใช่สูตร — ต้องเห็นในแอป ไม่ใช่รู้กันแค่หลังบ้าน
+ * 🔴 ต้อง "แทนที่" เหตุผลเดิมของ engine ไม่ใช่ต่อท้าย — เหตุผลเดิมพูดถึงน้ำหนักที่ไม่ได้ใช้แล้ว
+ *    ("ลดเหลือ 30 กก." ทั้งที่ใบสั่งเป็น 42.5) เอามาต่อกันตรง ๆ = ลูกค้าอ่านแล้วไม่รู้จะเชื่อเลขไหน
+ *    เลขเดิมยังมีค่าอยู่ จึงเก็บไว้ในวงเล็บว่า "ระบบเสนอไว้เท่าไร"
+ */
+export const COACH_SET_NOTE = (kg: number, engineKg?: number | null) =>
+  engineKg != null && engineKg !== kg
+    ? `โค้ชตั้งน้ำหนักให้เอง ${kg} กก. (ระบบเสนอไว้ ${engineKg} กก.)`
+    : `โค้ชตั้งน้ำหนักให้เอง ${kg} กก.`;
+export const COACH_DELOAD_NOTE = "โค้ชสั่งให้สัปดาห์นี้เป็นสัปดาห์พักฟื้น";
 
 export interface ApplyProgressionResult {
   items: ExercisePlanItem[];
@@ -64,13 +82,15 @@ export async function applyProgression(
   if (!keys.length) return { items, applied: 0, deloadWeek: false, capped: 0 };
 
   const nexts = await computeNextForKeys(memberId, keys, new Date(), { repRange: opts.repRange ?? null });
+  const ov = opts.overrides ?? (await pendingOverrides(memberId));
 
   // ── สัปดาห์พักฟื้นทั้งสัปดาห์: ท่าที่ใส่น้ำหนักได้ติด deload ตั้งแต่ครึ่งหนึ่งขึ้นไป ──
   const loadable = keys
     .map((k) => nexts.get(k))
     .filter((n): n is NextForKey => !!n && n.mode === "loadable" && !!n.next);
   const deloadHits = loadable.filter((n) => n.next?.deload).length;
-  const deloadWeek = loadable.length > 0 && deloadHits * 2 >= loadable.length;
+  // โค้ชสั่งพักฟื้น = พักฟื้น ไม่ต้องรอให้ครึ่งหนึ่งของท่าติดเงื่อนไขเอง
+  const deloadWeek = ov.forceDeload || (loadable.length > 0 && deloadHits * 2 >= loadable.length);
 
   let applied = 0;
   let out = items.map((item) => {
@@ -82,11 +102,12 @@ export async function applyProgression(
 
   // ทั้งสัปดาห์พักฟื้น = ทุกท่าลดปริมาณ 40% (รวมท่าที่ยังไม่มีข้อมูลของตัวเอง)
   if (deloadWeek) {
+    const note = ov.forceDeload ? `${COACH_DELOAD_NOTE} — ${DELOAD_NOTE}` : DELOAD_NOTE;
     out = out.map((item) => {
       const next: ExercisePlanItem = {
         ...item,
         deload: true,
-        rxReason: item.rxReason ? `${item.rxReason} · ${DELOAD_NOTE}` : DELOAD_NOTE,
+        rxReason: item.rxReason ? `${item.rxReason} · ${note}` : note,
       };
       // ท่านับเซ็ต → ตัดเซ็ต · ท่าที่วัดเป็นนาที (เดิน/คาร์ดิโอ) → ตัดนาทีด้วยสูตรเดียวกัน อย่างน้อย 5 นาที
       if (item.sets != null) next.sets = deloadSets(item.sets);
@@ -133,6 +154,20 @@ export async function applyProgression(
     });
   }
 
+  /* ── ใบสั่งน้ำหนักของโค้ชมนุษย์: ทับเป็นตัวสุดท้าย ──────────────────────────
+     วางไว้หลังเพดานปริมาณโดยตั้งใจ — เพดาน +10% เป็นกติกาที่ engine ใช้กันตัวเองเร่งเกิน
+     แต่คนที่ดูลูกค้าอยู่ตรงหน้าต้องสั่งทับได้ (ไม่งั้นปุ่มนี้ก็หลอกแอดมินว่าสั่งแล้ว)
+     ทับเฉพาะ "น้ำหนัก" · จำนวนเซ็ต/ครั้งยังเดินตามเพดานเดิม และไม่แตะท่าที่ไม่ได้สั่ง */
+  if (ov.weightByKey.size) {
+    out = out.map((item) => {
+      const kg = item.key ? ov.weightByKey.get(item.key) : undefined;
+      if (kg == null) return item;
+      return { ...item, weightKg: kg, rxReason: COACH_SET_NOTE(kg, item.weightKg ?? null) };
+    });
+  }
+  // ปั๊มว่าใช้แล้วเฉพาะตอนที่ไฟล์นี้อ่านเอง — ถ้าตัวเรียกส่งเข้ามา แปลว่าเขาคุมรอบชีวิตของใบสั่งเอง
+  if (!opts.overrides) await markConsumed(ov.ids);
+
   return { items: out, applied, deloadWeek, capped };
 }
 
@@ -154,7 +189,10 @@ export async function applyProgressionToWeek(
   }
   if (!flat.length) return { days, applied: 0, deloadWeek: false, capped: 0 };
 
-  const res = await applyProgression(memberId, flat, opts);
+  // อ่านใบสั่งของโค้ชครั้งเดียวต่อ 1 สัปดาห์ แล้วค่อยปั๊มว่าใช้แล้วตอนท้าย
+  // (ปล่อยให้ applyProgression อ่านเอง = ใบสั่งถูกปั๊มทิ้งตั้งแต่วันแรกของสัปดาห์)
+  const ov = opts.overrides ?? (await pendingOverrides(memberId));
+  const res = await applyProgression(memberId, flat, { ...opts, overrides: ov });
 
   const out = days.map((d, i) => {
     const span = spans[i];
@@ -165,6 +203,8 @@ export async function applyProgressionToWeek(
       aiNote: res.deloadWeek ? (d.aiNote ? `${DELOAD_NOTE} · ${d.aiNote}` : DELOAD_NOTE) : d.aiNote,
     };
   });
+
+  if (!opts.overrides) await markConsumed(ov.ids);
 
   return { days: out, applied: res.applied, deloadWeek: res.deloadWeek, capped: res.capped };
 }

@@ -110,6 +110,8 @@ model Member {
   bodyReports        BodyReport[]
   trainingProfile    TrainingProfile?
   injuryLimitations  InjuryLimitation[]
+  ptOverrides        PtOverride[]
+  ptAlerts           PtAlert[]
 
   @@map("members")
 }
@@ -1791,4 +1793,56 @@ model ExerciseVideoCandidate {
   @@unique([exerciseKey, videoId])
   @@index([status, priority, rank])
   @@map("exercise_video_candidates")
+}
+
+/// คำสั่งที่ "โค้ชมนุษย์" กดข้าม engine จากหลังบ้าน (WO-PT-ENGINE §7.3)
+/// 🔴 เก็บค่าก่อน/หลังทุกครั้ง — เวลาแผนของลูกค้าเพี้ยน ต้องแยกออกว่าเป็นฝีมือ engine หรือฝีมือคน
+///    ถ้าไม่เก็บ จะเหลือแต่ ProgressionState ที่ถูกทับไปแล้ว = สืบไม่ได้เลย
+model PtOverride {
+  id          String   @id @default(cuid())
+  memberId    String
+  /// null = คำสั่งระดับคน (เช่น ปลดสัปดาห์สอบเทียบ) · มีค่า = สั่งเฉพาะท่านั้น
+  exerciseKey String?
+  action      String // set_weight | reset_stall | force_deload | clear_calibration | note
+  before      Json?
+  after       Json?
+  note        String?
+  /// คำสั่งที่ต้องรอแผนรอบถัดไปถึงจะมีผล (set_weight / force_deload) — ใช้แล้วปั๊มเวลาไว้
+  /// null = ยังไม่ถูกใช้ · คำสั่งที่มีผลทันที (reset_stall ฯลฯ) ปั๊มตั้งแต่ตอนสร้าง
+  consumedAt  DateTime?
+  staffId     String
+  staffEmail  String
+  createdAt   DateTime @default(now())
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, createdAt])
+  @@index([memberId, consumedAt])
+  @@map("pt_overrides")
+}
+
+/// เรื่องที่แอดมินต้องรู้ก่อนลูกค้าบ่น (WO-PT-ENGINE §7.4) — นิ่งยาว / ความพร้อมตกติดกัน / เจ็บใหม่
+/// 🔴 `dedupeKey` คือหัวใจ: กติกาเดิมจะเข้าเงื่อนไข "จริง" ทุกวันจนกว่าจะแก้ ถ้าไม่กันซ้ำ
+///    Telegram จะเด้งเรื่องเดิมวันละครั้งจนไม่มีใครอ่าน (บทเรียนเดียวกับ push ที่เคยสแปม)
+model PtAlert {
+  id         String    @id @default(cuid())
+  memberId   String
+  kind       String // stall | readiness_low | new_injury
+  /// สิ่งที่ถูกเตือนถึง — exerciseKey / จุดที่เจ็บ / "-" สำหรับเรื่องระดับคน
+  subject    String    @default("-")
+  /// kind + subject + ช่วงเวลา — unique คู่กับ memberId เพื่อกันยิงซ้ำเรื่องเดิมในช่วงเดียวกัน
+  dedupeKey  String
+  /// ข้อความไทยที่ส่งออกจริง (เก็บไว้เพื่อให้หน้าหลังบ้านโชว์ตรงกับที่แจ้งไป)
+  message    String
+  detail     Json?
+  notifiedAt DateTime?
+  /// แอดมินกดว่า "ดูแล้ว/จัดการแล้ว" — ไม่ลบทิ้งเพราะประวัติมีค่าตอนรีวิวลูกค้า
+  resolvedAt DateTime?
+  resolvedBy String?
+  createdAt  DateTime  @default(now())
+  member     Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, dedupeKey])
+  @@index([memberId, createdAt])
+  @@index([resolvedAt, createdAt])
+  @@map("pt_alerts")
 }

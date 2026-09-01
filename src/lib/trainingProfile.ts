@@ -603,6 +603,29 @@ const TAG_ALIASES: Record<string, string> = {
  */
 export const KNOWN_TAGS: ReadonlySet<string> = new Set([...Object.keys(TAG_RULES), ...Object.keys(TAG_ALIASES)]);
 
+/**
+ * ชื่อไทยของแท็บ "ชอบ/ไม่ชอบ" — ต้องมีครบทุกคีย์ใน TAG_RULES
+ * 🔴 หน้าหลังบ้านเคยโชว์ค่าดิบ ("strength, running") ให้แอดมินอ่าน — คนอ่านหน้านั้นไม่ได้เขียนโค้ด
+ *    ค่าที่ผู้ใช้เลือกจากปุ่มภาษาไทย ต้องกลับมาเป็นภาษาไทยทุกที่ที่คนอ่าน
+ * (ป้ายชุดเดียวกับที่แอปใช้ใน trainingOptions.ts — มีข้อสอบกันหลุดใน test-training-profile.ts)
+ */
+const TAG_LABEL_TH: Record<string, string> = {
+  strength: "ยกเวท", cardio: "คาร์ดิโอ", hiit: "HIIT", stretching: "ยืดเหยียด", yoga: "โยคะ",
+  running: "วิ่ง", walking: "เดิน", cycling: "ปั่นจักรยาน", swimming: "ว่ายน้ำ",
+  boxing: "ชกมวย", rowing: "พายเรือ", stairs: "ขึ้นบันได",
+  squat: "สควอท", lunge: "ลันจ์", pushup: "วิดพื้น", pullup: "โหน/ดึงข้อ",
+  core: "หน้าท้อง", jumping: "ท่ากระโดด",
+};
+
+/** คีย์ทุกตัวที่ต้องมีป้ายไทย (ไว้ให้ข้อสอบยืนยัน) */
+export const TAG_KEYS: readonly string[] = Object.keys(TAG_RULES);
+
+/** แท็กหนึ่งตัว → ข้อความไทย · ไม่รู้จัก = คืนค่าเดิม (ดีกว่ากลืนหายไปเฉย ๆ) */
+export function tagLabel(tag: string): string {
+  const t = normalizeTag(tag);
+  return TAG_LABEL_TH[t] ?? tag;
+}
+
 export function normalizeTag(tag: string): string {
   const t = String(tag ?? "").trim().toLowerCase();
   return TAG_ALIASES[t] ?? t;
