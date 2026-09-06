@@ -15,6 +15,7 @@
 import { mergeOverrideRows, isDeferred, type OverrideRow } from "../src/lib/ptOverride";
 import { lowBandStreak, weekKey, READINESS_LOW_DAYS } from "../src/lib/ptAlerts";
 import { COACH_SET_NOTE } from "../src/lib/applyProgression";
+import { splitRemaining } from "../src/lib/exerciseVideoReview";
 
 let failed = 0;
 let total = 0;
@@ -140,6 +141,25 @@ const today = day(0);
   const wk = weekKey(today);
   const keys = [`stall:squat:${wk}`, `stall:bench:${wk}`, `readiness_low:${wk}`, `new_injury:inj_1`];
   check("กุญแจ 3 กติกาไม่ชนกัน", new Set(keys).size === keys.length);
+}
+
+// ── 4. คิวตรวจคลิป: "ครบ" ต้องแปลว่าครบจริง ───────────────────────────
+{
+  const noVideo = [{ key: "towel_row" }, { key: "split_jump" }, { key: "self_resist_curl" }];
+  // ข้ามไว้ก่อน = ยังไม่มีข้อสรุป → ต้องอยู่กองที่ต้องตามต่อ (บั๊ก 6 ก.ย. 69 นับเป็น "จบแล้ว")
+  const noneConcluded = splitRemaining(noVideo, new Set<string>());
+  check("ท่าที่ข้ามไว้ก่อนยังต้องตามต่อ", noneConcluded.stuck.length === 3 && noneConcluded.dismissed.length === 0);
+
+  const oneKilled = splitRemaining(noVideo, new Set(["self_resist_curl"]));
+  check("ท่าที่สั่งปิดถาวรออกจากกองที่ต้องตาม", oneKilled.stuck.length === 2, `${oneKilled.stuck.length}`);
+  check("แต่ยังถูกนับว่า 'ยังไม่มีคลิป' อยู่ ไม่หายเงียบ", oneKilled.dismissed.length === 1);
+
+  const allKilled = splitRemaining(noVideo, new Set(noVideo.map((n) => n.key)));
+  check("ปิดถาวรหมด = ไม่มีอะไรต้องตาม แต่ห้ามพูดว่าครบทุกท่า",
+    allKilled.stuck.length === 0 && allKilled.dismissed.length === 3);
+
+  const nothingLeft = splitRemaining([] as { key: string }[], new Set<string>());
+  check("ทุกท่ามีคลิปจริง = ครบทั้งสองกอง", nothingLeft.stuck.length === 0 && nothingLeft.dismissed.length === 0);
 }
 
 console.log(`\nรวม ${total} ข้อ · ผ่าน ${total - failed} · ตก ${failed}`);

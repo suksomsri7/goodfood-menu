@@ -7,12 +7,26 @@
  *
  * 🔴 สถานะทั้งหมดอยู่ใน DB — บอทรีสตาร์ทกี่ครั้งก็ไม่ส่งซ้ำ
  * 🔴 ส่งทีละใบ: ใบถัดไปออกเมื่อใบก่อนหน้าถูกกดแล้วเท่านั้น (แชทไม่ท่วม)
+ *
+ * 🔴 สถานะของ "ใบ" กับข้อสรุปของ "ท่า" คนละเรื่องกัน (บั๊กที่เจ้าของเจอ 6 ก.ย. 69):
+ *    เดิม `skipped` ถูกใช้ทั้งตอนเจ้าของกด "ข้ามไปก่อน" และตอนเก็บกวาดใบที่เหลือหลังกดผ่าน
+ *    แล้วโค้ดตีความว่า "ท่านี้จบแล้วตลอดกาล" → คลิปที่ระบบไปค้นมาใหม่ทีหลังไม่มีวันถูกส่ง
+ *    และบอทขึ้น "ตรวจครบทุกท่าแล้ว 🎉" ทุกวันทั้งที่ยังเหลือ 7 ท่า + ใบค้าง 166 ใบ
+ *    ตอนนี้แยกชัด:
+ *      · `skipped`   = ข้ามรอบนี้ · เจอคลิปใหม่เมื่อไหร่ส่งมาถามได้อีก
+ *      · `dismissed` = เจ้าของสั่งปิดถาวร · ห้ามถามอีก และห้ามเผาโควตาค้นให้
+ *    คำว่า "จบแล้ว" ต้องหมายถึง approved | dismissed เท่านั้น
  */
 import { prisma } from "@/lib/prisma";
 import { getSecret } from "@/lib/secrets/store";
 import { topUpCandidates, QuotaExceeded } from "@/lib/exerciseVideoSearch";
 
 const API = "https://api.telegram.org/bot";
+
+/** ท่าที่มีข้อสรุปแล้วจริง ๆ — ห้ามส่งการ์ดของท่านี้อีก */
+const CONCLUDED = ["approved", "dismissed"] as const;
+/** ใบที่ยังอยู่ในคิว (ยังไม่ถูกตัดสิน) */
+const LIVE = ["pending", "sent", "awaiting_link"] as const;
 
 async function creds() {
   const [token, chatId] = await Promise.all([
@@ -38,22 +52,50 @@ async function tg(method: string, body: Record<string, unknown>) {
 /** จำนวนที่เหลือ — ใส่ท้ายการ์ดให้รู้ว่าอีกกี่ท่า จะได้กะเวลาถูก */
 async function progress() {
   const [done, total] = await Promise.all([
-    prisma.exerciseVideoCandidate.groupBy({ by: ["exerciseKey"], where: { status: { in: ["approved", "skipped"] } } }),
+    prisma.exerciseVideoCandidate.groupBy({ by: ["exerciseKey"], where: { status: { in: [...CONCLUDED] } } }),
     prisma.exerciseVideoCandidate.groupBy({ by: ["exerciseKey"] }),
   ]);
   return { done: done.length, total: total.length };
 }
 
-/** ท่าที่ยังไม่ได้ข้อสรุป (ไม่เคยผ่าน/ไม่เคยข้าม) และตอนนี้ไม่มีตัวเลือกเหลือให้เสิร์ฟแล้ว */
+/**
+ * ท่าที่ยังไม่ได้ข้อสรุป และตอนนี้ไม่มีตัวเลือกเหลือให้เสิร์ฟแล้ว = "ค้างจริง ต้องมีคนช่วย"
+ * 🔴 "ข้ามไปก่อน" ไม่นับเป็นข้อสรุป — ท่าที่ข้ามไว้แล้วยังไม่มีคลิป ต้องโผล่ในลิสต์นี้เสมอ
+ *    ไม่งั้นมันหายไปจากสายตาทุกคนทั้งที่ยังไม่เสร็จ
+ */
+async function concludedKeys(): Promise<Set<string>> {
+  const rows = await prisma.exerciseVideoCandidate.findMany({
+    where: { status: { in: [...CONCLUDED] } },
+    select: { exerciseKey: true },
+    distinct: ["exerciseKey"],
+  });
+  return new Set(rows.map((r) => r.exerciseKey));
+}
+
+/**
+ * แยกท่าที่ยังไม่มีคลิปออกเป็น 2 กอง — ตัวตัดสินว่าจะพูดว่า "ครบ" ได้ไหม
+ * แยกเป็นฟังก์ชันบริสุทธิ์เพราะนี่คือจุดที่เคยโกหก (ขึ้น "ครบทุกท่า" ทั้งที่เหลือ 7 ท่า)
+ *   stuck     = ยังไม่มีข้อสรุป ต้องตามต่อ
+ *   dismissed = เจ้าของสั่งปิดถาวรเอง ไม่ต้องตาม แต่ยัง "ไม่มีคลิป" อยู่ดี ห้ามนับเป็นครบเงียบ ๆ
+ */
+export function splitRemaining<T extends { key: string }>(
+  noVideo: T[],
+  concluded: Set<string>,
+): { stuck: T[]; dismissed: T[] } {
+  return {
+    stuck: noVideo.filter((n) => !concluded.has(n.key)),
+    dismissed: noVideo.filter((n) => concluded.has(n.key)),
+  };
+}
+
 async function unresolvedKeys(): Promise<string[]> {
-  const [settled, all, pending] = await Promise.all([
-    prisma.exerciseVideoCandidate.findMany({ where: { status: { in: ["approved", "skipped"] } }, select: { exerciseKey: true }, distinct: ["exerciseKey"] }),
+  const [done, all, live] = await Promise.all([
+    concludedKeys(),
     prisma.exerciseVideoCandidate.findMany({ select: { exerciseKey: true }, distinct: ["exerciseKey"] }),
-    prisma.exerciseVideoCandidate.findMany({ where: { status: { in: ["pending", "sent", "awaiting_link"] } }, select: { exerciseKey: true }, distinct: ["exerciseKey"] }),
+    prisma.exerciseVideoCandidate.findMany({ where: { status: { in: [...LIVE] } }, select: { exerciseKey: true }, distinct: ["exerciseKey"] }),
   ]);
-  const done = new Set(settled.map((s) => s.exerciseKey));
-  const live = new Set(pending.map((p) => p.exerciseKey));
-  return all.map((a) => a.exerciseKey).filter((k) => !done.has(k) && !live.has(k));
+  const liveSet = new Set(live.map((p) => p.exerciseKey));
+  return all.map((a) => a.exerciseKey).filter((k) => !done.has(k) && !liveSet.has(k));
 }
 
 /**
@@ -70,14 +112,10 @@ export async function sendNextCard(onlyKey?: string): Promise<boolean> {
     if (waiting > 0) return false;
   }
 
-  /* ท่าที่ "จบแล้ว" = เคยกดผ่านหรือกดข้าม — ห้ามส่งใบของท่านั้นอีก
-     (ไม่งั้นกดข้ามแล้วยังโดนถามท่าเดิมซ้ำ ๆ) */
-  const settled = await prisma.exerciseVideoCandidate.findMany({
-    where: { status: { in: ["approved", "skipped"] } },
-    select: { exerciseKey: true },
-    distinct: ["exerciseKey"],
-  });
-  const settledKeys = settled.map((s) => s.exerciseKey);
+  /* ท่าที่ "จบแล้ว" = กดผ่าน หรือสั่งปิดถาวร — ห้ามส่งใบของท่านั้นอีก
+     🔴 "ข้ามไปก่อน" ไม่อยู่ในนี้: ตอนกดข้าม ใบที่ค้างอยู่ถูกปิดไปหมดแล้ว ท่านั้นจึงเงียบไปเอง
+        แต่พอระบบไปค้นคลิปใหม่มาได้ ต้องกลับมาถามได้อีก (ไม่งั้นใบใหม่ค้างตายอยู่ใน DB) */
+  const settledKeys = [...(await concludedKeys())];
 
   const next = await prisma.exerciseVideoCandidate.findFirst({
     where: {
@@ -109,24 +147,45 @@ export async function sendNextCard(onlyKey?: string): Promise<boolean> {
           ? `โควตาค้นหา YouTube ของวันนี้หมดแล้วครับ (รีเซ็ตประมาณบ่าย 2 เวลาไทย) — ตอนนี้ส่งลิงก์เองได้ หรือข้ามไว้ก่อน เดี๋ยวพรุ่งนี้ผมหาให้ใหม่ "${exName ?? onlyKey}"`
           : `หาคลิปของ "${exName ?? onlyKey}" เพิ่มแล้วแต่ไม่เจอที่ผ่านเกณฑ์ — ส่งลิงก์เองได้ หรือข้ามไว้ก่อนครับ`,
         reply_markup: {
-          inline_keyboard: [[
-            { text: "✏️ ใช้ลิงก์ที่ผมส่ง", callback_data: `xv:linkkey:${onlyKey}` },
-            { text: "⛔ ข้ามท่านี้", callback_data: `xv:skipkey:${onlyKey}` },
-          ]],
+          inline_keyboard: [
+            [
+              { text: "✏️ ใช้ลิงก์ที่ผมส่ง", callback_data: `xv:linkkey:${onlyKey}` },
+              { text: "⛔ ข้ามท่านี้", callback_data: `xv:skipkey:${onlyKey}` },
+            ],
+            [{ text: "🚫 ไม่เอาท่านี้ถาวร", callback_data: `xv:killkey:${onlyKey}` }],
+          ],
         },
       });
       return true; // ถือว่ามีของค้างให้ตัดสิน ไม่เดินหน้าไปท่าอื่นจนกว่าจะกด
     }
 
-    const stuck = await unresolvedKeys();
+    /* 🔴 ข้อความปิดท้ายต้องตัดสินจาก "ท่าที่ยังไม่มีคลิปจริง ๆ" ไม่ใช่จากคิวใบว่าง
+       ของเดิมดูแค่ว่าไม่มีใบให้ส่งแล้ว → ขึ้น "ครบทุกท่า 🎉" ทุกวันทั้งที่เหลือ 7 ท่า
+       บอกครบทั้งที่ไม่ครบ = ไม่มีใครไปตามงานที่เหลือต่อ ซึ่งแย่กว่าไม่ส่งข้อความเลย */
+    const [noVideo, done] = await Promise.all([
+      prisma.exercise.findMany({ where: { videoUrl: null, isActive: true }, select: { key: true, name: true } }),
+      concludedKeys(),
+    ]);
+    const { stuck, dismissed } = splitRemaining(noVideo, done);
+
     if (stuck.length) {
-      const names = await prisma.exercise.findMany({ where: { key: { in: stuck } }, select: { key: true, name: true } });
       await tg("sendMessage", {
         chat_id: chatId,
         text:
           `ตรวจของที่ผมหามาครบแล้ว แต่ยังเหลือ ${stuck.length} ท่าที่ยังไม่มีคลิป:\n` +
-          names.map((n) => `• ${n.name}`).join("\n") +
-          `\n\nกดปุ่มบนข้อความของท่านั้นเพื่อส่งลิงก์เอง หรือบอกผมให้ไปหามาเพิ่มก็ได้ครับ`,
+          stuck.map((n) => `• ${n.name}`).join("\n") +
+          `\n\nส่งลิงก์เองได้ หรือบอกผมว่า "หามาเพิ่ม" เดี๋ยวไปค้นให้ใหม่ครับ`,
+      });
+      return false;
+    }
+    if (dismissed.length) {
+      await tg("sendMessage", {
+        chat_id: chatId,
+        text:
+          `ตรวจครบทุกท่าที่เปิดไว้แล้วครับ 🎉\n` +
+          `เหลือ ${dismissed.length} ท่าที่คุณสั่งปิดถาวรไว้ (ยังไม่มีคลิป): ` +
+          dismissed.map((n) => n.name).join(" · ") +
+          `\nเปลี่ยนใจพิมพ์ "เปิดใหม่" ได้ครับ`,
       });
       return false;
     }
@@ -163,6 +222,7 @@ export async function sendNextCard(onlyKey?: string): Promise<boolean> {
         ],
         [{ text: "✏️ ใช้ลิงก์ที่ผมส่ง", callback_data: `xv:link:${next.id}` }],
         [{ text: "⛔ ข้ามท่านี้ไปก่อน", callback_data: `xv:skip:${next.id}` }],
+        [{ text: "🚫 ไม่เอาท่านี้ถาวร", callback_data: `xv:kill:${next.id}` }],
       ],
     },
   });
@@ -179,16 +239,23 @@ export async function handleDecision(data: string): Promise<string> {
   const [, action, id] = data.split(":");
 
   /* ปุ่มที่อ้างด้วย "ชื่อท่า" ไม่ใช่ใบ candidate — ใช้กับท่าที่หมดตัวเลือกแล้ว */
-  if (action === "linkkey" || action === "skipkey") {
+  if (action === "linkkey" || action === "skipkey" || action === "killkey") {
     const { chatId: cid } = await creds();
     const exName = (await prisma.exercise.findUnique({ where: { key: id }, select: { name: true } }))?.name ?? id;
-    if (action === "skipkey") {
+    if (action === "skipkey" || action === "killkey") {
+      const permanent = action === "killkey";
       await prisma.exerciseVideoCandidate.updateMany({
         where: { exerciseKey: id },
-        data: { status: "skipped", decidedAt: new Date() },
+        data: { status: permanent ? "dismissed" : "skipped", decidedAt: new Date() },
       });
+      if (permanent) {
+        await tg("sendMessage", {
+          chat_id: cid,
+          text: `🚫 ปิดท่า "${exName}" ถาวรแล้ว — จะไม่ถามอีกและไม่ไปค้นคลิปให้แล้ว\n(เปลี่ยนใจพิมพ์ "เปิดใหม่" ได้)`,
+        }).catch(() => {});
+      }
       await sendNextCard();
-      return "ข้ามท่านี้แล้ว";
+      return permanent ? "ปิดท่านี้ถาวรแล้ว" : "ข้ามท่านี้แล้ว";
     }
     // จองคิวรอลิงก์ด้วยใบที่ถูกปฏิเสธไปแล้วใบล่าสุด (ไม่ต้องสร้างแถวหลอก)
     const last = await prisma.exerciseVideoCandidate.findFirst({
@@ -245,6 +312,24 @@ export async function handleDecision(data: string): Promise<string> {
       text: `✏️ ส่งลิงก์ YouTube ของท่า "${exName ?? row.exerciseKey}" มาได้เลยครับ\n(ส่งข้อความถัดไปเป็นลิงก์ · พิมพ์ ยกเลิก เพื่อกลับไปเลือกจากที่ผมหามา)`,
     });
     return "รอลิงก์จากคุณครับ";
+  }
+
+  if (action === "kill") {
+    /* ปิดถาวร = ปิดทุกใบของท่านี้ รวมใบที่เคยถูกปฏิเสธไปแล้ว
+       (ถ้าปิดแค่ใบที่ยังไม่ตัดสิน ท่านี้จะกลับมาโผล่ทันทีที่ระบบค้นเจอใบใหม่) */
+    await prisma.exerciseVideoCandidate.updateMany({
+      where: { exerciseKey: row.exerciseKey },
+      data: { status: "dismissed", decidedAt: now },
+    });
+    if (row.messageId) {
+      await tg("editMessageCaption", {
+        chat_id: chatId,
+        message_id: row.messageId,
+        caption: `🚫 ปิดท่านี้ถาวร — ${row.exerciseKey}\n(เปลี่ยนใจพิมพ์ "เปิดใหม่")`,
+      }).catch(() => {});
+    }
+    await sendNextCard();
+    return "ปิดท่านี้ถาวรแล้ว";
   }
 
   if (action === "skip") {
@@ -341,15 +426,39 @@ export async function handleManualLink(text: string): Promise<{ handled: boolean
  *    เจ้าของพิมพ์แล้วเงียบ — บอกให้ทำอะไรได้ ต้องทำได้จริง
  */
 export async function handleCommand(text: string): Promise<{ handled: boolean; message?: string }> {
-  if (!/^(หามาเพิ่ม|หาเพิ่ม|หาใหม่)$/i.test(text.trim())) return { handled: false };
+  const cmd = text.trim();
 
-  const stuck = await unresolvedKeys();
-  const noVideo = await prisma.exercise.findMany({
-    where: { videoUrl: null },
-    select: { key: true, name: true },
-  });
-  const targets = [...new Set([...stuck, ...noVideo.map((n) => n.key)])];
-  if (!targets.length) return { handled: true, message: "ทุกท่ามีคลิปครบแล้วครับ 🎉" };
+  /* "เปิดใหม่" — ทางกลับของปุ่มปิดถาวร
+     🔴 การตัดสินใจถาวรต้องมีทางถอย ไม่งั้นกดพลาดครั้งเดียวแล้วท่านั้นหายจากระบบตลอดไป */
+  if (/^(เปิดใหม่|เปิดใหม)$/i.test(cmd)) {
+    const reopened = await prisma.exerciseVideoCandidate.updateMany({
+      where: { status: "dismissed" },
+      data: { status: "pending", decidedAt: null },
+    });
+    if (!reopened.count) return { handled: true, message: "ตอนนี้ไม่มีท่าที่ปิดถาวรไว้ครับ" };
+    await sendNextCard();
+    return { handled: true, message: `เปิดกลับมา ${reopened.count} ใบแล้วครับ` };
+  }
+
+  if (!/^(หามาเพิ่ม|หาเพิ่ม|หาใหม่)$/i.test(cmd)) return { handled: false };
+
+  const [stuck, noVideo, done] = await Promise.all([
+    unresolvedKeys(),
+    prisma.exercise.findMany({ where: { videoUrl: null, isActive: true }, select: { key: true, name: true } }),
+    concludedKeys(),
+  ]);
+  /* 🔴 ท่าที่สั่งปิดถาวรต้องไม่ถูกค้นให้ — ของเดิมยิงค้นทุกท่าที่ไม่มีคลิปทุกวัน
+     เผาโควตา YouTube ไปกับของที่เจ้าของบอกแล้วว่าไม่เอา */
+  const targets = [...new Set([...stuck, ...noVideo.map((n) => n.key)])].filter((k) => !done.has(k));
+  if (!targets.length) {
+    const dismissed = noVideo.filter((n) => done.has(n.key));
+    return {
+      handled: true,
+      message: dismissed.length
+        ? `ท่าที่เปิดไว้มีคลิปครบแล้วครับ 🎉 (ปิดถาวรไว้ ${dismissed.length} ท่า — พิมพ์ "เปิดใหม่" ถ้าอยากให้หาต่อ)`
+        : "ทุกท่ามีคลิปครบแล้วครับ 🎉",
+    };
+  }
 
   const { chatId } = await creds();
   let added = 0;
@@ -369,7 +478,7 @@ export async function handleCommand(text: string): Promise<{ handled: boolean; m
     };
   }
   if (!added) {
-    const names = noVideo.map((n) => n.name).join(" · ");
+    const names = noVideo.filter((n) => targets.includes(n.key)).map((n) => n.name).join(" · ");
     return { handled: true, message: `หาเพิ่มแล้วแต่ไม่เจอคลิปใหม่ที่ผ่านเกณฑ์ครับ (${names}) — ส่งลิงก์เองได้เลย` };
   }
 
